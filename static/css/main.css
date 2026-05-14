@@ -341,3 +341,19 @@ body {
 
 .btn-cancelar { padding: 14px 24px; border: 1px solid #333; color: #888; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; text-decoration: none; transition: all 0.2s; display: inline-block; }
 .btn-cancelar:hover { border-color: #666; color: #ccc; }
+
+.form-section-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #555;
+  margin: 32px 0 16px;
+  padding-top: 24px;
+  border-top: 1px solid #1e1e1e;
+}
+.form-section-hint {
+  font-size: 10px;
+  color: #444;
+  letter-spacing: 1px;
+  text-transform: none;
+}

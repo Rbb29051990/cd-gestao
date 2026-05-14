@@ -229,6 +229,47 @@ def minha_senha():
     return render_template('minha_senha.html', cliente=CLIENTE,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
+
+@app.route('/usuarios/<int:uid>/editar', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def editar_usuario(uid):
+    conn = get_db()
+    cur = conn.cursor()
+    if request.method == 'POST':
+        nome = request.form.get('nome', '').strip()
+        usuario = request.form.get('usuario', '').strip().lower()
+        perfil = request.form.get('perfil', 'vendedor')
+        nova_senha = request.form.get('nova_senha', '')
+        confirmar = request.form.get('confirmar_senha', '')
+        if not nome or not usuario:
+            flash('Nome e usuário são obrigatórios.', 'erro')
+        elif nova_senha and len(nova_senha) < 6:
+            flash('A senha deve ter pelo menos 6 caracteres.', 'erro')
+        elif nova_senha and nova_senha != confirmar:
+            flash('As senhas não coincidem.', 'erro')
+        else:
+            try:
+                if nova_senha:
+                    cur.execute("""UPDATE usuarios SET nome=%s, usuario=%s, perfil=%s, senha_hash=%s WHERE id=%s""",
+                                (nome, usuario, perfil, generate_password_hash(nova_senha), uid))
+                else:
+                    cur.execute("UPDATE usuarios SET nome=%s, usuario=%s, perfil=%s WHERE id=%s",
+                                (nome, usuario, perfil, uid))
+                conn.commit()
+                flash('Usuário atualizado com sucesso!', 'ok')
+                cur.close()
+                conn.close()
+                return redirect(url_for('usuarios'))
+            except Exception as e:
+                flash('Esse nome de usuário já existe.', 'erro')
+    cur.execute("SELECT id, nome, usuario, perfil FROM usuarios WHERE id=%s", (uid,))
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+    return render_template('usuario_editar.html', cliente=CLIENTE, user=user, uid=uid,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
 @app.route('/logout')
 def logout():
     session.clear()

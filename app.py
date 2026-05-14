@@ -101,6 +101,11 @@ def login():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    return redirect(url_for('visao_geral'))
+
+@app.route('/visao-geral')
+@login_required
+def visao_geral():
     hoje = datetime.now().strftime('%d de %B de %Y')
     meses = {'January':'Janeiro','February':'Fevereiro','March':'Março','April':'Abril',
              'May':'Maio','June':'Junho','July':'Julho','August':'Agosto',
@@ -111,7 +116,13 @@ def dashboard():
             'Thursday':'Quinta-feira','Friday':'Sexta-feira','Saturday':'Sábado','Sunday':'Domingo'}
     dia_semana = datetime.now().strftime('%A')
     hoje = dias.get(dia_semana, '') + ', ' + hoje
-    return render_template('dashboard.html', cliente=CLIENTE, hoje=hoje,
+    meses = {'January':'Janeiro','February':'Fevereiro','March':'Março','April':'Abril',
+             'May':'Maio','June':'Junho','July':'Julho','August':'Agosto',
+             'September':'Setembro','October':'Outubro','November':'Novembro','December':'Dezembro'}
+    mes_atual = datetime.now().strftime('%B / %Y')
+    for en, pt in meses.items():
+        mes_atual = mes_atual.replace(en, pt)
+    return render_template('visao_geral.html', cliente=CLIENTE, hoje=hoje, mes_atual=mes_atual,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
 @app.route('/usuarios')

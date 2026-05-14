@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo">{{ cliente.sigla }} · Gestão</div>
+    <div class="topbar-right">
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section">
+        <div class="nav-label">Principal</div>
+        <a href="/dashboard" class="nav-item">◈ Dashboard</a>
+      </div>
+    </nav>
+    <main class="main-content">
+      <div class="page-title">Alterar minha senha</div>
+      <div class="page-date">Mude sua senha de acesso</div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
+      {% endwith %}
+      <form method="POST" class="form-interno">
+        <div class="field"><label>Senha atual</label><input type="password" name="senha_atual" required></div>
+        <div class="field"><label>Nova senha (mín. 6 caracteres)</label><input type="password" name="nova_senha" required></div>
+        <div class="field"><label>Confirmar nova senha</label><input type="password" name="confirmar_senha" required></div>
+        <button type="submit" class="btn-entrar" style="width:auto;padding:14px 32px;margin-top:8px">Salvar</button>
+      </form>
+    </main>
+  </div>
+</div>
+{% endblock %}

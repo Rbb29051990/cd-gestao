@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo">{{ cliente.sigla }} · Gestão</div>
+    <div class="topbar-right">
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section">
+        <div class="nav-label">Principal</div>
+        <a href="/dashboard" class="nav-item">◈ Dashboard</a>
+        <a href="#" class="nav-item">◻ Vendas</a>
+        <a href="#" class="nav-item">◈ Estoque</a>
+        <a href="#" class="nav-item">◻ Clientes</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Financeiro</div>
+        <a href="#" class="nav-item">◻ Caixa</a>
+        <a href="#" class="nav-item">◻ Contas</a>
+        <a href="#" class="nav-item">◻ Fiados</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Gestão</div>
+        <a href="#" class="nav-item">◻ Inventário</a>
+        <a href="#" class="nav-item">◻ Relatórios</a>
+        <a href="/usuarios" class="nav-item active">◻ Usuários</a>
+      </div>
+    </nav>
+    <main class="main-content">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px">
+        <div>
+          <div class="page-title">Usuários</div>
+          <div class="page-date">Gerencie os acessos ao sistema</div>
+        </div>
+        <a href="/usuarios/novo" class="btn-acao">+ Novo usuário</a>
+      </div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            {% for u in usuarios %}
+            <tr>
+              <td>{{ u.nome }}</td>
+              <td>{{ u.usuario }}</td>
+              <td><span class="cd-badge {% if u.perfil == 'admin' %}ok{% else %}mid{% endif %}">{{ u.perfil }}</span></td>
+              <td><span class="cd-badge {% if u.ativo %}ok{% else %}low{% endif %}">{% if u.ativo %}Ativo{% else %}Inativo{% endif %}</span></td>
+              <td style="display:flex;gap:8px">
+                <a href="/usuarios/{{ u.id }}/senha" class="btn-sm">Redefinir senha</a>
+                <a href="/usuarios/{{ u.id }}/toggle" class="btn-sm btn-sm-danger">{% if u.ativo %}Desativar{% else %}Ativar{% endif %}</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+{% endblock %}

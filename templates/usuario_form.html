@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo">{{ cliente.sigla }} · Gestão</div>
+    <div class="topbar-right">
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section">
+        <div class="nav-label">Gestão</div>
+        <a href="/usuarios" class="nav-item active">◻ Usuários</a>
+      </div>
+    </nav>
+    <main class="main-content">
+      <div class="page-title">Novo usuário</div>
+      <div class="page-date">Preencha os dados do novo acesso</div>
+      {% if erro %}<div class="flash flash-erro">{{ erro }}</div>{% endif %}
+      <form method="POST" class="form-interno">
+        <div class="field"><label>Nome completo</label><input type="text" name="nome" required></div>
+        <div class="field"><label>Nome de usuário</label><input type="text" name="usuario" required></div>
+        <div class="field"><label>Senha (mín. 6 caracteres)</label><input type="password" name="senha" required></div>
+        <div class="field">
+          <label>Perfil</label>
+          <select name="perfil" class="field-select">
+            <option value="vendedor">Vendedor</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:8px">
+          <button type="submit" class="btn-entrar" style="width:auto;padding:14px 32px">Criar usuário</button>
+          <a href="/usuarios" class="btn-cancelar">Cancelar</a>
+        </div>
+      </form>
+    </main>
+  </div>
+</div>
+{% endblock %}

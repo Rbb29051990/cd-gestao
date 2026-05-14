@@ -1,16 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="dash-wrap">
-
   <div class="topbar">
     <div class="topbar-logo">{{ cliente.sigla }} · Gestão</div>
     <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout" style="margin-right:4px">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
       <div class="avatar">{{ nome[:2].upper() }}</div>
       <a href="/logout" class="btn-logout">Sair</a>
     </div>
   </div>
-
   <div class="dash-layout">
     <nav class="sidebar">
       <div class="nav-section">
@@ -31,59 +30,30 @@
         <a href="#" class="nav-item">◻ Inventário</a>
         <a href="#" class="nav-item">◻ Relatórios</a>
         {% if perfil == 'admin' %}
-        <a href="#" class="nav-item">◻ Usuários</a>
+        <a href="/usuarios" class="nav-item">◻ Usuários</a>
         {% endif %}
       </div>
     </nav>
-
     <main class="main-content">
       <div class="page-title">Visão geral</div>
       <div class="page-date">{{ hoje }}</div>
-
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
+      {% endwith %}
       <div class="cards">
-        <div class="card">
-          <div class="card-label">Vendas hoje</div>
-          <div class="card-value">R$ 0,00</div>
-          <div class="card-delta">nenhuma venda registrada</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Itens em estoque</div>
-          <div class="card-value">0</div>
-          <div class="card-delta">cadastre produtos</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Fiados em aberto</div>
-          <div class="card-value">R$ 0,00</div>
-          <div class="card-delta">nenhum fiado</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Caixa do dia</div>
-          <div class="card-value">—</div>
-          <div class="card-delta">caixa não aberto</div>
-        </div>
+        <div class="card"><div class="card-label">Vendas hoje</div><div class="card-value">R$ 0,00</div><div class="card-delta">nenhuma venda registrada</div></div>
+        <div class="card"><div class="card-label">Itens em estoque</div><div class="card-value">0</div><div class="card-delta">cadastre produtos</div></div>
+        <div class="card"><div class="card-label">Fiados em aberto</div><div class="card-value">R$ 0,00</div><div class="card-delta">nenhum fiado</div></div>
+        <div class="card"><div class="card-label">Caixa do dia</div><div class="card-value">—</div><div class="card-delta">caixa não aberto</div></div>
       </div>
-
       <div class="section-title">Movimentações recentes</div>
       <div class="table-wrap">
         <table class="table">
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th>Tipo</th>
-              <th>Qtd</th>
-              <th>Valor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colspan="5" class="empty-row">Nenhuma movimentação registrada ainda.</td>
-            </tr>
-          </tbody>
+          <thead><tr><th>Produto</th><th>Tipo</th><th>Qtd</th><th>Valor</th><th>Status</th></tr></thead>
+          <tbody><tr><td colspan="5" class="empty-row">Nenhuma movimentação registrada ainda.</td></tr></tbody>
         </table>
       </div>
     </main>
   </div>
-
 </div>
 {% endblock %}

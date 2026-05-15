@@ -1,5 +1,38 @@
 {% extends "base.html" %}
 {% block content %}
+
+<style>
+.auto { background: #f0f8f2 !important; border-color: #c8e6c9 !important; }
+.modal-overlay { position:fixed;inset:0;background:rgba(26,26,46,0.6);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px); }
+.modal { background:#fff;width:100%;max-width:640px;padding:40px;position:relative;max-height:92vh;overflow-y:auto;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+.modal-title { font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:#1a1a2e;margin-bottom:4px; }
+.modal-sub { font-size:11px;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:28px;font-weight:700; }
+.modal-close { position:absolute;top:20px;right:20px;background:#f4f4f6;border:none;color:#555;width:36px;height:36px;font-size:18px;cursor:pointer;border-radius:50%;font-weight:700; }
+.section-sep { font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:20px 0 14px;display:flex;align-items:center;gap:10px; }
+.section-sep::after { content:'';flex:1;height:1px;background:#eee; }
+.form-grid { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px; }
+.form-field { display:flex;flex-direction:column;gap:6px; }
+.form-field.span2 { grid-column:span 2; }
+.form-label { font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px; }
+.form-input { padding:13px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:15px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;transition:border-color 0.2s,background 0.2s;width:100%; }
+.form-input:focus { border-color:#1a1a2e;background:#fff; }
+.form-input::placeholder { color:#ccc; }
+.form-select { padding:13px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:15px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;cursor:pointer; }
+.form-select:focus { border-color:#1a1a2e;background:#fff; }
+.form-readonly { font-size:14px;color:#2e7d32;font-weight:700;padding:13px 14px;background:#f1f8f4;border:1.5px solid #c8e6c9;border-radius:8px; }
+.cep-wrap { position:relative; }
+.cep-spin { position:absolute;right:14px;top:50%;transform:translateY(-50%);display:none;font-size:14px; }
+.cep-hint { font-size:11px;color:#aaa;font-weight:500;margin-top:4px; }
+.form-row { display:flex;align-items:center;gap:16px;padding:14px 16px;border-radius:8px;border:1.5px solid #e8e8f0;background:#f8f8fc;flex-wrap:wrap; }
+.form-row-label { font-size:14px;font-weight:600;color:#333;flex:1;min-width:180px; }
+.toggle-wrap { display:flex;gap:8px; }
+.toggle-btn { padding:10px 22px;border:1.5px solid #ddd;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#aaa;border-radius:6px; }
+.toggle-btn.sim.active { background:#2e7d32;border-color:#2e7d32;color:#fff; }
+.toggle-btn.nao.active { background:#c62828;border-color:#c62828;color:#fff; }
+.modal-footer { display:flex;gap:12px;margin-top:8px;padding-top:20px;border-top:1.5px solid #eee; }
+.btn-salvar { padding:14px 32px;background:#1a1a2e;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;border-radius:8px;box-shadow:0 4px 14px rgba(26,26,46,0.25); }
+.btn-cancelar { padding:14px 24px;background:#f4f4f6;border:none;color:#888;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border-radius:8px; }
+</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo">
@@ -46,14 +79,14 @@
       </div>
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
       <div class="filtros">
-        <div class="busca"><input type="text" id="buscaInput" onkeyup="filtrarClientes()" placeholder="🔍  Buscar por nome, telefone, CPF..."></div>
+        <div class="busca"><input type="text" id="buscaInput" onkeyup="filtrarClientes()" placeholder="🔍  Buscar por nome, contato, CPF..."></div>
         <button class="filtro-btn active" onclick="setFiltro('todos', this)">Todos</button>
         <button class="filtro-btn" onclick="setFiltro('dia', this)">🎉 Aniversariantes do dia</button>
         <button class="filtro-btn" onclick="setFiltro('mes', this)">🎂 Aniversariantes do mês</button>
       </div>
       <div class="table-wrap">
         <table class="table" id="tabelaClientes">
-          <thead><tr><th>Cliente</th><th>Telefone</th><th>Endereço</th><th>Nascimento</th><th>Crediário</th><th>Promoções</th></tr></thead>
+          <thead><tr><th>Cliente</th><th>Contato</th><th>Endereço</th><th>Nascimento</th><th>Crediário</th><th>Promoções</th></tr></thead>
           <tbody>
             {% for c in clientes %}
             <tr onclick="window.location='/clientes/{{ c.id }}'" style="cursor:pointer"
@@ -65,7 +98,7 @@
                 <div><div class="cliente-nome">{{ c.nome }}</div><div class="cliente-cod">#CLI-{{ '%04d'|format(c.id) }}</div></div>
               </div></td>
               <td>{% if c.telefone %}<button class="tel-btn" onclick="event.stopPropagation();abrirTel('{{ c.telefone }}')">📱 {{ c.telefone }}</button>{% else %}—{% endif %}</td>
-              <td>{% if c.endereco %}<button class="end-btn" onclick="event.stopPropagation();abrirEnd('{{ c.endereco }}')">📍 {{ c.endereco[:25] }}...</button>{% else %}—{% endif %}</td>
+              <td>{% if c.cidade %}<button class="end-btn" onclick="event.stopPropagation();abrirEnd('{{ c.logradouro or '' }}, {{ c.numero or '' }} - {{ c.cidade }}/{{ c.uf or '' }}')">📍 {{ c.cidade }}{% if c.uf %}/{{ c.uf }}{% endif %}</button>{% else %}—{% endif %}</td>
               <td>{% if c.data_nascimento %}<span class="aniv">🎂 {{ c.data_nascimento.strftime('%d/%m/%Y') }}</span>{% else %}—{% endif %}</td>
               <td>{% if c.crediario %}<span class="badge badge-hab">✅ Habilitado</span>{% else %}<span class="badge badge-nao">— Não</span>{% endif %}</td>
               <td>{% if c.promocoes %}<span class="badge badge-sim">📢 Sim</span>{% else %}<span class="badge badge-naop">🔕 Não</span>{% endif %}</td>
@@ -82,17 +115,34 @@
 
 <div class="modal-overlay" id="modalCadastro" style="display:none">
   <div class="modal">
-    <button class="modal-close" onclick="document.getElementById('modalCadastro').style.display='none'">✕</button>
+    <button class="modal-close" onclick="fecharModal('modalCadastro')">✕</button>
     <div class="modal-title">Novo cliente</div>
     <div class="modal-sub">Preencha os dados abaixo</div>
     <form method="POST" action="/clientes/novo">
+      <div class="section-sep">Dados pessoais</div>
       <div class="form-grid">
         <div class="form-field span2"><span class="form-label">ID Cliente</span><div class="form-readonly">🔖 #CLI-{{ next_id }} — gerado automaticamente</div></div>
         <div class="form-field span2"><span class="form-label">Nome completo *</span><input class="form-input" type="text" name="nome" required placeholder="Nome completo do cliente"></div>
-        <div class="form-field"><span class="form-label">Data de nascimento</span><input class="form-input" type="date" name="data_nascimento" onchange="calcIdade(this)"><div class="idade-calc" id="idadeCalc"></div></div>
-        <div class="form-field"><span class="form-label">CPF</span><input class="form-input" type="text" name="cpf" placeholder="000.000.000-00"></div>
-        <div class="form-field span2"><span class="form-label">Telefone / WhatsApp</span><input class="form-input" type="text" name="telefone" placeholder="(00) 00000-0000" oninput="showTelHint(this)"><div class="hint" id="telHint" style="display:none"><a href="#">📞 Ligar</a><a href="#">💬 WhatsApp</a></div></div>
-        <div class="form-field span2"><span class="form-label">Endereço</span><input class="form-input" type="text" name="endereco" placeholder="Rua, número, bairro, cidade..." oninput="showEndHint(this)"><div class="hint hint-maps" id="endHint" style="display:none"><a href="#">📍 Abrir no Google Maps</a></div></div>
+        <div class="form-field"><span class="form-label">Data de nascimento</span><input class="form-input" type="date" name="data_nascimento" onchange="calcIdade(this)"><div id="idadeCalc" style="font-size:12px;color:#888;font-weight:600;margin-top:4px;min-height:16px"></div></div>
+        <div class="form-field"><span class="form-label">CPF</span><input class="form-input" type="text" name="cpf" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCPF(this)"></div>
+        <div class="form-field span2"><span class="form-label">Contato</span><input class="form-input" type="text" name="telefone" placeholder="(00) 00000-0000" maxlength="15" oninput="mascaraTel(this)"></div>
+      </div>
+      <div class="section-sep">Endereço</div>
+      <div class="form-grid">
+        <div class="form-field"><span class="form-label">CEP <span style="color:#bbb;font-weight:500;text-transform:none;letter-spacing:0;font-size:10px">(opcional)</span></span>
+          <div class="cep-wrap"><input class="form-input" type="text" name="cep" id="cepInput" placeholder="00000-000" maxlength="9" oninput="mascaraCEP(this)"><span class="cep-spin" id="cepSpin">⏳</span></div>
+          <div style="min-height:18px;margin-top:4px" id="cepStatus"></div>
+          <div class="cep-hint">Digite o CEP para preencher automaticamente ou preencha manualmente</div>
+        </div>
+        <div class="form-field"><span class="form-label">Número</span><input class="form-input" type="text" name="numero" id="endNumero" placeholder="Ex: 123"></div>
+        <div class="form-field span2"><span class="form-label">Logradouro</span><input class="form-input" type="text" name="logradouro" id="endRua" placeholder="Rua, Avenida, Travessa..."></div>
+        <div class="form-field"><span class="form-label">Complemento</span><input class="form-input" type="text" name="complemento" id="endComplemento" placeholder="Apto, casa, bloco..."></div>
+        <div class="form-field"><span class="form-label">Bairro</span><input class="form-input" type="text" name="bairro" id="endBairro" placeholder="Nome do bairro"></div>
+        <div class="form-field"><span class="form-label">Cidade</span><input class="form-input" type="text" name="cidade" id="endCidade" placeholder="Nome da cidade"></div>
+        <div class="form-field"><span class="form-label">UF</span><select class="form-select" name="uf" id="endUF"><option value="">--</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
+      </div>
+      <div class="section-sep">Preferências</div>
+      <div class="form-grid">
         <div class="form-field span2">
           <div class="form-row"><span class="form-row-label">Gostaria de receber promoções?</span>
             <div class="toggle-wrap">
@@ -114,12 +164,11 @@
       </div>
       <div class="modal-footer">
         <button type="submit" class="btn-salvar">💾 Salvar cliente</button>
-        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalCadastro').style.display='none'">Cancelar</button>
+        <button type="button" class="btn-cancelar" onclick="fecharModal('modalCadastro')">Cancelar</button>
       </div>
     </form>
   </div>
 </div>
-
 <div class="popup-overlay" id="popupTel" style="display:none">
   <div class="popup">
     <div class="popup-title">Contato</div>
@@ -128,10 +177,9 @@
       <button class="popup-btn ligar" onclick="ligar()"><span class="popup-btn-icon">📞</span>Ligar</button>
       <button class="popup-btn whats" onclick="whatsapp()"><span class="popup-btn-icon">💬</span>WhatsApp</button>
     </div>
-    <button class="popup-close" onclick="document.getElementById('popupTel').style.display='none'">Fechar</button>
+    <button class="popup-close" onclick="fecharModal('popupTel')">Fechar</button>
   </div>
 </div>
-
 <div class="popup-overlay" id="popupEnd" style="display:none">
   <div class="popup">
     <div class="popup-title">Abrir endereço em</div>
@@ -140,10 +188,67 @@
       <button class="popup-btn maps" onclick="abrirMaps()"><span class="popup-btn-icon">🗺️</span>Google Maps</button>
       <button class="popup-btn waze" onclick="abrirWaze()"><span class="popup-btn-icon">🚗</span>Waze</button>
     </div>
-    <button class="popup-close" onclick="document.getElementById('popupEnd').style.display='none'">Fechar</button>
+    <button class="popup-close" onclick="fecharModal('popupEnd')">Fechar</button>
   </div>
 </div>
-
+<script>
+function mascaraCPF(input) {
+  let v = input.value.replace(/[^0-9]/g,'').slice(0,11);
+  if (v.length > 9) v = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9);
+  else if (v.length > 6) v = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);
+  else if (v.length > 3) v = v.slice(0,3)+'.'+v.slice(3);
+  input.value = v;
+}
+function mascaraTel(input) {
+  let v = input.value.replace(/[^0-9]/g,'').slice(0,11);
+  if (v.length === 11) v = '('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);
+  else if (v.length === 10) v = '('+v.slice(0,2)+') '+v.slice(2,6)+'-'+v.slice(6);
+  else if (v.length > 2) v = '('+v.slice(0,2)+') '+v.slice(2);
+  else if (v.length > 0) v = '('+v;
+  input.value = v;
+}
+function mascaraCEP(input) {
+  let v = input.value.replace(/[^0-9]/g,'').slice(0,8);
+  if (v.length > 5) v = v.slice(0,5)+'-'+v.slice(5);
+  input.value = v;
+  if (v.replace('-','').length === 8) buscarCep(v.replace('-',''));
+}
+async function buscarCep(cep) {
+  document.getElementById('cepSpin').style.display = 'block';
+  document.getElementById('cepStatus').innerHTML = '<span style="color:#1565c0;font-size:12px;font-weight:600">🔍 Buscando...</span>';
+  try {
+    const r = await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+    const d = await r.json();
+    document.getElementById('cepSpin').style.display = 'none';
+    if (d.erro) {
+      document.getElementById('cepStatus').innerHTML = '<span style="color:#c62828;font-size:12px;font-weight:600">❌ CEP não encontrado — preencha os campos manualmente</span>';
+      return;
+    }
+    if (d.logradouro) { document.getElementById('endRua').value = d.logradouro; document.getElementById('endRua').classList.add('auto'); }
+    if (d.bairro) { document.getElementById('endBairro').value = d.bairro; document.getElementById('endBairro').classList.add('auto'); }
+    if (d.localidade) { document.getElementById('endCidade').value = d.localidade; document.getElementById('endCidade').classList.add('auto'); }
+    if (d.uf) { const sel = document.getElementById('endUF'); for (let o of sel.options) { if (o.value === d.uf) { o.selected = true; break; } } sel.classList.add('auto'); }
+    document.getElementById('cepStatus').innerHTML = '<span style="color:#2e7d32;font-size:12px;font-weight:600">✅ Endereço preenchido — você pode editar qualquer campo</span>';
+    document.getElementById('endNumero').focus();
+  } catch(e) {
+    document.getElementById('cepSpin').style.display = 'none';
+    document.getElementById('cepStatus').innerHTML = '<span style="color:#c62828;font-size:12px;font-weight:600">❌ Erro na busca — preencha os campos manualmente</span>';
+  }
+}
+function calcIdade(input) {
+  if (!input.value) return;
+  const hoje = new Date(), nasc = new Date(input.value);
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  if (hoje.getMonth() - nasc.getMonth() < 0 || (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate())) idade--;
+  document.getElementById('idadeCalc').textContent = '👤 ' + idade + ' anos';
+}
+function toggleBtn(btn, tipo, campo) {
+  btn.parentElement.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active','sim','nao'));
+  btn.classList.add('active', tipo);
+  document.getElementById(campo).value = tipo === 'sim' ? '1' : '0';
+}
+function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+</script>
 <script>
 var telAtual='', endAtual='';
 function setFiltro(tipo, btn) {
@@ -169,19 +274,5 @@ function ligar(){window.location='tel:'+telAtual.replace(/[^0-9]/g,'');}
 function whatsapp(){window.open('https://wa.me/55'+telAtual.replace(/[^0-9]/g,''),'_blank');}
 function abrirMaps(){window.open('https://maps.google.com/?q='+encodeURIComponent(endAtual),'_blank');}
 function abrirWaze(){window.open('https://waze.com/ul?q='+encodeURIComponent(endAtual),'_blank');}
-function calcIdade(input){
-  if(!input.value)return;
-  const hoje=new Date(),nasc=new Date(input.value);
-  let idade=hoje.getFullYear()-nasc.getFullYear();
-  if(hoje.getMonth()-nasc.getMonth()<0||(hoje.getMonth()===nasc.getMonth()&&hoje.getDate()<nasc.getDate()))idade--;
-  document.getElementById('idadeCalc').textContent='👤 Idade: '+idade+' anos';
-}
-function showTelHint(input){document.getElementById('telHint').style.display=input.value.length>8?'flex':'none';}
-function showEndHint(input){document.getElementById('endHint').style.display=input.value.length>5?'flex':'none';}
-function toggleBtn(btn,tipo,campo){
-  btn.parentElement.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active','sim','nao'));
-  btn.classList.add('active',tipo);
-  document.getElementById(campo).value=tipo==='sim'?'1':'0';
-}
 </script>
 {% endblock %}

@@ -56,7 +56,13 @@ def init_db():
             cpf VARCHAR(20),
             data_nascimento DATE,
             telefone VARCHAR(30),
-            endereco TEXT,
+            cep VARCHAR(10),
+            logradouro VARCHAR(200),
+            numero VARCHAR(20),
+            complemento VARCHAR(100),
+            bairro VARCHAR(100),
+            cidade VARCHAR(100),
+            uf VARCHAR(2),
             promocoes BOOLEAN DEFAULT TRUE,
             crediario BOOLEAN DEFAULT FALSE,
             ativo BOOLEAN DEFAULT TRUE,
@@ -64,6 +70,12 @@ def init_db():
             criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    for col_def in ['cep VARCHAR(10)', 'logradouro VARCHAR(200)', 'numero VARCHAR(20)',
+                    'complemento VARCHAR(100)', 'bairro VARCHAR(100)', 'cidade VARCHAR(100)', 'uf VARCHAR(2)']:
+        try:
+            cur.execute(f'ALTER TABLE clientes ADD COLUMN IF NOT EXISTS {col_def}')
+        except Exception:
+            pass
     conn.commit()
     cur.close()
     conn.close()
@@ -325,7 +337,13 @@ def novo_cliente():
     cpf = request.form.get('cpf','').strip()
     data_nascimento = request.form.get('data_nascimento') or None
     telefone = request.form.get('telefone','').strip()
-    endereco = request.form.get('endereco','').strip()
+    cep = request.form.get('cep','').strip()
+    logradouro = request.form.get('logradouro','').strip()
+    numero = request.form.get('numero','').strip()
+    complemento = request.form.get('complemento','').strip()
+    bairro = request.form.get('bairro','').strip()
+    cidade = request.form.get('cidade','').strip()
+    uf = request.form.get('uf','').strip()
     promocoes = request.form.get('promocoes','0') == '1'
     crediario = request.form.get('crediario','0') == '1'
     cor = random.choice(cores)
@@ -335,9 +353,9 @@ def novo_cliente():
     try:
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("""INSERT INTO clientes (nome,cpf,data_nascimento,telefone,endereco,promocoes,crediario,cor_avatar)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (nome,cpf or None,data_nascimento,telefone or None,endereco or None,promocoes,crediario,cor))
+        cur.execute("""INSERT INTO clientes (nome,cpf,data_nascimento,telefone,cep,logradouro,numero,complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (nome,cpf or None,data_nascimento,telefone or None,cep or None,logradouro or None,numero or None,complemento or None,bairro or None,cidade or None,uf or None,promocoes,crediario,cor))
         conn.commit()
         cur.close()
         conn.close()
@@ -373,12 +391,21 @@ def editar_cliente(cid):
         cpf = request.form.get('cpf','').strip()
         data_nascimento = request.form.get('data_nascimento') or None
         telefone = request.form.get('telefone','').strip()
-        endereco = request.form.get('endereco','').strip()
+        cep = request.form.get('cep','').strip()
+        logradouro = request.form.get('logradouro','').strip()
+        numero = request.form.get('numero','').strip()
+        complemento = request.form.get('complemento','').strip()
+        bairro = request.form.get('bairro','').strip()
+        cidade = request.form.get('cidade','').strip()
+        uf = request.form.get('uf','').strip()
         promocoes = request.form.get('promocoes','0') == '1'
         crediario = request.form.get('crediario','0') == '1'
         cur.execute("""UPDATE clientes SET nome=%s,cpf=%s,data_nascimento=%s,telefone=%s,
-                       endereco=%s,promocoes=%s,crediario=%s WHERE id=%s""",
-                    (nome,cpf or None,data_nascimento,telefone or None,endereco or None,promocoes,crediario,cid))
+                       cep=%s,logradouro=%s,numero=%s,complemento=%s,bairro=%s,cidade=%s,uf=%s,
+                       promocoes=%s,crediario=%s WHERE id=%s""",
+                    (nome,cpf or None,data_nascimento,telefone or None,cep or None,logradouro or None,
+                     numero or None,complemento or None,bairro or None,cidade or None,uf or None,
+                     promocoes,crediario,cid))
         conn.commit()
         cur.close()
         conn.close()

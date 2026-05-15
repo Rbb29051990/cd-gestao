@@ -3,6 +3,7 @@ from datetime import datetime
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import random
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -48,6 +49,21 @@ def init_db():
             INSERT INTO usuarios (nome, usuario, senha_hash, perfil)
             VALUES (%s, %s, %s, %s)
         ''', ('Carol Duarte', 'carol', generate_password_hash('carol123'), 'admin'))
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS clientes (
+            id SERIAL PRIMARY KEY,
+            nome VARCHAR(200) NOT NULL,
+            cpf VARCHAR(20),
+            data_nascimento DATE,
+            telefone VARCHAR(30),
+            endereco TEXT,
+            promocoes BOOLEAN DEFAULT TRUE,
+            crediario BOOLEAN DEFAULT FALSE,
+            ativo BOOLEAN DEFAULT TRUE,
+            cor_avatar VARCHAR(10) DEFAULT '#2e7d32',
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     cur.close()
     conn.close()
@@ -279,6 +295,100 @@ def editar_usuario(uid):
     cur.close()
     conn.close()
     return render_template('usuario_editar.html', cliente=CLIENTE, user=user, uid=uid,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
+
+@app.route('/clientes')
+@login_required
+def clientes():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM clientes WHERE ativo = TRUE ORDER BY nome")
+    rows = cur.fetchall()
+    cur.execute("SELECT COUNT(*) as total FROM clientes WHERE ativo = TRUE")
+    total = cur.fetchone()['total']
+    cur.close()
+    conn.close()
+    next_id = total + 1
+    for r in rows:
+        partes = r['nome'].split()
+        r['iniciais'] = (partes[0][0] + (partes[1][0] if len(partes) > 1 else partes[0][1])).upper()
+    return render_template('clientes.html', cliente=CLIENTE, clientes=rows, next_id=next_id,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
+@app.route('/clientes/novo', methods=['POST'])
+@login_required
+def novo_cliente():
+    import random
+    cores = ['#2e7d32','#1565c0','#6a1b9a','#c62828','#e65100','#00695c','#283593','#4a148c']
+    nome = request.form.get('nome','').strip()
+    cpf = request.form.get('cpf','').strip()
+    data_nascimento = request.form.get('data_nascimento') or None
+    telefone = request.form.get('telefone','').strip()
+    endereco = request.form.get('endereco','').strip()
+    promocoes = request.form.get('promocoes','0') == '1'
+    crediario = request.form.get('crediario','0') == '1'
+    cor = random.choice(cores)
+    if not nome:
+        flash('Nome é obrigatório.', 'erro')
+        return redirect(url_for('clientes'))
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""INSERT INTO clientes (nome,cpf,data_nascimento,telefone,endereco,promocoes,crediario,cor_avatar)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (nome,cpf or None,data_nascimento,telefone or None,endereco or None,promocoes,crediario,cor))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Cliente cadastrado com sucesso!', 'ok')
+    except Exception as e:
+        flash(f'Erro ao cadastrar cliente: {e}', 'erro')
+    return redirect(url_for('clientes'))
+
+@app.route('/clientes/<int:cid>')
+@login_required
+def ficha_cliente(cid):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM clientes WHERE id = %s", (cid,))
+    c = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not c:
+        flash('Cliente não encontrado.', 'erro')
+        return redirect(url_for('clientes'))
+    partes = c['nome'].split()
+    c['iniciais'] = (partes[0][0] + (partes[1][0] if len(partes) > 1 else partes[0][1])).upper()
+    return render_template('ficha_cliente.html', cliente=CLIENTE, c=c,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
+@app.route('/clientes/<int:cid>/editar', methods=['GET','POST'])
+@login_required
+def editar_cliente(cid):
+    conn = get_db()
+    cur = conn.cursor()
+    if request.method == 'POST':
+        nome = request.form.get('nome','').strip()
+        cpf = request.form.get('cpf','').strip()
+        data_nascimento = request.form.get('data_nascimento') or None
+        telefone = request.form.get('telefone','').strip()
+        endereco = request.form.get('endereco','').strip()
+        promocoes = request.form.get('promocoes','0') == '1'
+        crediario = request.form.get('crediario','0') == '1'
+        cur.execute("""UPDATE clientes SET nome=%s,cpf=%s,data_nascimento=%s,telefone=%s,
+                       endereco=%s,promocoes=%s,crediario=%s WHERE id=%s""",
+                    (nome,cpf or None,data_nascimento,telefone or None,endereco or None,promocoes,crediario,cid))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('Cliente atualizado com sucesso!', 'ok')
+        return redirect(url_for('ficha_cliente', cid=cid))
+    cur.execute("SELECT * FROM clientes WHERE id = %s", (cid,))
+    c = cur.fetchone()
+    cur.close()
+    conn.close()
+    return render_template('editar_cliente.html', cliente=CLIENTE, c=c,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
 @app.route('/logout')

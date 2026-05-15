@@ -17,7 +17,7 @@
     <nav class="sidebar">
       <div class="nav-section">
         <div class="nav-label">Principal</div>
-        <a href="/visao-geral" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
+        <a href="/visao-geral" class="nav-item "><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
         <a href="/clientes" class="nav-item "><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><path d="M15 13c2.5 0 4 1.5 4 4" stroke="#6a1b9a" stroke-width="1.4" stroke-linecap="round"/></svg> Clientes</a>
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
@@ -37,35 +37,51 @@
       </div>
     </nav>
     <main class="main-content">
-      <div class="page-title">Visão Geral</div>
-      <div class="page-date">{{ hoje }}</div>
-      <div class="page-mes">📅 Período: {{ mes_atual }}</div>
+      <a href="/clientes/{{ c.id }}" class="voltar-btn">← Voltar para ficha</a>
+      <div class="page-title" style="margin-bottom:4px">Editar cliente</div>
+      <div class="page-date" style="margin-bottom:24px">{{ c.nome }}</div>
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div class="dash-grid">
-        <div class="card-fat">
-          <div class="card-title"><div class="card-title-dot" style="background:#2e7d32"></div>Faturamento bruto</div>
-          <div class="fat-row"><span class="fat-label">Dinheiro</span><span class="fat-value">R$ 0,00</span></div>
-          <div class="fat-row"><span class="fat-label">Pix</span><span class="fat-value">R$ 0,00</span></div>
-          <div class="fat-row"><span class="fat-label">Débito</span><span class="fat-value">R$ 0,00</span></div>
-          <div class="fat-row"><span class="fat-label">Crédito à vista</span><span class="fat-value">R$ 0,00</span></div>
-          <div class="fat-row"><span class="fat-label">Crédito parcelado</span><span class="fat-value">R$ 0,00</span></div>
-          <div class="fat-row"><span class="fat-label">Link de pagamento</span><span class="fat-value">R$ 0,00</span></div>
-          <div class="fat-total-row"><span class="fat-total-label">Total do mês</span><span class="fat-total-value">R$ 0,00</span></div>
-        </div>
-        <div class="cards-right">
-          <div class="card-sm estoque"><div class="card-sm-title"><div class="card-title-dot" style="background:#1565c0"></div>Valor total em estoque</div><div class="card-sm-value">R$ 0,00</div></div>
-          <div class="card-sm fiados"><div class="card-sm-title"><div class="card-title-dot" style="background:#c0396b"></div>Valor total de fiados em aberto</div><div class="card-sm-value">R$ 0,00</div></div>
-          <div class="card-sm saidas"><div class="card-sm-title"><div class="card-title-dot" style="background:#f9a825"></div>Valor total de saídas avulsas</div><div class="card-sm-value">R$ 0,00</div></div>
-        </div>
-      </div>
-      <div class="section-title">Movimentações recentes</div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead><tr><th>Cód. item</th><th>Cliente</th><th>Valor</th><th>Forma de pagamento</th></tr></thead>
-          <tbody><tr><td colspan="4" class="empty-row">Nenhuma movimentação registrada ainda.</td></tr></tbody>
-        </table>
+      <div class="table-wrap" style="padding:32px">
+        <form method="POST">
+          <div class="form-grid">
+            <div class="form-field span2"><span class="form-label">Nome completo *</span><input class="form-input" type="text" name="nome" value="{{ c.nome }}" required></div>
+            <div class="form-field"><span class="form-label">Data de nascimento</span><input class="form-input" type="date" name="data_nascimento" value="{{ c.data_nascimento or '' }}"></div>
+            <div class="form-field"><span class="form-label">CPF</span><input class="form-input" type="text" name="cpf" value="{{ c.cpf or '' }}" placeholder="000.000.000-00"></div>
+            <div class="form-field span2"><span class="form-label">Telefone / WhatsApp</span><input class="form-input" type="text" name="telefone" value="{{ c.telefone or '' }}" placeholder="(00) 00000-0000"></div>
+            <div class="form-field span2"><span class="form-label">Endereço</span><input class="form-input" type="text" name="endereco" value="{{ c.endereco or '' }}" placeholder="Rua, número, bairro, cidade..."></div>
+            <div class="form-field span2">
+              <div class="form-row"><span class="form-row-label">Gostaria de receber promoções?</span>
+                <div class="toggle-wrap">
+                  <button type="button" class="toggle-btn sim {% if c.promocoes %}active{% endif %}" onclick="toggleBtn(this,'sim','promocoes')">✅ Sim</button>
+                  <button type="button" class="toggle-btn nao {% if not c.promocoes %}active{% endif %}" onclick="toggleBtn(this,'nao','promocoes')">🔕 Não</button>
+                </div>
+              </div>
+              <input type="hidden" name="promocoes" id="promocoes" value="{{ '1' if c.promocoes else '0' }}">
+            </div>
+            <div class="form-field span2">
+              <div class="form-row"><span class="form-row-label">Habilitado para crediário da loja?</span>
+                <div class="toggle-wrap">
+                  <button type="button" class="toggle-btn sim {% if c.crediario %}active{% endif %}" onclick="toggleBtn(this,'sim','crediario')">✅ Sim</button>
+                  <button type="button" class="toggle-btn nao {% if not c.crediario %}active{% endif %}" onclick="toggleBtn(this,'nao','crediario')">🔕 Não</button>
+                </div>
+              </div>
+              <input type="hidden" name="crediario" id="crediario" value="{{ '1' if c.crediario else '0' }}">
+            </div>
+          </div>
+          <div class="modal-footer" style="border:none;padding-top:16px">
+            <button type="submit" class="btn-salvar">💾 Salvar alterações</button>
+            <a href="/clientes/{{ c.id }}" class="btn-cancelar" style="text-decoration:none;display:inline-block;padding:14px 24px">Cancelar</a>
+          </div>
+        </form>
       </div>
     </main>
   </div>
 </div>
+<script>
+function toggleBtn(btn,tipo,campo){
+  btn.parentElement.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active','sim','nao'));
+  btn.classList.add('active',tipo);
+  document.getElementById(campo).value=tipo==='sim'?'1':'0';
+}
+</script>
 {% endblock %}

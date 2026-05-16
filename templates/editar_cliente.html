@@ -1,11 +1,52 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+.auto{background:#f0f8f2!important;border-color:#c8e6c9!important}
+.checando{border-color:#1565c0!important}
+.ok-field{border-color:#2e7d32!important;background:#f0f8f2!important}
+.erro-field{border-color:#c62828!important;background:#fff8f8!important}
+.campo-msg{font-size:12px;font-weight:600;margin-top:3px;min-height:18px}
+.section-sep{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:20px 0 14px;display:flex;align-items:center;gap:10px}
+.section-sep::after{content:'';flex:1;height:1px;background:#eee}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-field.span2{grid-column:span 2}
+.form-label{font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px}
+.form-input{padding:13px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:15px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;transition:all 0.2s;width:100%}
+.form-input:focus{border-color:#1a1a2e;background:#fff}
+.form-input::placeholder{color:#ccc}
+.form-select{padding:13px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:15px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;cursor:pointer}
+.cep-wrap{position:relative}
+.cep-spin{position:absolute;right:14px;top:50%;transform:translateY(-50%);display:none;font-size:14px}
+.cep-hint{font-size:11px;color:#aaa;font-weight:500;margin-top:4px}
+.contatos-wrap{display:flex;flex-direction:column;gap:8px}
+.contato-row{display:flex;align-items:center;gap:8px}
+.contato-row .form-input{flex:1;margin:0}
+.btn-remove{width:36px;height:36px;border:1.5px solid #fce4ec;background:#fce4ec;color:#c62828;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.btn-add-contato{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border:1.5px dashed #c0c0d0;background:transparent;color:#888;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border-radius:8px;margin-top:6px;transition:all 0.2s}
+.btn-add-contato:hover{border-color:#1a1a2e;color:#1a1a2e;background:#f8f8fc}
+.form-row{display:flex;align-items:center;gap:16px;padding:14px 16px;border-radius:8px;border:1.5px solid #e8e8f0;background:#f8f8fc;flex-wrap:wrap}
+.form-row-label{font-size:14px;font-weight:600;color:#333;flex:1;min-width:180px}
+.toggle-wrap{display:flex;gap:8px}
+.toggle-btn{padding:10px 22px;border:1.5px solid #ddd;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#aaa;border-radius:6px}
+.toggle-btn.sim.active{background:#2e7d32;border-color:#2e7d32;color:#fff}
+.toggle-btn.nao.active{background:#c62828;border-color:#c62828;color:#fff}
+.modal-footer{display:flex;gap:12px;align-items:center;margin-top:8px;padding-top:20px;border-top:1.5px solid #eee;flex-wrap:wrap}
+.btn-salvar{padding:14px 28px;background:#1a1a2e;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;box-shadow:0 4px 14px rgba(26,26,46,0.2)}
+.btn-excluir{padding:14px 20px;background:#fce4ec;color:#c62828;border:1.5px solid #f5c6d0;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;display:flex;align-items:center;gap:7px;margin-left:auto}
+.btn-excluir:hover{background:#f8bbd0}
+.confirm-overlay{position:fixed;inset:0;background:rgba(26,26,46,0.6);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px)}
+.confirm-box{background:#fff;border-radius:16px;padding:36px 32px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center}
+.confirm-icon{font-size:44px;margin-bottom:14px}
+.confirm-title{font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:10px}
+.confirm-sub{font-size:14px;color:#888;margin-bottom:28px;line-height:1.6}
+.confirm-btns{display:flex;gap:12px;justify-content:center}
+.btn-sim{padding:13px 36px;background:#c62828;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer}
+.btn-nao-exc{padding:13px 36px;background:#f4f4f6;color:#555;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer}
+</style>
 <div class="dash-wrap">
   <div class="topbar">
-    <div class="topbar-logo">
-      <span class="topbar-logo-main">CD · GESTÃO</span>
-      <span class="topbar-logo-sub">Empresarial</span>
-    </div>
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
       <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
@@ -17,8 +58,8 @@
     <nav class="sidebar">
       <div class="nav-section">
         <div class="nav-label">Principal</div>
-        <a href="/visao-geral" class="nav-item "><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
-        <a href="/clientes" class="nav-item "><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><path d="M15 13c2.5 0 4 1.5 4 4" stroke="#6a1b9a" stroke-width="1.4" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><path d="M15 13c2.5 0 4 1.5 4 4" stroke="#6a1b9a" stroke-width="1.4" stroke-linecap="round"/></svg> Clientes</a>
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
       </div>
@@ -33,7 +74,7 @@
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 11 m-8 0 a8 8 0 0 1 8-8" stroke="#1565c0" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m0-8 a8 8 0 0 1 6.9 4" stroke="#e53935" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9-4 a8 8 0 0 1 0 8" stroke="#2e7d32" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9 4 a8 8 0 0 1-13.8 0" stroke="#f9a825" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="11" cy="11" r="3" fill="#fff" stroke="#ddd" stroke-width="1"/></svg> Inventário</a>
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><polyline points="3,17 8,10 12,13 17,6 20,8" stroke="#2e7d32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17h16" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/><circle cx="20" cy="8" r="1.5" fill="#2e7d32"/></svg> Relatórios</a>
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/><path d="M2 11 L7 6 L12 9 L20 2" stroke="#f9a825" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item "><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
       </div>
     </nav>
     <main class="main-content">
@@ -43,12 +84,60 @@
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
       <div class="table-wrap" style="padding:32px">
         <form method="POST">
+          <div class="section-sep">Dados pessoais</div>
           <div class="form-grid">
-            <div class="form-field span2"><span class="form-label">Nome completo *</span><input class="form-input" type="text" name="nome" value="{{ c.nome }}" required></div>
-            <div class="form-field"><span class="form-label">Data de nascimento</span><input class="form-input" type="date" name="data_nascimento" value="{{ c.data_nascimento or '' }}"></div>
-            <div class="form-field"><span class="form-label">CPF</span><input class="form-input" type="text" name="cpf" value="{{ c.cpf or '' }}" placeholder="000.000.000-00"></div>
-            <div class="form-field span2"><span class="form-label">Telefone / WhatsApp</span><input class="form-input" type="text" name="telefone" value="{{ c.telefone or '' }}" placeholder="(00) 00000-0000"></div>
-            <div class="form-field span2"><span class="form-label">Endereço</span><input class="form-input" type="text" name="endereco" value="{{ c.endereco or '' }}" placeholder="Rua, número, bairro, cidade..."></div>
+            <div class="form-field span2">
+              <span class="form-label">Nome completo *</span>
+              <input class="form-input" type="text" name="nome" value="{{ c.nome }}" required oninput="verificarCampo(this,'nome',{{ c.id }})">
+              <div class="campo-msg" id="nomeMsg"></div>
+            </div>
+            <div class="form-field">
+              <span class="form-label">Data de nascimento</span>
+              <input class="form-input" type="date" name="data_nascimento" value="{{ c.data_nascimento or '' }}" onchange="calcIdade(this)">
+              <div style="font-size:12px;color:#888;font-weight:600;margin-top:3px;min-height:16px" id="idadeCalc"></div>
+            </div>
+            <div class="form-field">
+              <span class="form-label">CPF</span>
+              <input class="form-input" type="text" name="cpf" value="{{ c.cpf or '' }}" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCPF(this);verificarCampo(this,'cpf',{{ c.id }})">
+              <div class="campo-msg" id="cpfMsg"></div>
+            </div>
+          </div>
+          <div class="section-sep">Contatos</div>
+          <div class="form-field" style="margin-bottom:14px">
+            <span class="form-label">Contato(s)</span>
+            <div class="contatos-wrap" id="contatosWrap">
+              <div class="contato-row">
+                <input class="form-input" type="text" name="telefone" value="{{ c.telefone or '' }}" placeholder="(00) 00000-0000" maxlength="15" oninput="mascaraTel(this);verificarCampo(this,'telefone',{{ c.id }})">
+              </div>
+              {% if c.telefone2 %}
+              <div class="contato-row">
+                <input class="form-input" type="text" name="telefone2" value="{{ c.telefone2 }}" placeholder="(00) 00000-0000" maxlength="15" oninput="mascaraTel(this)">
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove()">✕</button>
+              </div>
+              {% endif %}
+            </div>
+            <button type="button" class="btn-add-contato" onclick="addContato()">＋ Adicionar outro contato</button>
+            <div class="campo-msg" id="telefoneMsg"></div>
+          </div>
+          <div class="section-sep">Endereço</div>
+          <div class="form-grid">
+            <div class="form-field">
+              <span class="form-label">CEP <span style="color:#bbb;text-transform:none;letter-spacing:0;font-weight:500">(opcional)</span></span>
+              <div class="cep-wrap"><input class="form-input" type="text" name="cep" id="cepInput" placeholder="00000-000" maxlength="9" value="{{ c.cep or '' }}" oninput="mascaraCEP(this)"><span class="cep-spin" id="cepSpin">⏳</span></div>
+              <div style="min-height:18px;margin-top:4px" id="cepStatus"></div>
+              <div class="cep-hint">Digite o CEP para preencher automaticamente</div>
+            </div>
+            <div class="form-field"><span class="form-label">Número</span><input class="form-input" type="text" name="numero" id="endNumero" placeholder="Ex: 123" value="{{ c.numero or '' }}"></div>
+            <div class="form-field span2"><span class="form-label">Logradouro</span><input class="form-input" type="text" name="logradouro" id="endRua" placeholder="Rua, Avenida..." value="{{ c.logradouro or '' }}"></div>
+            <div class="form-field"><span class="form-label">Complemento</span><input class="form-input" type="text" name="complemento" id="endComplemento" placeholder="Apto, casa..." value="{{ c.complemento or '' }}"></div>
+            <div class="form-field"><span class="form-label">Bairro</span><input class="form-input" type="text" name="bairro" id="endBairro" placeholder="Nome do bairro" value="{{ c.bairro or '' }}"></div>
+            <div class="form-field"><span class="form-label">Cidade</span><input class="form-input" type="text" name="cidade" id="endCidade" placeholder="Nome da cidade" value="{{ c.cidade or '' }}"></div>
+            <div class="form-field"><span class="form-label">UF</span>
+              <select class="form-select" name="uf" id="endUF"><option value="">--</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select>
+            </div>
+          </div>
+          <div class="section-sep">Preferências</div>
+          <div class="form-grid">
             <div class="form-field span2">
               <div class="form-row"><span class="form-row-label">Gostaria de receber promoções?</span>
                 <div class="toggle-wrap">
@@ -68,20 +157,42 @@
               <input type="hidden" name="crediario" id="crediario" value="{{ '1' if c.crediario else '0' }}">
             </div>
           </div>
-          <div class="modal-footer" style="border:none;padding-top:16px">
+          <div class="modal-footer">
             <button type="submit" class="btn-salvar">💾 Salvar alterações</button>
-            <a href="/clientes/{{ c.id }}" class="btn-cancelar" style="text-decoration:none;display:inline-block;padding:14px 24px">Cancelar</a>
+            <button type="button" class="btn-excluir" onclick="document.getElementById('confirmExc').style.display='flex'">🗑️ Excluir cliente</button>
           </div>
         </form>
       </div>
     </main>
   </div>
 </div>
+
+<!-- CONFIRM EXCLUSÃO -->
+<div class="confirm-overlay" id="confirmExc" style="display:none">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title">Excluir cliente?</div>
+    <div class="confirm-sub">Tem certeza que deseja excluir <strong>{{ c.nome }}</strong>? Esta ação não pode ser desfeita.</div>
+    <div class="confirm-btns">
+      <button class="btn-nao-exc" onclick="document.getElementById('confirmExc').style.display='none'">Não</button>
+      <form method="POST" action="/clientes/{{ c.id }}/excluir" style="display:inline">
+        <button type="submit" class="btn-sim">Sim, excluir</button>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
-function toggleBtn(btn,tipo,campo){
-  btn.parentElement.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active','sim','nao'));
-  btn.classList.add('active',tipo);
-  document.getElementById(campo).value=tipo==='sim'?'1':'0';
-}
+function mascaraCPF(input){let v=input.value.replace(/[^0-9]/g,'').slice(0,11);if(v.length>9)v=v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9);else if(v.length>6)v=v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);else if(v.length>3)v=v.slice(0,3)+'.'+v.slice(3);input.value=v;}
+function mascaraTel(input){let v=input.value.replace(/[^0-9]/g,'').slice(0,11);if(v.length===11)v='('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);else if(v.length===10)v='('+v.slice(0,2)+') '+v.slice(2,6)+'-'+v.slice(6);else if(v.length>2)v='('+v.slice(0,2)+') '+v.slice(2);else if(v.length>0)v='('+v;input.value=v;}
+function mascaraCEP(input){let v=input.value.replace(/[^0-9]/g,'').slice(0,8);if(v.length>5)v=v.slice(0,5)+'-'+v.slice(5);input.value=v;if(v.replace('-','').length===8)buscarCep(v.replace('-',''));}
+async function buscarCep(cep){document.getElementById('cepSpin').style.display='block';try{const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');const d=await r.json();document.getElementById('cepSpin').style.display='none';if(d.erro){document.getElementById('cepStatus').innerHTML='<span style="color:#c62828;font-size:12px;font-weight:600">❌ CEP não encontrado</span>';return;}const m={endRua:d.logradouro,endBairro:d.bairro,endCidade:d.localidade};Object.entries(m).forEach(([id,val])=>{if(val){const el=document.getElementById(id);if(el){el.value=val;el.classList.add('auto');}}});if(d.uf){const sel=document.getElementById('endUF');if(sel){for(let o of sel.options){if(o.value===d.uf){o.selected=true;break;}}sel.classList.add('auto');}}document.getElementById('cepStatus').innerHTML='<span style="color:#2e7d32;font-size:12px;font-weight:600">✅ Endereço preenchido</span>';const num=document.getElementById('endNumero');if(num)num.focus();}catch(e){document.getElementById('cepSpin').style.display='none';document.getElementById('cepStatus').innerHTML='<span style="color:#c62828;font-size:12px;font-weight:600">❌ Erro na busca</span>';}}
+function calcIdade(input){if(!input.value)return;const hoje=new Date(),nasc=new Date(input.value);let idade=hoje.getFullYear()-nasc.getFullYear();if(hoje.getMonth()-nasc.getMonth()<0||(hoje.getMonth()===nasc.getMonth()&&hoje.getDate()<nasc.getDate()))idade--;const el=document.getElementById('idadeCalc');if(el)el.textContent='👤 '+idade+' anos';}
+function toggleBtn(btn,tipo,campo){btn.parentElement.querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active','sim','nao'));btn.classList.add('active',tipo);const el=document.getElementById(campo);if(el)el.value=tipo==='sim'?'1':'0';}
+function addContato(){const wrap=document.getElementById('contatosWrap');const div=document.createElement('div');div.className='contato-row';div.innerHTML='<input class="form-input" type="text" name="telefone2" placeholder="(00) 00000-0000" maxlength="15" oninput="mascaraTel(this)"><button type="button" class="btn-remove" onclick="this.parentElement.remove()">✕</button>';wrap.appendChild(div);div.querySelector('input').focus();}
+let timers={};
+function verificarCampo(input,campo,cid){clearTimeout(timers[campo]);const val=input.value.trim();const msgEl=document.getElementById(campo+'Msg');if(!val||(campo==='cpf'&&val.length<14)||(campo==='telefone'&&val.length<15)){input.classList.remove('ok-field','erro-field');if(msgEl)msgEl.innerHTML='';return;}input.classList.remove('ok-field','erro-field');input.classList.add('checando');if(msgEl)msgEl.innerHTML='<span style="color:#1565c0;font-size:12px;font-weight:600">🔍 Verificando...</span>';timers[campo]=setTimeout(async()=>{input.classList.remove('checando');try{let url='/clientes/verificar?campo='+campo+'&valor='+encodeURIComponent(val);if(cid)url+='&id='+cid;const r=await fetch(url);const d=await r.json();if(d.ok){input.classList.add('ok-field');if(msgEl)msgEl.innerHTML='<span style="color:#2e7d32;font-size:12px;font-weight:600">✅ Disponível</span>';}else{input.classList.add('erro-field');const msgs={nome:'⚠️ Já existe um cliente com este nome',cpf:'⚠️ CPF já cadastrado',telefone:'⚠️ Número já cadastrado'};if(msgEl)msgEl.innerHTML='<span style="color:#c62828;font-size:12px;font-weight:600">'+msgs[campo]+'</span>';}}catch(e){input.classList.remove('ok-field','erro-field');}},600);}
+// Setar UF no carregamento
+window.onload=function(){const uf='{{ c.uf or "" }}';if(uf){const sel=document.getElementById('endUF');for(let o of sel.options){if(o.value===uf){o.selected=true;break;}}}};
 </script>
 {% endblock %}

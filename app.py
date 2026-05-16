@@ -71,7 +71,7 @@ def init_db():
         )
     ''')
     for col_def in ['cep VARCHAR(10)', 'logradouro VARCHAR(200)', 'numero VARCHAR(20)',
-                    'complemento VARCHAR(100)', 'bairro VARCHAR(100)', 'cidade VARCHAR(100)', 'uf VARCHAR(2)']:
+                    'complemento VARCHAR(100)', 'bairro VARCHAR(100)', 'cidade VARCHAR(100)', 'uf VARCHAR(2)', 'telefone2 VARCHAR(30)']:
         try:
             cur.execute(f'ALTER TABLE clientes ADD COLUMN IF NOT EXISTS {col_def}')
         except Exception:
@@ -356,6 +356,10 @@ def novo_cliente():
         cur.execute("""INSERT INTO clientes (nome,cpf,data_nascimento,telefone,cep,logradouro,numero,complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar)
                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                     (nome,cpf or None,data_nascimento,telefone or None,cep or None,logradouro or None,numero or None,complemento or None,bairro or None,cidade or None,uf or None,promocoes,crediario,cor))
+        # salvar telefone2 se houver
+        telefone2 = request.form.get('telefone2','').strip()
+        if telefone2:
+            cur.execute('UPDATE clientes SET telefone2=%s WHERE id=(SELECT MAX(id) FROM clientes)', (telefone2,))
         conn.commit()
         cur.close()
         conn.close()
@@ -417,6 +421,44 @@ def editar_cliente(cid):
     conn.close()
     return render_template('editar_cliente.html', cliente=CLIENTE, c=c,
                            nome=session.get('nome'), perfil=session.get('perfil'))
+
+
+@app.route('/clientes/<int:cid>/excluir', methods=['POST'])
+@login_required
+def excluir_cliente(cid):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM clientes WHERE id = %s", (cid,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash('Cliente excluído com sucesso.', 'ok')
+    return redirect(url_for('clientes'))
+
+@app.route('/clientes/verificar')
+@login_required
+def verificar_cliente():
+    campo = request.args.get('campo')
+    valor = request.args.get('valor','').strip()
+    cid = request.args.get('id', None)
+    if not campo or not valor:
+        return {'ok': True}
+    conn = get_db()
+    cur = conn.cursor()
+    if campo == 'nome':
+        cur.execute("SELECT id FROM clientes WHERE LOWER(nome) = LOWER(%s)", (valor,))
+    elif campo == 'cpf':
+        cur.execute("SELECT id FROM clientes WHERE cpf = %s", (valor,))
+    elif campo == 'telefone':
+        cur.execute("SELECT id FROM clientes WHERE telefone = %s OR telefone2 = %s", (valor, valor))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if row:
+        if cid and str(row['id']) == str(cid):
+            return {'ok': True}
+        return {'ok': False}
+    return {'ok': True}
 
 @app.route('/logout')
 def logout():

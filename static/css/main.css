@@ -237,3 +237,21 @@ body { font-family: 'Outfit', sans-serif; background: var(--cor-secundaria); col
   .card-sm-value { font-size: 24px; }
   .fat-total-value { font-size: 24px; }
 }
+
+/* ─── ALERTAS DE DUPLICIDADE ─── */
+.alerta-dup { display:flex; gap:16px; align-items:flex-start; padding:20px 24px; border-radius:12px; margin-bottom:16px; border-left:5px solid; box-shadow:0 4px 16px rgba(0,0,0,0.06); background:#fff; }
+.alerta-nome { border-color:#c62828; }
+.alerta-cpf  { border-color:#e65100; }
+.alerta-tel  { border-color:#1565c0; }
+.alerta-icon { font-size:28px; flex-shrink:0; margin-top:2px; }
+.alerta-body { flex:1; }
+.alerta-titulo { font-size:16px; font-weight:700; margin-bottom:6px; }
+.alerta-nome .alerta-titulo { color:#c62828; }
+.alerta-cpf  .alerta-titulo { color:#e65100; }
+.alerta-tel  .alerta-titulo { color:#1565c0; }
+.alerta-msg { font-size:14px; color:#555; line-height:1.6; font-weight:500; margin-bottom:10px; }
+.alerta-detalhe { font-size:13px; font-weight:700; padding:8px 14px; border-radius:6px; display:inline-block; margin-bottom:8px; }
+.alerta-detalhe-nome { background:#fce4ec; color:#c62828; }
+.alerta-detalhe-cpf  { background:#fff3e0; color:#e65100; }
+.alerta-detalhe-tel  { background:#e3f2fd; color:#1565c0; }
+.alerta-rodape { font-size:12px; color:#aaa; font-weight:600; }

@@ -337,6 +337,7 @@ def novo_cliente():
     cpf = request.form.get('cpf','').strip()
     data_nascimento = request.form.get('data_nascimento') or None
     telefone = request.form.get('telefone','').strip()
+    telefone2 = request.form.get('telefone2','').strip()
     cep = request.form.get('cep','').strip()
     logradouro = request.form.get('logradouro','').strip()
     numero = request.form.get('numero','').strip()
@@ -346,10 +347,58 @@ def novo_cliente():
     uf = request.form.get('uf','').strip()
     promocoes = request.form.get('promocoes','0') == '1'
     crediario = request.form.get('crediario','0') == '1'
-    cor = random.choice(cores)
+
     if not nome:
         flash('Nome é obrigatório.', 'erro')
         return redirect(url_for('clientes'))
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # 1º BLOQUEIO — Nome duplicado
+    cur.execute("SELECT id FROM clientes WHERE LOWER(TRIM(nome)) = LOWER(TRIM(%s))", (nome,))
+    if cur.fetchone():
+        cur.close(); conn.close()
+        flash(f'DUPLICADO_NOME||{nome}', 'erro')
+        return redirect(url_for('clientes'))
+
+    # 2º BLOQUEIO — CPF duplicado
+    if cpf:
+        cur.execute("SELECT id FROM clientes WHERE cpf = %s", (cpf,))
+        if cur.fetchone():
+            cur.close(); conn.close()
+            flash(f'DUPLICADO_CPF||{cpf}', 'erro')
+            return redirect(url_for('clientes'))
+
+    # 3º BLOQUEIO — Telefone duplicado
+    if telefone:
+        cur.execute("SELECT id FROM clientes WHERE telefone = %s OR telefone2 = %s", (telefone, telefone))
+        if cur.fetchone():
+            cur.close(); conn.close()
+            flash(f'DUPLICADO_TEL||{telefone}', 'erro')
+            return redirect(url_for('clientes'))
+    if telefone2:
+        cur.execute("SELECT id FROM clientes WHERE telefone = %s OR telefone2 = %s", (telefone2, telefone2))
+        if cur.fetchone():
+            cur.close(); conn.close()
+            flash(f'DUPLICADO_TEL||{telefone2}', 'erro')
+            return redirect(url_for('clientes'))
+
+    try:
+        cor = random.choice(cores)
+        cur.execute("""INSERT INTO clientes (nome,cpf,data_nascimento,telefone,telefone2,cep,logradouro,numero,complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (nome, cpf or None, data_nascimento, telefone or None, telefone2 or None,
+                     cep or None, logradouro or None, numero or None, complemento or None,
+                     bairro or None, cidade or None, uf or None, promocoes, crediario, cor))
+        conn.commit()
+        flash('SUCESSO||Cliente cadastrado com sucesso!', 'ok')
+    except Exception as e:
+        flash(f'Erro ao cadastrar: {e}', 'erro')
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for('clientes'))
     try:
         conn = get_db()
         cur = conn.cursor()

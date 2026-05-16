@@ -77,7 +77,48 @@
         </div>
         <button class="btn-acao" onclick="document.getElementById('modalCadastro').style.display='flex'">+ Cadastrar cliente</button>
       </div>
-      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        {% if msg.startswith('DUPLICADO_NOME||') %}
+          {% set dado = msg.split('||')[1] %}
+          <div class="alerta-dup alerta-nome">
+            <div class="alerta-icon">🚫</div>
+            <div class="alerta-body">
+              <div class="alerta-titulo">Cliente duplicado — cadastro bloqueado</div>
+              <div class="alerta-msg">Não será possível cadastrar este novo cliente pois já existe um registro com o mesmo nome no sistema. Por favor, valide os dados antes de continuar.</div>
+              <div class="alerta-detalhe alerta-detalhe-nome">👤 Nome já cadastrado: "{{ dado }}"</div>
+              <div class="alerta-rodape">Verifique se o cliente já possui cadastro ou corrija o nome informado.</div>
+            </div>
+          </div>
+        {% elif msg.startswith('DUPLICADO_CPF||') %}
+          {% set dado = msg.split('||')[1] %}
+          <div class="alerta-dup alerta-cpf">
+            <div class="alerta-icon">🚫</div>
+            <div class="alerta-body">
+              <div class="alerta-titulo">Cliente duplicado — cadastro bloqueado</div>
+              <div class="alerta-msg">Não será possível cadastrar este novo cliente pois o CPF informado já está vinculado a outro cadastro. Por favor, valide os dados antes de continuar.</div>
+              <div class="alerta-detalhe alerta-detalhe-cpf">🪪 CPF já cadastrado: {{ dado }}</div>
+              <div class="alerta-rodape">Verifique se o cliente já possui cadastro ou corrija o CPF informado.</div>
+            </div>
+          </div>
+        {% elif msg.startswith('DUPLICADO_TEL||') %}
+          {% set dado = msg.split('||')[1] %}
+          <div class="alerta-dup alerta-tel">
+            <div class="alerta-icon">🚫</div>
+            <div class="alerta-body">
+              <div class="alerta-titulo">Cliente duplicado — cadastro bloqueado</div>
+              <div class="alerta-msg">Não será possível cadastrar este novo cliente pois o contato informado já está vinculado a outro cadastro. Por favor, valide os dados antes de continuar.</div>
+              <div class="alerta-detalhe alerta-detalhe-tel">📱 Contato já cadastrado: {{ dado }}</div>
+              <div class="alerta-rodape">Verifique se o cliente já possui cadastro ou corrija o contato informado.</div>
+            </div>
+          </div>
+        {% elif msg.startswith('SUCESSO||') %}
+          <div class="flash flash-ok">{{ msg.split('||')[1] }}</div>
+        {% else %}
+          <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endif %}
+      {% endfor %}
+      {% endwith %}
       <div class="filtros">
         <div class="busca"><input type="text" id="buscaInput" onkeyup="filtrarClientes()" placeholder="🔍  Buscar por nome, contato, CPF..."></div>
         <button class="filtro-btn active" onclick="setFiltro('todos', this)">Todos</button>

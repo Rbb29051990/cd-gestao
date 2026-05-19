@@ -668,6 +668,73 @@ def etiquetas():
     conn.close()
     return {'itens': [dict(i) for i in itens], 'data': data}
 
+
+@app.route('/estoque/<int:eid>')
+@login_required
+def ficha_estoque(eid):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM estoque WHERE id = %s", (eid,))
+    item = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not item:
+        flash('Produto não encontrado.', 'erro')
+        return redirect(url_for('estoque'))
+    hoje = datetime.now().date()
+    item['dias_estoque'] = (hoje - item['criado_em'].date()).days
+    return render_template('ficha_estoque.html', cliente=CLIENTE, item=item,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
+@app.route('/estoque/<int:eid>/editar', methods=['GET','POST'])
+@login_required
+def editar_estoque(eid):
+    conn = get_db()
+    cur = conn.cursor()
+    if request.method == 'POST':
+        modelo = request.form.get('modelo','').strip()
+        descricao = request.form.get('descricao','').strip()
+        tamanho = request.form.get('tamanho','').strip()
+        quantidade = int(request.form.get('quantidade',1) or 1)
+        custo = float(request.form.get('custo_unitario',0) or 0)
+        markup = float(request.form.get('markup',0) or 0)
+        venda = float(request.form.get('valor_venda',0) or 0)
+        margem = float(request.form.get('margem_lucro',0) or 0)
+        custo_total = custo * quantidade
+        valor_total = venda * quantidade
+        cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
+                       custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s,
+                       custo_total=%s,valor_total=%s WHERE id=%s""",
+                    (modelo,descricao or None,tamanho,quantidade,custo,markup,venda,margem,custo_total,valor_total,eid))
+        conn.commit()
+        cur.close()
+        conn.close()
+        flash('✅ Produto atualizado com sucesso!', 'ok')
+        return redirect(url_for('ficha_estoque', eid=eid))
+    cur.execute("SELECT * FROM estoque WHERE id = %s", (eid,))
+    item = cur.fetchone()
+    cur.execute("SELECT nome FROM modelos_estoque ORDER BY nome")
+    modelos = [r['nome'] for r in cur.fetchall()]
+    cur.execute("SELECT nome FROM tamanhos_estoque ORDER BY id")
+    tamanhos = [r['nome'] for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return render_template('editar_estoque.html', cliente=CLIENTE, item=item,
+                           modelos=modelos, tamanhos=tamanhos,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
+@app.route('/estoque/<int:eid>/excluir', methods=['POST'])
+@login_required
+def excluir_estoque(eid):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM estoque WHERE id = %s", (eid,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    flash('✅ Produto excluído com sucesso.', 'ok')
+    return redirect(url_for('estoque'))
+
 @app.route('/logout')
 def logout():
     session.clear()

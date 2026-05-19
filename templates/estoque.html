@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.tabs-wrap{background:#fff;border-bottom:1.5px solid #e8e8f0;padding:0 28px;display:flex;gap:0}
+.etab{padding:15px 22px;font-size:13px;font-weight:600;color:#aaa;border-bottom:3px solid transparent;cursor:pointer;transition:all 0.2s;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:'Outfit',sans-serif}
+.etab:hover{color:#1a1a2e}
+.etab.active{color:#1a1a2e;border-bottom-color:#1a1a2e;font-weight:700}
+.etela{display:none;padding:24px 28px}
+.etela.active{display:block}
+.resumo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.resumo-card{background:#fff;border-radius:12px;padding:20px 22px;border:1.5px solid #e8e8f0;box-shadow:0 4px 14px rgba(0,0,0,0.05);position:relative;overflow:hidden}
+.resumo-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+.resumo-card.laranja::before{background:#e65100}
+.resumo-card.verde::before{background:#2e7d32}
+.resumo-card.azul::before{background:#1565c0}
+.resumo-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#aaa;margin-bottom:8px}
+.resumo-valor{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:600}
+.resumo-card.laranja .resumo-valor{color:#e65100}
+.resumo-card.verde .resumo-valor{color:#2e7d32}
+.resumo-card.azul .resumo-valor{color:#1565c0}
+.resumo-hint{font-size:11px;color:#aaa;margin-top:4px;font-weight:500}
+.table-wrap{background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.05)}
+.etable{width:100%;border-collapse:collapse;font-size:13px}
+.etable th{text-align:left;padding:13px 14px;font-size:10px;font-weight:700;color:#1a1a2e;border-bottom:2px solid #eeeef5;background:#f8f8fc;cursor:pointer;white-space:nowrap;user-select:none}
+.etable th:hover{background:#eeeef8}
+.etable th.sorted-asc::after{content:' ↑';color:#1565c0}
+.etable th.sorted-desc::after{content:' ↓';color:#1565c0}
+.etable td{padding:13px 14px;color:#333;border-bottom:1px solid #f4f4f6;font-weight:500;vertical-align:middle}
+.etable tr:last-child td{border-bottom:none}
+.etable tr:hover td{background:#f8f8fc}
+.ref-code{font-size:12px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:3px 8px;border-radius:4px;letter-spacing:1px}
+.badge-dias{display:inline-block;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px}
+.badge-novo{background:#e8f5e9;color:#2e7d32}
+.badge-atencao{background:#fff8e1;color:#f57f17}
+.badge-alerta{background:#fce4ec;color:#c62828}
+.section-sep{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:20px 0 14px;display:flex;align-items:center;gap:10px}
+.section-sep::after{content:'';flex:1;height:1px;background:#eee}
+.form-card{background:#fff;border-radius:12px;padding:28px;border:1.5px solid #e8e8f0;box-shadow:0 4px 14px rgba(0,0,0,0.05)}
+.form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.fspan2{grid-column:span 2}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px}
+.form-input{padding:12px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;transition:all 0.2s}
+.form-input:focus{border-color:#1a1a2e;background:#fff}
+.form-input::placeholder{color:#ccc}
+.form-input.ref{background:#f0f0f8;border-color:#c5cae9;color:#3949ab;font-weight:700;letter-spacing:2px}
+.form-input.auto-green{background:#f0f8f2;border-color:#c8e6c9;color:#2e7d32;font-weight:700}
+.form-input.auto-yellow{background:#fff8e1;border-color:#ffe082;color:#e65100;font-weight:700}
+.calc-hint{font-size:11px;font-weight:600;margin-top:3px;min-height:16px}
+.hint-auto{color:#2e7d32}
+.hint-edit{color:#e65100}
+.select-wrap{display:flex;gap:8px}
+.select-wrap select{flex:1;padding:12px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;cursor:pointer}
+.select-wrap select:focus{border-color:#1a1a2e;background:#fff}
+.btn-add-sel{width:44px;height:44px;border:1.5px dashed #c0c0d0;background:#f8f8fc;color:#888;border-radius:8px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;transition:all 0.2s}
+.btn-add-sel:hover{border-color:#1a1a2e;color:#1a1a2e}
+.resumo-fin{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.fin-card{padding:14px 16px;border-radius:10px;border:1.5px solid}
+.fin-card.laranja{background:#fff3e0;border-color:#ffe0b2}
+.fin-card.verde{background:#e8f5e9;border-color:#c8e6c9}
+.fin-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px}
+.fin-valor{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600}
+.fin-card.laranja .fin-valor{color:#e65100}
+.fin-card.verde .fin-valor{color:#2e7d32}
+.fin-hint{font-size:10px;color:#aaa;margin-top:2px}
+.footer-btns{display:flex;gap:12px;padding-top:20px;border-top:1.5px solid #eee;flex-wrap:wrap}
+.btn-salvar{padding:13px 26px;background:#1a1a2e;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;box-shadow:0 4px 14px rgba(26,26,46,0.2)}
+.etiq-filtro{background:#fff;border-radius:12px;padding:22px;border:1.5px solid #e8e8f0;box-shadow:0 4px 14px rgba(0,0,0,0.05);margin-bottom:20px;display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.btn-buscar{padding:12px 22px;background:#1a1a2e;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px}
+.btn-imprimir{padding:12px 18px;background:#e8f5e9;color:#2e7d32;border:1.5px solid #c8e6c9;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px}
+.etiq-resultado{font-size:13px;font-weight:600;color:#666;margin-bottom:14px}
+.etiq-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.etiqueta{background:#fff;border:2px solid #1a1a2e;border-radius:8px;padding:14px 12px;text-align:center}
+.etiq-ref{font-size:15px;font-weight:700;color:#1a1a2e;letter-spacing:2px}
+.etiq-modelo{font-size:10px;color:#aaa;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin:3px 0}
+.etiq-tam{font-size:13px;font-weight:700;color:#555;margin:3px 0}
+.etiq-preco{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#2e7d32}
+.etiq-qtd-badge{font-size:10px;font-weight:700;color:#888;margin-top:4px}
+.modal-overlay2{position:fixed;inset:0;background:rgba(26,26,46,0.6);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px)}
+.modal2{background:#fff;border-radius:16px;padding:28px;max-width:340px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2)}
+.modal2-title{font-size:17px;font-weight:700;color:#1a1a2e;margin-bottom:4px}
+.modal2-sub{font-size:13px;color:#aaa;margin-bottom:18px}
+.modal2-btns{display:flex;gap:10px;margin-top:14px}
+.btn-conf2{padding:11px 20px;background:#1a1a2e;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;border-radius:8px;cursor:pointer;flex:1}
+.btn-canc2{padding:11px 16px;background:#f4f4f6;color:#888;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;border-radius:8px;cursor:pointer}
+@media print{.tabs-wrap,.etiq-filtro,.btn-imprimir,.btn-buscar,.sidebar,.topbar{display:none!important}.etiq-grid{grid-template-columns:repeat(4,1fr)}}
+</style>
+
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
+    <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout">Minha senha</a>
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section">
+        <div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><path d="M15 13c2.5 0 4 1.5 4 4" stroke="#6a1b9a" stroke-width="1.4" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/estoque" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Financeiro</div>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/><circle cx="11" cy="11.5" r="1" fill="#2e7d32"/><path d="M2 8h3M17 8h3" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Caixa</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M15 3l4 4-4 4" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Fiados</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Gestão</div>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 11 m-8 0 a8 8 0 0 1 8-8" stroke="#1565c0" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m0-8 a8 8 0 0 1 6.9 4" stroke="#e53935" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9-4 a8 8 0 0 1 0 8" stroke="#2e7d32" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9 4 a8 8 0 0 1-13.8 0" stroke="#f9a825" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="11" cy="11" r="3" fill="#fff" stroke="#ddd" stroke-width="1"/></svg> Inventário</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><polyline points="3,17 8,10 12,13 17,6 20,8" stroke="#2e7d32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17h16" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/><circle cx="20" cy="8" r="1.5" fill="#2e7d32"/></svg> Relatórios</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/><path d="M2 11 L7 6 L12 9 L20 2" stroke="#f9a825" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Dashboards</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      </div>
+    </nav>
+
+    <main style="overflow-y:auto;background:#f4f4f6">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        {% if msg.startswith('✅') %}<div class="flash flash-ok" style="margin:16px 28px 0">{{ msg }}</div>
+        {% else %}<div class="flash flash-erro" style="margin:16px 28px 0">{{ msg }}</div>{% endif %}
+      {% endfor %}{% endwith %}
+
+      <div class="tabs-wrap">
+        <button class="etab active" onclick="trocarEtab('eEstoque',this)">📦 Estoque</button>
+        <button class="etab" onclick="trocarEtab('eCadastro',this)">➕ Cadastrar produto</button>
+        <button class="etab" onclick="trocarEtab('eEtiquetas',this)">🏷️ Impressão de etiquetas</button>
+      </div>
+
+      <!-- ABA ESTOQUE -->
+      <div class="etela active" id="eEstoque">
+        <div class="resumo-grid">
+          <div class="resumo-card laranja">
+            <div class="resumo-label">Custo total em estoque</div>
+            <div class="resumo-valor">R$ {{ "%.2f"|format(custo_total|float) }}</div>
+            <div class="resumo-hint">valor investido em peças</div>
+          </div>
+          <div class="resumo-card verde">
+            <div class="resumo-label">Valor total em estoque</div>
+            <div class="resumo-valor">R$ {{ "%.2f"|format(valor_total|float) }}</div>
+            <div class="resumo-hint">potencial de receita</div>
+          </div>
+          <div class="resumo-card azul">
+            <div class="resumo-label">Lucro potencial total</div>
+            <div class="resumo-valor">R$ {{ "%.2f"|format(lucro_potencial|float) }}</div>
+            <div class="resumo-hint">se vender todo o estoque</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="etable" id="tabelaEstoque">
+            <thead><tr>
+              <th onclick="ordenarE(0)">Data entrada</th>
+              <th onclick="ordenarE(1)">Cód</th>
+              <th onclick="ordenarE(2)">Modelo</th>
+              <th>Descrição</th>
+              <th onclick="ordenarE(4)">TAM</th>
+              <th onclick="ordenarE(5)">Qtd</th>
+              <th onclick="ordenarE(6)">Custo</th>
+              <th onclick="ordenarE(7)">Venda</th>
+              <th onclick="ordenarE(8)">Dias estoque</th>
+              <th>Última venda</th>
+            </tr></thead>
+            <tbody id="tbodyEstoque">
+              {% for item in itens %}
+              <tr>
+                <td>{{ item.criado_em.strftime('%d/%m/%Y') }}</td>
+                <td><span class="ref-code">{{ item.referencia }}</span></td>
+                <td>{{ item.modelo or '—' }}</td>
+                <td>{{ item.descricao or '—' }}</td>
+                <td>{{ item.tamanho or '—' }}</td>
+                <td>{{ item.quantidade }}</td>
+                <td>R$ {{ "%.2f"|format(item.custo_unitario|float) }}</td>
+                <td>R$ {{ "%.2f"|format(item.valor_venda|float) }}</td>
+                <td>
+                  {% if item.dias_estoque <= 30 %}<span class="badge-dias badge-novo">🟢 {{ item.dias_estoque }} dias</span>
+                  {% elif item.dias_estoque <= 60 %}<span class="badge-dias badge-atencao">🟡 {{ item.dias_estoque }} dias</span>
+                  {% else %}<span class="badge-dias badge-alerta">🔴 {{ item.dias_estoque }} dias</span>{% endif %}
+                </td>
+                <td>{{ item.ultima_venda.strftime('%d/%m/%Y') if item.ultima_venda else '—' }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="10" class="empty-row">Nenhum item cadastrado ainda.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA CADASTRO -->
+      <div class="etela" id="eCadastro">
+        <div class="form-card">
+          <form method="POST" action="/estoque/novo">
+            <div class="section-sep">Identificação</div>
+            <div class="form-grid2">
+              <div class="form-field">
+                <span class="form-label">Referência</span>
+                <input class="form-input ref" value="{{ next_ref }}" readonly>
+              </div>
+              <div class="form-field">
+                <span class="form-label">Modelo</span>
+                <div class="select-wrap">
+                  <select name="modelo" required>
+                    <option value="">Selecione...</option>
+                    {% for m in modelos %}<option>{{ m }}</option>{% endfor %}
+                  </select>
+                  <button type="button" class="btn-add-sel" onclick="abrirModalE('modelo')" title="Novo modelo">＋</button>
+                </div>
+              </div>
+              <div class="form-field fspan2">
+                <span class="form-label">Descrição <span style="color:#ccc;text-transform:none;letter-spacing:0;font-weight:400">(opcional)</span></span>
+                <input class="form-input" type="text" name="descricao" placeholder="Ex: Floral manga longa, cor rose...">
+              </div>
+              <div class="form-field">
+                <span class="form-label">Tamanho</span>
+                <div class="select-wrap">
+                  <select name="tamanho">
+                    <option value="">Selecione...</option>
+                    {% for t in tamanhos %}<option>{{ t }}</option>{% endfor %}
+                  </select>
+                  <button type="button" class="btn-add-sel" onclick="abrirModalE('tamanho')" title="Novo tamanho">＋</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <span class="form-label">Quantidade</span>
+                <input class="form-input" type="number" name="quantidade" id="eQtd" placeholder="Ex: 1" min="1" oninput="eCalcular()">
+              </div>
+            </div>
+
+            <div class="section-sep">Precificação</div>
+            <div class="form-grid2">
+              <div class="form-field">
+                <span class="form-label">Custo unitário (R$)</span>
+                <input class="form-input" type="number" name="custo_unitario" id="eCusto" placeholder="R$ 0,00" step="0.01" oninput="eCalcDoCusto()">
+              </div>
+              <div class="form-field">
+                <span class="form-label">% Markup</span>
+                <input class="form-input" type="number" name="markup" id="eMarkup" placeholder="Ex: 80" step="0.1" oninput="eCalcDoMarkup()">
+                <div class="calc-hint" id="eHintMarkup"></div>
+              </div>
+              <div class="form-field">
+                <span class="form-label">Valor de venda (R$)</span>
+                <input class="form-input auto-yellow" type="number" name="valor_venda" id="eVenda" placeholder="Calculado ou ajuste aqui" step="0.01" oninput="eCalcDaVenda()">
+                <div class="calc-hint" id="eHintVenda"><span class="hint-edit">✏️ Ajuste livremente — o markup recalcula</span></div>
+              </div>
+              <div class="form-field">
+                <span class="form-label">% Margem de lucro</span>
+                <input class="form-input auto-green" type="text" name="margem_lucro" id="eMargem" placeholder="Calculado automaticamente" readonly>
+              </div>
+            </div>
+
+            <div class="section-sep">Resumo financeiro</div>
+            <div class="resumo-fin">
+              <div class="fin-card laranja">
+                <div class="fin-label">Custo total em estoque</div>
+                <div class="fin-valor" id="eCustoTotal">R$ 0,00</div>
+                <div class="fin-hint">custo unitário × quantidade</div>
+              </div>
+              <div class="fin-card verde">
+                <div class="fin-label">Valor total em estoque</div>
+                <div class="fin-valor" id="eValorTotal">R$ 0,00</div>
+                <div class="fin-hint">preço de venda × quantidade</div>
+              </div>
+            </div>
+
+            <div class="footer-btns">
+              <button type="submit" class="btn-salvar">💾 Salvar item</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ABA ETIQUETAS -->
+      <div class="etela" id="eEtiquetas">
+        <div class="etiq-filtro">
+          <div class="form-field">
+            <span class="form-label">Data de cadastro</span>
+            <input class="form-input" type="date" id="dataEtiq" style="width:200px">
+          </div>
+          <button class="btn-buscar" onclick="buscarEtiquetas()">🔍 Buscar itens</button>
+          <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir todas</button>
+        </div>
+        <div class="etiq-resultado" id="etiqResultado"></div>
+        <div class="etiq-grid" id="etiqGrid"></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MODAL NOVO MODELO/TAMANHO -->
+<div class="modal-overlay2" id="modalE" style="display:none">
+  <div class="modal2">
+    <div class="modal2-title" id="modalETitulo"></div>
+    <div class="modal2-sub" id="modalESub"></div>
+    <form id="formModalE" method="POST">
+      <div class="form-field">
+        <span class="form-label" id="modalELabel"></span>
+        <input class="form-input" type="text" name="nome" id="modalEInput" placeholder="">
+      </div>
+      <div class="modal2-btns">
+        <button type="button" class="btn-canc2" onclick="fecharModalE()">Cancelar</button>
+        <button type="submit" class="btn-conf2">✅ Adicionar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let eSortCol=-1, eSortAsc=true;
+
+function trocarEtab(id, el) {
+  document.querySelectorAll('.etab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.etela').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+function ordenarE(col) {
+  const tbody=document.getElementById('tbodyEstoque');
+  const rows=Array.from(tbody.querySelectorAll('tr'));
+  if(eSortCol===col) eSortAsc=!eSortAsc; else {eSortCol=col;eSortAsc=true;}
+  rows.sort((a,b)=>{
+    const va=a.cells[col].textContent.trim();
+    const vb=b.cells[col].textContent.trim();
+    const na=parseFloat(va.replace(/[^0-9.,]/g,'').replace(',','.'));
+    const nb=parseFloat(vb.replace(/[^0-9.,]/g,'').replace(',','.'));
+    if(!isNaN(na)&&!isNaN(nb)) return eSortAsc?na-nb:nb-na;
+    return eSortAsc?va.localeCompare(vb):vb.localeCompare(va);
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+  document.querySelectorAll('.etable th').forEach((th,i)=>{
+    th.classList.remove('sorted-asc','sorted-desc');
+    if(i===col) th.classList.add(eSortAsc?'sorted-asc':'sorted-desc');
+  });
+}
+
+function eFmt(v){return 'R$ '+v.toFixed(2).replace('.',',');}
+function eFmtPct(v){return v.toFixed(1).replace('.',',')+' %';}
+
+function eAtualizarResumo(custo,venda,markup,qtd){
+  const margem=venda>0?((venda-custo)/venda*100):0;
+  document.getElementById('eMargem').value=venda>0?eFmtPct(margem):'';
+  document.getElementById('eCustoTotal').textContent=eFmt(custo*qtd);
+  document.getElementById('eValorTotal').textContent=eFmt(venda*qtd);
+}
+
+function eCalcDoMarkup(){
+  const custo=parseFloat(document.getElementById('eCusto').value)||0;
+  const markup=parseFloat(document.getElementById('eMarkup').value)||0;
+  const qtd=parseInt(document.getElementById('eQtd').value)||0;
+  if(custo>0&&markup>0){
+    const venda=custo*(1+markup/100);
+    document.getElementById('eVenda').value=venda.toFixed(2);
+    document.getElementById('eHintVenda').innerHTML='<span class="hint-auto">✅ Calculado pelo markup — ajuste se necessário</span>';
+    document.getElementById('eHintMarkup').innerHTML='';
+    eAtualizarResumo(custo,venda,markup,qtd);
+  }
+}
+
+function eCalcDaVenda(){
+  const custo=parseFloat(document.getElementById('eCusto').value)||0;
+  const venda=parseFloat(document.getElementById('eVenda').value)||0;
+  const qtd=parseInt(document.getElementById('eQtd').value)||0;
+  if(custo>0&&venda>0){
+    const markup=((venda-custo)/custo)*100;
+    document.getElementById('eMarkup').value=markup.toFixed(1);
+    document.getElementById('eHintMarkup').innerHTML='<span class="hint-edit">🔄 Atualizado pelo valor de venda</span>';
+    document.getElementById('eHintVenda').innerHTML='<span class="hint-edit">✏️ Valor ajustado manualmente</span>';
+    eAtualizarResumo(custo,venda,markup,qtd);
+  }
+}
+
+function eCalcDoCusto(){
+  const markup=parseFloat(document.getElementById('eMarkup').value)||0;
+  const venda=parseFloat(document.getElementById('eVenda').value)||0;
+  if(markup>0) eCalcDoMarkup();
+  else if(venda>0) eCalcDaVenda();
+}
+
+function eCalcular(){ eCalcDoMarkup(); }
+
+// ETIQUETAS
+function buscarEtiquetas(){
+  const data=document.getElementById('dataEtiq').value;
+  if(!data) return;
+  fetch('/estoque/etiquetas?data='+data)
+    .then(r=>r.json())
+    .then(d=>{
+      const grid=document.getElementById('etiqGrid');
+      const res=document.getElementById('etiqResultado');
+      grid.innerHTML='';
+      if(!d.itens||d.itens.length===0){
+        res.innerHTML='Nenhum item cadastrado nesta data.';
+        return;
+      }
+      const total=d.itens.reduce((a,i)=>a+i.quantidade,0);
+      res.innerHTML='<strong>'+d.itens.length+' itens</strong> encontrados — <strong>'+total+' etiquetas</strong> no total';
+      d.itens.forEach(item=>{
+        const div=document.createElement('div');
+        div.className='etiqueta';
+        div.innerHTML='<div class="etiq-ref">'+item.referencia+'</div>'
+          +'<div class="etiq-modelo">'+(item.modelo||'')+'</div>'
+          +'<div class="etiq-tam">TAM: '+(item.tamanho||'—')+'</div>'
+          +'<div class="etiq-preco">R$ '+parseFloat(item.valor_venda).toFixed(2).replace('.',',')+'</div>'
+          +'<div class="etiq-qtd-badge">× '+item.quantidade+' etiqueta'+(item.quantidade>1?'s':'')+'</div>';
+        grid.appendChild(div);
+      });
+    }).catch(()=>{
+      document.getElementById('etiqResultado').innerHTML='Erro ao buscar itens.';
+    });
+}
+
+// MODAL
+let tipoModalE='';
+function abrirModalE(tipo){
+  tipoModalE=tipo;
+  const cfg={
+    modelo:{titulo:'Novo modelo',sub:'Ficará disponível para próximos cadastros',label:'Nome do modelo',ph:'Ex: Shorts, Kimono...',action:'/estoque/modelo/novo'},
+    tamanho:{titulo:'Novo tamanho',sub:'Ficará disponível para próximos cadastros',label:'Tamanho',ph:'Ex: 62, 64, XG...',action:'/estoque/tamanho/novo'}
+  };
+  const c=cfg[tipo];
+  document.getElementById('modalETitulo').textContent=c.titulo;
+  document.getElementById('modalESub').textContent=c.sub;
+  document.getElementById('modalELabel').textContent=c.label;
+  document.getElementById('modalEInput').placeholder=c.ph;
+  document.getElementById('modalEInput').value='';
+  document.getElementById('formModalE').action=c.action;
+  document.getElementById('modalE').style.display='flex';
+  setTimeout(()=>document.getElementById('modalEInput').focus(),100);
+}
+function fecharModalE(){ document.getElementById('modalE').style.display='none'; }
+
+// Data padrão etiquetas
+document.getElementById('dataEtiq').value=new Date().toISOString().split('T')[0];
+</script>
+{% endblock %}

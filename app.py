@@ -76,6 +76,54 @@ def init_db():
             cur.execute(f'ALTER TABLE clientes ADD COLUMN IF NOT EXISTS {col_def}')
         except Exception:
             pass
+
+    # Tabela modelos de estoque
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS modelos_estoque (
+            id SERIAL PRIMARY KEY,
+            nome VARCHAR(100) UNIQUE NOT NULL,
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    for m in ['Vestido','Calça','Blusa','Bolsa','Saia','Macacão','Conjunto']:
+        try:
+            cur.execute("INSERT INTO modelos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING", (m,))
+        except:
+            pass
+
+    # Tabela tamanhos de estoque
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS tamanhos_estoque (
+            id SERIAL PRIMARY KEY,
+            nome VARCHAR(20) UNIQUE NOT NULL
+        )
+    ''')
+    for t in ['PP','P','M','G','GG','EG','EGG','36','38','40','42','44','46','48','50','52','54','56','58','60']:
+        try:
+            cur.execute("INSERT INTO tamanhos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING", (t,))
+        except:
+            pass
+
+    # Tabela estoque
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS estoque (
+            id SERIAL PRIMARY KEY,
+            referencia VARCHAR(20) UNIQUE NOT NULL,
+            modelo VARCHAR(100),
+            descricao TEXT,
+            tamanho VARCHAR(20),
+            quantidade INTEGER DEFAULT 1,
+            custo_unitario NUMERIC(10,2),
+            markup NUMERIC(10,2),
+            valor_venda NUMERIC(10,2),
+            margem_lucro NUMERIC(10,2),
+            custo_total NUMERIC(10,2),
+            valor_total NUMERIC(10,2),
+            ativo BOOLEAN DEFAULT TRUE,
+            ultima_venda DATE,
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     cur.close()
     conn.close()
@@ -508,6 +556,117 @@ def verificar_cliente():
             return {'ok': True}
         return {'ok': False}
     return {'ok': True}
+
+
+@app.route('/estoque')
+@login_required
+def estoque():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM estoque WHERE ativo = TRUE ORDER BY criado_em ASC")
+    itens = cur.fetchall()
+    cur.execute("SELECT COALESCE(SUM(custo_total),0) as ct, COALESCE(SUM(valor_total),0) as vt FROM estoque WHERE ativo=TRUE")
+    totais = cur.fetchone()
+    cur.execute("SELECT nome FROM modelos_estoque ORDER BY nome")
+    modelos = [r['nome'] for r in cur.fetchall()]
+    cur.execute("SELECT nome FROM tamanhos_estoque ORDER BY id")
+    tamanhos = [r['nome'] for r in cur.fetchall()]
+    cur.execute("SELECT COUNT(*) as total FROM estoque WHERE ativo=TRUE")
+    total = cur.fetchone()['total']
+    cur.close()
+    conn.close()
+    hoje = datetime.now().date()
+    for item in itens:
+        delta = (hoje - item['criado_em'].date()).days
+        item['dias_estoque'] = delta
+    lucro_potencial = float(totais['vt']) - float(totais['ct'])
+    next_ref = f"REF.{total+1:04d}"
+    return render_template('estoque.html', cliente=CLIENTE, itens=itens,
+                           custo_total=totais['ct'], valor_total=totais['vt'],
+                           lucro_potencial=lucro_potencial, modelos=modelos,
+                           tamanhos=tamanhos, next_ref=next_ref,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
+@app.route('/estoque/novo', methods=['POST'])
+@login_required
+def novo_estoque():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) as total FROM estoque")
+    total = cur.fetchone()['total']
+    referencia = f"REF.{total+1:04d}"
+    modelo = request.form.get('modelo','').strip()
+    descricao = request.form.get('descricao','').strip()
+    tamanho = request.form.get('tamanho','').strip()
+    quantidade = int(request.form.get('quantidade',1) or 1)
+    custo = float(request.form.get('custo_unitario',0) or 0)
+    markup = float(request.form.get('markup',0) or 0)
+    venda = float(request.form.get('valor_venda',0) or 0)
+    margem = float(request.form.get('margem_lucro',0) or 0)
+    custo_total = custo * quantidade
+    valor_total = venda * quantidade
+    try:
+        cur.execute("""INSERT INTO estoque (referencia,modelo,descricao,tamanho,quantidade,
+                       custo_unitario,markup,valor_venda,margem_lucro,custo_total,valor_total)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (referencia,modelo,descricao or None,tamanho,quantidade,
+                     custo,markup,venda,margem,custo_total,valor_total))
+        conn.commit()
+        flash('✅ Item cadastrado com sucesso!', 'ok')
+    except Exception as e:
+        flash(f'Erro ao cadastrar: {e}', 'erro')
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for('estoque'))
+
+@app.route('/estoque/modelo/novo', methods=['POST'])
+@login_required
+def novo_modelo():
+    nome = request.form.get('nome','').strip()
+    if nome:
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("INSERT INTO modelos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING", (nome,))
+            conn.commit()
+        except:
+            pass
+        finally:
+            cur.close()
+            conn.close()
+    return redirect(url_for('estoque'))
+
+@app.route('/estoque/tamanho/novo', methods=['POST'])
+@login_required
+def novo_tamanho():
+    nome = request.form.get('nome','').strip()
+    if nome:
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("INSERT INTO tamanhos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING", (nome,))
+            conn.commit()
+        except:
+            pass
+        finally:
+            cur.close()
+            conn.close()
+    return redirect(url_for('estoque'))
+
+@app.route('/estoque/etiquetas')
+@login_required
+def etiquetas():
+    data = request.args.get('data', datetime.now().strftime('%Y-%m-%d'))
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""SELECT referencia, modelo, tamanho, valor_venda, quantidade
+                   FROM estoque WHERE DATE(criado_em) = %s AND ativo = TRUE
+                   ORDER BY id""", (data,))
+    itens = cur.fetchall()
+    cur.close()
+    conn.close()
+    return {'itens': [dict(i) for i in itens], 'data': data}
 
 @app.route('/logout')
 def logout():

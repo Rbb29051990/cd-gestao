@@ -157,17 +157,19 @@
           <div class="ranking-header">
             <span class="ranking-titulo">Ranking de vendedoras</span>
             <select class="mes-sel" id="mesRanking" onchange="carregarRanking()">
-              {% for m in meses %}
-              <option value="{{ m.mes.strftime('%Y-%m') }}">{{ m.mes.strftime('%B / %Y').capitalize() }}</option>
+              {% if meses %}
+                {% for m in meses %}
+                <option value="{{ m.mes.strftime('%Y-%m') }}" {% if m.mes.strftime('%Y-%m') == now_mes %}selected{% endif %}>{{ m.mes.strftime('%B / %Y').capitalize() }}</option>
+                {% endfor %}
               {% else %}
-              <option value="{{ now_mes }}">{{ now_mes_label }}</option>
-              {% endfor %}
+                <option value="{{ now_mes }}">{{ now_mes_label }}</option>
+              {% endif %}
             </select>
           </div>
           <table class="rtable" id="tabelaRanking">
             <thead><tr><th>#</th><th>Vendedora</th><th>Total vendido</th><th>Qtd peças</th><th>Clientes atendidos</th></tr></thead>
             <tbody id="rankingBody">
-              {% for i, r in ranking|enumerate %}
+              {% for r in ranking %}
               <tr>
                 <td><span class="rank-pos {% if loop.index == 1 %}r1{% elif loop.index == 2 %}r2{% elif loop.index == 3 %}r3{% else %}rn{% endif %}">{{ loop.index }}</span></td>
                 <td style="font-weight:600">{{ r.vendedora_nome }}</td>

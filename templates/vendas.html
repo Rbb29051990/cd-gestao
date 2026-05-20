@@ -309,8 +309,11 @@
       <div class="step-sep">2. Itens da venda</div>
       <div class="add-item-bar">
         <div class="form-field" style="flex:1">
-          <span class="form-label">Código de referência</span>
-          <input class="form-input" type="text" id="refInput" placeholder="Ex: REF.0001" style="text-transform:uppercase" oninput="buscarRef(this.value)">
+          <span class="form-label">Código de referência <span style="color:#aaa;text-transform:none;font-weight:500;letter-spacing:0">(só os números)</span></span>
+          <div style="display:flex;align-items:center;gap:0">
+            <span style="padding:11px 12px;background:#e8eaf6;border:1.5px solid #c5cae9;border-right:none;border-radius:8px 0 0 8px;font-size:13px;font-weight:700;color:#3949ab;white-space:nowrap">REF.</span>
+            <input class="form-input" type="text" id="refInput" placeholder="0001" maxlength="4" style="border-radius:0 8px 8px 0;border-left:none;width:80px;text-align:center;font-weight:700;letter-spacing:2px" oninput="this.value=this.value.replace(/[^0-9]/g,'');buscarRef('REF.'+this.value.padStart(4,'0'))">
+          </div>
         </div>
         <div class="form-field" style="width:80px">
           <span class="form-label">Qtd</span>
@@ -365,7 +368,7 @@
         <div class="form-grid">
           <div class="form-field">
             <span class="form-label">Valor de entrada (R$)</span>
-            <input class="form-input" type="text" name="entrada" id="entradaVal" placeholder="Ex: 200,00" oninput="calcSaldo()">
+            <input class="form-input" type="text" name="entrada" id="entradaVal" placeholder="R$ 0,00" oninput="mascaraValor(this);calcSaldo()">
           </div>
           <div class="form-field">
             <span class="form-label">Qtd de parcelas</span>
@@ -380,11 +383,26 @@
           </div>
         </div>
         <div id="parcelasCrediario" style="margin-top:8px"></div>
+        <!-- CAMPO CALCULADO DE CONFERÊNCIA -->
+        <div id="conferenciaCrediario" style="display:none;margin-top:12px">
+          <div style="background:#f8f8fc;border:1.5px solid #e0e0e8;border-radius:10px;padding:14px 18px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:10px">Conferência de valores</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;font-size:13px">
+              <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Total venda</div><div style="font-weight:700;color:#1a1a2e" id="confTotal">—</div></div>
+              <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Entrada</div><div style="font-weight:700;color:#1a1a2e" id="confEntrada">—</div></div>
+              <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma parcelas</div><div style="font-weight:700;color:#1a1a2e" id="confSomaParcelas">—</div></div>
+              <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="confDiferenca">—</div></div>
+            </div>
+            <div id="confAlerta" style="display:none;margin-top:10px;background:#fce4ec;border-left:3px solid #c62828;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">
+              ⚠️ A soma das parcelas não fecha com o saldo devedor. Corrija antes de finalizar.
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="modal-footer">
         <button type="button" class="btn-cancelar-m" onclick="document.getElementById('modalVenda').style.display='none'">Cancelar</button>
-        <button type="submit" class="btn-finalizar" onclick="prepararEnvio()">✅ Finalizar venda</button>
+        <button type="submit" class="btn-finalizar" onclick="return prepararEnvio()">✅ Finalizar venda</button>
       </div>
     </form>
   </div>
@@ -576,15 +594,25 @@ function gerarParcelas(){
 }
 
 function prepararEnvio(){
+  // Bloquear se crediário com diferença
+  if(document.getElementById('secCrediario').style.display!=='none'){
+    const diffEl=document.getElementById('confDiferenca');
+    if(diffEl && diffEl.style.color==='rgb(198, 40, 40)'){
+      alert('⚠️ Corrija os valores das parcelas antes de finalizar. A soma deve ser igual ao saldo devedor.');
+      return false;
+    }
+  }
   document.getElementById('itensJson').value=JSON.stringify(carrinhoItens);
   const n=parseInt(document.getElementById('nParcelas').value)||0;
   const parcelas=[];
   for(let i=1;i<=n;i++){
     const data=document.querySelector(`[name="parcela_data_${i}"]`)?.value;
-    const valor=document.querySelector(`[name="parcela_valor_${i}"]`)?.value;
-    if(data&&valor) parcelas.push({data,valor:parseFloat(valor.replace(',','.'))});
+    const valEl=document.querySelector(`[name="parcela_valor_${i}"]`);
+    const valor=valEl?parseBRVal(valEl.value):0;
+    if(data&&valor) parcelas.push({data,valor});
   }
   document.getElementById('parcelasDatasJson').value=JSON.stringify(parcelas);
+  return true;
 }
 
 async function carregarRanking(){

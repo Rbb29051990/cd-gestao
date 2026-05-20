@@ -178,6 +178,18 @@ def init_db():
             criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS caixa (
+            id SERIAL PRIMARY KEY,
+            descricao TEXT,
+            valor NUMERIC(10,2),
+            tipo VARCHAR(20) DEFAULT 'entrada',
+            forma_pagamento VARCHAR(50),
+            crediario_id INTEGER,
+            vendedora_nome VARCHAR(200),
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     cur.close()
     conn.close()
@@ -960,8 +972,14 @@ def ficha_venda(vid):
     if not venda:
         flash('Venda não encontrada.', 'erro')
         return redirect(url_for('vendas'))
+    conn2 = get_db()
+    cur2 = conn2.cursor()
+    cur2.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+    vendedoras = cur2.fetchall()
+    cur2.close()
+    conn2.close()
     return render_template('ficha_venda.html', cliente=CLIENTE, venda=venda,
-                           itens=itens, crediario=crediario,
+                           itens=itens, crediario=crediario, vendedoras=vendedoras,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
 @app.route('/vendas/ranking')
@@ -1006,6 +1024,65 @@ def buscar_cliente_venda():
     cur.close()
     conn.close()
     return {'clientes': clientes}
+
+
+@app.route('/crediarios/<int:cid>/parcela/<int:pid>/pagar', methods=['POST'])
+@login_required
+def pagar_parcela(cid, pid):
+    vendedora_nome = request.form.get('vendedora_nome','').strip()
+    valor_pago = float(request.form.get('valor_pago', 0) or 0)
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Buscar parcela e crediário
+        cur.execute("SELECT * FROM crediario_parcelas WHERE id=%s AND crediario_id=%s", (pid, cid))
+        parcela = cur.fetchone()
+        cur.execute("SELECT * FROM crediarios WHERE id=%s", (cid,))
+        crediario = dict(cur.fetchone())
+
+        # Marcar parcela como paga
+        cur.execute("UPDATE crediario_parcelas SET pago=TRUE, valor=%s, data_pagamento=CURRENT_DATE WHERE id=%s", (valor_pago, pid))
+
+        # Calcular novo saldo devedor
+        novo_saldo = float(crediario['saldo_devedor']) - valor_pago
+
+        if novo_saldo <= 0.01:
+            # Quitado — dar baixa e excluir parcelas restantes
+            cur.execute("DELETE FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE", (cid,))
+            cur.execute("UPDATE crediarios SET saldo_devedor=0, status='quitado' WHERE id=%s", (cid,))
+            status_msg = 'quitado'
+        else:
+            # Redistribuir saldo nas parcelas restantes
+            cur.execute("SELECT id FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE ORDER BY numero_parcela", (cid,))
+            restantes = cur.fetchall()
+            if restantes:
+                import math
+                val_por_parcela = math.ceil((novo_saldo / len(restantes)) * 100) / 100
+                for i, p in enumerate(restantes):
+                    if i == len(restantes) - 1:
+                        # Última parcela pega o restante exato
+                        val_ultima = round(novo_saldo - val_por_parcela * (len(restantes)-1), 2)
+                        cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (val_ultima, p['id']))
+                    else:
+                        cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (val_por_parcela, p['id']))
+            cur.execute("UPDATE crediarios SET saldo_devedor=%s WHERE id=%s", (round(novo_saldo, 2), cid))
+            status_msg = 'atualizado'
+
+        # Registrar no caixa
+        cur.execute("""
+            INSERT INTO caixa (descricao, valor, tipo, forma_pagamento, crediario_id, vendedora_nome, criado_em)
+            VALUES (%s, %s, 'entrada', 'crediario', %s, %s, CURRENT_TIMESTAMP)
+        """, (f"Recebimento crediário — {crediario['cliente_nome']}", valor_pago, cid, vendedora_nome))
+
+        conn.commit()
+        flash(f'✅ Parcela registrada! Crediário {status_msg}.', 'ok')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Erro: {e}', 'erro')
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for('ficha_venda', vid=crediario['venda_id']))
 
 @app.route('/logout')
 def logout():

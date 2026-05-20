@@ -30,6 +30,7 @@
 .parcela-item:last-child{border-bottom:none}
 .parcela-paga{color:#2e7d32;font-weight:700}
 .parcela-aberto{color:#c62828;font-weight:600}
+.parcela-clicavel:hover{background:#f0f8ff}
 </style>
 <div class="dash-wrap">
   <div class="topbar">
@@ -111,15 +112,20 @@
         <div class="fv-grid" style="margin-bottom:16px">
           <div class="fv-campo"><span class="fv-label">Valor total</span><span class="fv-val">R$ {{ "%.2f"|format(crediario.valor_total|float)|replace(".",",") }}</span></div>
           <div class="fv-campo"><span class="fv-label">Entrada paga</span><span class="fv-val" style="color:#2e7d32">R$ {{ "%.2f"|format(crediario.entrada|float)|replace(".",",") }}</span></div>
-          <div class="fv-campo"><span class="fv-label">Saldo devedor</span><span class="fv-val" style="color:#c62828">R$ {{ "%.2f"|format(crediario.saldo_devedor|float)|replace(".",",") }}</span></div>
+          <div class="fv-campo"><span class="fv-label">Saldo devedor</span><span class="fv-val" style="color:{% if crediario.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "%.2f"|format(crediario.saldo_devedor|float)|replace(".",",") }}</span></div>
         </div>
         <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;overflow:hidden">
           {% for p in crediario.parcelas %}
-          <div class="parcela-item">
-            <span>Parcela {{ p.numero_parcela }} — vencimento {{ p.data_vencimento.strftime('%d/%m/%Y') }}</span>
+          <div class="parcela-item {% if not p.pago %}parcela-clicavel{% endif %}"
+               {% if not p.pago %}onclick="abrirBaixaParcela({{ crediario.id }}, {{ p.id }}, '{{ p.data_vencimento.strftime('%d/%m/%Y') }}', {{ p.valor }})"{% endif %}
+               style="{% if not p.pago %}cursor:pointer{% endif %}">
+            <div>
+              <span>Parcela {{ p.numero_parcela }} — vencimento {{ p.data_vencimento.strftime('%d/%m/%Y') }}</span>
+              {% if not p.pago %}<span style="font-size:11px;color:#1565c0;font-weight:600;margin-left:10px">clique para registrar pagamento</span>{% endif %}
+            </div>
             <span class="{{ 'parcela-paga' if p.pago else 'parcela-aberto' }}">
               R$ {{ "%.2f"|format(p.valor|float)|replace(".",",") }}
-              {% if p.pago %}✅ Pago{% else %}⏳ Em aberto{% endif %}
+              {% if p.pago %}✅ Pago em {{ p.data_pagamento.strftime('%d/%m/%Y') }}{% else %}⏳ Em aberto{% endif %}
             </span>
           </div>
           {% endfor %}
@@ -129,4 +135,59 @@
     </main>
   </div>
 </div>
+
+<!-- MODAL BAIXA DE PARCELA -->
+<div class="confirm-overlay" id="modalBaixaParcela" style="display:none">
+  <div class="confirm-box" style="max-width:420px;text-align:left">
+    <div style="font-size:18px;font-weight:700;color:#1a1a2e;margin-bottom:4px">Registrar pagamento</div>
+    <div style="font-size:12px;color:#aaa;margin-bottom:20px" id="modalPLabel"></div>
+    <form method="POST" id="formBaixaParcela">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="fv-campo">
+          <span class="fv-label">Vendedora (seu código/nome)</span>
+          <select class="form-input" name="vendedora_nome" style="border:1.5px solid #e0e0e8;border-radius:8px;padding:11px 14px;font-family:Outfit,sans-serif;font-size:14px;width:100%;cursor:pointer">
+            {% for v in vendedoras %}
+            <option>{{ v.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="fv-campo">
+          <span class="fv-label">Valor recebido (R$)</span>
+          <input class="form-input" type="text" name="valor_pago" id="valorPago"
+                 style="border:1.5px solid #e0e0e8;border-radius:8px;padding:11px 14px;font-family:Outfit,sans-serif;font-size:14px;width:100%"
+                 oninput="mascaraValorBaixa(this)">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button type="button" class="btn-nao-exc" onclick="document.getElementById('modalBaixaParcela').style.display='none'" style="flex:1">Cancelar</button>
+        <button type="submit" class="btn-sim-exc" style="flex:2;background:#2e7d32;border-color:#2e7d32">✅ Confirmar recebimento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function mascaraValorBaixa(input){
+  let v=input.value.replace(/[^0-9]/g,'');
+  if(!v){input.value='';return;}
+  let n=parseInt(v)/100;
+  input.value=n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function parseBR(s){return parseFloat((s||'').replace(/\./g,'').replace(',','.'))||0;}
+
+function abrirBaixaParcela(credId, parcelaId, dataVenc, valorOriginal){
+  document.getElementById('modalPLabel').textContent='Parcela com vencimento em '+dataVenc+' — valor original: R$ '+parseFloat(valorOriginal).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('valorPago').value=parseFloat(valorOriginal).toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('formBaixaParcela').action='/crediarios/'+credId+'/parcela/'+parcelaId+'/pagar';
+  document.getElementById('modalBaixaParcela').style.display='flex';
+}
+
+document.getElementById('formBaixaParcela').addEventListener('submit', function(e){
+  const valEl=document.getElementById('valorPago');
+  const val=parseBR(valEl.value);
+  // Converter para formato numérico antes de enviar
+  valEl.value=val.toFixed(2);
+});
+</script>
 {% endblock %}

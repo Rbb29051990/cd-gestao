@@ -848,51 +848,50 @@ def excluir_estoque(eid):
 @app.route('/vendas')
 @login_required
 def vendas():
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM usuarios WHERE ativo=TRUE ORDER BY nome")
-    vendedoras = cur.fetchall()
-    cur.execute("SELECT id, nome FROM clientes WHERE ativo=TRUE ORDER BY nome")
-    clientes = cur.fetchall()
-    cur.execute(
-        "SELECT v.*, COUNT(vi.id) as qtd_itens FROM vendas v "
-        "LEFT JOIN venda_itens vi ON vi.venda_id=v.id "
-        "GROUP BY v.id ORDER BY v.criado_em DESC"
-    )
-    lista_vendas = cur.fetchall()
-    # Crediários
-    cur.execute(
-        "SELECT c.*, v.criado_em as data_venda FROM crediarios c "
-        "JOIN vendas v ON v.id=c.venda_id ORDER BY c.criado_em DESC"
-    )
-    lista_crediarios = cur.fetchall()
-    # Ranking vendedoras (mês atual)
-    mes_ini = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    cur.execute(
-        "SELECT vendedora_nome, COALESCE(SUM(valor_total),0) as total, COUNT(id) as num_vendas, "
-        "COUNT(DISTINCT cliente_id) as clientes "
-        "FROM vendas WHERE criado_em >= %s GROUP BY vendedora_nome ORDER BY total DESC", (mes_ini,)
-    )
-    ranking = cur.fetchall()
-    # Meses disponíveis
-    cur.execute("SELECT DISTINCT DATE_TRUNC('month', criado_em) as mes FROM vendas ORDER BY mes DESC")
-    meses_raw = cur.fetchall()
-    # Converter lista_vendas e lista_crediarios para dict editável
-    lista_vendas = [dict(v) for v in lista_vendas]
-    lista_crediarios = [dict(c) for c in lista_crediarios]
-    ranking = [dict(r) for r in ranking]
-    cur.close()
-    conn.close()
-    now_mes = datetime.now().strftime('%Y-%m')
-    now_mes_label = datetime.now().strftime('%B / %Y').capitalize()
-    # Formatar meses no Python para evitar problemas no Jinja2
-    meses = [{'mes_val': m['mes'].strftime('%Y-%m'), 'mes_label': m['mes'].strftime('%B / %Y').capitalize()} for m in meses_raw]
-    return render_template('vendas.html', cliente=CLIENTE,
-                           vendedoras=vendedoras, clientes=clientes,
-                           lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
-                           ranking=ranking, meses=meses,
-                           now_mes=now_mes, now_mes_label=now_mes_label,
-                           nome=session.get('nome'), perfil=session.get('perfil'))
+    import traceback
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+        vendedoras = cur.fetchall()
+        cur.execute("SELECT id, nome FROM clientes WHERE ativo=TRUE ORDER BY nome")
+        clientes = cur.fetchall()
+        cur.execute(
+            "SELECT v.*, COUNT(vi.id) as qtd_itens FROM vendas v "
+            "LEFT JOIN venda_itens vi ON vi.venda_id=v.id "
+            "GROUP BY v.id ORDER BY v.criado_em DESC"
+        )
+        lista_vendas = [dict(v) for v in cur.fetchall()]
+        cur.execute(
+            "SELECT c.*, v.criado_em as data_venda FROM crediarios c "
+            "JOIN vendas v ON v.id=c.venda_id ORDER BY c.criado_em DESC"
+        )
+        lista_crediarios = [dict(c) for c in cur.fetchall()]
+        mes_ini = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        cur.execute(
+            "SELECT vendedora_nome, COALESCE(SUM(valor_total),0) as total, COUNT(id) as num_vendas, "
+            "COUNT(DISTINCT cliente_id) as clientes "
+            "FROM vendas WHERE criado_em >= %s GROUP BY vendedora_nome ORDER BY total DESC", (mes_ini,)
+        )
+        ranking = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT DISTINCT DATE_TRUNC('month', criado_em) as mes FROM vendas ORDER BY mes DESC")
+        meses_raw = cur.fetchall()
+        cur.close()
+        conn.close()
+        now_mes = datetime.now().strftime('%Y-%m')
+        now_mes_label = datetime.now().strftime('%B / %Y').capitalize()
+        meses = [{'mes_val': m['mes'].strftime('%Y-%m'), 'mes_label': m['mes'].strftime('%B / %Y').capitalize()} for m in meses_raw]
+        return render_template('vendas.html', cliente=CLIENTE,
+                               vendedoras=vendedoras, clientes=clientes,
+                               lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
+                               ranking=ranking, meses=meses,
+                               now_mes=now_mes, now_mes_label=now_mes_label,
+                               nome=session.get('nome'), perfil=session.get('perfil'))
+    except Exception as e:
+        print(f"ERRO VENDAS: {e}")
+        print(traceback.format_exc())
+        return f"<pre style='padding:20px'>ERRO NA ROTA VENDAS:\n{e}\n\n{traceback.format_exc()}</pre>", 500
+
 
 @app.route('/vendas/nova', methods=['POST'])
 @login_required

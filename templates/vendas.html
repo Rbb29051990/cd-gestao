@@ -611,4 +611,92 @@ function gerarParcelas(){
   document.getElementById('conferenciaCrediario').style.display='block';
   atualizarConferencia();
 }
+function atualizarConferencia(){
+  const total=parseFloat(document.getElementById('valorTotalHidden').value||0);
+  const entrada=parseFloat(document.getElementById('entradaVal').value||0);
+  const n=parseInt(document.getElementById('nParcelas').value)||0;
+  let somaParcelas=0;
+  for(let i=1;i<=n;i++){
+    const el=document.querySelector(`[name="parcela_valor_${i}"]`);
+    if(el) somaParcelas+=parseFloat(el.value||0);
+  }
+  somaParcelas=Math.round(somaParcelas*100)/100;
+  const saldoDevedor=Math.max(0,Math.round((total-entrada)*100)/100);
+  const diferenca=Math.round((saldoDevedor-somaParcelas)*100)/100;
+  document.getElementById('confTotal').textContent='R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('confEntrada').textContent='R$ '+entrada.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('confSomaParcelas').textContent='R$ '+somaParcelas.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  const diffEl=document.getElementById('confDiferenca');
+  const alertEl=document.getElementById('confAlerta');
+  if(Math.abs(diferenca)<=0.01){
+    diffEl.textContent='R$ 0,00';diffEl.style.color='#2e7d32';alertEl.style.display='none';
+  } else {
+    diffEl.textContent='R$ '+diferenca.toLocaleString('pt-BR',{minimumFractionDigits:2});
+    diffEl.style.color='#c62828';alertEl.style.display='block';
+  }
+}
 
+function prepararEnvio(){
+  if(document.getElementById('secCrediario').style.display!=='none'){
+    const diffEl=document.getElementById('confDiferenca');
+    if(diffEl&&diffEl.style.color==='rgb(198, 40, 40)'){
+      alert('⚠️ Corrija os valores das parcelas antes de finalizar.');
+      return false;
+    }
+  }
+  const entEl=document.getElementById('entradaVal');
+  entEl.value=parseFloat(entEl.value||0).toFixed(2);
+  document.getElementById('itensJson').value=JSON.stringify(carrinhoItens);
+  const n=parseInt(document.getElementById('nParcelas').value)||0;
+  const parcelas=[];
+  for(let i=1;i<=n;i++){
+    const data=document.querySelector(`[name="parcela_data_${i}"]`)?.value;
+    const valEl=document.querySelector(`[name="parcela_valor_${i}"]`);
+    const valor=valEl?parseFloat(valEl.value||0):0;
+    if(data&&valor) parcelas.push({data,valor});
+  }
+  document.getElementById('parcelasDatasJson').value=JSON.stringify(parcelas);
+  return true;
+}
+
+async function carregarRanking(){
+  const mes=document.getElementById('mesRanking').value;
+  const r=await fetch('/vendas/ranking?mes='+mes);
+  const d=await r.json();
+  const body=document.getElementById('rankingBody');
+  if(!d.ranking||d.ranking.length===0){
+    body.innerHTML='<tr><td colspan="5" class="empty-row">Nenhuma venda neste mês.</td></tr>';
+    return;
+  }
+  const cores=['r1','r2','r3'];
+  body.innerHTML=d.ranking.map((r,i)=>`
+    <tr>
+      <td><span class="rank-pos ${cores[i]||'rn'}">${i+1}</span></td>
+      <td style="font-weight:600">${r.vendedora_nome}</td>
+      <td style="color:#2e7d32;font-weight:700">R$ ${parseFloat(r.total).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+      <td>${r.num_vendas}</td>
+      <td>${r.clientes}</td>
+    </tr>`).join('');
+}
+
+let vSortCol=-1, vSortAsc=true;
+function ordenarV(col){
+  const tbody=document.getElementById('tbodyVendas');
+  const rows=Array.from(tbody.querySelectorAll('tr'));
+  if(vSortCol===col) vSortAsc=!vSortAsc; else {vSortCol=col;vSortAsc=true;}
+  rows.sort((a,b)=>{
+    const va=a.cells[col]?.textContent.trim()||'';
+    const vb=b.cells[col]?.textContent.trim()||'';
+    const na=parseFloat(va.replace(/[^0-9,]/g,'').replace(',','.'));
+    const nb=parseFloat(vb.replace(/[^0-9,]/g,'').replace(',','.'));
+    if(!isNaN(na)&&!isNaN(nb)) return vSortAsc?na-nb:nb-na;
+    return vSortAsc?va.localeCompare(vb,'pt-BR'):vb.localeCompare(va,'pt-BR');
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+  document.querySelectorAll('#tabelaVendas th').forEach((th,i)=>{
+    th.classList.remove('sorted-asc','sorted-desc');
+    if(i===col) th.classList.add(vSortAsc?'sorted-asc':'sorted-desc');
+  });
+}
+</script>
+{% endblock %}

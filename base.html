@@ -33,24 +33,18 @@
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 11 m-8 0 a8 8 0 0 1 8-8" stroke="#4A90D9" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m0-8 a8 8 0 0 1 6.9 4" stroke="#E8593C" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9-4 a8 8 0 0 1 0 8" stroke="#7abf8e" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9 4 a8 8 0 0 1-13.8 0" stroke="#FAC775" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="11" cy="11" r="3" fill="#141414" stroke="#333" stroke-width="1"/></svg> Inventário</a>
         <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><polyline points="3,17 8,10 12,13 17,6 20,8" stroke="#5DCAA5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17h16" stroke="#5DCAA5" stroke-width="1.4" stroke-linecap="round"/><circle cx="20" cy="8" r="1.5" fill="#5DCAA5"/></svg> Relatórios</a>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#4A90D9"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#E8593C"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#7abf8e"/><path d="M2 11 L7 6 L12 9 L20 2" stroke="#FAC775" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="2" r="1.5" fill="#FAC775"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#AFA9EC" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#AFA9EC" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#AFA9EC"/></svg> Usuários</a>{% endif %}
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item "><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#AFA9EC" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#AFA9EC" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#AFA9EC"/></svg> Usuários</a>{% endif %}
       </div>
     </nav>
     <main class="main-content">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px">
-        <div><div class="page-title">Usuários</div><div class="page-date">Gerencie os acessos ao sistema</div></div>
-        <a href="/usuarios/novo" class="btn-acao">+ Novo usuário</a>
-      </div>
+      <div class="page-title">Alterar minha senha</div><div class="page-date">Mude sua senha de acesso</div>
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div class="table-wrap"><table class="table">
-        <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>
-        <tbody>{% for u in usuarios %}<tr>
-          <td>{{ u.nome }}</td><td>{{ u.usuario }}</td>
-          <td><span class="cd-badge {% if u.perfil == 'admin' %}ok{% else %}mid{% endif %}">{{ u.perfil }}</span></td>
-          <td><span class="cd-badge {% if u.ativo %}ok{% else %}low{% endif %}">{% if u.ativo %}Ativo{% else %}Inativo{% endif %}</span></td>
-          <td style="display:flex;gap:8px;flex-wrap:wrap"><a href="/usuarios/{{ u.id }}/editar" class="btn-sm">✏️ Editar</a><a href="/usuarios/{{ u.id }}/toggle" class="btn-sm btn-sm-danger">{% if u.ativo %}⛔ Desativar{% else %}✅ Ativar{% endif %}</a></td>
-        </tr>{% endfor %}</tbody>
-      </table></div>
+      <form method="POST" class="form-interno">
+        <div class="field"><label>Senha atual</label><input type="password" name="senha_atual" required></div>
+        <div class="field"><label>Nova senha (mín. 6 caracteres)</label><input type="password" name="nova_senha" required></div>
+        <div class="field"><label>Confirmar nova senha</label><input type="password" name="confirmar_senha" required></div>
+        <button type="submit" class="btn-entrar" style="width:auto;padding:14px 32px;margin-top:8px">Salvar</button>
+      </form>
     </main>
   </div>
 </div>

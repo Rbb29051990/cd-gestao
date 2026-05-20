@@ -1,1 +1,319 @@
-web: gunicorn app:app
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+.auto { background: #f0f8f2 !important; border-color: #c8e6c9 !important; }
+.modal-overlay { position:fixed;inset:0;background:rgba(26,26,46,0.6);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px); }
+.modal { background:#fff;width:100%;max-width:640px;padding:40px;position:relative;max-height:92vh;overflow-y:auto;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,0.2); }
+.modal-title { font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:4px; }
+.modal-sub { font-size:11px;color:#aaa;letter-spacing:1px;text-transform:uppercase;margin-bottom:28px;font-weight:700; }
+.modal-close { position:absolute;top:20px;right:20px;background:#f4f4f6;border:none;color:#555;width:36px;height:36px;font-size:18px;cursor:pointer;border-radius:50%;font-weight:700; }
+.section-sep { font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:20px 0 14px;display:flex;align-items:center;gap:10px; }
+.section-sep::after { content:'';flex:1;height:1px;background:#eee; }
+.form-grid { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px; }
+.form-field { display:flex;flex-direction:column;gap:6px; }
+.form-field.span2 { grid-column:span 2; }
+.form-label { font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px; }
+.form-input { padding:13px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:15px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;transition:border-color 0.2s,background 0.2s;width:100%; }
+.form-input:focus { border-color:#1a1a2e;background:#fff; }
+.form-input::placeholder { color:#ccc; }
+.form-select { padding:13px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:15px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;cursor:pointer; }
+.form-select:focus { border-color:#1a1a2e;background:#fff; }
+.form-readonly { font-size:14px;color:#2e7d32;font-weight:700;padding:13px 14px;background:#f1f8f4;border:1.5px solid #c8e6c9;border-radius:8px; }
+.cep-wrap { position:relative; }
+.cep-spin { position:absolute;right:14px;top:50%;transform:translateY(-50%);display:none;font-size:14px; }
+.cep-hint { font-size:11px;color:#aaa;font-weight:500;margin-top:4px; }
+.form-row { display:flex;align-items:center;gap:16px;padding:14px 16px;border-radius:8px;border:1.5px solid #e8e8f0;background:#f8f8fc;flex-wrap:wrap; }
+.form-row-label { font-size:14px;font-weight:600;color:#333;flex:1;min-width:180px; }
+.toggle-wrap { display:flex;gap:8px; }
+.toggle-btn { padding:10px 22px;border:1.5px solid #ddd;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;background:#fff;color:#aaa;border-radius:6px; }
+.toggle-btn.sim.active { background:#2e7d32;border-color:#2e7d32;color:#fff; }
+.toggle-btn.nao.active { background:#c62828;border-color:#c62828;color:#fff; }
+.modal-footer { display:flex;gap:12px;margin-top:8px;padding-top:20px;border-top:1.5px solid #eee; }
+.btn-salvar { padding:14px 32px;background:#1a1a2e;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;border-radius:8px;box-shadow:0 4px 14px rgba(26,26,46,0.25); }
+.btn-cancelar { padding:14px 24px;background:#f4f4f6;border:none;color:#888;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border-radius:8px; }
+</style>
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <span class="topbar-logo-main">CD · GESTÃO</span>
+      <span class="topbar-logo-sub">Empresarial</span>
+    </div>
+    <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout">Minha senha</a>
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section">
+        <div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item "><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><path d="M15 13c2.5 0 4 1.5 4 4" stroke="#6a1b9a" stroke-width="1.4" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Financeiro</div>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/><circle cx="11" cy="11.5" r="1" fill="#2e7d32"/><path d="M2 8h3M17 8h3" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Caixa</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M15 3l4 4-4 4" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Crediários</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Gestão</div>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 11 m-8 0 a8 8 0 0 1 8-8" stroke="#1565c0" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m0-8 a8 8 0 0 1 6.9 4" stroke="#e53935" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9-4 a8 8 0 0 1 0 8" stroke="#2e7d32" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9 4 a8 8 0 0 1-13.8 0" stroke="#f9a825" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="11" cy="11" r="3" fill="#fff" stroke="#ddd" stroke-width="1"/></svg> Inventário</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><polyline points="3,17 8,10 12,13 17,6 20,8" stroke="#2e7d32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17h16" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/><circle cx="20" cy="8" r="1.5" fill="#2e7d32"/></svg> Relatórios</a>
+        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/><path d="M2 11 L7 6 L12 9 L20 2" stroke="#f9a825" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Dashboards</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item "><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      </div>
+    </nav>
+    <main class="main-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Clientes</div>
+          <div class="page-date">{% if clientes %}{{ clientes|length }} registros cadastrados{% else %}Nenhum cliente cadastrado{% endif %}</div>
+        </div>
+        <button class="btn-acao" onclick="document.getElementById('modalCadastro').style.display='flex'">+ Cadastrar cliente</button>
+      </div>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        {% if msg.startswith('DUPLICADO_NOME||') %}
+          {% set dado = msg.split('||')[1] %}
+          <div class="alerta-dup alerta-nome">
+            <div class="alerta-icon">🚫</div>
+            <div class="alerta-body">
+              <div class="alerta-titulo">Cliente duplicado — cadastro bloqueado</div>
+              <div class="alerta-msg">Não será possível cadastrar este novo cliente pois já existe um registro com o mesmo nome no sistema. Por favor, valide os dados antes de continuar.</div>
+              <div class="alerta-detalhe alerta-detalhe-nome">👤 Nome já cadastrado: "{{ dado }}"</div>
+              <div class="alerta-rodape">Verifique se o cliente já possui cadastro ou corrija o nome informado.</div>
+            </div>
+          </div>
+        {% elif msg.startswith('DUPLICADO_CPF||') %}
+          {% set dado = msg.split('||')[1] %}
+          <div class="alerta-dup alerta-cpf">
+            <div class="alerta-icon">🚫</div>
+            <div class="alerta-body">
+              <div class="alerta-titulo">Cliente duplicado — cadastro bloqueado</div>
+              <div class="alerta-msg">Não será possível cadastrar este novo cliente pois o CPF informado já está vinculado a outro cadastro. Por favor, valide os dados antes de continuar.</div>
+              <div class="alerta-detalhe alerta-detalhe-cpf">🪪 CPF já cadastrado: {{ dado }}</div>
+              <div class="alerta-rodape">Verifique se o cliente já possui cadastro ou corrija o CPF informado.</div>
+            </div>
+          </div>
+        {% elif msg.startswith('DUPLICADO_TEL||') %}
+          {% set dado = msg.split('||')[1] %}
+          <div class="alerta-dup alerta-tel">
+            <div class="alerta-icon">🚫</div>
+            <div class="alerta-body">
+              <div class="alerta-titulo">Cliente duplicado — cadastro bloqueado</div>
+              <div class="alerta-msg">Não será possível cadastrar este novo cliente pois o contato informado já está vinculado a outro cadastro. Por favor, valide os dados antes de continuar.</div>
+              <div class="alerta-detalhe alerta-detalhe-tel">📱 Contato já cadastrado: {{ dado }}</div>
+              <div class="alerta-rodape">Verifique se o cliente já possui cadastro ou corrija o contato informado.</div>
+            </div>
+          </div>
+        {% elif msg.startswith('SUCESSO||') %}
+          <div class="flash flash-ok">{{ msg.split('||')[1] }}</div>
+        {% else %}
+          <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endif %}
+      {% endfor %}
+      {% endwith %}
+      <div class="filtros">
+        <div class="busca"><input type="text" id="buscaInput" onkeyup="filtrarClientes()" placeholder="🔍  Buscar por nome, contato, CPF..."></div>
+        <button class="filtro-btn active" onclick="setFiltro('todos', this)">Todos</button>
+        <button class="filtro-btn" onclick="setFiltro('dia', this)">🎉 Aniversariantes do dia</button>
+        <button class="filtro-btn" onclick="setFiltro('mes', this)">🎂 Aniversariantes do mês</button>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="tabelaClientes">
+          <thead><tr><th>Cliente</th><th>Contato</th><th>Endereço</th><th>Nascimento</th><th>Crediário</th><th>Promoções</th></tr></thead>
+          <tbody>
+            {% for c in clientes %}
+            <tr onclick="window.location='/clientes/{{ c.id }}'" style="cursor:pointer"
+                data-nome="{{ c.nome }}" data-tel="{{ c.telefone or '' }}"
+                data-cpf="{{ c.cpf or '' }}" data-mes="{{ c.data_nascimento.month if c.data_nascimento else '' }}"
+                data-dia="{{ c.data_nascimento.day if c.data_nascimento else '' }}">
+              <td><div class="cliente-cell">
+                <div class="cli-avatar" style="background:{{ c.cor_avatar }}">{{ c.iniciais }}</div>
+                <div><div class="cliente-nome">{{ c.nome }}</div><div class="cliente-cod">#CLI-{{ '%04d'|format(c.id) }}</div></div>
+              </div></td>
+              <td>{% if c.telefone %}<button class="tel-btn" onclick="event.stopPropagation();abrirTel('{{ c.telefone }}')">📱 {{ c.telefone }}</button>{% else %}—{% endif %}</td>
+              <td>{% if c.cidade %}<button class="end-btn" onclick="event.stopPropagation();abrirEnd('{{ c.logradouro or '' }}, {{ c.numero or '' }} - {{ c.cidade }}/{{ c.uf or '' }}')">📍 {{ c.cidade }}{% if c.uf %}/{{ c.uf }}{% endif %}</button>{% else %}—{% endif %}</td>
+              <td>{% if c.data_nascimento %}<span class="aniv">🎂 {{ c.data_nascimento.strftime('%d/%m/%Y') }}</span>{% else %}—{% endif %}</td>
+              <td>{% if c.crediario %}<span class="badge badge-hab">✅ Habilitado</span>{% else %}<span class="badge badge-nao">— Não</span>{% endif %}</td>
+              <td>{% if c.promocoes %}<span class="badge badge-sim">📢 Sim</span>{% else %}<span class="badge badge-naop">🔕 Não</span>{% endif %}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="empty-row">Nenhum cliente cadastrado ainda.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalCadastro" style="display:none">
+  <div class="modal">
+    <button class="modal-close" onclick="fecharModal('modalCadastro')">✕</button>
+    <div class="modal-title">Novo cliente</div>
+    <div class="modal-sub">Preencha os dados abaixo</div>
+    <form method="POST" action="/clientes/novo">
+      <div class="section-sep">Dados pessoais</div>
+      <div class="form-grid">
+        <div class="form-field span2"><span class="form-label">ID Cliente</span><div class="form-readonly">🔖 #CLI-{{ next_id }} — gerado automaticamente</div></div>
+        <div class="form-field span2"><span class="form-label">Nome completo *</span><input class="form-input" type="text" name="nome" required placeholder="Nome completo do cliente"></div>
+        <div class="form-field"><span class="form-label">Data de nascimento</span><input class="form-input" type="date" name="data_nascimento" onchange="calcIdade(this)"><div id="idadeCalc" style="font-size:12px;color:#888;font-weight:600;margin-top:4px;min-height:16px"></div></div>
+        <div class="form-field"><span class="form-label">CPF</span><input class="form-input" type="text" name="cpf" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCPF(this)"></div>
+        <div class="form-field span2"><span class="form-label">Contato</span><input class="form-input" type="text" name="telefone" placeholder="(00) 00000-0000" maxlength="15" oninput="mascaraTel(this)"></div>
+      </div>
+      <div class="section-sep">Endereço</div>
+      <div class="form-grid">
+        <div class="form-field"><span class="form-label">CEP <span style="color:#bbb;font-weight:500;text-transform:none;letter-spacing:0;font-size:10px">(opcional)</span></span>
+          <div class="cep-wrap"><input class="form-input" type="text" name="cep" id="cepInput" placeholder="00000-000" maxlength="9" oninput="mascaraCEP(this)"><span class="cep-spin" id="cepSpin">⏳</span></div>
+          <div style="min-height:18px;margin-top:4px" id="cepStatus"></div>
+          <div class="cep-hint">Digite o CEP para preencher automaticamente ou preencha manualmente</div>
+        </div>
+        <div class="form-field"><span class="form-label">Número</span><input class="form-input" type="text" name="numero" id="endNumero" placeholder="Ex: 123"></div>
+        <div class="form-field span2"><span class="form-label">Logradouro</span><input class="form-input" type="text" name="logradouro" id="endRua" placeholder="Rua, Avenida, Travessa..."></div>
+        <div class="form-field"><span class="form-label">Complemento</span><input class="form-input" type="text" name="complemento" id="endComplemento" placeholder="Apto, casa, bloco..."></div>
+        <div class="form-field"><span class="form-label">Bairro</span><input class="form-input" type="text" name="bairro" id="endBairro" placeholder="Nome do bairro"></div>
+        <div class="form-field"><span class="form-label">Cidade</span><input class="form-input" type="text" name="cidade" id="endCidade" placeholder="Nome da cidade"></div>
+        <div class="form-field"><span class="form-label">UF</span><select class="form-select" name="uf" id="endUF"><option value="">--</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select></div>
+      </div>
+      <div class="section-sep">Preferências</div>
+      <div class="form-grid">
+        <div class="form-field span2">
+          <div class="form-row"><span class="form-row-label">Gostaria de receber promoções?</span>
+            <div class="toggle-wrap">
+              <button type="button" class="toggle-btn sim active" onclick="toggleBtn(this,'sim','promocoes')">✅ Sim</button>
+              <button type="button" class="toggle-btn nao" onclick="toggleBtn(this,'nao','promocoes')">🔕 Não</button>
+            </div>
+          </div>
+          <input type="hidden" name="promocoes" id="promocoes" value="1">
+        </div>
+        <div class="form-field span2">
+          <div class="form-row"><span class="form-row-label">Habilitado para crediário da loja?</span>
+            <div class="toggle-wrap">
+              <button type="button" class="toggle-btn sim" onclick="toggleBtn(this,'sim','crediario')">✅ Sim</button>
+              <button type="button" class="toggle-btn nao active" onclick="toggleBtn(this,'nao','crediario')">🔕 Não</button>
+            </div>
+          </div>
+          <input type="hidden" name="crediario" id="crediario" value="0">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn-salvar">💾 Salvar cliente</button>
+        <button type="button" class="btn-cancelar" onclick="fecharModal('modalCadastro')">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="popup-overlay" id="popupTel" style="display:none">
+  <div class="popup">
+    <div class="popup-title">Contato</div>
+    <div class="popup-info" id="popupTelNum"></div>
+    <div class="popup-btns">
+      <button class="popup-btn ligar" onclick="ligar()"><span class="popup-btn-icon">📞</span>Ligar</button>
+      <button class="popup-btn whats" onclick="whatsapp()"><span class="popup-btn-icon">💬</span>WhatsApp</button>
+    </div>
+    <button class="popup-close" onclick="fecharModal('popupTel')">Fechar</button>
+  </div>
+</div>
+<div class="popup-overlay" id="popupEnd" style="display:none">
+  <div class="popup">
+    <div class="popup-title">Abrir endereço em</div>
+    <div class="popup-info" id="popupEndStr"></div>
+    <div class="popup-btns">
+      <button class="popup-btn maps" onclick="abrirMaps()"><span class="popup-btn-icon">🗺️</span>Google Maps</button>
+      <button class="popup-btn waze" onclick="abrirWaze()"><span class="popup-btn-icon">🚗</span>Waze</button>
+    </div>
+    <button class="popup-close" onclick="fecharModal('popupEnd')">Fechar</button>
+  </div>
+</div>
+<script>
+function mascaraCPF(input) {
+  let v = input.value.replace(/[^0-9]/g,'').slice(0,11);
+  if (v.length > 9) v = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6,9)+'-'+v.slice(9);
+  else if (v.length > 6) v = v.slice(0,3)+'.'+v.slice(3,6)+'.'+v.slice(6);
+  else if (v.length > 3) v = v.slice(0,3)+'.'+v.slice(3);
+  input.value = v;
+}
+function mascaraTel(input) {
+  let v = input.value.replace(/[^0-9]/g,'').slice(0,11);
+  if (v.length === 11) v = '('+v.slice(0,2)+') '+v.slice(2,7)+'-'+v.slice(7);
+  else if (v.length === 10) v = '('+v.slice(0,2)+') '+v.slice(2,6)+'-'+v.slice(6);
+  else if (v.length > 2) v = '('+v.slice(0,2)+') '+v.slice(2);
+  else if (v.length > 0) v = '('+v;
+  input.value = v;
+}
+function mascaraCEP(input) {
+  let v = input.value.replace(/[^0-9]/g,'').slice(0,8);
+  if (v.length > 5) v = v.slice(0,5)+'-'+v.slice(5);
+  input.value = v;
+  if (v.replace('-','').length === 8) buscarCep(v.replace('-',''));
+}
+async function buscarCep(cep) {
+  document.getElementById('cepSpin').style.display = 'block';
+  document.getElementById('cepStatus').innerHTML = '<span style="color:#1565c0;font-size:12px;font-weight:600">🔍 Buscando...</span>';
+  try {
+    const r = await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+    const d = await r.json();
+    document.getElementById('cepSpin').style.display = 'none';
+    if (d.erro) {
+      document.getElementById('cepStatus').innerHTML = '<span style="color:#c62828;font-size:12px;font-weight:600">❌ CEP não encontrado — preencha os campos manualmente</span>';
+      return;
+    }
+    if (d.logradouro) { document.getElementById('endRua').value = d.logradouro; document.getElementById('endRua').classList.add('auto'); }
+    if (d.bairro) { document.getElementById('endBairro').value = d.bairro; document.getElementById('endBairro').classList.add('auto'); }
+    if (d.localidade) { document.getElementById('endCidade').value = d.localidade; document.getElementById('endCidade').classList.add('auto'); }
+    if (d.uf) { const sel = document.getElementById('endUF'); for (let o of sel.options) { if (o.value === d.uf) { o.selected = true; break; } } sel.classList.add('auto'); }
+    document.getElementById('cepStatus').innerHTML = '<span style="color:#2e7d32;font-size:12px;font-weight:600">✅ Endereço preenchido — você pode editar qualquer campo</span>';
+    document.getElementById('endNumero').focus();
+  } catch(e) {
+    document.getElementById('cepSpin').style.display = 'none';
+    document.getElementById('cepStatus').innerHTML = '<span style="color:#c62828;font-size:12px;font-weight:600">❌ Erro na busca — preencha os campos manualmente</span>';
+  }
+}
+function calcIdade(input) {
+  if (!input.value) return;
+  const hoje = new Date(), nasc = new Date(input.value);
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  if (hoje.getMonth() - nasc.getMonth() < 0 || (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate())) idade--;
+  document.getElementById('idadeCalc').textContent = '👤 ' + idade + ' anos';
+}
+function toggleBtn(btn, tipo, campo) {
+  btn.parentElement.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active','sim','nao'));
+  btn.classList.add('active', tipo);
+  document.getElementById(campo).value = tipo === 'sim' ? '1' : '0';
+}
+function fecharModal(id) { document.getElementById(id).style.display = 'none'; }
+</script>
+<script>
+var telAtual='', endAtual='';
+function setFiltro(tipo, btn) {
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const hoje = new Date();
+  document.querySelectorAll('#tabelaClientes tbody tr[data-nome]').forEach(tr => {
+    if (tipo==='todos'){tr.style.display='';return;}
+    const mes=parseInt(tr.dataset.mes)-1, dia=parseInt(tr.dataset.dia);
+    if(tipo==='dia') tr.style.display=(mes===hoje.getMonth()&&dia===hoje.getDate())?'':'none';
+    if(tipo==='mes') tr.style.display=(mes===hoje.getMonth())?'':'none';
+  });
+}
+function filtrarClientes() {
+  const q=document.getElementById('buscaInput').value.toLowerCase();
+  document.querySelectorAll('#tabelaClientes tbody tr[data-nome]').forEach(tr=>{
+    tr.style.display=(tr.dataset.nome+tr.dataset.tel+tr.dataset.cpf).toLowerCase().includes(q)?'':'none';
+  });
+}
+function abrirTel(num){telAtual=num;document.getElementById('popupTelNum').textContent=num;document.getElementById('popupTel').style.display='flex';}
+function abrirEnd(end){endAtual=end;document.getElementById('popupEndStr').textContent=end;document.getElementById('popupEnd').style.display='flex';}
+function ligar(){window.location='tel:'+telAtual.replace(/[^0-9]/g,'');}
+function whatsapp(){window.open('https://wa.me/55'+telAtual.replace(/[^0-9]/g,''),'_blank');}
+function abrirMaps(){window.open('https://maps.google.com/?q='+encodeURIComponent(endAtual),'_blank');}
+function abrirWaze(){window.open('https://waze.com/ul?q='+encodeURIComponent(endAtual),'_blank');}
+</script>
+{% endblock %}

@@ -689,7 +689,7 @@ def estoque():
         item['dias_estoque'] = delta
         item['saidas'] = (item['estoque_inicial'] or item['quantidade']) - item['quantidade']
     lucro_potencial = float(totais['vt']) - float(totais['ct'])
-    next_ref = f"REF.{total+1:04d}"
+    next_ref = f"{total+1:04d}"
     return render_template('estoque.html', cliente=CLIENTE, itens=itens,
                            custo_total=totais['ct'], valor_total=totais['vt'],
                            lucro_potencial=lucro_potencial, modelos=modelos,
@@ -703,7 +703,7 @@ def novo_estoque():
     cur = conn.cursor()
     cur.execute("SELECT COUNT(*) as total FROM estoque")
     total = cur.fetchone()['total']
-    referencia = f"REF.{total+1:04d}"
+    referencia = f"{total+1:04d}"
     modelo = request.form.get('modelo','').strip()
     descricao = request.form.get('descricao','').strip()
     tamanho = request.form.get('tamanho','').strip()
@@ -1017,7 +1017,12 @@ def buscar_ref_venda():
     ref = request.args.get('ref','').strip().upper()
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT id,referencia,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE referencia=%s AND ativo=TRUE", (ref,))
+    # Aceitar tanto "0001" quanto "REF.0001" para compatibilidade
+    cur.execute(
+        "SELECT id,referencia,modelo,descricao,tamanho,valor_venda,quantidade "
+        "FROM estoque WHERE (referencia=%s OR referencia=%s) AND ativo=TRUE",
+        (ref, f"REF.{ref.zfill(4)}" if ref.isdigit() else ref)
+    )
     item = cur.fetchone()
     cur.close()
     conn.close()
@@ -1095,6 +1100,34 @@ def pagar_parcela(cid, pid):
         cur.close()
         conn.close()
     return redirect(url_for('ficha_venda', vid=crediario['venda_id']))
+
+
+@app.route('/vendas/<int:vid>/excluir', methods=['POST'])
+@login_required
+def excluir_venda(vid):
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Restaurar estoque antes de excluir
+        cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s", (vid,))
+        itens = cur.fetchall()
+        for item in itens:
+            if item['estoque_id']:
+                cur.execute(
+                    "UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s",
+                    (item['quantidade'], item['estoque_id'])
+                )
+        # Excluir venda (cascata remove itens e crediários)
+        cur.execute("DELETE FROM vendas WHERE id=%s", (vid,))
+        conn.commit()
+        flash('✅ Venda excluída e estoque restaurado.', 'ok')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Erro ao excluir: {e}', 'erro')
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for('vendas'))
 
 @app.route('/logout')
 def logout():

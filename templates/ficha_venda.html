@@ -71,7 +71,7 @@
             <div class="fv-titulo">Venda #{{ '%04d'|format(venda.id) }}</div>
             <div class="fv-sub">{{ venda.criado_em.strftime('%d/%m/%Y às %H:%M') }}</div>
           </div>
-          <div>
+          <div style="display:flex;align-items:center;gap:12px">
             {% if venda.forma_pagamento == 'pix' %}<span class="badge bp-pix">⚡ Pix</span>
             {% elif venda.forma_pagamento == 'dinheiro' %}<span class="badge bp-dinheiro">💵 Dinheiro</span>
             {% elif venda.forma_pagamento == 'debito' %}<span class="badge bp-debito">💳 Débito</span>
@@ -79,6 +79,10 @@
             {% elif venda.forma_pagamento == 'credito_vista' %}<span class="badge bp-credito">💳 Crédito à vista</span>
             {% elif venda.forma_pagamento == 'credito_parcelado' %}<span class="badge bp-credito">💳 Crédito {{ venda.parcelas }}x</span>
             {% elif venda.forma_pagamento == 'link' %}<span class="badge bp-link">🔗 Link</span>{% endif %}
+            <button onclick="document.getElementById('confirmExcVenda').style.display='flex'"
+              style="padding:8px 16px;background:#fce4ec;color:#c62828;border:1.5px solid #f5c6d0;border-radius:8px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">
+              🗑️ Excluir venda
+            </button>
           </div>
         </div>
         <div class="fv-grid">
@@ -133,6 +137,21 @@
         {% endif %}
       </div>
     </main>
+  </div>
+</div>
+
+<!-- CONFIRM EXCLUIR VENDA -->
+<div class="confirm-overlay" id="confirmExcVenda" style="display:none">
+  <div class="confirm-box">
+    <div class="confirm-icon">⚠️</div>
+    <div class="confirm-title">Excluir venda?</div>
+    <div class="confirm-sub">Tem certeza que deseja excluir a <strong>Venda #{{ '%04d'|format(venda.id) }}</strong>?<br>O estoque será restaurado automaticamente.</div>
+    <div class="confirm-btns">
+      <button class="btn-nao-exc" onclick="document.getElementById('confirmExcVenda').style.display='none'">Não</button>
+      <form method="POST" action="/vendas/{{ venda.id }}/excluir" style="display:inline">
+        <button type="submit" class="btn-sim-exc">Sim, excluir</button>
+      </form>
+    </div>
   </div>
 </div>
 

@@ -159,7 +159,7 @@
             <select class="mes-sel" id="mesRanking" onchange="carregarRanking()">
               {% if meses %}
                 {% for m in meses %}
-                <option value="{{ m.mes.strftime('%Y-%m') }}" {% if m.mes.strftime('%Y-%m') == now_mes %}selected{% endif %}>{{ m.mes.strftime('%B / %Y').capitalize() }}</option>
+                <option value="{{ m.mes_val }}" {% if m.mes_val == now_mes %}selected{% endif %}>{{ m.mes_label }}</option>
                 {% endfor %}
               {% else %}
                 <option value="{{ now_mes }}">{{ now_mes_label }}</option>

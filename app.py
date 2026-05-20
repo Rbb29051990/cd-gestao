@@ -876,11 +876,17 @@ def vendas():
     ranking = cur.fetchall()
     # Meses disponíveis
     cur.execute("SELECT DISTINCT DATE_TRUNC('month', criado_em) as mes FROM vendas ORDER BY mes DESC")
-    meses = cur.fetchall()
+    meses_raw = cur.fetchall()
+    # Converter lista_vendas e lista_crediarios para dict editável
+    lista_vendas = [dict(v) for v in lista_vendas]
+    lista_crediarios = [dict(c) for c in lista_crediarios]
+    ranking = [dict(r) for r in ranking]
     cur.close()
     conn.close()
     now_mes = datetime.now().strftime('%Y-%m')
     now_mes_label = datetime.now().strftime('%B / %Y').capitalize()
+    # Formatar meses no Python para evitar problemas no Jinja2
+    meses = [{'mes_val': m['mes'].strftime('%Y-%m'), 'mes_label': m['mes'].strftime('%B / %Y').capitalize()} for m in meses_raw]
     return render_template('vendas.html', cliente=CLIENTE,
                            vendedoras=vendedoras, clientes=clientes,
                            lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,

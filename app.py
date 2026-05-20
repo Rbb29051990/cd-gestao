@@ -104,6 +104,59 @@ def init_db():
         except:
             pass
 
+    # Tabela vendas
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS vendas (
+            id SERIAL PRIMARY KEY,
+            vendedora_id INTEGER,
+            vendedora_nome VARCHAR(200),
+            cliente_id INTEGER,
+            cliente_nome VARCHAR(200),
+            valor_total NUMERIC(10,2),
+            forma_pagamento VARCHAR(50),
+            parcelas INTEGER,
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS venda_itens (
+            id SERIAL PRIMARY KEY,
+            venda_id INTEGER REFERENCES vendas(id) ON DELETE CASCADE,
+            estoque_id INTEGER,
+            referencia VARCHAR(20),
+            modelo VARCHAR(100),
+            descricao TEXT,
+            tamanho VARCHAR(20),
+            valor_unitario NUMERIC(10,2),
+            quantidade INTEGER DEFAULT 1,
+            valor_total NUMERIC(10,2)
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS crediarios (
+            id SERIAL PRIMARY KEY,
+            venda_id INTEGER REFERENCES vendas(id) ON DELETE CASCADE,
+            cliente_id INTEGER,
+            cliente_nome VARCHAR(200),
+            valor_total NUMERIC(10,2),
+            entrada NUMERIC(10,2) DEFAULT 0,
+            saldo_devedor NUMERIC(10,2),
+            status VARCHAR(20) DEFAULT 'aberto',
+            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS crediario_parcelas (
+            id SERIAL PRIMARY KEY,
+            crediario_id INTEGER REFERENCES crediarios(id) ON DELETE CASCADE,
+            numero_parcela INTEGER,
+            data_vencimento DATE,
+            valor NUMERIC(10,2),
+            pago BOOLEAN DEFAULT FALSE,
+            data_pagamento DATE
+        )
+    ''')
+
     # Tabela estoque
     cur.execute('''
         CREATE TABLE IF NOT EXISTS estoque (
@@ -182,6 +235,42 @@ def dashboard():
 @app.route('/visao-geral')
 @login_required
 def visao_geral():
+    conn = get_db()
+    cur = conn.cursor()
+    hoje = datetime.now()
+    mes_ini = hoje.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    formas = ['dinheiro','pix','debito','credito_vista','credito_parcelado','link','crediario']
+    fat = {}
+    for f in formas:
+        cur.execute("SELECT COALESCE(SUM(valor_total),0) as total FROM vendas WHERE forma_pagamento=%s AND criado_em >= %s", (f, mes_ini))
+        fat[f] = float(cur.fetchone()['total'])
+    fat_total = sum(fat.values())
+
+    cur.execute("SELECT COALESCE(SUM(valor_total),0) as vt FROM estoque WHERE ativo=TRUE")
+    valor_estoque = float(cur.fetchone()['vt'])
+
+    cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as total FROM crediarios WHERE status='aberto'")
+    crediarios_total = float(cur.fetchone()['total'])
+
+    cur.execute(
+        "SELECT v.id, v.criado_em, v.vendedora_nome, v.cliente_nome, v.valor_total, v.forma_pagamento "
+        "FROM vendas v ORDER BY v.criado_em DESC LIMIT 10"
+    )
+    movimentacoes = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    mes_atual = hoje.strftime('%B / %Y').capitalize()
+    hoje_fmt = hoje.strftime('%A, %d de %B de %Y').capitalize()
+    return render_template('visao_geral.html', cliente=CLIENTE,
+                           fat=fat, fat_total=fat_total,
+                           valor_estoque=valor_estoque,
+                           crediarios_total=crediarios_total,
+                           saidas_total=0,
+                           movimentacoes=movimentacoes,
+                           mes_atual=mes_atual, hoje=hoje_fmt,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
     hoje = datetime.now().strftime('%d de %B de %Y')
     meses = {'January':'Janeiro','February':'Fevereiro','March':'Março','April':'Abril',
              'May':'Maio','June':'Junho','July':'Julho','August':'Agosto',
@@ -734,6 +823,186 @@ def excluir_estoque(eid):
     conn.close()
     flash('✅ Produto excluído com sucesso.', 'ok')
     return redirect(url_for('estoque'))
+
+
+@app.route('/vendas')
+@login_required
+def vendas():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+    vendedoras = cur.fetchall()
+    cur.execute("SELECT id, nome FROM clientes WHERE ativo=TRUE ORDER BY nome")
+    clientes = cur.fetchall()
+    cur.execute(
+        "SELECT v.*, COUNT(vi.id) as qtd_itens FROM vendas v "
+        "LEFT JOIN venda_itens vi ON vi.venda_id=v.id "
+        "GROUP BY v.id ORDER BY v.criado_em DESC"
+    )
+    lista_vendas = cur.fetchall()
+    # Crediários
+    cur.execute(
+        "SELECT c.*, v.criado_em as data_venda FROM crediarios c "
+        "JOIN vendas v ON v.id=c.venda_id ORDER BY c.criado_em DESC"
+    )
+    lista_crediarios = cur.fetchall()
+    # Ranking vendedoras (mês atual)
+    from datetime import datetime as dt
+    mes_ini = dt.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    cur.execute(
+        "SELECT vendedora_nome, COALESCE(SUM(valor_total),0) as total, COUNT(DISTINCT id) as vendas, "
+        "COUNT(DISTINCT cliente_id) as clientes "
+        "FROM vendas WHERE criado_em >= %s GROUP BY vendedora_nome ORDER BY total DESC", (mes_ini,)
+    )
+    ranking = cur.fetchall()
+    # Meses disponíveis
+    cur.execute("SELECT DISTINCT DATE_TRUNC('month', criado_em) as mes FROM vendas ORDER BY mes DESC")
+    meses = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template('vendas.html', cliente=CLIENTE,
+                           vendedoras=vendedoras, clientes=clientes,
+                           lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
+                           ranking=ranking, meses=meses,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
+@app.route('/vendas/nova', methods=['POST'])
+@login_required
+def nova_venda():
+    import json
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        vendedora_id = request.form.get('vendedora_id')
+        vendedora_nome = request.form.get('vendedora_nome','').strip()
+        cliente_id = request.form.get('cliente_id')
+        cliente_nome = request.form.get('cliente_nome','').strip()
+        forma_pagamento = request.form.get('forma_pagamento','').strip()
+        parcelas = int(request.form.get('parcelas',1) or 1)
+        valor_total = float(request.form.get('valor_total',0) or 0)
+        itens_json = request.form.get('itens','[]')
+        itens = json.loads(itens_json)
+
+        # Inserir venda
+        cur.execute(
+            "INSERT INTO vendas (vendedora_id,vendedora_nome,cliente_id,cliente_nome,valor_total,forma_pagamento,parcelas) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+            (vendedora_id or None, vendedora_nome, cliente_id or None, cliente_nome, valor_total, forma_pagamento, parcelas)
+        )
+        venda_id = cur.fetchone()['id']
+
+        # Inserir itens e dar baixa no estoque
+        for item in itens:
+            estoque_id = item.get('estoque_id')
+            qtd = int(item.get('quantidade',1))
+            val_unit = float(item.get('valor_unitario',0))
+            cur.execute(
+                "INSERT INTO venda_itens (venda_id,estoque_id,referencia,modelo,descricao,tamanho,valor_unitario,quantidade,valor_total) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (venda_id, estoque_id or None, item.get('referencia'), item.get('modelo'),
+                 item.get('descricao'), item.get('tamanho'), val_unit, qtd, val_unit*qtd)
+            )
+            if estoque_id:
+                cur.execute(
+                    "UPDATE estoque SET quantidade=quantidade-%s, ultima_venda=CURRENT_DATE WHERE id=%s",
+                    (qtd, estoque_id)
+                )
+
+        # Se crediário, inserir parcelas
+        if forma_pagamento == 'crediario':
+            entrada = float(request.form.get('entrada',0) or 0)
+            saldo = valor_total - entrada
+            cur.execute(
+                "INSERT INTO crediarios (venda_id,cliente_id,cliente_nome,valor_total,entrada,saldo_devedor) "
+                "VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
+                (venda_id, cliente_id or None, cliente_nome, valor_total, entrada, saldo)
+            )
+            crediario_id = cur.fetchone()['id']
+            parcelas_json = request.form.get('parcelas_datas','[]')
+            parcelas_list = json.loads(parcelas_json)
+            for i, p in enumerate(parcelas_list):
+                cur.execute(
+                    "INSERT INTO crediario_parcelas (crediario_id,numero_parcela,data_vencimento,valor) VALUES (%s,%s,%s,%s)",
+                    (crediario_id, i+1, p.get('data'), float(p.get('valor',0)))
+                )
+
+        conn.commit()
+        flash('✅ Venda registrada com sucesso!', 'ok')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Erro ao registrar venda: {e}', 'erro')
+    finally:
+        cur.close()
+        conn.close()
+    return redirect(url_for('vendas'))
+
+@app.route('/vendas/<int:vid>')
+@login_required
+def ficha_venda(vid):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM vendas WHERE id=%s", (vid,))
+    venda = cur.fetchone()
+    cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s", (vid,))
+    itens = cur.fetchall()
+    crediario = None
+    if venda and venda['forma_pagamento'] == 'crediario':
+        cur.execute("SELECT * FROM crediarios WHERE venda_id=%s", (vid,))
+        crediario = cur.fetchone()
+        if crediario:
+            cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela", (crediario['id'],))
+            crediario['parcelas'] = cur.fetchall()
+    cur.close()
+    conn.close()
+    if not venda:
+        flash('Venda não encontrada.', 'erro')
+        return redirect(url_for('vendas'))
+    return render_template('ficha_venda.html', cliente=CLIENTE, venda=venda,
+                           itens=itens, crediario=crediario,
+                           nome=session.get('nome'), perfil=session.get('perfil'))
+
+@app.route('/vendas/ranking')
+@login_required
+def ranking_vendedoras():
+    mes = request.args.get('mes', datetime.now().strftime('%Y-%m'))
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT vendedora_nome, COALESCE(SUM(valor_total),0) as total, "
+        "COUNT(DISTINCT id) as num_vendas, COUNT(DISTINCT cliente_id) as clientes "
+        "FROM vendas WHERE TO_CHAR(criado_em,'YYYY-MM')=%s "
+        "GROUP BY vendedora_nome ORDER BY total DESC", (mes,)
+    )
+    ranking = [dict(r) for r in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return {'ranking': ranking}
+
+@app.route('/vendas/buscar-ref')
+@login_required
+def buscar_ref_venda():
+    ref = request.args.get('ref','').strip().upper()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id,referencia,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE referencia=%s AND ativo=TRUE", (ref,))
+    item = cur.fetchone()
+    cur.close()
+    conn.close()
+    if item:
+        return {'ok': True, 'item': dict(item)}
+    return {'ok': False}
+
+@app.route('/vendas/buscar-cliente')
+@login_required
+def buscar_cliente_venda():
+    q = request.args.get('q','').strip()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id,nome,crediario FROM clientes WHERE ativo=TRUE AND LOWER(nome) LIKE %s ORDER BY nome LIMIT 8", (f'%{q.lower()}%',))
+    clientes = [dict(c) for c in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return {'clientes': clientes}
 
 @app.route('/logout')
 def logout():

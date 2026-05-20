@@ -167,6 +167,7 @@ def init_db():
             descricao TEXT,
             tamanho VARCHAR(20),
             quantidade INTEGER DEFAULT 1,
+            estoque_inicial INTEGER DEFAULT 1,
             custo_unitario NUMERIC(10,2),
             markup NUMERIC(10,2),
             valor_venda NUMERIC(10,2),
@@ -178,6 +179,11 @@ def init_db():
             criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    try:
+        cur.execute('ALTER TABLE estoque ADD COLUMN IF NOT EXISTS estoque_inicial INTEGER DEFAULT 1')
+        cur.execute('UPDATE estoque SET estoque_inicial=quantidade WHERE estoque_inicial IS NULL OR estoque_inicial=1')
+    except:
+        pass
     cur.execute('''
         CREATE TABLE IF NOT EXISTS caixa (
             id SERIAL PRIMARY KEY,
@@ -681,6 +687,7 @@ def estoque():
     for item in itens:
         delta = (hoje - item['criado_em'].date()).days
         item['dias_estoque'] = delta
+        item['saidas'] = (item['estoque_inicial'] or item['quantidade']) - item['quantidade']
     lucro_potencial = float(totais['vt']) - float(totais['ct'])
     next_ref = f"REF.{total+1:04d}"
     return render_template('estoque.html', cliente=CLIENTE, itens=itens,
@@ -708,10 +715,10 @@ def novo_estoque():
     custo_total = custo * quantidade
     valor_total = venda * quantidade
     try:
-        cur.execute("""INSERT INTO estoque (referencia,modelo,descricao,tamanho,quantidade,
+        cur.execute("""INSERT INTO estoque (referencia,modelo,descricao,tamanho,quantidade,estoque_inicial,
                        custo_unitario,markup,valor_venda,margem_lucro,custo_total,valor_total)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (referencia,modelo,descricao or None,tamanho,quantidade,
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (referencia,modelo,descricao or None,tamanho,quantidade,quantidade,
                      custo,markup,venda,margem,custo_total,valor_total))
         conn.commit()
         flash('✅ Item cadastrado com sucesso!', 'ok')

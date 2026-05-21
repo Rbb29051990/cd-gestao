@@ -247,6 +247,36 @@ def login():
     flash('Usuário ou senha incorretos.', 'erro')
     return redirect(url_for('index'))
 
+
+@app.route('/reset-usuarios')
+def reset_usuarios():
+    """Rota temporária para resetar usuários - remover após uso"""
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Garantir coluna codigo existe
+        cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS codigo VARCHAR(10)")
+        # Atualizar ou inserir usuários padrão
+        from werkzeug.security import generate_password_hash
+        for codigo, nome, senha, perfil in [
+            ('F1','Renan Barcellos','renan123','admin'),
+            ('F2','Carol Duarte','carol123','admin')
+        ]:
+            cur.execute("SELECT id FROM usuarios WHERE nome=%s", (nome,))
+            u = cur.fetchone()
+            h = generate_password_hash(senha)
+            if u:
+                cur.execute("UPDATE usuarios SET senha_hash=%s, codigo=%s, perfil=%s, ativo=TRUE WHERE nome=%s",
+                           (h, codigo, perfil, nome))
+            else:
+                cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,ativo) VALUES (%s,%s,%s,%s,TRUE)",
+                           (codigo,nome,h,perfil))
+        conn.commit()
+        cur.close(); conn.close()
+        return "<h2>✅ Usuários resetados!<br><br>Renan Barcellos / renan123<br>Carol Duarte / carol123<br><br><a href='/'>Ir para o login</a></h2>"
+    except Exception as e:
+        return f"<pre>ERRO: {e}</pre>"
+
 @app.route('/logout')
 def logout():
     session.clear()

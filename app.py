@@ -1002,9 +1002,7 @@ def dashboard_view():
 # ══════════════════════════════════════════
 # COMPATIBILIDADE
 # ══════════════════════════════════════════
-@app.route('/visao-geral')
-@login_required
-def visao_geral_alias(): return redirect(url_for('visao_geral'))
+
 
 with app.app_context():
     try: init_db()

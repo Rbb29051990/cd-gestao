@@ -14,7 +14,12 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 CLIENTE = {
     'nome': 'CD Gestão Empresarial',
-    'loja': 'By Carol Duarte'
+    'loja': 'By Carol Duarte',
+    'sigla': 'CD · GESTÃO',
+    'tagline': 'Gestão inteligente para sua loja.',
+    'cor_primaria': '#1a1a2e',
+    'cor_secundaria': '#f4f4f6',
+    'cor_botao': '#2e7d32'
 }
 
 def get_db():

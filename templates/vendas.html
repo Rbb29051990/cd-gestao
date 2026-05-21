@@ -471,7 +471,7 @@ function buscarCliente(q){
       d.clientes.forEach(c=>{
         const div=document.createElement('div');
         div.className='cliente-item';
-        div.textContent=c.nome+(c.crediario?' ✅':' ❌');
+        div.textContent=c.codigo+' — '+c.nome+(c.crediario?' ✅':' ❌');
         div.title=c.crediario?'Crediário habilitado':'Crediário não habilitado';
         div.onclick=()=>selecionarCliente(c);
         el.appendChild(div);
@@ -482,7 +482,7 @@ function buscarCliente(q){
 }
 
 function selecionarCliente(c){
-  document.getElementById('buscaCliente').value=c.nome;
+  document.getElementById('buscaCliente').value=c.nome+' ('+c.codigo+')';
   document.getElementById('clienteId').value=c.id;
   document.getElementById('clienteNome').value=c.nome;
   document.getElementById('clienteSugest').style.display='none';
@@ -558,7 +558,7 @@ function renderCarrinho(){
     const sub=parseFloat(item.valor_unitario||item.valor_venda)*item.quantidade;
     total+=sub;
     return `<div class="carrinho-row">
-      <span class="ref-badge">${item.referencia}</span>
+      <span class="ref-badge">${item.codigo||item.referencia}</span>
       <span>${item.modelo||'—'}</span>
       <span>${(item.descricao||'—')} / ${item.tamanho||'—'}</span>
       <input class="qtd-input" type="number" value="${item.quantidade}" min="1" onchange="updateQtd(${i},this.value)">

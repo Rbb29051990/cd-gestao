@@ -45,7 +45,7 @@
       <div class="table-wrap"><table class="table">
         <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody>{% for u in usuarios %}<tr>
-          <td>{{ u.nome }}</td><td>{{ u.usuario }}</td>
+          <td>{{ u.nome }}</td><td>{{ u.codigo }}</td>
           <td><span class="cd-badge {% if u.perfil == 'admin' %}ok{% else %}mid{% endif %}">{{ u.perfil }}</span></td>
           <td><span class="cd-badge {% if u.ativo %}ok{% else %}low{% endif %}">{% if u.ativo %}Ativo{% else %}Inativo{% endif %}</span></td>
           <td style="display:flex;gap:8px;flex-wrap:wrap"><a href="/usuarios/{{ u.id }}/editar" class="btn-sm">✏️ Editar</a><a href="/usuarios/{{ u.id }}/toggle" class="btn-sm btn-sm-danger">{% if u.ativo %}⛔ Desativar{% else %}✅ Ativar{% endif %}</a></td>

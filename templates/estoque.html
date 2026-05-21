@@ -207,7 +207,7 @@
               {% for item in itens %}
               <tr onclick="window.location='/estoque/{{ item.id }}'" style="cursor:pointer">
                 <td>{{ item.criado_em.strftime('%d/%m/%Y') }}</td>
-                <td><span class="ref-code">{{ item.referencia }}</span></td>
+                <td><span class="ref-code">{{ item.codigo }}</span></td>
                 <td>{{ item.modelo or '—' }}</td>
                 <td>{{ item.descricao or '—' }}</td>
                 <td>{{ item.tamanho or '—' }}</td>
@@ -474,7 +474,7 @@ function buscarEtiquetas(){
       d.itens.forEach(item=>{
         const div=document.createElement('div');
         div.className='etiqueta';
-        div.innerHTML='<div class="etiq-ref">'+item.referencia+'</div>'
+        div.innerHTML='<div class="etiq-ref">'+item.codigo+'</div>'
           +'<div class="etiq-modelo">'+(item.modelo||'')+'</div>'
           +'<div class="etiq-tam">TAM: '+(item.tamanho||'—')+'</div>'
           +'<div class="etiq-preco">R$ '+parseFloat(item.valor_venda).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</div>'

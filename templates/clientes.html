@@ -136,7 +136,7 @@
                 data-dia="{{ c.data_nascimento.day if c.data_nascimento else '' }}">
               <td><div class="cliente-cell">
                 <div class="cli-avatar" style="background:{{ c.cor_avatar }}">{{ c.iniciais }}</div>
-                <div><div class="cliente-nome">{{ c.nome }}</div><div class="cliente-cod">#CLI-{{ '%04d'|format(c.id) }}</div></div>
+                <div><div class="cliente-nome">{{ c.nome }}</div><div class="cliente-cod">{{ c.codigo }}</div></div>
               </div></td>
               <td>{% if c.telefone %}<button class="tel-btn" onclick="event.stopPropagation();abrirTel('{{ c.telefone }}')">📱 {{ c.telefone }}</button>{% else %}—{% endif %}</td>
               <td>{% if c.cidade %}<button class="end-btn" onclick="event.stopPropagation();abrirEnd('{{ c.logradouro or '' }}, {{ c.numero or '' }} - {{ c.cidade }}/{{ c.uf or '' }}')">📍 {{ c.cidade }}{% if c.uf %}/{{ c.uf }}{% endif %}</button>{% else %}—{% endif %}</td>
@@ -162,7 +162,7 @@
     <form method="POST" action="/clientes/novo">
       <div class="section-sep">Dados pessoais</div>
       <div class="form-grid">
-        <div class="form-field span2"><span class="form-label">ID Cliente</span><div class="form-readonly">🔖 #CLI-{{ next_id }} — gerado automaticamente</div></div>
+        <div class="form-field span2"><span class="form-label">ID Cliente</span><div class="form-readonly">🔖 {{ next_id }} — gerado automaticamente</div></div>
         <div class="form-field span2"><span class="form-label">Nome completo *</span><input class="form-input" type="text" name="nome" required placeholder="Nome completo do cliente"></div>
         <div class="form-field"><span class="form-label">Data de nascimento</span><input class="form-input" type="date" name="data_nascimento" onchange="calcIdade(this)"><div id="idadeCalc" style="font-size:12px;color:#888;font-weight:600;margin-top:4px;min-height:16px"></div></div>
         <div class="form-field"><span class="form-label">CPF</span><input class="form-input" type="text" name="cpf" placeholder="000.000.000-00" maxlength="14" oninput="mascaraCPF(this)"></div>

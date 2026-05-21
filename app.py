@@ -1,15 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
-import os
+import os, json, random, math
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import random
-import json
 from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'cd-gestao-2026-secret')
-
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 CLIENTE = {
@@ -22,6 +20,19 @@ CLIENTE = {
     'cor_botao': '#2e7d32'
 }
 
+ABAS_SISTEMA = [
+    ('visao_geral',   'Visão Geral'),
+    ('clientes',      'Clientes'),
+    ('vendas',        'Vendas'),
+    ('estoque',       'Estoque'),
+    ('caixa',         'Caixa'),
+    ('crediarios',    'Crediários'),
+    ('despesas',      'Despesas'),
+    ('usuarios',      'Usuários'),
+    ('relatorios',    'Relatórios'),
+    ('dashboards',    'Dashboards'),
+]
+
 def get_db():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
@@ -30,180 +41,240 @@ def init_db():
     conn = get_db()
     cur = conn.cursor()
 
-    # USUÁRIOS (funcionários)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id SERIAL PRIMARY KEY,
-            codigo VARCHAR(10) UNIQUE,
-            nome VARCHAR(200) NOT NULL,
-            senha_hash VARCHAR(200),
-            perfil VARCHAR(20) DEFAULT 'vendedor',
-            ativo BOOLEAN DEFAULT TRUE,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    # Migração: adicionar coluna codigo se não existir
+    # USUARIOS
+    cur.execute("""CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        codigo VARCHAR(10) UNIQUE,
+        nome VARCHAR(200) NOT NULL,
+        senha_hash VARCHAR(200),
+        perfil VARCHAR(20) DEFAULT 'vendedor',
+        permissoes TEXT DEFAULT 'visao_geral,clientes,vendas,estoque',
+        ativo BOOLEAN DEFAULT TRUE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
     cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS codigo VARCHAR(10)")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permissoes TEXT DEFAULT 'visao_geral,clientes,vendas,estoque'")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS nome VARCHAR(200)")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha_hash VARCHAR(200)")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS perfil VARCHAR(20) DEFAULT 'vendedor'")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE")
+    cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
 
     # CLIENTES
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS clientes (
-            id SERIAL PRIMARY KEY,
-            codigo VARCHAR(10) UNIQUE,
-            nome VARCHAR(200) NOT NULL,
-            cpf VARCHAR(20),
-            data_nascimento DATE,
-            telefone VARCHAR(30),
-            telefone2 VARCHAR(30),
-            cep VARCHAR(10),
-            logradouro VARCHAR(200),
-            numero VARCHAR(20),
-            complemento VARCHAR(100),
-            bairro VARCHAR(100),
-            cidade VARCHAR(100),
-            uf VARCHAR(2),
-            promocoes BOOLEAN DEFAULT TRUE,
-            crediario BOOLEAN DEFAULT FALSE,
-            ativo BOOLEAN DEFAULT TRUE,
-            cor_avatar VARCHAR(10) DEFAULT '#2e7d32',
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    cur.execute("""CREATE TABLE IF NOT EXISTS clientes (
+        id SERIAL PRIMARY KEY,
+        codigo VARCHAR(10) UNIQUE,
+        nome VARCHAR(200) NOT NULL,
+        cpf VARCHAR(20),
+        data_nascimento DATE,
+        telefone VARCHAR(30),
+        telefone2 VARCHAR(30),
+        cep VARCHAR(10),
+        logradouro VARCHAR(200),
+        numero VARCHAR(20),
+        complemento VARCHAR(100),
+        bairro VARCHAR(100),
+        cidade VARCHAR(100),
+        uf VARCHAR(2),
+        promocoes BOOLEAN DEFAULT TRUE,
+        crediario BOOLEAN DEFAULT FALSE,
+        ativo BOOLEAN DEFAULT TRUE,
+        cor_avatar VARCHAR(10) DEFAULT '#2e7d32',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
     cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo VARCHAR(10)")
     cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS telefone2 VARCHAR(30)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS nome VARCHAR(200)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cpf VARCHAR(20)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS data_nascimento DATE")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS telefone VARCHAR(30)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cep VARCHAR(10)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS logradouro VARCHAR(200)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS numero VARCHAR(20)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS complemento VARCHAR(100)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS bairro VARCHAR(100)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cidade VARCHAR(100)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS uf VARCHAR(2)")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS promocoes BOOLEAN DEFAULT TRUE")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS crediario BOOLEAN DEFAULT FALSE")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cor_avatar VARCHAR(10) DEFAULT '#2e7d32'")
+    cur.execute("ALTER TABLE clientes ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
 
     # MODELOS E TAMANHOS
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS modelos_estoque (
-            id SERIAL PRIMARY KEY,
-            nome VARCHAR(100) UNIQUE NOT NULL,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    for m in ['Vestido','Calça','Blusa','Bolsa','Saia','Macacão','Conjunto']:
+    cur.execute("""CREATE TABLE IF NOT EXISTS modelos_estoque (
+        id SERIAL PRIMARY KEY, nome VARCHAR(100) UNIQUE NOT NULL
+    )""")
+    for m in ['Vestido','Calça','Blusa','Bolsa','Saia','Macacão','Conjunto','Short','Blazer']:
         cur.execute("INSERT INTO modelos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING", (m,))
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS tamanhos_estoque (
-            id SERIAL PRIMARY KEY,
-            nome VARCHAR(20) UNIQUE NOT NULL
-        )
-    """)
-    for t in ['PP','P','M','G','GG','EG','EGG','36','38','40','42','44','46','48','50','52','54','56','58','60']:
+    cur.execute("""CREATE TABLE IF NOT EXISTS tamanhos_estoque (
+        id SERIAL PRIMARY KEY, nome VARCHAR(20) UNIQUE NOT NULL
+    )""")
+    for t in ['PP','P','M','G','GG','EG','EGG','36','38','40','42','44','46','48','50','52','54','56','58','60','ÚNICO']:
         cur.execute("INSERT INTO tamanhos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING", (t,))
 
-    # ESTOQUE (PRODUTOS)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS estoque (
-            id SERIAL PRIMARY KEY,
-            codigo VARCHAR(10) UNIQUE,
-            modelo VARCHAR(100),
-            descricao TEXT,
-            tamanho VARCHAR(20),
-            quantidade INTEGER DEFAULT 1,
-            estoque_inicial INTEGER DEFAULT 1,
-            custo_unitario NUMERIC(10,2),
-            markup NUMERIC(10,2),
-            valor_venda NUMERIC(10,2),
-            margem_lucro NUMERIC(10,2),
-            ativo BOOLEAN DEFAULT TRUE,
-            ultima_venda DATE,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # ESTOQUE
+    cur.execute("""CREATE TABLE IF NOT EXISTS estoque (
+        id SERIAL PRIMARY KEY,
+        codigo VARCHAR(10) UNIQUE,
+        modelo VARCHAR(100),
+        descricao TEXT,
+        tamanho VARCHAR(20),
+        quantidade INTEGER DEFAULT 1,
+        estoque_inicial INTEGER DEFAULT 1,
+        custo_unitario NUMERIC(10,2) DEFAULT 0,
+        markup NUMERIC(10,2) DEFAULT 0,
+        valor_venda NUMERIC(10,2) DEFAULT 0,
+        margem_lucro NUMERIC(10,2) DEFAULT 0,
+        ativo BOOLEAN DEFAULT TRUE,
+        ultima_venda DATE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
     cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS codigo VARCHAR(10)")
     cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS estoque_inicial INTEGER DEFAULT 1")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS modelo VARCHAR(100)")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS descricao TEXT")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS tamanho VARCHAR(20)")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS quantidade INTEGER DEFAULT 1")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS custo_unitario NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS valor_venda NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS margem_lucro NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS ativo BOOLEAN DEFAULT TRUE")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS ultima_venda DATE")
+    cur.execute("ALTER TABLE estoque ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    try:
+        cur.execute("ALTER TABLE estoque ALTER COLUMN referencia DROP NOT NULL")
+    except: pass
+    try:
+        cur.execute("UPDATE estoque SET codigo=referencia WHERE codigo IS NULL AND referencia IS NOT NULL")
+    except: pass
 
     # VENDAS
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS vendas (
-            id SERIAL PRIMARY KEY,
-            codigo VARCHAR(10) UNIQUE,
-            usuario_id INTEGER REFERENCES usuarios(id),
-            vendedora_nome VARCHAR(200),
-            cliente_id INTEGER REFERENCES clientes(id),
-            cliente_nome VARCHAR(200),
-            valor_total NUMERIC(10,2),
-            forma_pagamento VARCHAR(50),
-            parcelas INTEGER DEFAULT 1,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    cur.execute("""CREATE TABLE IF NOT EXISTS vendas (
+        id SERIAL PRIMARY KEY,
+        codigo VARCHAR(10) UNIQUE,
+        usuario_id INTEGER,
+        vendedora_nome VARCHAR(200),
+        cliente_id INTEGER,
+        cliente_nome VARCHAR(200),
+        valor_total NUMERIC(10,2) DEFAULT 0,
+        forma_pagamento VARCHAR(50),
+        parcelas INTEGER DEFAULT 1,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
     cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS codigo VARCHAR(10)")
+    cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS usuario_id INTEGER")
+    cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS vendedora_nome VARCHAR(200)")
+    cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS cliente_id INTEGER")
+    cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS cliente_nome VARCHAR(200)")
+    cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS valor_total NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50)")
+    cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS parcelas INTEGER DEFAULT 1")
+    cur.execute("ALTER TABLE vendas ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    # venda_itens
+    cur.execute("ALTER TABLE venda_itens ADD COLUMN IF NOT EXISTS produto_id INTEGER")
+    cur.execute("ALTER TABLE venda_itens ADD COLUMN IF NOT EXISTS codigo_produto VARCHAR(10)")
+    cur.execute("ALTER TABLE venda_itens ADD COLUMN IF NOT EXISTS modelo VARCHAR(100)")
+    cur.execute("ALTER TABLE venda_itens ADD COLUMN IF NOT EXISTS descricao TEXT")
+    cur.execute("ALTER TABLE venda_itens ADD COLUMN IF NOT EXISTS tamanho VARCHAR(20)")
+    cur.execute("ALTER TABLE venda_itens ADD COLUMN IF NOT EXISTS valor_unitario NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE venda_itens ADD COLUMN IF NOT EXISTS quantidade INTEGER DEFAULT 1")
+    cur.execute("ALTER TABLE venda_itens ADD COLUMN IF NOT EXISTS valor_total NUMERIC(10,2) DEFAULT 0")
+    # crediarios
+    cur.execute("ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS cliente_id INTEGER")
+    cur.execute("ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS cliente_nome VARCHAR(200)")
+    cur.execute("ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS valor_total NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS entrada NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS saldo_devedor NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'aberto'")
+    cur.execute("ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    # crediario_parcelas
+    cur.execute("ALTER TABLE crediario_parcelas ADD COLUMN IF NOT EXISTS numero_parcela INTEGER")
+    cur.execute("ALTER TABLE crediario_parcelas ADD COLUMN IF NOT EXISTS data_vencimento DATE")
+    cur.execute("ALTER TABLE crediario_parcelas ADD COLUMN IF NOT EXISTS valor NUMERIC(10,2) DEFAULT 0")
+    cur.execute("ALTER TABLE crediario_parcelas ADD COLUMN IF NOT EXISTS pago BOOLEAN DEFAULT FALSE")
+    cur.execute("ALTER TABLE crediario_parcelas ADD COLUMN IF NOT EXISTS data_pagamento DATE")
+    # caixa
+    cur.execute("ALTER TABLE caixa ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) DEFAULT 'entrada'")
+    cur.execute("ALTER TABLE caixa ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50)")
+    cur.execute("ALTER TABLE caixa ADD COLUMN IF NOT EXISTS venda_id INTEGER")
+    cur.execute("ALTER TABLE caixa ADD COLUMN IF NOT EXISTS crediario_id INTEGER")
+    cur.execute("ALTER TABLE caixa ADD COLUMN IF NOT EXISTS usuario_id INTEGER")
+    cur.execute("ALTER TABLE caixa ADD COLUMN IF NOT EXISTS vendedora_nome VARCHAR(200)")
+    cur.execute("ALTER TABLE caixa ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
 
     # ITENS DA VENDA
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS venda_itens (
-            id SERIAL PRIMARY KEY,
-            venda_id INTEGER REFERENCES vendas(id) ON DELETE CASCADE,
-            produto_id INTEGER REFERENCES estoque(id),
-            codigo_produto VARCHAR(10),
-            modelo VARCHAR(100),
-            descricao TEXT,
-            tamanho VARCHAR(20),
-            valor_unitario NUMERIC(10,2),
-            quantidade INTEGER DEFAULT 1,
-            valor_total NUMERIC(10,2)
-        )
-    """)
+    cur.execute("""CREATE TABLE IF NOT EXISTS venda_itens (
+        id SERIAL PRIMARY KEY,
+        venda_id INTEGER REFERENCES vendas(id) ON DELETE CASCADE,
+        produto_id INTEGER,
+        codigo_produto VARCHAR(10),
+        modelo VARCHAR(100),
+        descricao TEXT,
+        tamanho VARCHAR(20),
+        valor_unitario NUMERIC(10,2) DEFAULT 0,
+        quantidade INTEGER DEFAULT 1,
+        valor_total NUMERIC(10,2) DEFAULT 0
+    )""")
 
     # CREDIÁRIOS
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS crediarios (
-            id SERIAL PRIMARY KEY,
-            venda_id INTEGER REFERENCES vendas(id) ON DELETE CASCADE,
-            cliente_id INTEGER REFERENCES clientes(id),
-            cliente_nome VARCHAR(200),
-            valor_total NUMERIC(10,2),
-            entrada NUMERIC(10,2) DEFAULT 0,
-            saldo_devedor NUMERIC(10,2),
-            status VARCHAR(20) DEFAULT 'aberto',
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    cur.execute("""CREATE TABLE IF NOT EXISTS crediarios (
+        id SERIAL PRIMARY KEY,
+        venda_id INTEGER REFERENCES vendas(id) ON DELETE CASCADE,
+        cliente_id INTEGER,
+        cliente_nome VARCHAR(200),
+        valor_total NUMERIC(10,2) DEFAULT 0,
+        entrada NUMERIC(10,2) DEFAULT 0,
+        saldo_devedor NUMERIC(10,2) DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'aberto',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
 
     # PARCELAS
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS crediario_parcelas (
-            id SERIAL PRIMARY KEY,
-            crediario_id INTEGER REFERENCES crediarios(id) ON DELETE CASCADE,
-            numero_parcela INTEGER,
-            data_vencimento DATE,
-            valor NUMERIC(10,2),
-            pago BOOLEAN DEFAULT FALSE,
-            data_pagamento DATE
-        )
-    """)
+    cur.execute("""CREATE TABLE IF NOT EXISTS crediario_parcelas (
+        id SERIAL PRIMARY KEY,
+        crediario_id INTEGER REFERENCES crediarios(id) ON DELETE CASCADE,
+        numero_parcela INTEGER,
+        data_vencimento DATE,
+        valor NUMERIC(10,2) DEFAULT 0,
+        pago BOOLEAN DEFAULT FALSE,
+        data_pagamento DATE
+    )""")
 
     # CAIXA
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS caixa (
-            id SERIAL PRIMARY KEY,
-            descricao TEXT,
-            valor NUMERIC(10,2),
-            tipo VARCHAR(20) DEFAULT 'entrada',
-            forma_pagamento VARCHAR(50),
-            venda_id INTEGER,
-            crediario_id INTEGER,
-            usuario_id INTEGER,
-            vendedora_nome VARCHAR(200),
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    cur.execute("""CREATE TABLE IF NOT EXISTS caixa (
+        id SERIAL PRIMARY KEY,
+        descricao TEXT,
+        valor NUMERIC(10,2) DEFAULT 0,
+        tipo VARCHAR(20) DEFAULT 'entrada',
+        forma_pagamento VARCHAR(50),
+        venda_id INTEGER,
+        crediario_id INTEGER,
+        usuario_id INTEGER,
+        vendedora_nome VARCHAR(200),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
 
-    # Criar usuários padrão se não existirem
-    for codigo, nome, senha, perfil in [('F1','Renan Barcellos','renan123','admin'),('F2','Carol Duarte','carol123','admin')]:
-        cur.execute("SELECT id FROM usuarios WHERE nome=%s", (nome,))
+    # Criar usuários padrão F1 e F2
+    for codigo, nome, senha, perfil, perms in [
+        ('F1','Renan Barcellos','renan123','admin','visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios,relatorios,dashboards'),
+        ('F2','Carol Duarte','carol123','admin','visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios,relatorios,dashboards'),
+    ]:
+        cur.execute("SELECT id FROM usuarios WHERE codigo=%s", (codigo,))
         if not cur.fetchone():
-            h = generate_password_hash(senha)
-            cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil) VALUES (%s,%s,%s,%s)", (codigo,nome,h,perfil))
+            cur.execute("""INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes)
+                           VALUES (%s,%s,%s,%s,%s)""",
+                        (codigo, nome, generate_password_hash(senha), perfil, perms))
+        else:
+            cur.execute("UPDATE usuarios SET permissoes=%s WHERE codigo=%s", (perms, codigo))
 
     conn.commit()
     cur.close()
     conn.close()
 
 def login_required(f):
-    from functools import wraps
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'usuario_id' not in session:
@@ -211,15 +282,76 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-def proximo_codigo(prefixo, tabela):
-    """Gera próximo código: C1, C2... P1, P2... etc"""
+def tem_permissao(aba):
+    perms = session.get('permissoes', '').split(',')
+    return aba in perms
+
+app.jinja_env.globals['tem_permissao'] = tem_permissao
+
+def proximo_codigo(prefixo, tabela, campo='codigo'):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(f"SELECT COUNT(*) as total FROM {tabela}")
     total = cur.fetchone()['total']
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return f"{prefixo}{total+1}"
+
+# ─── RESET (temporário) ───
+@app.route('/reset-usuarios')
+def reset_usuarios():
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        for codigo, nome, senha, perfil, perms in [
+            ('F1','Renan Barcellos','renan123','admin','visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios,relatorios,dashboards'),
+            ('F2','Carol Duarte','carol123','admin','visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios,relatorios,dashboards'),
+        ]:
+            h = generate_password_hash(senha)
+            cur.execute("SELECT id FROM usuarios WHERE codigo=%s OR nome=%s", (codigo, nome))
+            u = cur.fetchone()
+            if u:
+                cur.execute("UPDATE usuarios SET codigo=%s,senha_hash=%s,perfil=%s,permissoes=%s,ativo=TRUE WHERE id=%s",
+                            (codigo, h, perfil, perms, u['id']))
+            else:
+                cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,%s,%s)",
+                            (codigo, nome, h, perfil, perms))
+        conn.commit()
+        return """<div style="font-family:sans-serif;padding:40px;max-width:500px;margin:0 auto">
+            <h2>✅ Usuários resetados!</h2>
+            <p><strong>Renan Barcellos</strong> / renan123</p>
+            <p><strong>Carol Duarte</strong> / carol123</p>
+            <br><a href="/" style="background:#1a1a2e;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none">Ir para o login</a>
+            </div>"""
+    except Exception as e:
+        conn.rollback()
+        return f"<pre>ERRO: {e}</pre>"
+    finally:
+        cur.close(); conn.close()
+
+# ─── LIMPAR BANCO (temporário para testes) ───
+@app.route('/limpar-banco')
+@login_required
+def limpar_banco():
+    if session.get('perfil') != 'admin':
+        return "Acesso negado", 403
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM caixa")
+        cur.execute("DELETE FROM crediario_parcelas")
+        cur.execute("DELETE FROM crediarios")
+        cur.execute("DELETE FROM venda_itens")
+        cur.execute("DELETE FROM vendas")
+        cur.execute("DELETE FROM estoque")
+        cur.execute("DELETE FROM clientes")
+        conn.commit()
+        flash('✅ Banco limpo! Apenas usuários mantidos.', 'ok')
+    except Exception as e:
+        conn.rollback()
+        flash(f'Erro: {e}', 'erro')
+    finally:
+        cur.close(); conn.close()
+    return redirect(url_for('visao_geral'))
 
 # ─── LOGIN ───
 @app.route('/')
@@ -236,46 +368,16 @@ def login():
     cur = conn.cursor()
     cur.execute("SELECT * FROM usuarios WHERE nome=%s AND ativo=TRUE", (nome,))
     u = cur.fetchone()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     if u and check_password_hash(u['senha_hash'], senha):
         session['usuario_id'] = u['id']
         session['nome'] = u['nome']
         session['perfil'] = u['perfil']
         session['codigo'] = u['codigo']
+        session['permissoes'] = u.get('permissoes','visao_geral,clientes,vendas,estoque')
         return redirect(url_for('visao_geral'))
     flash('Usuário ou senha incorretos.', 'erro')
     return redirect(url_for('index'))
-
-
-@app.route('/reset-usuarios')
-def reset_usuarios():
-    """Rota temporária para resetar usuários - remover após uso"""
-    conn = get_db()
-    cur = conn.cursor()
-    try:
-        # Garantir coluna codigo existe
-        cur.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS codigo VARCHAR(10)")
-        # Atualizar ou inserir usuários padrão
-        from werkzeug.security import generate_password_hash
-        for codigo, nome, senha, perfil in [
-            ('F1','Renan Barcellos','renan123','admin'),
-            ('F2','Carol Duarte','carol123','admin')
-        ]:
-            cur.execute("SELECT id FROM usuarios WHERE nome=%s", (nome,))
-            u = cur.fetchone()
-            h = generate_password_hash(senha)
-            if u:
-                cur.execute("UPDATE usuarios SET senha_hash=%s, codigo=%s, perfil=%s, ativo=TRUE WHERE nome=%s",
-                           (h, codigo, perfil, nome))
-            else:
-                cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,ativo) VALUES (%s,%s,%s,%s,TRUE)",
-                           (codigo,nome,h,perfil))
-        conn.commit()
-        cur.close(); conn.close()
-        return "<h2>✅ Usuários resetados!<br><br>Renan Barcellos / renan123<br>Carol Duarte / carol123<br><br><a href='/'>Ir para o login</a></h2>"
-    except Exception as e:
-        return f"<pre>ERRO: {e}</pre>"
 
 @app.route('/logout')
 def logout():
@@ -300,19 +402,17 @@ def visao_geral():
     valor_estoque = float(cur.fetchone()['vt'])
     cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as total FROM crediarios WHERE status='aberto'")
     crediarios_total = float(cur.fetchone()['total'])
-    cur.execute("SELECT v.id, v.criado_em, v.vendedora_nome, v.cliente_nome, v.valor_total, v.forma_pagamento FROM vendas v ORDER BY v.criado_em DESC LIMIT 10")
+    cur.execute("SELECT id, criado_em, vendedora_nome, cliente_nome, valor_total, forma_pagamento FROM vendas ORDER BY criado_em DESC LIMIT 10")
     movimentacoes = [dict(m) for m in cur.fetchall()]
-    cur.close()
-    conn.close()
-    mes_atual = hoje.strftime('%B / %Y').capitalize()
-    hoje_fmt = hoje.strftime('%A, %d de %B de %Y').capitalize()
+    cur.close(); conn.close()
     return render_template('visao_geral.html', cliente=CLIENTE,
                            fat=fat, fat_total=fat_total,
                            valor_estoque=valor_estoque,
                            crediarios_total=crediarios_total,
                            saidas_total=0,
                            movimentacoes=movimentacoes,
-                           mes_atual=mes_atual, hoje=hoje_fmt,
+                           mes_atual=hoje.strftime('%B / %Y').capitalize(),
+                           hoje=hoje.strftime('%A, %d de %B de %Y').capitalize(),
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
 # ─── USUÁRIOS ───
@@ -322,10 +422,10 @@ def usuarios():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM usuarios ORDER BY id")
-    lista = cur.fetchall()
-    cur.close()
-    conn.close()
+    lista = [dict(u) for u in cur.fetchall()]
+    cur.close(); conn.close()
     return render_template('usuarios.html', cliente=CLIENTE, usuarios=lista,
+                           abas=ABAS_SISTEMA,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
 @app.route('/usuarios/novo', methods=['GET','POST'])
@@ -335,19 +435,19 @@ def usuario_novo():
         nome = request.form.get('nome','').strip()
         senha = request.form.get('senha','').strip()
         perfil = request.form.get('perfil','vendedor')
+        perms = ','.join(request.form.getlist('permissoes') or ['visao_geral','clientes','vendas','estoque'])
         conn = get_db()
         cur = conn.cursor()
         cur.execute("SELECT COUNT(*) as total FROM usuarios")
         total = cur.fetchone()['total']
         codigo = f"F{total+1}"
-        cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil) VALUES (%s,%s,%s,%s)",
-                    (codigo, nome, generate_password_hash(senha), perfil))
+        cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,%s,%s)",
+                    (codigo, nome, generate_password_hash(senha), perfil, perms))
         conn.commit()
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         flash('✅ Usuário cadastrado!', 'ok')
         return redirect(url_for('usuarios'))
-    return render_template('usuario_form.html', cliente=CLIENTE,
+    return render_template('usuario_form.html', cliente=CLIENTE, abas=ABAS_SISTEMA,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
 @app.route('/usuarios/<int:uid>/editar', methods=['GET','POST'])
@@ -358,17 +458,17 @@ def usuario_editar(uid):
     if request.method == 'POST':
         nome = request.form.get('nome','').strip()
         perfil = request.form.get('perfil','vendedor')
-        cur.execute("UPDATE usuarios SET nome=%s, perfil=%s WHERE id=%s", (nome, perfil, uid))
+        perms = ','.join(request.form.getlist('permissoes') or ['visao_geral','clientes','vendas','estoque'])
+        cur.execute("UPDATE usuarios SET nome=%s, perfil=%s, permissoes=%s WHERE id=%s", (nome, perfil, perms, uid))
         conn.commit()
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         flash('✅ Usuário atualizado!', 'ok')
         return redirect(url_for('usuarios'))
     cur.execute("SELECT * FROM usuarios WHERE id=%s", (uid,))
-    u = cur.fetchone()
-    cur.close()
-    conn.close()
-    return render_template('usuario_editar.html', cliente=CLIENTE, u=u,
+    user = dict(cur.fetchone())
+    cur.close(); conn.close()
+    user['perms_lista'] = user.get('permissoes','').split(',')
+    return render_template('usuario_editar.html', cliente=CLIENTE, user=user, abas=ABAS_SISTEMA,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
 @app.route('/usuarios/<int:uid>/senha', methods=['POST'])
@@ -380,8 +480,7 @@ def usuario_senha(uid):
         cur = conn.cursor()
         cur.execute("UPDATE usuarios SET senha_hash=%s WHERE id=%s", (generate_password_hash(nova), uid))
         conn.commit()
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         flash('✅ Senha atualizada!', 'ok')
     return redirect(url_for('usuarios'))
 
@@ -392,8 +491,7 @@ def usuario_toggle(uid):
     cur = conn.cursor()
     cur.execute("UPDATE usuarios SET ativo = NOT ativo WHERE id=%s", (uid,))
     conn.commit()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     return redirect(url_for('usuarios'))
 
 @app.route('/minha-senha', methods=['GET','POST'])
@@ -413,8 +511,7 @@ def minha_senha():
             flash('✅ Senha alterada!', 'ok')
         else:
             flash('Senha atual incorreta.', 'erro')
-        cur.close()
-        conn.close()
+        cur.close(); conn.close()
         return redirect(url_for('minha_senha'))
     return render_template('minha_senha.html', cliente=CLIENTE,
                            nome=session.get('nome'), perfil=session.get('perfil'))
@@ -426,15 +523,14 @@ def clientes():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM clientes WHERE ativo=TRUE ORDER BY nome")
-    lista = cur.fetchall()
-    cur.execute("SELECT COUNT(*) as total FROM clientes WHERE ativo=TRUE")
+    lista = [dict(c) for c in cur.fetchall()]
+    cur.execute("SELECT COUNT(*) as total FROM clientes")
     total = cur.fetchone()['total']
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     next_codigo = f"C{total+1}"
     for c in lista:
         partes = c['nome'].split()
-        c['iniciais'] = (partes[0][0] + (partes[1][0] if len(partes)>1 else partes[0][1])).upper()
+        c['iniciais'] = (partes[0][0]+(partes[1][0] if len(partes)>1 else partes[0][-1])).upper()
     return render_template('clientes.html', cliente=CLIENTE, clientes=lista,
                            next_id=next_codigo,
                            nome=session.get('nome'), perfil=session.get('perfil'))
@@ -442,7 +538,7 @@ def clientes():
 @app.route('/clientes/novo', methods=['POST'])
 @login_required
 def novo_cliente():
-    cores = ['#2e7d32','#1565c0','#6a1b9a','#c62828','#e65100','#00695c','#283593','#4a148c']
+    cores = ['#2e7d32','#1565c0','#6a1b9a','#c62828','#e65100','#00695c','#283593']
     nome = request.form.get('nome','').strip()
     cpf = request.form.get('cpf','').strip()
     data_nascimento = request.form.get('data_nascimento') or None
@@ -462,7 +558,6 @@ def novo_cliente():
         return redirect(url_for('clientes'))
     conn = get_db()
     cur = conn.cursor()
-    # Bloqueios de duplicidade
     cur.execute("SELECT id FROM clientes WHERE LOWER(TRIM(nome))=LOWER(TRIM(%s))", (nome,))
     if cur.fetchone():
         cur.close(); conn.close()
@@ -474,26 +569,20 @@ def novo_cliente():
             cur.close(); conn.close()
             flash(f'DUPLICADO_CPF||{cpf}', 'erro')
             return redirect(url_for('clientes'))
-    if telefone:
-        cur.execute("SELECT id FROM clientes WHERE telefone=%s OR telefone2=%s", (telefone,telefone))
-        if cur.fetchone():
-            cur.close(); conn.close()
-            flash(f'DUPLICADO_TEL||{telefone}', 'erro')
-            return redirect(url_for('clientes'))
     cur.execute("SELECT COUNT(*) as total FROM clientes")
     total = cur.fetchone()['total']
     codigo = f"C{total+1}"
-    cor = random.choice(cores)
     try:
         cur.execute("""INSERT INTO clientes (codigo,nome,cpf,data_nascimento,telefone,telefone2,
                        cep,logradouro,numero,complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar)
                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                     (codigo,nome,cpf or None,data_nascimento,telefone or None,telefone2 or None,
                      cep or None,logradouro or None,numero or None,complemento or None,
-                     bairro or None,cidade or None,uf or None,promocoes,crediario,cor))
+                     bairro or None,cidade or None,uf or None,promocoes,crediario,random.choice(cores)))
         conn.commit()
-        flash('SUCESSO||Cliente cadastrado com sucesso!', 'ok')
+        flash('SUCESSO||Cliente cadastrado!', 'ok')
     except Exception as e:
+        conn.rollback()
         flash(f'Erro: {e}', 'erro')
     finally:
         cur.close(); conn.close()
@@ -527,13 +616,10 @@ def ficha_cliente(cid):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM clientes WHERE id=%s", (cid,))
-    c = cur.fetchone()
+    c = dict(cur.fetchone())
     cur.close(); conn.close()
-    if not c:
-        flash('Cliente não encontrado.', 'erro')
-        return redirect(url_for('clientes'))
     partes = c['nome'].split()
-    c['iniciais'] = (partes[0][0]+(partes[1][0] if len(partes)>1 else partes[0][1])).upper()
+    c['iniciais'] = (partes[0][0]+(partes[1][0] if len(partes)>1 else partes[0][-1])).upper()
     return render_template('ficha_cliente.html', cliente=CLIENTE, c=c,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
@@ -604,13 +690,14 @@ def estoque():
     hoje = datetime.now().date()
     for item in itens:
         item['dias_estoque'] = (hoje - item['criado_em'].date()).days
-        item['saidas'] = (item['estoque_inicial'] or item['quantidade']) - item['quantidade']
+        item['saidas'] = (item['estoque_inicial'] or 0) - item['quantidade']
     lucro_potencial = float(totais['vt']) - float(totais['ct'])
-    next_codigo = f"P{total+1}"
     return render_template('estoque.html', cliente=CLIENTE, itens=itens,
-                           custo_total=totais['ct'], valor_total=totais['vt'],
-                           lucro_potencial=lucro_potencial, modelos=modelos,
-                           tamanhos=tamanhos, next_ref=next_codigo,
+                           custo_total=float(totais['ct']),
+                           valor_total=float(totais['vt']),
+                           lucro_potencial=lucro_potencial,
+                           modelos=modelos, tamanhos=tamanhos,
+                           next_ref=f"P{total+1}",
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
 @app.route('/estoque/novo', methods=['POST'])
@@ -633,11 +720,11 @@ def novo_estoque():
         cur.execute("""INSERT INTO estoque (codigo,modelo,descricao,tamanho,quantidade,estoque_inicial,
                        custo_unitario,markup,valor_venda,margem_lucro)
                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (codigo,modelo,descricao or None,tamanho,quantidade,quantidade,
-                     custo,markup,venda,margem))
+                    (codigo,modelo,descricao or None,tamanho,quantidade,quantidade,custo,markup,venda,margem))
         conn.commit()
         flash('✅ Produto cadastrado!', 'ok')
     except Exception as e:
+        conn.rollback()
         flash(f'Erro: {e}', 'erro')
     finally:
         cur.close(); conn.close()
@@ -688,7 +775,7 @@ def ficha_estoque(eid):
     cur.close(); conn.close()
     hoje = datetime.now().date()
     item['dias_estoque'] = (hoje - item['criado_em'].date()).days
-    item['saidas'] = (item['estoque_inicial'] or item['quantidade']) - item['quantidade']
+    item['saidas'] = (item['estoque_inicial'] or 0) - item['quantidade']
     return render_template('ficha_estoque.html', cliente=CLIENTE, item=item,
                            nome=session.get('nome'), perfil=session.get('perfil'))
 
@@ -760,7 +847,7 @@ def vendas():
                        FROM vendas WHERE criado_em>=%s GROUP BY vendedora_nome ORDER BY total DESC""", (mes_ini,))
         ranking = [dict(r) for r in cur.fetchall()]
         cur.execute("SELECT DISTINCT DATE_TRUNC('month',criado_em) as mes FROM vendas ORDER BY mes DESC")
-        meses_raw = cur.fetchall()
+        meses_raw = [dict(m) for m in cur.fetchall()]
         cur.close(); conn.close()
         now_mes = datetime.now().strftime('%Y-%m')
         now_mes_label = datetime.now().strftime('%B / %Y').capitalize()
@@ -772,9 +859,9 @@ def vendas():
                                now_mes=now_mes, now_mes_label=now_mes_label,
                                nome=session.get('nome'), perfil=session.get('perfil'))
     except Exception as e:
-        print(f"ERRO VENDAS: {e}")
-        print(traceback.format_exc())
-        return f"<pre style='padding:20px'>ERRO: {e}\n\n{traceback.format_exc()}</pre>", 500
+        import traceback as tb
+        print(f"ERRO VENDAS: {e}\n{tb.format_exc()}")
+        return f"<pre style='padding:20px'>ERRO: {e}\n\n{tb.format_exc()}</pre>", 500
 
 @app.route('/vendas/nova', methods=['POST'])
 @login_required
@@ -782,7 +869,7 @@ def nova_venda():
     conn = get_db()
     cur = conn.cursor()
     try:
-        vendedora_id = request.form.get('usuario_id') or request.form.get('vendedora_id')
+        usuario_id = request.form.get('usuario_id')
         vendedora_nome = request.form.get('vendedora_nome','').strip()
         cliente_id = request.form.get('cliente_id')
         cliente_nome = request.form.get('cliente_nome','').strip()
@@ -790,31 +877,26 @@ def nova_venda():
         parcelas = int(request.form.get('parcelas',1) or 1)
         valor_total = float(request.form.get('valor_total',0) or 0)
         itens = json.loads(request.form.get('itens','[]'))
-        # Gerar código V1, V2...
         cur.execute("SELECT COUNT(*) as total FROM vendas")
         total = cur.fetchone()['total']
         codigo_venda = f"V{total+1}"
         cur.execute("""INSERT INTO vendas (codigo,usuario_id,vendedora_nome,cliente_id,cliente_nome,
-                       valor_total,forma_pagamento,parcelas)
-                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-                    (codigo_venda, vendedora_id or None, vendedora_nome,
+                       valor_total,forma_pagamento,parcelas) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                    (codigo_venda, usuario_id or None, vendedora_nome,
                      cliente_id or None, cliente_nome, valor_total, forma_pagamento, parcelas))
         venda_id = cur.fetchone()['id']
-        # Inserir itens e dar baixa no estoque
         for item in itens:
-            produto_id = item.get('produto_id') or item.get('estoque_id')
+            produto_id = item.get('produto_id')
             qtd = int(item.get('quantidade',1))
             val_unit = float(item.get('valor_unitario',0))
             cur.execute("""INSERT INTO venda_itens (venda_id,produto_id,codigo_produto,modelo,descricao,
                            tamanho,valor_unitario,quantidade,valor_total)
                            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                         (venda_id, produto_id or None, item.get('codigo'),
-                         item.get('modelo'), item.get('descricao'), item.get('tamanho'),
-                         val_unit, qtd, val_unit*qtd))
+                         item.get('modelo'), item.get('descricao'),
+                         item.get('tamanho'), val_unit, qtd, val_unit*qtd))
             if produto_id:
-                cur.execute("UPDATE estoque SET quantidade=quantidade-%s, ultima_venda=CURRENT_DATE WHERE id=%s",
-                            (qtd, produto_id))
-        # Crediário
+                cur.execute("UPDATE estoque SET quantidade=quantidade-%s, ultima_venda=CURRENT_DATE WHERE id=%s", (qtd, produto_id))
         if forma_pagamento == 'crediario':
             entrada = float(request.form.get('entrada',0) or 0)
             saldo = valor_total - entrada
@@ -822,12 +904,10 @@ def nova_venda():
                            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
                         (venda_id, cliente_id or None, cliente_nome, valor_total, entrada, saldo))
             crediario_id = cur.fetchone()['id']
-            parcelas_list = json.loads(request.form.get('parcelas_datas','[]'))
-            for i, p in enumerate(parcelas_list):
+            for i, p in enumerate(json.loads(request.form.get('parcelas_datas','[]'))):
                 cur.execute("""INSERT INTO crediario_parcelas (crediario_id,numero_parcela,data_vencimento,valor)
                                VALUES (%s,%s,%s,%s)""",
                             (crediario_id, i+1, p.get('data'), float(p.get('valor',0))))
-        # Registrar no caixa
         cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,vendedora_nome)
                        VALUES (%s,%s,'entrada',%s,%s,%s)""",
                     (f"Venda {codigo_venda} - {cliente_nome}", valor_total, forma_pagamento, venda_id, vendedora_nome))
@@ -871,11 +951,9 @@ def excluir_venda(vid):
     cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s", (vid,))
-        itens = cur.fetchall()
-        for item in itens:
+        for item in cur.fetchall():
             if item['produto_id']:
-                cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s",
-                            (item['quantidade'], item['produto_id']))
+                cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s", (item['quantidade'], item['produto_id']))
         cur.execute("DELETE FROM vendas WHERE id=%s", (vid,))
         conn.commit()
         flash('✅ Venda excluída e estoque restaurado.', 'ok')
@@ -906,10 +984,10 @@ def buscar_ref_venda():
     ref = request.args.get('ref','').strip().upper()
     conn = get_db()
     cur = conn.cursor()
-    # Buscar por código exato (P1, P2...) ou por número
+    # Aceita P1, P2... ou só 1, 2...
+    busca = ref if ref.startswith('P') else f"P{ref}"
     cur.execute("""SELECT id as produto_id, codigo, modelo, descricao, tamanho, valor_venda, quantidade
-                   FROM estoque WHERE (codigo=%s OR codigo=%s) AND ativo=TRUE AND quantidade>0""",
-                (ref, f"P{ref}" if ref.isdigit() else ref))
+                   FROM estoque WHERE codigo=%s AND ativo=TRUE AND quantidade>0""", (busca,))
     item = cur.fetchone()
     cur.close(); conn.close()
     if item:
@@ -932,7 +1010,6 @@ def buscar_cliente_venda():
 @app.route('/crediarios/<int:cid>/parcela/<int:pid>/pagar', methods=['POST'])
 @login_required
 def pagar_parcela(cid, pid):
-    import math
     vendedora_nome = request.form.get('vendedora_nome','').strip()
     valor_pago = float(request.form.get('valor_pago',0) or 0)
     conn = get_db()
@@ -945,7 +1022,6 @@ def pagar_parcela(cid, pid):
         if novo_saldo <= 0.01:
             cur.execute("DELETE FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE", (cid,))
             cur.execute("UPDATE crediarios SET saldo_devedor=0, status='quitado' WHERE id=%s", (cid,))
-            status_msg = 'quitado'
         else:
             cur.execute("SELECT id FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE ORDER BY numero_parcela", (cid,))
             restantes = cur.fetchall()
@@ -955,12 +1031,11 @@ def pagar_parcela(cid, pid):
                     val = round(novo_saldo - val_por*(len(restantes)-1), 2) if i==len(restantes)-1 else val_por
                     cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (val, p['id']))
             cur.execute("UPDATE crediarios SET saldo_devedor=%s WHERE id=%s", (novo_saldo, cid))
-            status_msg = 'atualizado'
         cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,vendedora_nome)
                        VALUES (%s,%s,'entrada','crediario',%s,%s)""",
                     (f"Crediário - {crediario['cliente_nome']}", valor_pago, cid, vendedora_nome))
         conn.commit()
-        flash(f'✅ Parcela registrada! Crediário {status_msg}.', 'ok')
+        flash('✅ Parcela registrada!', 'ok')
     except Exception as e:
         conn.rollback()
         flash(f'Erro: {e}', 'erro')
@@ -968,7 +1043,6 @@ def pagar_parcela(cid, pid):
         cur.close(); conn.close()
     return redirect(url_for('ficha_venda', vid=crediario['venda_id']))
 
-# ─── DASHBOARD (compatibilidade) ───
 @app.route('/dashboard')
 @login_required
 def dashboard():

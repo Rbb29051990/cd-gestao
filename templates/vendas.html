@@ -295,7 +295,7 @@
           <select class="form-select" name="vendedora_id" id="selVendedora" onchange="setVendedora()">
             <option value="">Selecione...</option>
             {% for v in vendedoras %}
-            <option value="{{ v.id }}" data-nome="{{ v.nome }}">{{ v.nome }}</option>
+            <option value="{{ v.id }}" data-nome="{{ v.vendedora_nome }}">{{ v.vendedora_nome }}</option>
             {% endfor %}
           </select>
           <input type="hidden" name="vendedora_nome" id="vendedoraNome">

@@ -68,7 +68,7 @@
         <div class="ficha-prod-header">
           <div>
             <div class="ficha-prod-nome">{{ item.modelo or 'Produto' }}{% if item.descricao %} — {{ item.descricao }}{% endif %}</div>
-            <div class="ficha-prod-ref">{{ item.referencia }}</div>
+            <div class="ficha-prod-ref">{{ item.codigo }}</div>
           </div>
           <div class="ficha-prod-acoes">
             <a href="/estoque/{{ item.id }}/editar" class="btn-editar-prod">✏️ Editar</a>
@@ -87,8 +87,8 @@
           <div class="ficha-campo"><span class="ficha-label">Markup</span><span class="ficha-valor">{{ "%.1f"|format(item.markup|float)|replace('.',',') }} %</span></div>
           <div class="ficha-campo"><span class="ficha-label">Valor de venda</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.valor_venda|float)|replace('.',',') }}</span></div>
           <div class="ficha-campo"><span class="ficha-label">Margem de lucro</span><span class="ficha-valor">{{ "%.1f"|format(item.margem_lucro|float)|replace('.',',') }} %</span></div>
-          <div class="ficha-campo"><span class="ficha-label">Custo total em estoque</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.custo_total|float)|replace('.',',') }}</span></div>
-          <div class="ficha-campo"><span class="ficha-label">Valor total em estoque</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.valor_total|float)|replace('.',',') }}</span></div>
+          <div class="ficha-campo"><span class="ficha-label">Custo total em estoque</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.custo_unitario|float * item.quantidade|float)|replace('.',',') }}</span></div>
+          <div class="ficha-campo"><span class="ficha-label">Valor total em estoque</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.valor_venda|float * item.quantidade|float)|replace('.',',') }}</span></div>
           <div class="ficha-campo"><span class="ficha-label">Data de entrada</span><span class="ficha-valor">{{ item.criado_em.strftime('%d/%m/%Y') }}</span></div>
           <div class="ficha-campo"><span class="ficha-label">Última venda</span><span class="ficha-valor">{{ item.ultima_venda.strftime('%d/%m/%Y') if item.ultima_venda else '—' }}</span></div>
         </div>
@@ -100,7 +100,7 @@
   <div class="confirm-box">
     <div class="confirm-icon">⚠️</div>
     <div class="confirm-title">Excluir produto?</div>
-    <div class="confirm-sub">Tem certeza que deseja excluir <strong>{{ item.referencia }} — {{ item.modelo }}</strong>? Esta ação não pode ser desfeita.</div>
+    <div class="confirm-sub">Tem certeza que deseja excluir <strong>{{ item.codigo }} — {{ item.modelo }}</strong>? Esta ação não pode ser desfeita.</div>
     <div class="confirm-btns">
       <button class="btn-nao-exc" onclick="document.getElementById('confirmExc').style.display='none'">Não</button>
       <form method="POST" action="/estoque/{{ item.id }}/excluir" style="display:inline">

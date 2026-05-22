@@ -255,3 +255,404 @@ body { font-family: 'Outfit', sans-serif; background: var(--cor-secundaria); col
 .alerta-detalhe-cpf  { background:#fff3e0; color:#e65100; }
 .alerta-detalhe-tel  { background:#e3f2fd; color:#1565c0; }
 .alerta-rodape { font-size:12px; color:#aaa; font-weight:600; }
+
+/* ─── ESTOQUE — TABS ─── */
+.tabs-wrap {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid var(--cor-borda);
+  padding-bottom: 0;
+}
+.etab {
+  padding: 11px 22px;
+  border: none;
+  background: transparent;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #aaa;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+.etab:hover { color: var(--cor-texto); background: #f4f4f6; }
+.etab.active { color: var(--cor-texto); border-bottom-color: var(--cor-primaria); background: var(--cor-branco); }
+
+/* ─── ESTOQUE — PAINÉIS ─── */
+.etela { display: none; }
+.etela.active { display: block; }
+
+/* ─── ESTOQUE — RESUMO CARDS ─── */
+.resumo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.resumo-card {
+  background: var(--cor-branco);
+  border: 1.5px solid var(--cor-borda);
+  border-radius: 12px;
+  padding: 22px 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+  position: relative;
+  overflow: hidden;
+}
+.resumo-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 12px 12px 0 0;
+}
+.resumo-card.laranja::before { background: var(--cor-amarelo); }
+.resumo-card.verde::before   { background: var(--cor-verde); }
+.resumo-card.azul::before    { background: var(--cor-azul); }
+.resumo-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #aaa;
+  margin-bottom: 10px;
+}
+.resumo-valor {
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--cor-texto);
+  margin-bottom: 4px;
+}
+.resumo-hint {
+  font-size: 11px;
+  color: #bbb;
+  font-weight: 500;
+}
+
+/* ─── ESTOQUE — TABELA ─── */
+.etable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.etable th {
+  text-align: left;
+  padding: 13px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--cor-texto);
+  border-bottom: 2px solid #eeeef5;
+  background: #f8f8fc;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+.etable th:hover { background: #f0f0f8; }
+.etable td {
+  padding: 13px 14px;
+  color: #444;
+  border-bottom: 1px solid #f4f4f6;
+  font-weight: 500;
+  vertical-align: middle;
+}
+.etable tr:last-child td { border-bottom: none; }
+.etable tr:hover td { background: #f8f8fc; }
+
+/* ─── ESTOQUE — REF CODE ─── */
+.ref-code {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f57f17;
+  background: #fff8e1;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+/* ─── ESTOQUE — BADGE DIAS ─── */
+.badge-dias {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.badge-novo    { background: #e8f5e9; color: #2e7d32; }
+.badge-atencao { background: #fff8e1; color: #f57f17; }
+.badge-alerta  { background: #fce4ec; color: #c62828; }
+
+/* ─── ESTOQUE — FORM CARD ─── */
+.form-card {
+  background: var(--cor-branco);
+  border: 1.5px solid var(--cor-borda);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  max-width: 860px;
+}
+.form-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+.form-field.fspan2 { grid-column: span 2; }
+.section-sep {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #bbb;
+  margin: 28px 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-sep::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--cor-borda);
+}
+
+/* ─── ESTOQUE — SELECT COM BOTÃO ─── */
+.select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.select-wrap select {
+  flex: 1;
+  padding: 13px 16px;
+  border: 1.5px solid var(--cor-borda);
+  background: #f8f8fc;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  color: var(--cor-texto);
+  outline: none;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: border-color 0.2s;
+  cursor: pointer;
+}
+.select-wrap select:focus { border-color: var(--cor-primaria); background: #fff; }
+.btn-add-sel {
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--cor-borda);
+  background: var(--cor-branco);
+  color: var(--cor-verde);
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.btn-add-sel:hover { background: #e8f5e9; border-color: var(--cor-verde); }
+
+/* ─── ESTOQUE — INPUTS COLORIDOS ─── */
+.form-input.auto-yellow {
+  background: #fffde7;
+  border-color: #f9a825;
+  color: #e65100;
+  font-weight: 700;
+}
+.form-input.auto-yellow:focus { background: #fff8e1; border-color: #f57f17; }
+.form-input.auto-green {
+  background: #f1f8e9;
+  border-color: #aed581;
+  color: #33691e;
+  font-weight: 700;
+}
+
+/* ─── ESTOQUE — CALC HINT ─── */
+.calc-hint {
+  font-size: 11px;
+  color: #bbb;
+  margin-top: 6px;
+  font-weight: 600;
+  min-height: 18px;
+}
+.hint-edit { color: #f57f17; }
+
+/* ─── ESTOQUE — RESUMO FINANCEIRO FORM ─── */
+.resumo-fin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.fin-card {
+  padding: 18px 22px;
+  border-radius: 10px;
+  border: 1.5px solid var(--cor-borda);
+}
+.fin-card.laranja { background: #fffde7; border-color: #ffe082; }
+.fin-card.verde   { background: #f1f8e9; border-color: #c5e1a5; }
+.fin-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #aaa;
+  margin-bottom: 6px;
+}
+.fin-valor {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--cor-texto);
+  margin-bottom: 3px;
+}
+.fin-hint {
+  font-size: 11px;
+  color: #bbb;
+  font-weight: 500;
+}
+
+/* ─── ESTOQUE — FOOTER BOTÕES ─── */
+.footer-btns {
+  display: flex;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1.5px solid var(--cor-borda);
+  margin-top: 8px;
+}
+
+/* ─── ESTOQUE — ETIQUETAS ─── */
+.etiq-filtro {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: var(--cor-branco);
+  border: 1.5px solid var(--cor-borda);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+}
+.btn-buscar {
+  padding: 13px 24px;
+  background: var(--cor-primaria);
+  color: #fff;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(26,26,46,0.2);
+  transition: opacity 0.2s;
+}
+.btn-buscar:hover { opacity: 0.9; }
+.btn-imprimir {
+  padding: 13px 24px;
+  background: #fff;
+  color: var(--cor-texto);
+  border: 1.5px solid var(--cor-borda);
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+.btn-imprimir:hover { border-color: var(--cor-primaria); color: var(--cor-primaria); }
+
+.etiq-resultado {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 600;
+  margin-bottom: 12px;
+  min-height: 20px;
+}
+.etiq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.etiq-card {
+  background: var(--cor-branco);
+  border: 2px solid var(--cor-borda);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.etiq-cod {
+  font-size: 10px;
+  font-weight: 700;
+  color: #aaa;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.etiq-modelo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cor-texto);
+  margin-bottom: 4px;
+}
+.etiq-tam {
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+}
+.etiq-preco {
+  font-family: 'Outfit', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--cor-verde);
+}
+.etiq-qtd {
+  font-size: 11px;
+  color: #bbb;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* ─── MODAL ESTOQUE (novo modelo/tamanho) ─── */
+.modal-mini {
+  background: var(--cor-branco);
+  width: 100%;
+  max-width: 380px;
+  padding: 32px;
+  position: relative;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+/* ─── PRINT — apenas etiquetas ─── */
+@media print {
+  .topbar, .sidebar, .tabs-wrap, .etiq-filtro, .etiq-resultado,
+  .btn-imprimir, .btn-buscar, .flash { display: none !important; }
+  .main-content { padding: 0 !important; }
+  .etiq-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .etiq-card { break-inside: avoid; border: 1px solid #ccc; }
+}
+
+/* ─── RESPONSIVO ESTOQUE ─── */
+@media (max-width: 900px) {
+  .resumo-grid { grid-template-columns: 1fr 1fr; }
+  .form-grid2 { grid-template-columns: 1fr; }
+  .form-field.fspan2 { grid-column: span 1; }
+  .resumo-fin { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .resumo-grid { grid-template-columns: 1fr; }
+  .tabs-wrap { flex-wrap: wrap; }
+  .etab { font-size: 12px; padding: 9px 14px; }
+}

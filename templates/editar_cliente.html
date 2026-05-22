@@ -85,7 +85,7 @@
             <div class="form-field"><span class="form-label">Bairro</span><input class="form-input" type="text" name="bairro" id="endBairro" placeholder="Nome do bairro" value="{{ c.bairro or '' }}"></div>
             <div class="form-field"><span class="form-label">Cidade</span><input class="form-input" type="text" name="cidade" id="endCidade" placeholder="Nome da cidade" value="{{ c.cidade or '' }}"></div>
             <div class="form-field"><span class="form-label">UF</span>
-              <select class="form-select" name="uf" id="endUF"><option value="">--</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select>
+              <select class="form-input form-select-uf" name="uf" id="endUF"><option value="">--</option><option>AC</option><option>AL</option><option>AP</option><option>AM</option><option>BA</option><option>CE</option><option>DF</option><option>ES</option><option>GO</option><option>MA</option><option>MT</option><option>MS</option><option>MG</option><option>PA</option><option>PB</option><option>PR</option><option>PE</option><option>PI</option><option>RJ</option><option>RN</option><option>RS</option><option>RO</option><option>RR</option><option>SC</option><option>SP</option><option>SE</option><option>TO</option></select>
             </div>
           </div>
           <div class="section-sep">Preferências</div>
@@ -111,11 +111,96 @@
           </div>
           <div class="modal-footer">
             <button type="submit" class="btn-salvar">💾 Salvar alterações</button>
-            <button type="button" class="btn-excluir" onclick="document.getElementById('confirmExc').style.display='flex'">🗑️ Excluir cliente</button>
+            <button type="button" class="btn-sm btn-sm-danger" onclick="document.getElementById('confirmExc').style.display='flex'">🗑️ Excluir cliente</button>
           </div>
         </form>
       </div>
     </main>
   </div>
 </div>
+
+<!-- MODAL CONFIRMAR EXCLUSÃO -->
+<div class="modal-overlay" id="confirmExc" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+    <div class="modal-title" style="font-size:20px;margin-bottom:8px">Excluir cliente?</div>
+    <p style="color:#666;font-size:14px;margin-bottom:28px;line-height:1.6">Esta ação é <strong>irreversível</strong>. O cliente e todos os seus dados serão removidos permanentemente.</p>
+    <form method="POST" action="/clientes/{{ c.id }}/excluir">
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('confirmExc').style.display='none'">Cancelar</button>
+        <button type="submit" style="padding:13px 28px;background:#c62828;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;border-radius:8px">🗑️ Sim, excluir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function mascaraTel(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  if (v.length <= 10) v = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/,'($1) $2-$3');
+  else v = v.replace(/^(\d{2})(\d{5})(\d{0,4})$/,'($1) $2-$3');
+  el.value = v;
+}
+function mascaraCPF(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  v = v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+  el.value = v;
+}
+function mascaraCEP(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,8);
+  if (v.length > 5) v = v.slice(0,5)+'-'+v.slice(5);
+  el.value = v;
+  buscarCEP_edit(v);
+}
+let cepTimerEdit;
+function buscarCEP_edit(val) {
+  clearTimeout(cepTimerEdit);
+  const digits = val.replace(/\D/g,'');
+  if (digits.length !== 8) return;
+  const spin = document.getElementById('cepSpin');
+  const status = document.getElementById('cepStatus');
+  if (spin) spin.style.display='inline';
+  if (status) status.textContent='Buscando...';
+  cepTimerEdit = setTimeout(async () => {
+    try {
+      const r = await fetch('https://viacep.com.br/ws/'+digits+'/json/');
+      const d = await r.json();
+      if (spin) spin.style.display='none';
+      if (d.erro) { if(status) status.textContent='⚠️ CEP não encontrado.'; return; }
+      const set = (id,v) => { const el=document.getElementById(id); if(el) el.value=v; };
+      set('endRua', d.logradouro||'');
+      set('endBairro', d.bairro||'');
+      set('endCidade', d.localidade||'');
+      const ufEl = document.getElementById('endUF');
+      if (ufEl) ufEl.value = d.uf||'';
+      if (status) status.textContent='✅ Endereço preenchido — edite se necessário';
+      const numEl = document.getElementById('endNumero');
+      if (numEl) setTimeout(()=>numEl.focus(),100);
+    } catch(e) {
+      if (spin) spin.style.display='none';
+    }
+  }, 400);
+}
+function calcIdade(el) {
+  if (!el.value) { document.getElementById('idadeCalc').textContent=''; return; }
+  const n = new Date(el.value), h = new Date();
+  let a = h.getFullYear()-n.getFullYear();
+  if (h.getMonth()<n.getMonth()||(h.getMonth()===n.getMonth()&&h.getDate()<n.getDate())) a--;
+  document.getElementById('idadeCalc').textContent = a + ' anos';
+}
+function toggleBtn(btn, tipo, id) {
+  btn.closest('.toggle-wrap').querySelectorAll('.toggle-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(id).value = tipo==='sim'?'1':'0';
+}
+// Aplicar máscara nos campos já preenchidos ao carregar
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('input[name=telefone],input[name=telefone2]').forEach(el=>{ if(el.value) mascaraTel(el); });
+  document.querySelectorAll('input[name=cpf]').forEach(el=>{ if(el.value) mascaraCPF(el); });
+  const cepEl = document.getElementById('cepInput');
+  if (cepEl && cepEl.value) mascaraCEP(cepEl);
+  const nascEl = document.querySelector('input[name=data_nascimento]');
+  if (nascEl && nascEl.value) calcIdade(nascEl);
+});
+</script>
 {% endblock %}

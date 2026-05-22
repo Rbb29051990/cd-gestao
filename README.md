@@ -1,36 +1,33 @@
-# CD Gestão Empresarial
+# CD Gestão Empresarial — v24
 
-Sistema white-label de gestão para lojas de moda.
+## Como fazer o deploy (atualizar o sistema)
 
-## Como publicar no Render
-
-1. Faça upload desta pasta para um repositório no GitHub
-2. Acesse render.com e clique em "New Web Service"
-3. Conecte seu repositório GitHub
-4. Configure:
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app`
-5. Clique em "Deploy"
-
-## Usuários padrão
-
-| Usuário | Senha     | Perfil |
-|---------|-----------|--------|
-| carol   | carol123  | admin  |
-| renan   | renan123  | admin  |
-
-## Estrutura do projeto
-
+### Se estiver no HEROKU:
 ```
-cd-gestao/
-├── app.py              # Aplicação principal
-├── requirements.txt    # Dependências Python
-├── Procfile            # Configuração Render
-├── templates/
-│   ├── base.html       # Template base
-│   ├── login.html      # Tela de login
-│   └── dashboard.html  # Dashboard principal
-└── static/
-    └── css/
-        └── main.css    # Estilos do sistema
+heroku login
+cd cd-gestao
+git init
+git add .
+git commit -m "v24"
+heroku git:remote -a NOME-DO-SEU-APP
+git push heroku main
 ```
+
+### Se estiver no RENDER:
+1. Acesse o painel do Render
+2. Vá em "Manual Deploy" → "Deploy latest commit"
+3. Ou faça upload dos arquivos via GitHub
+
+### Se estiver rodando LOCAL (python app.py):
+1. Substitua TODOS os arquivos da pasta pelo conteúdo deste ZIP
+2. Pare o servidor (Ctrl+C)
+3. Rode novamente: `python app.py`
+
+### IMPORTANTE — Primeira execução:
+Acesse: https://seu-app.com/setup
+Isso cria as tabelas e usuários padrão.
+
+### Usuários padrão:
+- Renan Barcellos / renan123
+- Carol Duarte / carol123
+

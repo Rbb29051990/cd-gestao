@@ -6,7 +6,8 @@ from psycopg2.extras import RealDictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.secret_key = os.environ.get('SECRET_KEY', 'cd-gestao-2026-secret')
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
@@ -851,3 +852,13 @@ with app.app_context():
 
 if __name__ == '__main__':
     app.run(debug=False)
+
+@app.route('/versao')
+def versao():
+    return """<div style='font-family:monospace;padding:40px;font-size:18px'>
+    <b>CD Gestão</b><br>
+    Versão: <b style='color:green'>v24 — 2026-05-22</b><br>
+    Clientes: máscaras telefone/CEP, WhatsApp, GPS, aniversários ✅<br>
+    Estoque: design corrigido ✅<br>
+    <br><a href='/'>← Voltar</a>
+    </div>"""

@@ -55,6 +55,18 @@
             <div class="resumo-hint">se vender todo o estoque</div>
           </div>
         </div>
+        <div class="filtros" style="margin-bottom:16px">
+          <div class="busca">
+            <svg width="16" height="16" viewBox="0 0 22 22" fill="none"><circle cx="10" cy="10" r="6" stroke="#ccc" stroke-width="2"/><path d="M15 15l4 4" stroke="#ccc" stroke-width="2" stroke-linecap="round"/></svg>
+            <input type="text" placeholder="Buscar por código, modelo, tamanho..." oninput="filtrarEstoque(this.value)">
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="filtro-btn active" onclick="filtrarSaldo(this, 0)">Todos</button>
+            <button class="filtro-btn" onclick="filtrarSaldo(this, 1)">Com saldo</button>
+            <button class="filtro-btn" onclick="filtrarSaldo(this, 2)">Zerados</button>
+            <button class="filtro-btn" onclick="filtrarSaldo(this, 3)">Crítico (≤2)</button>
+          </div>
+        </div>
         <div class="table-wrap">
           <table class="etable" id="tabelaEstoque">
             <thead><tr>
@@ -203,4 +215,212 @@
     </main>
   </div>
 </div>
+
+<!-- MODAL NOVO MODELO -->
+<div class="modal-overlay" id="modalModelo" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-mini">
+    <button class="modal-close" onclick="document.getElementById('modalModelo').style.display='none'">×</button>
+    <div class="modal-title" style="font-size:20px;margin-bottom:4px">Novo Modelo</div>
+    <div class="modal-sub">Adicionar categoria de produto</div>
+    <form method="POST" action="/estoque/modelo/novo">
+      <div class="form-field">
+        <span class="form-label">Nome do modelo</span>
+        <input class="form-input" type="text" name="nome" placeholder="Ex: Vestido, Calça, Blusa..." required autofocus>
+      </div>
+      <div class="modal-footer" style="margin-top:16px;padding-top:16px">
+        <button type="submit" class="btn-salvar">Adicionar</button>
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalModelo').style.display='none'">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL NOVO TAMANHO -->
+<div class="modal-overlay" id="modalTamanho" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-mini">
+    <button class="modal-close" onclick="document.getElementById('modalTamanho').style.display='none'">×</button>
+    <div class="modal-title" style="font-size:20px;margin-bottom:4px">Novo Tamanho</div>
+    <div class="modal-sub">Adicionar tamanho ao sistema</div>
+    <form method="POST" action="/estoque/tamanho/novo">
+      <div class="form-field">
+        <span class="form-label">Tamanho</span>
+        <input class="form-input" type="text" name="nome" placeholder="Ex: XG, 62, P/M..." required autofocus>
+      </div>
+      <div class="modal-footer" style="margin-top:16px;padding-top:16px">
+        <button type="submit" class="btn-salvar">Adicionar</button>
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalTamanho').style.display='none'">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ── TABS ── */
+function trocarEtab(id, btn) {
+  document.querySelectorAll('.etela').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ── MODAL MODELO/TAMANHO ── */
+function abrirModalE(tipo) {
+  if (tipo === 'modelo') document.getElementById('modalModelo').style.display = 'flex';
+  else document.getElementById('modalTamanho').style.display = 'flex';
+}
+
+/* ── FORMATAÇÃO MOEDA ── */
+function parseMoeda(s) {
+  if (!s) return 0;
+  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+function fmtMoeda(v) {
+  return 'R$ ' + v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+}
+function fmtMoedaInput(v) {
+  return v.toFixed(2).replace('.',',');
+}
+
+/* ── CÁLCULO PRECIFICAÇÃO ── */
+function eCalcDoCusto() {
+  const custo  = parseMoeda(document.getElementById('eCusto').value);
+  const markup = parseMoeda(document.getElementById('eMarkup').value);
+  if (custo > 0 && markup > 0) {
+    const venda = custo * (1 + markup / 100);
+    document.getElementById('eVenda').value = fmtMoedaInput(venda);
+    const margem = ((venda - custo) / venda * 100);
+    document.getElementById('eMargem').value = fmtMoedaInput(margem) + '%';
+    document.getElementById('eHintMarkup').textContent = 'Venda calculada pelo markup';
+  }
+  eAtualizarTotais();
+}
+
+function eCalcDoMarkup() {
+  eCalcDoCusto();
+}
+
+function eCalcDaVenda() {
+  const custo = parseMoeda(document.getElementById('eCusto').value);
+  const venda = parseMoeda(document.getElementById('eVenda').value);
+  if (custo > 0 && venda > 0) {
+    const markup = ((venda - custo) / custo * 100);
+    document.getElementById('eMarkup').value = fmtMoedaInput(markup);
+    const margem = ((venda - custo) / venda * 100);
+    document.getElementById('eMargem').value = fmtMoedaInput(margem) + '%';
+    document.getElementById('eHintMarkup').textContent = 'Markup recalculado pelo preço de venda';
+  }
+  eAtualizarTotais();
+}
+
+function eAtualizarTotais() {
+  const custo = parseMoeda(document.getElementById('eCusto').value);
+  const venda = parseMoeda(document.getElementById('eVenda').value);
+  const qtd   = parseInt(document.getElementById('eQtd').value) || 0;
+  document.getElementById('eCustoTotal').textContent = fmtMoeda(custo * qtd);
+  document.getElementById('eValorTotal').textContent = fmtMoeda(venda * qtd);
+}
+
+function prepararEnvio() {
+  document.getElementById('eCustoNum').value  = parseMoeda(document.getElementById('eCusto').value);
+  document.getElementById('eMarkupNum').value = parseMoeda(document.getElementById('eMarkup').value);
+  document.getElementById('eVendaNum').value  = parseMoeda(document.getElementById('eVenda').value);
+  const mStr = (document.getElementById('eMargem').value||'').replace('%','').replace(',','.');
+  document.getElementById('eMargemNum').value = parseFloat(mStr)||0;
+  // Substituir os campos de texto pelos numéricos no form
+  document.querySelector('[name=custo_unitario]').value = document.getElementById('eCustoNum').value;
+  document.querySelector('[name=markup]').value         = document.getElementById('eMarkupNum').value;
+  document.querySelector('[name=valor_venda]').value    = document.getElementById('eVendaNum').value;
+  document.querySelector('[name=margem_lucro]').value   = document.getElementById('eMargemNum').value;
+}
+
+/* ── ORDENAR TABELA ── */
+let eSortDir = {};
+function ordenarE(col) {
+  const tbody = document.getElementById('tbodyEstoque');
+  const rows  = Array.from(tbody.querySelectorAll('tr'));
+  eSortDir[col] = !eSortDir[col];
+  rows.sort((a, b) => {
+    let av = a.cells[col]?.textContent.trim() || '';
+    let bv = b.cells[col]?.textContent.trim() || '';
+    const an = parseFloat(av.replace(/[^\d,.-]/g,'').replace(',','.'));
+    const bn = parseFloat(bv.replace(/[^\d,.-]/g,'').replace(',','.'));
+    if (!isNaN(an) && !isNaN(bn)) return eSortDir[col] ? an - bn : bn - an;
+    return eSortDir[col] ? av.localeCompare(bv,'pt-BR') : bv.localeCompare(av,'pt-BR');
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+
+/* ── FILTRO DE BUSCA NA TABELA ── */
+function filtrarEstoque(q) {
+  const val = q.toLowerCase();
+  document.querySelectorAll('#tbodyEstoque tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(val) ? '' : 'none';
+  });
+}
+
+/* ── FILTROS RÁPIDOS SALDO ── */
+function filtrarSaldo(btn, tipo) {
+  document.querySelectorAll(".filtro-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.querySelectorAll("#tbodyEstoque tr").forEach(tr => {
+    if (tr.cells.length < 2) return;
+    const saldoCell = tr.cells[8];
+    if (!saldoCell) return;
+    const saldo = parseInt(saldoCell.textContent.trim()) || 0;
+    let show = true;
+    if (tipo === 1) show = saldo > 0;
+    else if (tipo === 2) show = saldo === 0;
+    else if (tipo === 3) show = saldo > 0 && saldo <= 2;
+    tr.style.display = show ? "" : "none";
+  });
+}
+
+/* ── ETIQUETAS ── */
+function buscarEtiquetas() {
+  const data = document.getElementById('dataEtiq').value;
+  if (!data) {
+    document.getElementById('etiqResultado').textContent = '⚠️ Selecione uma data.';
+    return;
+  }
+  document.getElementById('etiqResultado').textContent = 'Buscando...';
+  document.getElementById('etiqGrid').innerHTML = '';
+  fetch('/estoque/etiquetas?data=' + data)
+    .then(r => r.json())
+    .then(d => {
+      const itens = d.itens || [];
+      if (!itens.length) {
+        document.getElementById('etiqResultado').textContent = 'Nenhum item cadastrado nesta data.';
+        return;
+      }
+      document.getElementById('etiqResultado').textContent =
+        itens.length + ' item(s) encontrado(s) — ' + data.split('-').reverse().join('/');
+      const grid = document.getElementById('etiqGrid');
+      itens.forEach(item => {
+        const totalEtiq = item.quantidade || 1;
+        for (let i = 0; i < totalEtiq; i++) {
+          const card = document.createElement('div');
+          card.className = 'etiq-card';
+          card.innerHTML = `
+            <div class="etiq-cod">${item.codigo}</div>
+            <div class="etiq-modelo">${item.modelo || '—'}</div>
+            <div class="etiq-tam">TAM: ${item.tamanho || 'ÚNICO'}</div>
+            <div class="etiq-preco">${'R$ ' + parseFloat(item.valor_venda).toFixed(2).replace('.',',')}</div>
+            <div class="etiq-qtd">Etiqueta ${i+1} de ${totalEtiq}</div>
+          `;
+          grid.appendChild(card);
+        }
+      });
+    })
+    .catch(() => {
+      document.getElementById('etiqResultado').textContent = 'Erro ao buscar itens.';
+    });
+}
+
+/* ── DATA PADRÃO ETIQUETAS (hoje) ── */
+document.addEventListener('DOMContentLoaded', () => {
+  const hoje = new Date();
+  const iso = hoje.toISOString().split('T')[0];
+  document.getElementById('dataEtiq').value = iso;
+});
+</script>
 {% endblock %}

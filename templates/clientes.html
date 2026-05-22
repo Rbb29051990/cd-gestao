@@ -14,13 +14,13 @@
     <nav class="sidebar">
       <div class="nav-section"><div class="nav-label">Principal</div>
         <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
-        <a href="/clientes" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/clientes" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
         <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
-        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/></svg> Estoque</a>
       </div>
       <div class="nav-section"><div class="nav-label">Financeiro</div>
-        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/><circle cx="11" cy="11.5" r="1" fill="#2e7d32"/></svg> Caixa</a>
-        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/></svg> Crediários</a>
         <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
       </div>
       <div class="nav-section"><div class="nav-label">Gestão</div>
@@ -29,39 +29,43 @@
       </div>
     </nav>
     <main class="main-content">
-      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}
+      {% if msg.startswith('DUPLICADO_NOME||') %}
+      <div class="flash flash-erro">Cliente já cadastrado: {{ msg.split('||')[1] }}</div>
+      {% elif msg.startswith('DUPLICADO_CPF||') %}
+      <div class="flash flash-erro">CPF já cadastrado: {{ msg.split('||')[1] }}</div>
+      {% elif msg.startswith('SUCESSO||') %}
+      <div class="flash flash-ok">{{ msg.split('||')[1] }}</div>
+      {% else %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endif %}
+      {% endfor %}{% endwith %}
+
       <div class="page-header">
         <div>
           <div class="page-title">Clientes</div>
-          <div class="page-date">{% if clientes %}{{ clientes|length }} registros cadastrados{% else %}Nenhum cliente cadastrado{% endif %}</div>
+          <div class="page-date">{{ clientes|length }} cliente(s) cadastrado(s)</div>
         </div>
-        <button class="btn-acao" onclick="document.getElementById('modalCadastro').style.display='flex'">+ Cadastrar cliente</button>
+        <button class="btn-acao" onclick="document.getElementById('modalCliente').style.display='flex'">+ Novo cliente</button>
       </div>
-      
-      <div class="filtros">
-        <div class="busca"><input type="text" id="buscaInput" onkeyup="filtrarClientes()" placeholder="🔍  Buscar por nome, contato, CPF..."></div>
-        <button class="filtro-btn active" onclick="setFiltro('todos', this)">Todos</button>
-        <button class="filtro-btn" onclick="setFiltro('dia', this)">🎉 Aniversariantes do dia</button>
-        <button class="filtro-btn" onclick="setFiltro('mes', this)">🎂 Aniversariantes do mês</button>
-      </div>
+
       <div class="table-wrap">
-        <table class="table" id="tabelaClientes">
-          <thead><tr><th>Cliente</th><th>Contato</th><th>Endereço</th><th>Nascimento</th><th>Crediário</th><th>Promoções</th></tr></thead>
+        <table class="table">
+          <thead><tr><th>Código</th><th>Cliente</th><th>Telefone</th><th>Cidade/UF</th><th>Crediário</th><th>Desde</th></tr></thead>
           <tbody>
             {% for c in clientes %}
-            <tr onclick="window.location='/clientes/{{ c.id }}'" style="cursor:pointer"
-                data-nome="{{ c.nome }}" data-tel="{{ c.telefone or '' }}"
-                data-cpf="{{ c.cpf or '' }}" data-mes="{{ c.data_nascimento.month if c.data_nascimento else '' }}"
-                data-dia="{{ c.data_nascimento.day if c.data_nascimento else '' }}">
-              <td><div class="cliente-cell">
-                <div class="cli-avatar" style="background:{{ c.cor_avatar }}">{{ c.iniciais }}</div>
-                <div><div class="cliente-nome">{{ c.nome }}</div><div class="cliente-cod">{{ c.codigo }}</div></div>
-              </div></td>
-              <td>{% if c.telefone %}<button class="tel-btn" onclick="event.stopPropagation();abrirTel('{{ c.telefone }}')">📱 {{ c.telefone }}</button>{% else %}—{% endif %}</td>
-              <td>{% if c.cidade %}<button class="end-btn" onclick="event.stopPropagation();abrirEnd('{{ c.logradouro or '' }}, {{ c.numero or '' }} - {{ c.cidade }}/{{ c.uf or '' }}')">📍 {{ c.cidade }}{% if c.uf %}/{{ c.uf }}{% endif %}</button>{% else %}—{% endif %}</td>
-              <td>{% if c.data_nascimento %}<span class="aniv">🎂 {{ c.data_nascimento.strftime('%d/%m/%Y') }}</span>{% else %}—{% endif %}</td>
-              <td>{% if c.crediario %}<span class="badge badge-hab">✅ Habilitado</span>{% else %}<span class="badge badge-nao">— Não</span>{% endif %}</td>
-              <td>{% if c.promocoes %}<span class="badge badge-sim">📢 Sim</span>{% else %}<span class="badge badge-naop">🔕 Não</span>{% endif %}</td>
+            <tr onclick="window.location='/clientes/{{ c.id }}'" style="cursor:pointer">
+              <td><span style="font-size:11px;font-weight:700;color:#6a1b9a;background:#f3e5f5;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ c.codigo }}</span></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:32px;height:32px;border-radius:50%;background:{{ c.cor_avatar }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">{{ c.iniciais }}</div>
+                  <span style="font-weight:600">{{ c.nome }}</span>
+                </div>
+              </td>
+              <td>{{ c.telefone or '—' }}</td>
+              <td>{{ (c.cidade or '') }}{% if c.uf %}/{{ c.uf }}{% endif %}{% if not c.cidade and not c.uf %}—{% endif %}</td>
+              <td>{% if c.crediario %}<span class="badge badge-hab">✅ Sim</span>{% else %}<span class="badge badge-nao">— Não</span>{% endif %}</td>
+              <td>{{ c.criado_em.strftime('%d/%m/%Y') }}</td>
             </tr>
             {% else %}
             <tr><td colspan="6" class="empty-row">Nenhum cliente cadastrado ainda.</td></tr>
@@ -72,4 +76,109 @@
     </main>
   </div>
 </div>
+
+<!-- MODAL NOVO CLIENTE -->
+<div class="modal-overlay" id="modalCliente" style="display:none">
+  <div class="modal" style="max-width:640px;max-height:92vh;overflow-y:auto;position:relative">
+    <button class="modal-close" onclick="document.getElementById('modalCliente').style.display='none'">✕</button>
+    <div class="modal-title">Novo cliente</div>
+    <div class="modal-sub">Próximo código: {{ next_id }}</div>
+    <form method="POST" action="/clientes/novo" id="formCliente">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="form-field" style="grid-column:span 2">
+          <label class="form-label">Nome completo *</label>
+          <input class="form-input" type="text" name="nome" id="nomeInput" required placeholder="Ex: Maria Silva" oninput="verificarDuplicado('nome',this.value)">
+          <div id="erroNome" style="font-size:12px;color:#c62828;margin-top:3px;display:none">⚠️ Cliente já cadastrado</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">CPF</label>
+          <input class="form-input" type="text" name="cpf" id="cpfInput" placeholder="000.000.000-00" oninput="verificarDuplicado('cpf',this.value)">
+          <div id="erroCpf" style="font-size:12px;color:#c62828;margin-top:3px;display:none">⚠️ CPF já cadastrado</div>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Data de nascimento</label>
+          <input class="form-input" type="date" name="data_nascimento">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Telefone / WhatsApp</label>
+          <input class="form-input" type="text" name="telefone" placeholder="(00) 00000-0000">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Telefone 2</label>
+          <input class="form-input" type="text" name="telefone2" placeholder="(00) 00000-0000">
+        </div>
+        <div class="form-field">
+          <label class="form-label">CEP</label>
+          <input class="form-input" type="text" name="cep" id="cepInput" placeholder="00000-000" oninput="buscarCep(this.value)">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Número</label>
+          <input class="form-input" type="text" name="numero" placeholder="Ex: 123">
+        </div>
+        <div class="form-field" style="grid-column:span 2">
+          <label class="form-label">Logradouro</label>
+          <input class="form-input" type="text" name="logradouro" id="logradouroInput" placeholder="Ex: Rua das Flores">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Bairro</label>
+          <input class="form-input" type="text" name="bairro" id="bairroInput" placeholder="Ex: Centro">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Complemento</label>
+          <input class="form-input" type="text" name="complemento" placeholder="Ex: Apto 2">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Cidade</label>
+          <input class="form-input" type="text" name="cidade" id="cidadeInput" placeholder="Ex: Leopoldina">
+        </div>
+        <div class="form-field">
+          <label class="form-label">UF</label>
+          <input class="form-input" type="text" name="uf" id="ufInput" placeholder="Ex: MG" maxlength="2" style="text-transform:uppercase">
+        </div>
+      </div>
+      <div style="display:flex;gap:20px;margin-bottom:20px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500">
+          <input type="checkbox" name="promocoes" value="1" checked style="width:16px;height:16px;accent-color:#6a1b9a"> Receber promoções
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:500">
+          <input type="checkbox" name="crediario" value="1" style="width:16px;height:16px;accent-color:#c62828"> Habilitar crediário
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalCliente').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar">✅ Cadastrar cliente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let verificTimer;
+function verificarDuplicado(campo, valor) {
+  clearTimeout(verificTimer);
+  verificTimer = setTimeout(async () => {
+    if (!valor || valor.length < 3) return;
+    const r = await fetch('/clientes/verificar?campo='+campo+'&valor='+encodeURIComponent(valor));
+    const d = await r.json();
+    document.getElementById('erro'+campo.charAt(0).toUpperCase()+campo.slice(1)).style.display = d.ok ? 'none' : 'block';
+  }, 500);
+}
+
+let cepTimer;
+function buscarCep(cep) {
+  clearTimeout(cepTimer);
+  cep = cep.replace(/\D/g,'');
+  if (cep.length !== 8) return;
+  cepTimer = setTimeout(async () => {
+    const r = await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+    const d = await r.json();
+    if (!d.erro) {
+      document.getElementById('logradouroInput').value = d.logradouro || '';
+      document.getElementById('bairroInput').value = d.bairro || '';
+      document.getElementById('cidadeInput').value = d.localidade || '';
+      document.getElementById('ufInput').value = d.uf || '';
+    }
+  }, 400);
+}
+</script>
 {% endblock %}

@@ -1,50 +1,36 @@
-{% extends "base.html" %}
-{% block content %}
-<div class="dash-wrap">
-  <div class="topbar">
-    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
-    <div class="topbar-right">
-      <a href="/minha-senha" class="btn-logout">Minha senha</a>
-      <span class="topbar-user">{{ nome }}</span>
-      <div class="avatar">{{ nome[:2].upper() }}</div>
-      <a href="/logout" class="btn-logout">Sair</a>
-    </div>
-  </div>
-  <div class="dash-layout">
-    <nav class="sidebar">
-      <div class="nav-section"><div class="nav-label">Principal</div>
-        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
-        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
-        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
-        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
-      </div>
-      <div class="nav-section"><div class="nav-label">Financeiro</div>
-        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/><circle cx="11" cy="11.5" r="1" fill="#2e7d32"/></svg> Caixa</a>
-        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Crediários</a>
-        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
-      </div>
-      <div class="nav-section"><div class="nav-label">Gestão</div>
-        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
-      </div>
-    </nav>
-    <main class="main-content">
-      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px">
-        <div><div class="page-title">Usuários</div><div class="page-date">Gerencie os acessos ao sistema</div></div>
-        <a href="/usuarios/novo" class="btn-acao">+ Novo usuário</a>
-      </div>
-      
-      <div class="table-wrap"><table class="table">
-        <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>
-        <tbody>{% for u in usuarios %}<tr>
-          <td>{{ u.nome }}</td><td>{{ u.codigo }}</td>
-          <td><span class="cd-badge {% if u.perfil == 'admin' %}ok{% else %}mid{% endif %}">{{ u.perfil }}</span></td>
-          <td><span class="cd-badge {% if u.ativo %}ok{% else %}low{% endif %}">{% if u.ativo %}Ativo{% else %}Inativo{% endif %}</span></td>
-          <td style="display:flex;gap:8px;flex-wrap:wrap"><a href="/usuarios/{{ u.id }}/editar" class="btn-sm">✏️ Editar</a><a href="/usuarios/{{ u.id }}/toggle" class="btn-sm btn-sm-danger">{% if u.ativo %}⛔ Desativar{% else %}✅ Ativar{% endif %}</a></td>
-        </tr>{% endfor %}</tbody>
-      </table></div>
-    </main>
-  </div>
-</div>
-{% endblock %}
+# CD Gestão Empresarial
+
+Sistema white-label de gestão para lojas de moda.
+
+## Como publicar no Render
+
+1. Faça upload desta pasta para um repositório no GitHub
+2. Acesse render.com e clique em "New Web Service"
+3. Conecte seu repositório GitHub
+4. Configure:
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `gunicorn app:app`
+5. Clique em "Deploy"
+
+## Usuários padrão
+
+| Usuário | Senha     | Perfil |
+|---------|-----------|--------|
+| carol   | carol123  | admin  |
+| renan   | renan123  | admin  |
+
+## Estrutura do projeto
+
+```
+cd-gestao/
+├── app.py              # Aplicação principal
+├── requirements.txt    # Dependências Python
+├── Procfile            # Configuração Render
+├── templates/
+│   ├── base.html       # Template base
+│   ├── login.html      # Tela de login
+│   └── dashboard.html  # Dashboard principal
+└── static/
+    └── css/
+        └── main.css    # Estilos do sistema
+```

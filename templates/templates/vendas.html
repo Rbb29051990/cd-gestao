@@ -1,0 +1,574 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.tabs-wrap{background:#fff;border-bottom:1.5px solid #e8e8f0;padding:0 28px;display:flex;gap:0}
+.vtab{padding:15px 22px;font-size:13px;font-weight:600;color:#aaa;border-bottom:3px solid transparent;cursor:pointer;background:none;border-top:none;border-left:none;border-right:none;font-family:'Outfit',sans-serif;transition:all 0.2s}
+.vtab.active{color:#1a1a2e;border-bottom-color:#1a1a2e;font-weight:700}
+.vtela{display:none;padding:24px 28px}.vtela.active{display:block}
+.ranking-card{background:#fff;border-radius:12px;border:1.5px solid #e8e8f0;box-shadow:0 4px 14px rgba(0,0,0,0.05);padding:20px 24px;margin-bottom:20px}
+.ranking-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.rtable{width:100%;border-collapse:collapse;font-size:13px}
+.rtable th{text-align:left;padding:10px 14px;font-size:10px;font-weight:700;color:#1a1a2e;border-bottom:2px solid #eeeef5;background:#f8f8fc;text-transform:uppercase}
+.rtable td{padding:12px 14px;border-bottom:1px solid #f4f4f6;font-weight:500;color:#333;vertical-align:middle}
+.rank-pos{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
+.r1{background:#f9a825}.r2{background:#aaa}.r3{background:#cd7f32}.rn{background:#e0e0e8;color:#888}
+.list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px}
+.table-wrap{background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.05)}
+.vtable{width:100%;border-collapse:collapse;font-size:13px}
+.vtable th{text-align:left;padding:12px 16px;font-size:10px;font-weight:700;color:#1a1a2e;border-bottom:2px solid #eeeef5;background:#f8f8fc;cursor:pointer;white-space:nowrap;user-select:none}
+.vtable td{padding:13px 16px;color:#333;border-bottom:1px solid #f4f4f6;font-weight:500;vertical-align:middle}
+.vtable tr:last-child td{border-bottom:none}
+.vtable tr:hover td{background:#f8f8fc;cursor:pointer}
+.badge{display:inline-block;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px}
+.bp-pix{background:#e8f5e9;color:#2e7d32}.bp-dinheiro{background:#fff8e1;color:#f57f17}
+.bp-debito{background:#e3f2fd;color:#1565c0}.bp-credito{background:#ede7f6;color:#4527a0}
+.bp-crediario{background:#fce4ec;color:#c62828}.bp-link{background:#e0f7fa;color:#006064}
+.modal-overlay{position:fixed;inset:0;background:rgba(26,26,46,0.6);display:flex;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow-y:auto;backdrop-filter:blur(3px)}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:700px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.2);margin-top:20px}
+.modal-title{font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:4px}
+.modal-sub{font-size:11px;color:#aaa;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:24px}
+.modal-close{float:right;background:#f4f4f6;border:none;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;font-weight:700;color:#555;margin-top:-4px}
+.step-sep{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:20px 0 14px;display:flex;align-items:center;gap:10px}
+.step-sep::after{content:'';flex:1;height:1px;background:#eee}
+.form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif}
+.form-input{padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;transition:all 0.2s}
+.form-input:focus{border-color:#1a1a2e;background:#fff}
+.form-input::placeholder{color:#ccc}
+.form-input.auto{background:#f0f8f2;border-color:#c8e6c9;color:#2e7d32;font-weight:700}
+.form-select{padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;cursor:pointer}
+.pos-rel{position:relative}
+.cliente-sugest{position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e0e0e8;border-top:none;border-radius:0 0 8px 8px;z-index:50;max-height:200px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,0.1)}
+.cliente-item{padding:10px 14px;font-size:14px;font-weight:500;color:#333;cursor:pointer;border-bottom:1px solid #f4f4f6}
+.cliente-item:hover{background:#f0f8f2;color:#2e7d32;font-weight:600}
+.add-item-bar{display:flex;gap:8px;margin-bottom:14px;align-items:flex-end}
+.btn-add-item{padding:11px 16px;background:#e3f2fd;color:#1565c0;border:1.5px solid #bbdefb;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.ref-prefix{padding:11px 12px;background:#e8eaf6;border:1.5px solid #c5cae9;border-right:none;border-radius:8px 0 0 8px;font-size:13px;font-weight:700;color:#3949ab;white-space:nowrap}
+.ref-input{border-radius:0 8px 8px 0!important;border-left:none!important;width:80px;text-align:center;font-weight:700;letter-spacing:2px}
+.ref-info{background:#f0f8f2;border:1.5px solid #c8e6c9;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;display:none}
+.ref-info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ri-label{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;font-family:'Outfit',sans-serif}
+.ri-val{font-weight:600;color:#1a1a2e}
+.ri-preco{font-weight:700;color:#2e7d32;font-size:16px}
+.carrinho-wrap{border:1.5px solid #e8e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px}
+.carrinho-head{display:grid;grid-template-columns:80px 1fr 1fr 60px 80px 36px;gap:8px;padding:10px 14px;background:#f8f8fc;border-bottom:2px solid #eeeef5;font-size:10px;font-weight:700;color:#1a1a2e;text-transform:uppercase}
+.carrinho-row{display:grid;grid-template-columns:80px 1fr 1fr 60px 80px 36px;gap:8px;padding:11px 14px;border-bottom:1px solid #f4f4f6;align-items:center;font-size:13px;font-weight:500;color:#333}
+.carrinho-row:last-child{border-bottom:none}
+.ref-badge{font-size:11px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:3px 8px;border-radius:4px;letter-spacing:1px}
+.qtd-input{width:52px;padding:6px 8px;border:1.5px solid #e0e0e8;border-radius:6px;font-size:14px;font-weight:600;text-align:center;background:#f8f8fc;color:#1a1a2e;outline:none}
+.btn-rm{width:30px;height:30px;background:#fce4ec;border:none;border-radius:6px;color:#c62828;font-size:16px;cursor:pointer;font-weight:700}
+.empty-carrinho{padding:20px;text-align:center;color:#ccc;font-size:13px;font-style:italic}
+.total-bar{background:#f0f0f8;border:1.5px solid #d0d0e8;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.total-label{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px}
+.total-valor{font-size:26px;font-weight:700;color:#1a1a2e}
+.pg-opts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.pg-opt{padding:11px 8px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-align:center;color:#555;transition:all 0.2s}
+.pg-opt.active{border-color:#1a1a2e;background:#1a1a2e;color:#fff}
+.parcela-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.conf-box{background:#f8f8fc;border:1.5px solid #e0e0e8;border-radius:10px;padding:14px 18px;margin-top:12px;display:none}
+.modal-footer{display:flex;gap:12px;padding-top:20px;border-top:1.5px solid #eee;margin-top:8px}
+.btn-finalizar{padding:13px 28px;background:#2e7d32;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;flex:1}
+.btn-cancelar-m{padding:13px 20px;background:#f4f4f6;color:#888;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px}
+.btn-exc-venda{width:30px;height:30px;background:#fce4ec;border:none;border-radius:6px;color:#c62828;font-size:14px;cursor:pointer;font-weight:700}
+.mes-sel{padding:8px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:#1a1a2e;outline:none;border-radius:8px;cursor:pointer}
+</style>
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
+    <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout">Minha senha</a>
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/vendas" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/></svg> Estoque</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      </div>
+    </nav>
+    <main style="overflow-y:auto;background:#f4f4f6">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}" style="margin:16px 28px 0">{{ msg }}</div>{% endfor %}{% endwith %}
+      <div class="tabs-wrap">
+        <button class="vtab active" onclick="trocarTab('tVendas',this)">💰 Vendas</button>
+        <button class="vtab" onclick="trocarTab('tCrediarios',this)">📋 Crediários</button>
+      </div>
+
+      <!-- ABA VENDAS -->
+      <div class="vtela active" id="tVendas">
+        <!-- RANKING -->
+        <div class="ranking-card">
+          <div class="ranking-header">
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#aaa">Ranking de vendedoras</span>
+            <select class="mes-sel" id="mesRanking" onchange="carregarRanking()">
+              {% if meses %}{% for m in meses %}<option value="{{ m.mes_val }}" {% if m.mes_val == now_mes %}selected{% endif %}>{{ m.mes_label }}</option>{% endfor %}
+              {% else %}<option value="{{ now_mes }}">{{ now_mes_label }}</option>{% endif %}
+            </select>
+          </div>
+          <table class="rtable">
+            <thead><tr><th>#</th><th>Vendedora</th><th>Total vendido</th><th>Vendas</th><th>Clientes</th></tr></thead>
+            <tbody id="rankingBody">
+              {% for r in ranking %}
+              <tr>
+                <td><span class="rank-pos {% if loop.index==1 %}r1{% elif loop.index==2 %}r2{% elif loop.index==3 %}r3{% else %}rn{% endif %}">{{ loop.index }}</span></td>
+                <td style="font-weight:600">{{ r.vendedora_nome }}</td>
+                <td style="color:#2e7d32;font-weight:700">R$ {{ "%.2f"|format(r.total|float)|replace(".",",") }}</td>
+                <td>{{ r.num_vendas }}</td><td>{{ r.clientes }}</td>
+              </tr>
+              {% else %}<tr><td colspan="5" class="empty-row">Nenhuma venda neste mês.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- LISTAGEM -->
+        <div class="list-header">
+          <div><div class="page-title">Vendas</div><div class="page-date">{{ lista_vendas|length }} venda(s) registrada(s)</div></div>
+          <button class="btn-acao" onclick="document.getElementById('modalVenda').style.display='flex'">+ Nova venda</button>
+        </div>
+        <div class="table-wrap">
+          <table class="vtable" id="tabelaVendas">
+            <thead><tr>
+              <th onclick="ordenarV(0)">Data</th><th onclick="ordenarV(1)">Cód</th>
+              <th onclick="ordenarV(2)">Vendedora</th><th onclick="ordenarV(3)">Cliente</th>
+              <th onclick="ordenarV(4)">Itens</th><th onclick="ordenarV(5)">Valor</th>
+              <th>Pagamento</th><th></th>
+            </tr></thead>
+            <tbody id="tbodyVendas">
+              {% for v in lista_vendas %}
+              <tr>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.criado_em.strftime('%d/%m/%Y') }}</td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer"><span class="ref-badge">{{ v.codigo }}</span></td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.vendedora_nome or '—' }}</td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.cliente_nome or '—' }}</td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.qtd_itens }}</td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer;font-weight:700">R$ {{ "%.2f"|format(v.valor_total|float)|replace(".",",") }}</td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">
+                  {% if v.forma_pagamento=='pix' %}<span class="badge bp-pix">⚡ Pix</span>
+                  {% elif v.forma_pagamento=='dinheiro' %}<span class="badge bp-dinheiro">💵 Dinheiro</span>
+                  {% elif v.forma_pagamento=='debito' %}<span class="badge bp-debito">💳 Débito</span>
+                  {% elif v.forma_pagamento=='crediario' %}<span class="badge bp-crediario">📋 Crediário</span>
+                  {% elif v.forma_pagamento in ['credito_vista','credito_parcelado'] %}<span class="badge bp-credito">💳 Crédito</span>
+                  {% elif v.forma_pagamento=='link' %}<span class="badge bp-link">🔗 Link</span>
+                  {% else %}<span class="badge">{{ v.forma_pagamento }}</span>{% endif %}
+                </td>
+                <td>
+                  <form method="POST" action="/vendas/{{ v.id }}/excluir" onsubmit="return confirm('Excluir venda {{ v.codigo }}? O estoque será restaurado.')">
+                    <button type="submit" class="btn-exc-venda">🗑️</button>
+                  </form>
+                </td>
+              </tr>
+              {% else %}<tr><td colspan="8" class="empty-row">Nenhuma venda registrada ainda.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA CREDIÁRIOS -->
+      <div class="vtela" id="tCrediarios">
+        <div class="list-header">
+          <div><div class="page-title">Crediários</div><div class="page-date">{{ lista_crediarios|length }} crediário(s)</div></div>
+        </div>
+        <div class="table-wrap">
+          <table class="vtable">
+            <thead><tr><th>Data</th><th>Cliente</th><th>Total</th><th>Entrada</th><th>Saldo</th><th>Parcelas</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for c in lista_crediarios %}
+              <tr onclick="window.location='/vendas/{{ c.venda_id }}'" style="cursor:pointer">
+                <td>{{ c.data_venda.strftime('%d/%m/%Y') }}</td>
+                <td style="font-weight:600">{{ c.cliente_nome }}</td>
+                <td style="font-weight:700">R$ {{ "%.2f"|format(c.valor_total|float)|replace(".",",") }}</td>
+                <td>R$ {{ "%.2f"|format(c.entrada|float)|replace(".",",") }}</td>
+                <td style="color:#c62828;font-weight:700">R$ {{ "%.2f"|format(c.saldo_devedor|float)|replace(".",",") }}</td>
+                <td>{{ c.status }}</td>
+                <td><span class="badge bp-crediario">{{ 'Quitado' if c.status == 'quitado' else 'Em aberto' }}</span></td>
+              </tr>
+              {% else %}<tr><td colspan="7" class="empty-row">Nenhum crediário ainda.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MODAL NOVA VENDA -->
+<div class="modal-overlay" id="modalVenda" style="display:none">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('modalVenda').style.display='none'">✕</button>
+    <div class="modal-title">Nova venda</div>
+    <div class="modal-sub">Preencha os dados da venda</div>
+    <form method="POST" action="/vendas/nova" id="formVenda">
+      <input type="hidden" name="itens" id="itensJson" value="[]">
+      <input type="hidden" name="valor_total" id="valorTotalHidden" value="0">
+      <input type="hidden" name="parcelas_datas" id="parcelasDatasJson" value="[]">
+      <input type="hidden" name="forma_pagamento" id="formaPagamento">
+
+      <div class="step-sep">1. Vendedora e cliente</div>
+      <div class="form-grid2">
+        <div class="form-field">
+          <label class="form-label">Vendedora *</label>
+          <select class="form-select" name="usuario_id" id="selVendedora" onchange="setVendedora()">
+            <option value="">Selecione...</option>
+            {% for v in vendedoras %}<option value="{{ v.id }}" data-nome="{{ v.nome }}">{{ v.nome }}</option>{% endfor %}
+          </select>
+          <input type="hidden" name="vendedora_nome" id="vendedoraNome">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Cliente *</label>
+          <div class="pos-rel">
+            <input class="form-input" type="text" id="buscaCliente" placeholder="Digite o nome..." autocomplete="off" oninput="buscarCliente(this.value)">
+            <div class="cliente-sugest" id="clienteSugest" style="display:none"></div>
+          </div>
+          <input type="hidden" name="cliente_id" id="clienteId">
+          <input type="hidden" name="cliente_nome" id="clienteNome">
+          <div id="clienteInfo" style="font-size:12px;color:#aaa;margin-top:3px"></div>
+        </div>
+      </div>
+
+      <div class="step-sep">2. Itens da venda</div>
+      <div class="add-item-bar">
+        <div class="form-field" style="flex:1">
+          <label class="form-label">Código do produto (só números)</label>
+          <div style="display:flex;align-items:center">
+            <span class="ref-prefix">P</span>
+            <input class="form-input ref-input" type="number" id="refInput" placeholder="1" min="1" oninput="buscarRef(this.value)">
+          </div>
+        </div>
+        <div class="form-field" style="width:80px">
+          <label class="form-label">Qtd</label>
+          <input class="form-input" type="number" id="refQtd" value="1" min="1" style="text-align:center">
+        </div>
+        <button type="button" class="btn-add-item" onclick="addItemCarrinho()">+ Adicionar</button>
+      </div>
+
+      <div class="ref-info" id="refInfo">
+        <div class="ref-info-grid">
+          <div><div class="ri-label">Modelo</div><div class="ri-val" id="rModelo">—</div></div>
+          <div><div class="ri-label">Descrição</div><div class="ri-val" id="rDesc">—</div></div>
+          <div><div class="ri-label">Tamanho</div><div class="ri-val" id="rTam">—</div></div>
+          <div><div class="ri-label">Valor</div><div class="ri-preco" id="rVal">—</div></div>
+        </div>
+      </div>
+
+      <div class="carrinho-wrap">
+        <div class="carrinho-head"><span>Ref</span><span>Modelo</span><span>Desc/TAM</span><span>Qtd</span><span>Valor</span><span></span></div>
+        <div id="carrinhoBody"><div class="empty-carrinho">Nenhum item adicionado ainda</div></div>
+      </div>
+
+      <div class="total-bar">
+        <span class="total-label">Total da venda</span>
+        <span class="total-valor" id="totalVenda">R$ 0,00</span>
+      </div>
+
+      <div class="step-sep">3. Forma de pagamento</div>
+      <div class="pg-opts">
+        <button type="button" class="pg-opt" onclick="selPg('dinheiro',this)">💵 Dinheiro</button>
+        <button type="button" class="pg-opt" onclick="selPg('pix',this)">⚡ Pix</button>
+        <button type="button" class="pg-opt" onclick="selPg('debito',this)">💳 Débito</button>
+        <button type="button" class="pg-opt" onclick="selPg('credito_vista',this)">💳 Crédito à vista</button>
+        <button type="button" class="pg-opt" onclick="selPg('credito_parcelado',this)">💳 Crédito parc.</button>
+        <button type="button" class="pg-opt" onclick="selPg('link',this)">🔗 Link</button>
+        <button type="button" class="pg-opt" id="btnCrediario" onclick="selPg('crediario',this)" disabled style="opacity:0.4">📋 Crediário</button>
+      </div>
+
+      <div id="secParcelado" style="display:none;margin-bottom:14px">
+        <div class="form-field">
+          <label class="form-label">Quantidade de parcelas (máx. 10x)</label>
+          <select class="form-select" name="parcelas" style="width:200px">
+            <option value="1">Selecione...</option>
+            {% for i in range(2,11) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div id="secCrediario" style="display:none">
+        <div class="form-grid2" style="margin-bottom:12px">
+          <div class="form-field">
+            <label class="form-label">Valor de entrada (R$)</label>
+            <input class="form-input" type="number" step="0.01" min="0" name="entrada" id="entradaVal" placeholder="0.00" oninput="calcSaldo()">
+          </div>
+          <div class="form-field">
+            <label class="form-label">Qtd de parcelas</label>
+            <select class="form-select" id="nParcelas" name="num_parcelas" onchange="gerarParcelas()">
+              <option value="">Selecione...</option>
+              {% for i in range(1,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label">Saldo devedor</label>
+            <input class="form-input auto" type="text" id="saldoDevedor" readonly placeholder="Calculado automaticamente">
+          </div>
+        </div>
+        <div id="parcelasCrediario"></div>
+        <div class="conf-box" id="confBox">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:10px">Conferência</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;font-size:13px">
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Total</div><div style="font-weight:700" id="confTotal">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Entrada</div><div style="font-weight:700" id="confEntrada">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma parc.</div><div style="font-weight:700" id="confSoma">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="confDif">—</div></div>
+          </div>
+          <div id="confAlerta" style="display:none;margin-top:10px;background:#fce4ec;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ Valores não fecham. Corrija antes de finalizar.</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-m" onclick="document.getElementById('modalVenda').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-finalizar" onclick="return prepararEnvio()">✅ Finalizar venda</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let carrinhoItens = [], clienteTemCrediario = false, refAtual = null;
+let vSortCol = -1, vSortAsc = true;
+
+function trocarTab(id, el) {
+  document.querySelectorAll('.vtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.vtela').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+function setVendedora() {
+  const sel = document.getElementById('selVendedora');
+  document.getElementById('vendedoraNome').value = sel.options[sel.selectedIndex].dataset.nome || '';
+}
+
+let clienteTimer;
+function buscarCliente(q) {
+  clearTimeout(clienteTimer);
+  const el = document.getElementById('clienteSugest');
+  if (q.length < 2) { el.style.display='none'; return; }
+  clienteTimer = setTimeout(async () => {
+    const r = await fetch('/vendas/buscar-cliente?q=' + encodeURIComponent(q));
+    const d = await r.json();
+    el.innerHTML = '';
+    if (!d.clientes || d.clientes.length === 0) {
+      el.innerHTML = '<div class="cliente-item" style="color:#c62828">Não encontrado — <a href="/clientes" style="color:#1565c0">cadastrar</a></div>';
+    } else {
+      d.clientes.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'cliente-item';
+        div.textContent = c.codigo + ' — ' + c.nome + (c.crediario ? ' ✅' : '');
+        div.onclick = () => selecionarCliente(c);
+        el.appendChild(div);
+      });
+    }
+    el.style.display = 'block';
+  }, 300);
+}
+
+function selecionarCliente(c) {
+  document.getElementById('buscaCliente').value = c.codigo + ' — ' + c.nome;
+  document.getElementById('clienteId').value = c.id;
+  document.getElementById('clienteNome').value = c.nome;
+  document.getElementById('clienteSugest').style.display = 'none';
+  clienteTemCrediario = c.crediario;
+  const btn = document.getElementById('btnCrediario');
+  btn.disabled = !c.crediario;
+  btn.style.opacity = c.crediario ? '1' : '0.4';
+  document.getElementById('clienteInfo').innerHTML = c.crediario
+    ? '<span style="color:#2e7d32;font-weight:600">✅ Crediário habilitado</span>'
+    : '<span style="color:#888">❌ Crediário não habilitado</span>';
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.pos-rel')) document.getElementById('clienteSugest').style.display = 'none';
+});
+
+async function buscarRef(v) {
+  if (!v || v < 1) { document.getElementById('refInfo').style.display='none'; refAtual=null; return; }
+  const r = await fetch('/vendas/buscar-ref?ref=' + encodeURIComponent(v));
+  const d = await r.json();
+  if (d.ok) {
+    refAtual = d.item;
+    document.getElementById('rModelo').textContent = d.item.modelo || '—';
+    document.getElementById('rDesc').textContent = (d.item.descricao || '—') + ' / ' + (d.item.tamanho || '—');
+    document.getElementById('rTam').textContent = d.item.tamanho || '—';
+    document.getElementById('rVal').textContent = 'R$ ' + parseFloat(d.item.valor_venda).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    document.getElementById('refInfo').style.display = 'block';
+  } else {
+    refAtual = null;
+    document.getElementById('refInfo').style.display = 'none';
+  }
+}
+
+function addItemCarrinho() {
+  if (!refAtual) return;
+  const qtd = parseInt(document.getElementById('refQtd').value) || 1;
+  carrinhoItens.push({
+    produto_id: refAtual.produto_id,
+    codigo: refAtual.codigo,
+    modelo: refAtual.modelo,
+    descricao: refAtual.descricao,
+    tamanho: refAtual.tamanho,
+    valor_unitario: parseFloat(refAtual.valor_venda),
+    quantidade: qtd
+  });
+  renderCarrinho();
+  document.getElementById('refInput').value = '';
+  document.getElementById('refInfo').style.display = 'none';
+  document.getElementById('refQtd').value = 1;
+  refAtual = null;
+}
+
+function renderCarrinho() {
+  const body = document.getElementById('carrinhoBody');
+  if (carrinhoItens.length === 0) {
+    body.innerHTML = '<div class="empty-carrinho">Nenhum item adicionado ainda</div>';
+    document.getElementById('totalVenda').textContent = 'R$ 0,00';
+    document.getElementById('valorTotalHidden').value = '0';
+    return;
+  }
+  let total = 0;
+  body.innerHTML = carrinhoItens.map((item, i) => {
+    const sub = item.valor_unitario * item.quantidade;
+    total += sub;
+    return `<div class="carrinho-row">
+      <span class="ref-badge">${item.codigo}</span>
+      <span>${item.modelo||'—'}</span>
+      <span>${(item.descricao||'—')} / ${item.tamanho||'—'}</span>
+      <input class="qtd-input" type="number" value="${item.quantidade}" min="1" onchange="updateQtd(${i},this.value)">
+      <span style="font-weight:700;color:#2e7d32">R$ ${sub.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      <button type="button" class="btn-rm" onclick="removerItem(${i})">✕</button>
+    </div>`;
+  }).join('');
+  document.getElementById('totalVenda').textContent = 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('valorTotalHidden').value = total.toFixed(2);
+  calcSaldo();
+}
+
+function updateQtd(idx, val) { carrinhoItens[idx].quantidade = parseInt(val)||1; renderCarrinho(); }
+function removerItem(idx) { carrinhoItens.splice(idx,1); renderCarrinho(); }
+
+function selPg(tipo, btn) {
+  document.querySelectorAll('.pg-opt').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('formaPagamento').value = tipo;
+  document.getElementById('secParcelado').style.display = tipo==='credito_parcelado' ? 'block' : 'none';
+  document.getElementById('secCrediario').style.display = tipo==='crediario' ? 'block' : 'none';
+}
+
+function calcSaldo() {
+  const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
+  const entrada = parseFloat(document.getElementById('entradaVal').value||0);
+  const saldo = Math.max(0, Math.round((total-entrada)*100)/100);
+  document.getElementById('saldoDevedor').value = 'R$ ' + saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  gerarParcelas();
+}
+
+function gerarParcelas() {
+  const n = parseInt(document.getElementById('nParcelas').value)||0;
+  if (!n) return;
+  const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
+  const entrada = parseFloat(document.getElementById('entradaVal').value||0);
+  const saldo = Math.max(0, Math.round((total-entrada)*100)/100);
+  document.getElementById('saldoDevedor').value = 'R$ ' + saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  const container = document.getElementById('parcelasCrediario');
+  container.innerHTML = '';
+  let acumulado = 0;
+  for (let i=1; i<=n; i++) {
+    const d = new Date(); d.setDate(d.getDate()+i*30);
+    const dataSug = d.toISOString().split('T')[0];
+    let val = i===n ? Math.round((saldo-acumulado)*100)/100 : Math.ceil((saldo/n)*100)/100;
+    if (i<n) acumulado += val;
+    const row = document.createElement('div');
+    row.className = 'parcela-row';
+    row.innerHTML = '<div class="form-field"><div class="form-label">Parcela '+i+' — vencimento</div><input class="form-input" type="date" name="parcela_data_'+i+'" value="'+dataSug+'"></div><div class="form-field"><div class="form-label">Valor (R$)</div><input class="form-input" type="number" step="0.01" name="parcela_valor_'+i+'" value="'+val.toFixed(2)+'" oninput="atualizarConferencia()"></div>';
+    container.appendChild(row);
+  }
+  document.getElementById('confBox').style.display = 'block';
+  atualizarConferencia();
+}
+
+function atualizarConferencia() {
+  const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
+  const entrada = parseFloat(document.getElementById('entradaVal').value||0);
+  const n = parseInt(document.getElementById('nParcelas').value)||0;
+  let soma = 0;
+  for (let i=1; i<=n; i++) {
+    const el = document.querySelector('[name="parcela_valor_'+i+'"]');
+    if (el) soma += parseFloat(el.value||0);
+  }
+  soma = Math.round(soma*100)/100;
+  const saldo = Math.max(0, Math.round((total-entrada)*100)/100);
+  const dif = Math.round((saldo-soma)*100)/100;
+  document.getElementById('confTotal').textContent = 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('confEntrada').textContent = 'R$ ' + entrada.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('confSoma').textContent = 'R$ ' + soma.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  const difEl = document.getElementById('confDif');
+  difEl.textContent = 'R$ ' + dif.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  difEl.style.color = Math.abs(dif) <= 0.01 ? '#2e7d32' : '#c62828';
+  document.getElementById('confAlerta').style.display = Math.abs(dif) > 0.01 ? 'block' : 'none';
+}
+
+function prepararEnvio() {
+  if (document.getElementById('secCrediario').style.display !== 'none') {
+    const dif = document.getElementById('confDif');
+    if (dif && dif.style.color === 'rgb(198, 40, 40)') {
+      alert('Corrija os valores das parcelas antes de finalizar!');
+      return false;
+    }
+  }
+  document.getElementById('itensJson').value = JSON.stringify(carrinhoItens);
+  const n = parseInt(document.getElementById('nParcelas').value)||0;
+  const parcelas = [];
+  for (let i=1; i<=n; i++) {
+    const data = document.querySelector('[name="parcela_data_'+i+'"]')?.value;
+    const val = parseFloat(document.querySelector('[name="parcela_valor_'+i+'"]')?.value||0);
+    if (data && val) parcelas.push({data, valor: val});
+  }
+  document.getElementById('parcelasDatasJson').value = JSON.stringify(parcelas);
+  return true;
+}
+
+async function carregarRanking() {
+  const mes = document.getElementById('mesRanking').value;
+  const r = await fetch('/vendas/ranking?mes=' + mes);
+  const d = await r.json();
+  const body = document.getElementById('rankingBody');
+  if (!d.ranking || d.ranking.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" class="empty-row">Nenhuma venda neste mês.</td></tr>';
+    return;
+  }
+  const cores = ['r1','r2','r3'];
+  body.innerHTML = d.ranking.map((r,i) => `<tr>
+    <td><span class="rank-pos ${cores[i]||'rn'}">${i+1}</span></td>
+    <td style="font-weight:600">${r.vendedora_nome}</td>
+    <td style="color:#2e7d32;font-weight:700">R$ ${parseFloat(r.total).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+    <td>${r.num_vendas}</td><td>${r.clientes}</td>
+  </tr>`).join('');
+}
+
+function ordenarV(col) {
+  const tbody = document.getElementById('tbodyVendas');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  if (vSortCol===col) vSortAsc=!vSortAsc; else {vSortCol=col;vSortAsc=true;}
+  rows.sort((a,b) => {
+    const va = a.cells[col]?.textContent.trim()||'';
+    const vb = b.cells[col]?.textContent.trim()||'';
+    const na = parseFloat(va.replace(/[^0-9,]/g,'').replace(',','.'));
+    const nb = parseFloat(vb.replace(/[^0-9,]/g,'').replace(',','.'));
+    if (!isNaN(na)&&!isNaN(nb)) return vSortAsc?na-nb:nb-na;
+    return vSortAsc?va.localeCompare(vb,'pt-BR'):vb.localeCompare(va,'pt-BR');
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+}
+</script>
+{% endblock %}

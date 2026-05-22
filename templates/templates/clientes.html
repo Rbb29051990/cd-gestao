@@ -1,0 +1,453 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
+    <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout">Minha senha</a>
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/></svg> Estoque</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      </div>
+    </nav>
+    <main class="main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}
+      {% if msg.startswith('DUPLICADO_NOME||') %}
+      <div class="flash flash-erro">Cliente já cadastrado: {{ msg.split('||')[1] }}</div>
+      {% elif msg.startswith('DUPLICADO_CPF||') %}
+      <div class="flash flash-erro">CPF já cadastrado: {{ msg.split('||')[1] }}</div>
+      {% elif msg.startswith('SUCESSO||') %}
+      <div class="flash flash-ok">{{ msg.split('||')[1] }}</div>
+      {% else %}
+      <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endif %}
+      {% endfor %}{% endwith %}
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Clientes</div>
+          <div class="page-date" id="contadorLabel">{{ clientes|length }} cliente(s) cadastrado(s)</div>
+        </div>
+        <button class="btn-acao" onclick="document.getElementById('modalCliente').style.display='flex'">+ Novo cliente</button>
+      </div>
+
+      <!-- FILTROS E BUSCA -->
+      <div class="filtros">
+        <div class="busca">
+          <svg width="16" height="16" viewBox="0 0 22 22" fill="none"><circle cx="10" cy="10" r="6" stroke="#ccc" stroke-width="2"/><path d="M15 15l4 4" stroke="#ccc" stroke-width="2" stroke-linecap="round"/></svg>
+          <input type="text" id="buscaInput" placeholder="Buscar por nome, telefone, cidade..." oninput="filtrarClientes()">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="filtro-btn active" onclick="setFiltro(this,'todos')">👥 Todos</button>
+          <button class="filtro-btn" onclick="setFiltro(this,'aniv-mes')">🎂 Aniversariantes do mês</button>
+          <button class="filtro-btn" onclick="setFiltro(this,'aniv-dia')">🎉 Aniversariantes do dia</button>
+        </div>
+      </div>
+
+      <!-- BANNER ANIVERSÁRIO -->
+      <div id="bannerAniv" style="display:none;background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:14px 20px;margin-bottom:16px;font-size:13px;font-weight:600;color:#f57f17;display:none;align-items:center;gap:10px">
+        <span style="font-size:20px">🎂</span>
+        <span id="bannerAnivTexto"></span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" id="tabelaClientes">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Cliente</th>
+              <th>Contato</th>
+              <th>Endereço</th>
+              <th>Promoções</th>
+              <th>Crediário</th>
+              <th>Desde</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyClientes">
+            {% for c in clientes %}
+            {% set tel_digits = c.telefone|replace('(','') |replace(')','') |replace('-','') |replace(' ','') if c.telefone else '' %}
+            <tr class="cli-row"
+                data-nome="{{ c.nome|lower }}"
+                data-tel="{{ c.telefone or '' }}"
+                data-cidade="{{ (c.cidade or '')|lower }}"
+                data-nasc="{{ c.data_nascimento.strftime('%m-%d') if c.data_nascimento else '' }}"
+                onclick="window.location='/clientes/{{ c.id }}'" style="cursor:pointer">
+              <td><span class="cod-badge cod-roxo">{{ c.codigo }}</span></td>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="cli-avatar-sm" style="background:{{ c.cor_avatar }}">{{ c.iniciais }}</div>
+                  <div>
+                    <div style="font-weight:700;color:#1a1a2e">{{ c.nome }}</div>
+                    {% if c.data_nascimento %}
+                    <div style="font-size:11px;color:#bbb;font-weight:500">🎂 {{ c.data_nascimento.strftime('%d/%m') }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              <td>
+                {% if c.telefone %}
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap" onclick="event.stopPropagation()">
+                  <span style="font-size:13px;font-weight:600;color:#333">{{ c.telefone }}</span>
+                  <a href="https://wa.me/55{{ tel_digits }}" target="_blank" class="btn-acao-mini btn-whats" title="Abrir WhatsApp">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    WhatsApp
+                  </a>
+                </div>
+                {% else %}<span style="color:#ccc;font-size:13px">—</span>{% endif %}
+              </td>
+              <td onclick="event.stopPropagation()">
+                {% if c.logradouro or c.cidade %}
+                {% set end_query = ((c.logradouro or '') + ' ' + (c.numero or '') + ' ' + (c.bairro or '') + ' ' + (c.cidade or '') + ' ' + (c.uf or ''))|urlencode %}
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                  <span style="font-size:12px;color:#555;font-weight:500;max-width:160px;line-height:1.4">
+                    {% if c.logradouro %}{{ c.logradouro }}{% if c.numero %}, {{ c.numero }}{% endif %}{% endif %}
+                    {% if c.cidade %}<br>{{ c.cidade }}{% if c.uf %}/{{ c.uf }}{% endif %}{% endif %}
+                  </span>
+                  <a href="https://maps.google.com/?q={{ end_query }}" target="_blank" class="btn-acao-mini btn-maps" title="Abrir no Google Maps">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                    GPS
+                  </a>
+                </div>
+                {% else %}<span style="color:#ccc;font-size:13px">—</span>{% endif %}
+              </td>
+              <td>{% if c.promocoes %}<span class="badge badge-hab">✅ Sim</span>{% else %}<span class="badge badge-nao">— Não</span>{% endif %}</td>
+              <td>{% if c.crediario %}<span class="badge badge-hab">✅ Sim</span>{% else %}<span class="badge badge-nao">— Não</span>{% endif %}</td>
+              <td style="white-space:nowrap;color:#999;font-size:13px">{{ c.criado_em.strftime('%d/%m/%Y') }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty-row">Nenhum cliente cadastrado ainda.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div id="semResultados" style="display:none;text-align:center;padding:32px;color:#ccc;font-style:italic;font-size:14px">Nenhum cliente encontrado para este filtro.</div>
+    </main>
+  </div>
+</div>
+
+<!-- MODAL NOVO CLIENTE -->
+<div class="modal-overlay" id="modalCliente" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="max-width:660px">
+    <button class="modal-close" onclick="document.getElementById('modalCliente').style.display='none'">×</button>
+    <div class="modal-title">Novo cliente</div>
+    <div class="modal-sub">Próximo código: {{ next_id }}</div>
+    <form method="POST" action="/clientes/novo" id="formCliente">
+
+      <div class="form-grid">
+        <!-- Nome -->
+        <div class="form-field span2">
+          <label class="form-label">Nome completo *</label>
+          <input class="form-input" type="text" name="nome" id="nomeInput" required placeholder="Ex: Maria Silva"
+                 oninput="verificarDuplicado('nome',this.value)">
+          <div id="erroNome" class="campo-aviso" style="display:none">⚠️ Cliente já cadastrado com este nome</div>
+        </div>
+
+        <!-- CPF -->
+        <div class="form-field">
+          <label class="form-label">CPF</label>
+          <input class="form-input" type="text" name="cpf" id="cpfInput" placeholder="000.000.000-00" maxlength="14"
+                 oninput="mascaraCPF(this);verificarDuplicado('cpf',this.value)">
+          <div id="erroCpf" class="campo-aviso" style="display:none">⚠️ CPF já cadastrado</div>
+        </div>
+
+        <!-- Data nasc -->
+        <div class="form-field">
+          <label class="form-label">Data de nascimento</label>
+          <input class="form-input" type="date" name="data_nascimento" id="nascInput" onchange="mostrarIdade(this,'idadeHint')">
+          <div class="campo-hint" id="idadeHint"></div>
+        </div>
+
+        <!-- Telefone 1 -->
+        <div class="form-field">
+          <label class="form-label">Telefone / WhatsApp *</label>
+          <input class="form-input" type="text" name="telefone" id="tel1Input" placeholder="(00) 00000-0000" maxlength="15"
+                 oninput="mascaraTel(this)">
+        </div>
+
+        <!-- Telefone 2 -->
+        <div class="form-field">
+          <label class="form-label">Telefone 2 <span style="color:#ccc;font-weight:400;text-transform:none">(opcional)</span></label>
+          <input class="form-input" type="text" name="telefone2" placeholder="(00) 00000-0000" maxlength="15"
+                 oninput="mascaraTel(this)">
+        </div>
+      </div>
+
+      <!-- ENDEREÇO -->
+      <div class="section-sep" style="margin:20px 0 16px">Endereço</div>
+      <div class="form-grid">
+        <!-- CEP -->
+        <div class="form-field">
+          <label class="form-label">CEP</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" type="text" name="cep" id="cepModal" placeholder="00000-000" maxlength="9"
+                   oninput="mascaraCEP(this);buscarCEP(this.value,'modal')">
+            <span id="cepSpinModal" style="display:none;font-size:16px">⏳</span>
+          </div>
+          <div class="campo-hint" id="cepStatusModal">Digite o CEP para preencher automaticamente</div>
+        </div>
+
+        <!-- Número -->
+        <div class="form-field">
+          <label class="form-label">Número</label>
+          <input class="form-input" type="text" name="numero" id="numModal" placeholder="Ex: 123">
+        </div>
+
+        <!-- Logradouro -->
+        <div class="form-field span2">
+          <label class="form-label">Logradouro</label>
+          <input class="form-input" type="text" name="logradouro" id="ruaModal" placeholder="Rua, Avenida...">
+        </div>
+
+        <!-- Bairro -->
+        <div class="form-field">
+          <label class="form-label">Bairro</label>
+          <input class="form-input" type="text" name="bairro" id="bairroModal" placeholder="Ex: Centro">
+        </div>
+
+        <!-- Complemento -->
+        <div class="form-field">
+          <label class="form-label">Complemento <span style="color:#ccc;font-weight:400;text-transform:none">(opcional)</span></label>
+          <input class="form-input" type="text" name="complemento" placeholder="Apto, casa...">
+        </div>
+
+        <!-- Cidade -->
+        <div class="form-field">
+          <label class="form-label">Cidade</label>
+          <input class="form-input" type="text" name="cidade" id="cidadeModal" placeholder="Ex: Leopoldina">
+        </div>
+
+        <!-- UF -->
+        <div class="form-field">
+          <label class="form-label">UF</label>
+          <select class="form-input form-select-uf" name="uf" id="ufModal">
+            <option value="">--</option>
+            <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+            <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+            <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+            <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+            <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+            <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+            <option>SP</option><option>SE</option><option>TO</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- PREFERÊNCIAS -->
+      <div class="section-sep" style="margin:20px 0 16px">Preferências</div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px">
+        <div class="form-row">
+          <span class="form-row-label">📢 Gostaria de receber promoções?</span>
+          <div class="toggle-wrap">
+            <button type="button" class="toggle-btn sim active" onclick="toggleModal(this,'sim','promoModal')">✅ Sim</button>
+            <button type="button" class="toggle-btn nao" onclick="toggleModal(this,'nao','promoModal')">🔕 Não</button>
+          </div>
+          <input type="hidden" name="promocoes" id="promoModal" value="1">
+        </div>
+        <div class="form-row">
+          <span class="form-row-label">💳 Habilitar crediário?</span>
+          <div class="toggle-wrap">
+            <button type="button" class="toggle-btn sim" onclick="toggleModal(this,'sim','credModal')">✅ Sim</button>
+            <button type="button" class="toggle-btn nao active" onclick="toggleModal(this,'nao','credModal')">🔕 Não</button>
+          </div>
+          <input type="hidden" name="crediario" id="credModal" value="0">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalCliente').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar">✅ Cadastrar cliente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   MÁSCARAS
+══════════════════════════════════════ */
+function mascaraTel(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  if (v.length <= 10) {
+    v = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/,'($1) $2-$3');
+  } else {
+    v = v.replace(/^(\d{2})(\d{5})(\d{0,4})$/,'($1) $2-$3');
+  }
+  el.value = v;
+}
+
+function mascaraCPF(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  v = v.replace(/(\d{3})(\d)/,'$1.$2')
+       .replace(/(\d{3})(\d)/,'$1.$2')
+       .replace(/(\d{3})(\d{1,2})$/,'$1-$2');
+  el.value = v;
+}
+
+function mascaraCEP(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,8);
+  if (v.length > 5) v = v.slice(0,5) + '-' + v.slice(5);
+  el.value = v;
+}
+
+/* ══════════════════════════════════════
+   BUSCA CEP (ViaCEP)
+══════════════════════════════════════ */
+let cepTimer;
+function buscarCEP(val, ctx) {
+  clearTimeout(cepTimer);
+  const digits = val.replace(/\D/g,'');
+  if (digits.length !== 8) return;
+  const spin = document.getElementById('cepSpin'+ctx.charAt(0).toUpperCase()+ctx.slice(1));
+  const status = document.getElementById('cepStatus'+ctx.charAt(0).toUpperCase()+ctx.slice(1));
+  if (spin) spin.style.display = 'inline';
+  if (status) status.textContent = 'Buscando...';
+  cepTimer = setTimeout(async () => {
+    try {
+      const r = await fetch('https://viacep.com.br/ws/'+digits+'/json/');
+      const d = await r.json();
+      if (spin) spin.style.display = 'none';
+      if (d.erro) {
+        if (status) status.textContent = '⚠️ CEP não encontrado.';
+        return;
+      }
+      const pfx = ctx === 'modal' ? 'Modal' : 'Edit';
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      set('rua'+pfx, d.logradouro || '');
+      set('bairro'+pfx, d.bairro || '');
+      set('cidade'+pfx, d.localidade || '');
+      const ufEl = document.getElementById('uf'+pfx);
+      if (ufEl) ufEl.value = d.uf || '';
+      if (status) status.textContent = '✅ Endereço preenchido — edite se necessário';
+      // foco no número
+      const numEl = document.getElementById('num'+pfx);
+      if (numEl) setTimeout(() => numEl.focus(), 100);
+    } catch(e) {
+      if (spin) spin.style.display = 'none';
+      if (status) status.textContent = 'Erro ao buscar CEP.';
+    }
+  }, 400);
+}
+
+/* ══════════════════════════════════════
+   VERIFICAR DUPLICADO
+══════════════════════════════════════ */
+let verificTimer;
+function verificarDuplicado(campo, valor) {
+  clearTimeout(verificTimer);
+  const key = campo.charAt(0).toUpperCase() + campo.slice(1);
+  if (!valor || valor.replace(/\D/g,'').length < 3) {
+    document.getElementById('erro'+key).style.display='none'; return;
+  }
+  verificTimer = setTimeout(async () => {
+    const r = await fetch('/clientes/verificar?campo='+campo+'&valor='+encodeURIComponent(valor));
+    const d = await r.json();
+    document.getElementById('erro'+key).style.display = d.ok ? 'none' : 'block';
+  }, 500);
+}
+
+/* ══════════════════════════════════════
+   TOGGLE PREFERÊNCIAS
+══════════════════════════════════════ */
+function toggleModal(btn, tipo, hiddenId) {
+  const wrap = btn.closest('.toggle-wrap');
+  wrap.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(hiddenId).value = (tipo === 'sim') ? '1' : '0';
+}
+
+/* ══════════════════════════════════════
+   IDADE
+══════════════════════════════════════ */
+function mostrarIdade(el, hintId) {
+  if (!el.value) { document.getElementById(hintId).textContent=''; return; }
+  const nasc = new Date(el.value);
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  const m = hoje.getMonth() - nasc.getMonth();
+  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--;
+  document.getElementById(hintId).textContent = idade + ' anos';
+}
+
+/* ══════════════════════════════════════
+   FILTROS: BUSCA + ANIVERSÁRIO
+══════════════════════════════════════ */
+let filtroAtivo = 'todos';
+
+function setFiltro(btn, tipo) {
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filtroAtivo = tipo;
+  const banner = document.getElementById('bannerAniv');
+  const texto  = document.getElementById('bannerAnivTexto');
+  if (tipo === 'aniv-mes') {
+    const mes = new Date().toLocaleString('pt-BR',{month:'long'});
+    texto.textContent = 'Exibindo aniversariantes de ' + mes.charAt(0).toUpperCase()+mes.slice(1);
+    banner.style.display = 'flex';
+  } else if (tipo === 'aniv-dia') {
+    const hoje = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long'});
+    texto.textContent = 'Exibindo aniversariantes de hoje — ' + hoje;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+  filtrarClientes();
+}
+
+function filtrarClientes() {
+  const busca = (document.getElementById('buscaInput').value||'').toLowerCase();
+  const hoje = new Date();
+  const mesHoje = String(hoje.getMonth()+1).padStart(2,'0');
+  const diaHoje = String(hoje.getDate()).padStart(2,'0');
+  let visíveis = 0;
+
+  document.querySelectorAll('#tbodyClientes .cli-row').forEach(tr => {
+    const nome   = tr.dataset.nome || '';
+    const tel    = tr.dataset.tel  || '';
+    const cidade = tr.dataset.cidade || '';
+    const nasc   = tr.dataset.nasc || ''; // formato MM-DD
+
+    // filtro texto
+    const passaBusca = !busca || nome.includes(busca) || tel.includes(busca) || cidade.includes(busca);
+
+    // filtro aniversário
+    let passaAniv = true;
+    if (filtroAtivo === 'aniv-mes') {
+      passaAniv = nasc.startsWith(mesHoje);
+    } else if (filtroAtivo === 'aniv-dia') {
+      passaAniv = nasc === (mesHoje + '-' + diaHoje);
+    }
+
+    const mostra = passaBusca && passaAniv;
+    tr.style.display = mostra ? '' : 'none';
+    if (mostra) visíveis++;
+  });
+
+  // contador
+  const label = filtroAtivo === 'todos'
+    ? visíveis + ' cliente(s)'
+    : visíveis + ' aniversariante(s) encontrado(s)';
+  document.getElementById('contadorLabel').textContent = label;
+
+  // sem resultados
+  document.getElementById('semResultados').style.display = visíveis === 0 ? 'block' : 'none';
+}
+</script>
+{% endblock %}

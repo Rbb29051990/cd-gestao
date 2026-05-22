@@ -1,36 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-.ficha-venda{background:#fff;border-radius:12px;border:1.5px solid #e8e8f0;box-shadow:0 4px 14px rgba(0,0,0,0.05);padding:32px}
-.fv-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:1.5px solid #f0f0f6;flex-wrap:wrap;gap:12px}
-.fv-titulo{font-size:20px;font-weight:700;color:#1a1a2e}
-.fv-sub{font-size:12px;color:#aaa;margin-top:4px;font-weight:500}
-.fv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:24px}
-.fv-campo{display:flex;flex-direction:column;gap:5px}
-.fv-label{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px}
-.fv-val{font-size:15px;font-weight:600;color:#1a1a2e}
-.badge{display:inline-block;padding:4px 12px;font-size:12px;font-weight:700;border-radius:20px}
-.bp-pix{background:#e8f5e9;color:#2e7d32}
-.bp-dinheiro{background:#fff8e1;color:#f57f17}
-.bp-debito{background:#e3f2fd;color:#1565c0}
-.bp-credito{background:#ede7f6;color:#4527a0}
-.bp-crediario{background:#fce4ec;color:#c62828}
-.bp-link{background:#e0f7fa;color:#006064}
-.section-sep{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:24px 0 14px;display:flex;align-items:center;gap:10px}
-.section-sep::after{content:'';flex:1;height:1px;background:#eee}
-.itens-table{width:100%;border-collapse:collapse;font-size:13px}
-.itens-table th{text-align:left;padding:10px 14px;font-size:10px;font-weight:700;color:#1a1a2e;border-bottom:2px solid #eeeef5;background:#f8f8fc;text-transform:uppercase;letter-spacing:0.5px}
-.itens-table td{padding:12px 14px;border-bottom:1px solid #f4f4f6;font-weight:500;color:#333}
-.itens-table tr:last-child td{border-bottom:none}
-.ref-badge{font-size:11px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:3px 8px;border-radius:4px;letter-spacing:1px}
-.total-row{display:flex;justify-content:space-between;align-items:center;padding:16px 14px;background:#f8f8fc;border-radius:8px;margin-top:12px}
-.total-row-label{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px}
-.total-row-val{font-size:22px;font-weight:700;color:#2e7d32}
-.parcela-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #f4f4f6;font-size:14px;font-weight:500}
-.parcela-item:last-child{border-bottom:none}
-.parcela-paga{color:#2e7d32;font-weight:700}
-.parcela-aberto{color:#c62828;font-weight:600}
-</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -43,90 +12,110 @@
   </div>
   <div class="dash-layout">
     <nav class="sidebar">
-      <div class="nav-section">
-        <div class="nav-label">Principal</div>
-        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
-        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><path d="M15 13c2.5 0 4 1.5 4 4" stroke="#6a1b9a" stroke-width="1.4" stroke-linecap="round"/></svg> Clientes</a>
-        <a href="/vendas" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
-        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/></svg> Clientes</a>
+        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/></svg> Estoque</a>
       </div>
-      <div class="nav-section">
-        <div class="nav-label">Financeiro</div>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/></svg> Caixa</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/></svg> Despesas</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/></svg> Crediários</a>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
       </div>
-      <div class="nav-section">
-        <div class="nav-label">Gestão</div>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/></svg> Usuários</a>{% endif %}
       </div>
     </nav>
     <main class="main-content">
-      <a href="/vendas" class="voltar-btn">← Voltar para vendas</a>
-      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div class="ficha-venda">
-        <div class="fv-header">
-          <div>
-            <div class="fv-titulo">Venda #{{ '%04d'|format(venda.id) }}</div>
-            <div class="fv-sub">{{ venda.criado_em.strftime('%d/%m/%Y às %H:%M') }}</div>
-          </div>
-          <div>
-            {% if venda.forma_pagamento == 'pix' %}<span class="badge bp-pix">⚡ Pix</span>
-            {% elif venda.forma_pagamento == 'dinheiro' %}<span class="badge bp-dinheiro">💵 Dinheiro</span>
-            {% elif venda.forma_pagamento == 'debito' %}<span class="badge bp-debito">💳 Débito</span>
-            {% elif venda.forma_pagamento == 'crediario' %}<span class="badge bp-crediario">📋 Crediário</span>
-            {% elif venda.forma_pagamento == 'credito_vista' %}<span class="badge bp-credito">💳 Crédito à vista</span>
-            {% elif venda.forma_pagamento == 'credito_parcelado' %}<span class="badge bp-credito">💳 Crédito {{ venda.parcelas }}x</span>
-            {% elif venda.forma_pagamento == 'link' %}<span class="badge bp-link">🔗 Link</span>{% endif %}
-          </div>
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+      <div class="page-header">
+        <div>
+          <div class="page-title">Despesas</div>
+          <div class="page-date">Total no período: <strong style="color:#c62828">R$ {{ "%.2f"|format(total)|replace(".",",") }}</strong></div>
         </div>
-        <div class="fv-grid">
-          <div class="fv-campo"><span class="fv-label">Vendedora</span><span class="fv-val">{{ venda.vendedora_nome or '—' }}</span></div>
-          <div class="fv-campo"><span class="fv-label">Cliente</span><span class="fv-val">{{ venda.cliente_nome or '—' }}</span></div>
-          <div class="fv-campo"><span class="fv-label">Valor total</span><span class="fv-val" style="color:#2e7d32;font-size:20px">R$ {{ "%.2f"|format(venda.valor_total|float)|replace(".",",") }}</span></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <form method="GET">
+            <select name="mes" class="form-input" style="width:auto;padding:10px 14px;cursor:pointer" onchange="this.form.submit()">
+              {% for m in meses %}<option value="{{ m }}" {% if m == mes_atual %}selected{% endif %}>{{ m }}</option>{% endfor %}
+              {% if not meses %}<option value="{{ mes_atual }}">{{ mes_atual }}</option>{% endif %}
+            </select>
+          </form>
+          <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
         </div>
-        <div class="section-sep">Itens da venda</div>
-        <table class="itens-table">
-          <thead><tr><th>Ref</th><th>Modelo</th><th>Descrição</th><th>TAM</th><th>Qtd</th><th>Valor unit.</th><th>Subtotal</th></tr></thead>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Cód</th><th>Data</th><th>Descrição</th><th>Categoria</th><th>Forma</th><th>Valor</th><th></th></tr></thead>
           <tbody>
-            {% for item in itens %}
+            {% for d in lista %}
             <tr>
-              <td><span class="ref-badge">{{ item.referencia }}</span></td>
-              <td>{{ item.modelo or '—' }}</td>
-              <td>{{ item.descricao or '—' }}</td>
-              <td>{{ item.tamanho or '—' }}</td>
-              <td>{{ item.quantidade }}</td>
-              <td>R$ {{ "%.2f"|format(item.valor_unitario|float)|replace(".",",") }}</td>
-              <td style="font-weight:700;color:#2e7d32">R$ {{ "%.2f"|format(item.valor_total|float)|replace(".",",") }}</td>
+              <td><span style="font-size:11px;font-weight:700;color:#e65100;background:#fff3e0;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ d.codigo }}</span></td>
+              <td>{{ d.data_despesa.strftime('%d/%m/%Y') if d.data_despesa else '—' }}</td>
+              <td style="font-weight:600">{{ d.descricao }}</td>
+              <td>{{ d.categoria or '—' }}</td>
+              <td>{{ d.forma_pagamento or '—' }}</td>
+              <td style="font-weight:700;color:#c62828">R$ {{ "%.2f"|format(d.valor|float)|replace(".",",") }}</td>
+              <td>
+                <form method="POST" action="/despesas/{{ d.id }}/excluir" onsubmit="return confirm('Excluir esta despesa?')">
+                  <button type="submit" class="btn-sm btn-sm-danger">🗑️</button>
+                </form>
+              </td>
             </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty-row">Nenhuma despesa neste período.</td></tr>
             {% endfor %}
           </tbody>
         </table>
-        <div class="total-row">
-          <span class="total-row-label">Total da venda</span>
-          <span class="total-row-val">R$ {{ "%.2f"|format(venda.valor_total|float)|replace(".",",") }}</span>
-        </div>
-        {% if crediario %}
-        <div class="section-sep">Detalhamento do crediário</div>
-        <div class="fv-grid" style="margin-bottom:16px">
-          <div class="fv-campo"><span class="fv-label">Valor total</span><span class="fv-val">R$ {{ "%.2f"|format(crediario.valor_total|float)|replace(".",",") }}</span></div>
-          <div class="fv-campo"><span class="fv-label">Entrada paga</span><span class="fv-val" style="color:#2e7d32">R$ {{ "%.2f"|format(crediario.entrada|float)|replace(".",",") }}</span></div>
-          <div class="fv-campo"><span class="fv-label">Saldo devedor</span><span class="fv-val" style="color:#c62828">R$ {{ "%.2f"|format(crediario.saldo_devedor|float)|replace(".",",") }}</span></div>
-        </div>
-        <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;overflow:hidden">
-          {% for p in crediario.parcelas %}
-          <div class="parcela-item">
-            <span>Parcela {{ p.numero_parcela }} — vencimento {{ p.data_vencimento.strftime('%d/%m/%Y') }}</span>
-            <span class="{{ 'parcela-paga' if p.pago else 'parcela-aberto' }}">
-              R$ {{ "%.2f"|format(p.valor|float)|replace(".",",") }}
-              {% if p.pago %}✅ Pago{% else %}⏳ Em aberto{% endif %}
-            </span>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
       </div>
     </main>
   </div>
 </div>
+
+<!-- MODAL NOVA DESPESA -->
+<div class="modal-overlay" id="modalDespesa" style="display:none">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="document.getElementById('modalDespesa').style.display='none'">✕</button>
+    <div class="modal-title">Nova despesa</div>
+    <div class="modal-sub">Preencha os dados abaixo</div>
+    <form method="POST" action="/despesas/nova">
+      <div class="form-grid">
+        <div class="form-field span2">
+          <label class="form-label">Descrição *</label>
+          <input class="form-input" type="text" name="descricao" required placeholder="Ex: Aluguel, fornecedor...">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Categoria</label>
+          <input class="form-input" type="text" name="categoria" placeholder="Ex: Fixo, Marketing...">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Data</label>
+          <input class="form-input" type="date" name="data_despesa" value="{{ now_date if now_date else '' }}">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Valor (R$)</label>
+          <input class="form-input" type="number" step="0.01" min="0" name="valor" required placeholder="0,00">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Forma de pagamento</label>
+          <select class="form-input" name="forma_pagamento" style="cursor:pointer">
+            <option value="">Selecione...</option>
+            <option>Dinheiro</option><option>Pix</option><option>Débito</option>
+            <option>Crédito</option><option>Transferência</option><option>Boleto</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalDespesa').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#e65100">💸 Registrar despesa</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+// Setar data padrão
+document.querySelector('[name="data_despesa"]').value = new Date().toISOString().split('T')[0];
+</script>
 {% endblock %}

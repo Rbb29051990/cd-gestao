@@ -1,36 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-.ficha-prod{background:#fff;border-radius:12px;padding:32px;border:1.5px solid #e8e8f0;box-shadow:0 4px 14px rgba(0,0,0,0.05)}
-.ficha-prod-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:20px;border-bottom:1.5px solid #f0f0f6;flex-wrap:wrap;gap:12px}
-.ficha-prod-nome{font-family:'Outfit',sans-serif;font-size:22px;font-weight:700;color:#1a1a2e}
-.ficha-prod-ref{font-size:12px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:4px 12px;border-radius:4px;letter-spacing:1px;display:inline-block;margin-top:6px;font-family:'Outfit',sans-serif}
-.ficha-prod-acoes{display:flex;gap:10px;flex-shrink:0}
-.btn-editar-prod{padding:11px 20px;background:#f0f0f8;color:#1a1a2e;border:1.5px solid #d0d0e0;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;text-decoration:none;display:inline-block}
-.btn-excluir-prod{padding:11px 20px;background:#fce4ec;color:#c62828;border:1.5px solid #f5c6d0;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px}
-.ficha-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
-.ficha-campo{display:flex;flex-direction:column;gap:5px}
-.ficha-label{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif}
-.ficha-valor{font-size:15px;font-weight:600;color:#1a1a2e;font-family:'Outfit',sans-serif}
-.badge-dias{display:inline-block;padding:3px 10px;font-size:12px;font-weight:700;border-radius:20px;font-family:'Outfit',sans-serif}
-.badge-novo{background:#e8f5e9;color:#2e7d32}
-.badge-atencao{background:#fff8e1;color:#f57f17}
-.badge-alerta{background:#fce4ec;color:#c62828}
-.confirm-overlay{position:fixed;inset:0;background:rgba(26,26,46,0.6);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px)}
-.confirm-box{background:#fff;border-radius:16px;padding:36px 32px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center}
-.confirm-icon{font-size:44px;margin-bottom:14px}
-.confirm-title{font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:10px;font-family:'Outfit',sans-serif}
-.confirm-sub{font-size:14px;color:#888;margin-bottom:28px;line-height:1.6;font-family:'Outfit',sans-serif}
-.confirm-btns{display:flex;gap:12px;justify-content:center}
-.btn-sim-exc{padding:13px 36px;background:#c62828;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer}
-.btn-nao-exc{padding:13px 36px;background:#f4f4f6;color:#555;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer}
-</style>
 <div class="dash-wrap">
   <div class="topbar">
-    <div class="topbar-logo">
-      <span class="topbar-logo-main">CD · GESTÃO</span>
-      <span class="topbar-logo-sub">Empresarial</span>
-    </div>
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
       <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
@@ -40,35 +12,31 @@
   </div>
   <div class="dash-layout">
     <nav class="sidebar">
-      <div class="nav-section">
-        <div class="nav-label">Principal</div>
-        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
-        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><path d="M15 13c2.5 0 4 1.5 4 4" stroke="#6a1b9a" stroke-width="1.4" stroke-linecap="round"/></svg> Clientes</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
         <a href="/estoque" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
       </div>
-      <div class="nav-section">
-        <div class="nav-label">Financeiro</div>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/><circle cx="11" cy="11.5" r="1" fill="#2e7d32"/><path d="M2 8h3M17 8h3" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Caixa</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M15 3l4 4-4 4" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Fiados</a>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/><circle cx="11" cy="11.5" r="1" fill="#2e7d32"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
       </div>
-      <div class="nav-section">
-        <div class="nav-label">Gestão</div>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 11 m-8 0 a8 8 0 0 1 8-8" stroke="#1565c0" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m0-8 a8 8 0 0 1 6.9 4" stroke="#e53935" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9-4 a8 8 0 0 1 0 8" stroke="#2e7d32" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9 4 a8 8 0 0 1-13.8 0" stroke="#f9a825" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="11" cy="11" r="3" fill="#fff" stroke="#ddd" stroke-width="1"/></svg> Inventário</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><polyline points="3,17 8,10 12,13 17,6 20,8" stroke="#2e7d32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17h16" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/><circle cx="20" cy="8" r="1.5" fill="#2e7d32"/></svg> Relatórios</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/><path d="M2 11 L7 6 L12 9 L20 2" stroke="#f9a825" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Dashboards</a>
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
         {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
       </div>
     </nav>
     <main class="main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
       <a href="/estoque" class="voltar-btn">← Voltar para estoque</a>
-      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+      
       <div class="ficha-prod">
         <div class="ficha-prod-header">
           <div>
             <div class="ficha-prod-nome">{{ item.modelo or 'Produto' }}{% if item.descricao %} — {{ item.descricao }}{% endif %}</div>
-            <div class="ficha-prod-ref">{{ item.referencia }}</div>
+            <div class="ficha-prod-ref">{{ item.codigo }}</div>
           </div>
           <div class="ficha-prod-acoes">
             <a href="/estoque/{{ item.id }}/editar" class="btn-editar-prod">✏️ Editar</a>
@@ -87,26 +55,13 @@
           <div class="ficha-campo"><span class="ficha-label">Markup</span><span class="ficha-valor">{{ "%.1f"|format(item.markup|float)|replace('.',',') }} %</span></div>
           <div class="ficha-campo"><span class="ficha-label">Valor de venda</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.valor_venda|float)|replace('.',',') }}</span></div>
           <div class="ficha-campo"><span class="ficha-label">Margem de lucro</span><span class="ficha-valor">{{ "%.1f"|format(item.margem_lucro|float)|replace('.',',') }} %</span></div>
-          <div class="ficha-campo"><span class="ficha-label">Custo total em estoque</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.custo_total|float)|replace('.',',') }}</span></div>
-          <div class="ficha-campo"><span class="ficha-label">Valor total em estoque</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.valor_total|float)|replace('.',',') }}</span></div>
+          <div class="ficha-campo"><span class="ficha-label">Custo total em estoque</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.custo_unitario|float * item.quantidade|float)|replace('.',',') }}</span></div>
+          <div class="ficha-campo"><span class="ficha-label">Valor total em estoque</span><span class="ficha-valor">R$ {{ "%.2f"|format(item.valor_venda|float * item.quantidade|float)|replace('.',',') }}</span></div>
           <div class="ficha-campo"><span class="ficha-label">Data de entrada</span><span class="ficha-valor">{{ item.criado_em.strftime('%d/%m/%Y') }}</span></div>
           <div class="ficha-campo"><span class="ficha-label">Última venda</span><span class="ficha-valor">{{ item.ultima_venda.strftime('%d/%m/%Y') if item.ultima_venda else '—' }}</span></div>
         </div>
       </div>
     </main>
-  </div>
-</div>
-<div class="confirm-overlay" id="confirmExc" style="display:none">
-  <div class="confirm-box">
-    <div class="confirm-icon">⚠️</div>
-    <div class="confirm-title">Excluir produto?</div>
-    <div class="confirm-sub">Tem certeza que deseja excluir <strong>{{ item.referencia }} — {{ item.modelo }}</strong>? Esta ação não pode ser desfeita.</div>
-    <div class="confirm-btns">
-      <button class="btn-nao-exc" onclick="document.getElementById('confirmExc').style.display='none'">Não</button>
-      <form method="POST" action="/estoque/{{ item.id }}/excluir" style="display:inline">
-        <button type="submit" class="btn-sim-exc">Sim, excluir</button>
-      </form>
-    </div>
   </div>
 </div>
 {% endblock %}

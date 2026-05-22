@@ -1,50 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-.section-sep{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:20px 0 14px;display:flex;align-items:center;gap:10px;font-family:'Outfit',sans-serif}
-.section-sep::after{content:'';flex:1;height:1px;background:#eee}
-.form-card{background:#fff;border-radius:12px;padding:28px;border:1.5px solid #e8e8f0;box-shadow:0 4px 14px rgba(0,0,0,0.05)}
-.form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.fspan2{grid-column:span 2}
-.form-field{display:flex;flex-direction:column;gap:6px}
-.form-label{font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif}
-.form-input{padding:12px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;transition:all 0.2s}
-.form-input:focus{border-color:#1a1a2e;background:#fff}
-.form-input::placeholder{color:#ccc}
-.form-input.auto-green{background:#f0f8f2;border-color:#c8e6c9;color:#2e7d32;font-weight:700}
-.form-input.auto-yellow{background:#fff8e1;border-color:#ffe082;color:#e65100;font-weight:700}
-.calc-hint{font-size:11px;font-weight:600;margin-top:3px;min-height:16px;font-family:'Outfit',sans-serif}
-.hint-auto{color:#2e7d32}
-.hint-edit{color:#e65100}
-.select-wrap{display:flex;gap:8px}
-.select-wrap select{flex:1;padding:12px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;cursor:pointer}
-.resumo-fin{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
-.fin-card{padding:14px 16px;border-radius:10px;border:1.5px solid}
-.fin-card.laranja{background:#fff3e0;border-color:#ffe0b2}
-.fin-card.verde{background:#e8f5e9;border-color:#c8e6c9}
-.fin-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:6px;font-family:'Outfit',sans-serif}
-.fin-valor{font-family:'Outfit',sans-serif;font-size:20px;font-weight:700}
-.fin-card.laranja .fin-valor{color:#e65100}
-.fin-card.verde .fin-valor{color:#2e7d32}
-.fin-hint{font-size:10px;color:#aaa;margin-top:2px;font-family:'Outfit',sans-serif}
-.modal-footer{display:flex;gap:12px;align-items:center;margin-top:8px;padding-top:20px;border-top:1.5px solid #eee;flex-wrap:wrap}
-.btn-salvar{padding:13px 26px;background:#1a1a2e;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px}
-.btn-excluir{padding:13px 20px;background:#fce4ec;color:#c62828;border:1.5px solid #f5c6d0;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;margin-left:auto}
-.confirm-overlay{position:fixed;inset:0;background:rgba(26,26,46,0.6);display:flex;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(4px)}
-.confirm-box{background:#fff;border-radius:16px;padding:36px 32px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center}
-.confirm-icon{font-size:44px;margin-bottom:14px}
-.confirm-title{font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:10px;font-family:'Outfit',sans-serif}
-.confirm-sub{font-size:14px;color:#888;margin-bottom:28px;line-height:1.6;font-family:'Outfit',sans-serif}
-.confirm-btns{display:flex;gap:12px;justify-content:center}
-.btn-sim-exc{padding:13px 36px;background:#c62828;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer}
-.btn-nao-exc{padding:13px 36px;background:#f4f4f6;color:#555;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;border-radius:8px;cursor:pointer}
-</style>
 <div class="dash-wrap">
   <div class="topbar">
-    <div class="topbar-logo">
-      <span class="topbar-logo-main">CD · GESTÃO</span>
-      <span class="topbar-logo-sub">Empresarial</span>
-    </div>
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
       <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
@@ -54,141 +12,71 @@
   </div>
   <div class="dash-layout">
     <nav class="sidebar">
-      <div class="nav-section">
-        <div class="nav-label">Principal</div>
-        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/><path d="M11 3v2M11 17v2M3 11h2M17 11h2" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Visão Geral</a>
-        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><path d="M15 13c2.5 0 4 1.5 4 4" stroke="#6a1b9a" stroke-width="1.4" stroke-linecap="round"/></svg> Clientes</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
-        <a href="/estoque" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><circle cx="15" cy="9" r="2.5" stroke="#6a1b9a" stroke-width="1.4"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="13.5" r="1.5" fill="#f9a825"/></svg> Estoque</a>
       </div>
-      <div class="nav-section">
-        <div class="nav-label">Financeiro</div>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/><circle cx="11" cy="11.5" r="1" fill="#2e7d32"/><path d="M2 8h3M17 8h3" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/></svg> Caixa</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M15 3l4 4-4 4" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Fiados</a>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/><circle cx="11" cy="11.5" r="1" fill="#2e7d32"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
       </div>
-      <div class="nav-section">
-        <div class="nav-label">Gestão</div>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 11 m-8 0 a8 8 0 0 1 8-8" stroke="#1565c0" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m0-8 a8 8 0 0 1 6.9 4" stroke="#e53935" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9-4 a8 8 0 0 1 0 8" stroke="#2e7d32" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M11 11 m6.9 4 a8 8 0 0 1-13.8 0" stroke="#f9a825" stroke-width="3" stroke-linecap="round" fill="none"/><circle cx="11" cy="11" r="3" fill="#fff" stroke="#ddd" stroke-width="1"/></svg> Inventário</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><polyline points="3,17 8,10 12,13 17,6 20,8" stroke="#2e7d32" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 17h16" stroke="#2e7d32" stroke-width="1.4" stroke-linecap="round"/><circle cx="20" cy="8" r="1.5" fill="#2e7d32"/></svg> Relatórios</a>
-        <a href="#" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/><path d="M2 11 L7 6 L12 9 L20 2" stroke="#f9a825" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
       </div>
     </nav>
     <main class="main-content">
-      <a href="/estoque/{{ item.id }}" class="voltar-btn">← Voltar para ficha</a>
-      <div class="page-title" style="margin-bottom:4px">Editar produto</div>
-      <div class="page-date" style="margin-bottom:24px">{{ item.referencia }} — {{ item.modelo }}</div>
-      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div class="form-card">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+      <a href="/usuarios" class="voltar-btn">← Voltar para usuários</a>
+      <div class="page-title">Editar usuário</div>
+      
+      <div class="form-card" style="background:#fff;border-radius:12px;padding:28px;border:1.5px solid #e8e8f0;box-shadow:0 4px 14px rgba(0,0,0,0.05);max-width:600px">
         <form method="POST">
-          <div class="section-sep">Identificação</div>
-          <div class="form-grid2">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
             <div class="form-field">
-              <span class="form-label">Modelo</span>
-              <select class="form-input" name="modelo" style="cursor:pointer">
-                {% for m in modelos %}<option {% if m == item.modelo %}selected{% endif %}>{{ m }}</option>{% endfor %}
+              <span class="form-label">Código</span>
+              <input type="text" value="{{ user.codigo }}" readonly style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;font-weight:700;color:#3949ab;letter-spacing:2px;width:100%">
+            </div>
+            <div class="form-field">
+              <span class="form-label">Perfil</span>
+              <select name="perfil" style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;width:100%;cursor:pointer">
+                <option value="vendedor" {% if user.perfil == "vendedor" %}selected{% endif %}>Vendedor</option>
+                <option value="admin" {% if user.perfil == "admin" %}selected{% endif %}>Administrador</option>
               </select>
             </div>
-            <div class="form-field">
-              <span class="form-label">Tamanho</span>
-              <select class="form-input" name="tamanho" style="cursor:pointer">
-                <option value="">—</option>
-                {% for t in tamanhos %}<option {% if t == item.tamanho %}selected{% endif %}>{{ t }}</option>{% endfor %}
-              </select>
-            </div>
-            <div class="form-field fspan2">
-              <span class="form-label">Descrição</span>
-              <input class="form-input" type="text" name="descricao" value="{{ item.descricao or '' }}" placeholder="Ex: Floral manga longa...">
-            </div>
-            <div class="form-field">
-              <span class="form-label">Quantidade</span>
-              <input class="form-input" type="number" name="quantidade" id="eQtd" value="{{ item.quantidade }}" min="1" oninput="eCalcular()">
+            <div class="form-field" style="grid-column:span 2">
+              <span class="form-label">Nome completo</span>
+              <input type="text" name="nome" value="{{ user.nome }}" required style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;width:100%">
             </div>
           </div>
-          <div class="section-sep">Precificação</div>
-          <div class="form-grid2">
-            <div class="form-field">
-              <span class="form-label">Custo unitário (R$)</span>
-              <input class="form-input" type="text" name="custo_unitario" id="eCusto" value="{{ '%.2f'|format(item.custo_unitario|float)|replace('.',',') }}" oninput="eCalcDoCusto()">
-            </div>
-            <div class="form-field">
-              <span class="form-label">% Markup</span>
-              <input class="form-input" type="text" name="markup" id="eMarkup" value="{{ '%.1f'|format(item.markup|float)|replace('.',',') }}" oninput="eCalcDoMarkup()">
-              <div class="calc-hint" id="eHintMarkup"></div>
-            </div>
-            <div class="form-field">
-              <span class="form-label">Valor de venda (R$)</span>
-              <input class="form-input auto-yellow" type="text" name="valor_venda" id="eVenda" value="{{ '%.2f'|format(item.valor_venda|float)|replace('.',',') }}" oninput="eCalcDaVenda()">
-              <div class="calc-hint" id="eHintVenda"></div>
-            </div>
-            <div class="form-field">
-              <span class="form-label">% Margem de lucro</span>
-              <input class="form-input auto-green" type="text" name="margem_lucro" id="eMargem" value="{{ '%.1f'|format(item.margem_lucro|float)|replace('.',',') }} %" readonly>
+
+          <div style="margin-bottom:20px">
+            <div class="form-label" style="margin-bottom:12px">Permissões de acesso — abas visíveis</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              {% for aba_id, aba_nome in abas %}
+              <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid {% if aba_id in user.perms_lista %}#c8e6c9{% else %}#e0e0e8{% endif %};border-radius:8px;cursor:pointer;background:{% if aba_id in user.perms_lista %}#f0f8f2{% else %}#f8f8fc{% endif %};transition:all 0.2s">
+                <input type="checkbox" name="permissoes" value="{{ aba_id }}" {% if aba_id in user.perms_lista %}checked{% endif %} style="width:16px;height:16px;accent-color:#2e7d32">
+                <span style="font-family:Outfit,sans-serif;font-size:13px;font-weight:600;color:#1a1a2e">{{ aba_nome }}</span>
+              </label>
+              {% endfor %}
             </div>
           </div>
-          <div class="section-sep">Resumo financeiro</div>
-          <div class="resumo-fin">
-            <div class="fin-card laranja">
-              <div class="fin-label">Custo total em estoque</div>
-              <div class="fin-valor" id="eCustoTotal">R$ {{ '%.2f'|format(item.custo_total|float)|replace('.',',') }}</div>
-              <div class="fin-hint">custo unitário × quantidade</div>
-            </div>
-            <div class="fin-card verde">
-              <div class="fin-label">Valor total em estoque</div>
-              <div class="fin-valor" id="eValorTotal">R$ {{ '%.2f'|format(item.valor_total|float)|replace('.',',') }}</div>
-              <div class="fin-hint">preço de venda × quantidade</div>
-            </div>
+
+          <div style="margin-bottom:20px;padding-top:16px;border-top:1.5px solid #eee">
+            <div class="form-label" style="margin-bottom:12px">Redefinir senha <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa">(deixe em branco para manter)</span></div>
+            <input type="password" name="nova_senha" placeholder="Nova senha" style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;width:100%">
           </div>
-          <div class="modal-footer">
-            <button type="submit" class="btn-salvar">💾 Salvar alterações</button>
-            <button type="button" class="btn-excluir" onclick="document.getElementById('confirmExc').style.display='flex'">🗑️ Excluir produto</button>
+
+          <div style="display:flex;gap:12px">
+            <button type="submit" style="padding:13px 28px;background:#1a1a2e;color:#fff;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px">💾 Salvar</button>
+            <a href="/usuarios" style="padding:13px 20px;background:#f4f4f6;color:#888;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px;text-decoration:none;display:inline-block">Cancelar</a>
           </div>
         </form>
       </div>
     </main>
   </div>
 </div>
-<div class="confirm-overlay" id="confirmExc" style="display:none">
-  <div class="confirm-box">
-    <div class="confirm-icon">⚠️</div>
-    <div class="confirm-title">Excluir produto?</div>
-    <div class="confirm-sub">Tem certeza que deseja excluir <strong>{{ item.referencia }}</strong>? Esta ação não pode ser desfeita.</div>
-    <div class="confirm-btns">
-      <button class="btn-nao-exc" onclick="document.getElementById('confirmExc').style.display='none'">Não</button>
-      <form method="POST" action="/estoque/{{ item.id }}/excluir" style="display:inline">
-        <button type="submit" class="btn-sim-exc">Sim, excluir</button>
-      </form>
-    </div>
-  </div>
-</div>
-<script>
-function parseBR(s){return parseFloat((s||'').replace(/\./g,'').replace(',','.'))||0;}
-function fmtBR(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function fmtPctBR(v){return v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});}
-function eAtualizarResumo(custo,venda,markup,qtd){
-  const margem=venda>0?((venda-custo)/venda*100):0;
-  document.getElementById('eMargem').value=venda>0?fmtPctBR(margem)+' %':'';
-  document.getElementById('eCustoTotal').textContent='R$ '+fmtBR(custo*qtd);
-  document.getElementById('eValorTotal').textContent='R$ '+fmtBR(venda*qtd);
-  document.querySelector('[name="custo_unitario"]').value=fmtBR(custo);
-  document.querySelector('[name="markup"]').value=fmtPctBR(markup);
-  document.querySelector('[name="valor_venda"]').value=fmtBR(venda);
-  document.querySelector('[name="margem_lucro"]').value=fmtPctBR(margem)+' %';
-}
-function eCalcDoMarkup(){
-  const custo=parseBR(document.getElementById('eCusto').value);
-  const markup=parseBR(document.getElementById('eMarkup').value);
-  const qtd=parseInt(document.getElementById('eQtd').value)||0;
-  if(custo>0&&markup>0){const venda=custo*(1+markup/100);document.getElementById('eVenda').value=fmtBR(venda);document.getElementById('eHintVenda').innerHTML='<span class="hint-auto">✅ Calculado pelo markup</span>';eAtualizarResumo(custo,venda,markup,qtd);}
-}
-function eCalcDaVenda(){
-  const custo=parseBR(document.getElementById('eCusto').value);
-  const venda=parseBR(document.getElementById('eVenda').value);
-  const qtd=parseInt(document.getElementById('eQtd').value)||0;
-  if(custo>0&&venda>0){const markup=((venda-custo)/custo)*100;document.getElementById('eMarkup').value=fmtPctBR(markup);document.getElementById('eHintMarkup').innerHTML='<span class="hint-edit">🔄 Atualizado pelo valor de venda</span>';document.getElementById('eHintVenda').innerHTML='<span class="hint-edit">✏️ Valor ajustado manualmente</span>';eAtualizarResumo(custo,venda,markup,qtd);}
-}
-function eCalcDoCusto(){const markup=parseBR(document.getElementById('eMarkup').value);const venda=parseBR(document.getElementById('eVenda').value);if(markup>0)eCalcDoMarkup();else if(venda>0)eCalcDaVenda();}
-function eCalcular(){eCalcDoMarkup();}
-</script>
 {% endblock %}

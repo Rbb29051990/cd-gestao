@@ -770,3 +770,12 @@ body { font-family: 'Outfit', sans-serif; background: var(--cor-secundaria); col
   background: #fecdd3;
   border-color: #c62828;
 }
+
+/* ─── FICHA ESTOQUE — AÇÕES ─── */
+.ficha-prod-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}

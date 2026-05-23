@@ -193,7 +193,41 @@ function toggleBtn(btn, tipo, id) {
   btn.classList.add('active');
   document.getElementById(id).value = tipo==='sim'?'1':'0';
 }
-// Aplicar máscara nos campos já preenchidos ao carregar
+/* ── ADICIONAR CONTATO ── */
+function addContato() {
+  const wrap = document.getElementById('contatosWrap');
+  const div = document.createElement('div');
+  div.className = 'contato-row';
+  div.innerHTML = `
+    <input class="form-input" type="text" name="telefone2"
+           placeholder="(00) 00000-0000" maxlength="15"
+           oninput="mascaraTel(this)">
+    <button type="button" class="btn-remove-contato" onclick="this.parentElement.remove()" title="Remover">✕</button>
+  `;
+  wrap.appendChild(div);
+  div.querySelector('input').focus();
+}
+
+/* ── VERIFICAR DUPLICADO ── */
+let vcTimer;
+function verificarCampo(el, campo, idAtual) {
+  clearTimeout(vcTimer);
+  const val = el.value.trim();
+  const msgEl = document.getElementById(campo + 'Msg');
+  if (!val || val.replace(/\D/g,'').length < 3) { if(msgEl) msgEl.textContent=''; return; }
+  vcTimer = setTimeout(async () => {
+    try {
+      const r = await fetch('/clientes/verificar?campo='+campo+'&valor='+encodeURIComponent(val)+'&excluir='+idAtual);
+      const d = await r.json();
+      if (msgEl) {
+        msgEl.textContent = d.ok ? '' : '⚠️ Já existe outro cliente com este ' + campo;
+        msgEl.style.color = '#c62828';
+      }
+    } catch(e) {}
+  }, 500);
+}
+
+/* ── INICIALIZAÇÃO ── */
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('input[name=telefone],input[name=telefone2]').forEach(el=>{ if(el.value) mascaraTel(el); });
   document.querySelectorAll('input[name=cpf]').forEach(el=>{ if(el.value) mascaraCPF(el); });
@@ -201,6 +235,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   if (cepEl && cepEl.value) mascaraCEP(cepEl);
   const nascEl = document.querySelector('input[name=data_nascimento]');
   if (nascEl && nascEl.value) calcIdade(nascEl);
+  const ufEl = document.getElementById('endUF');
+  if (ufEl) ufEl.value = '{{ c.uf or "" }}';
 });
 </script>
 {% endblock %}

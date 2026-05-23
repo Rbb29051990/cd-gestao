@@ -696,3 +696,77 @@ body { font-family: 'Outfit', sans-serif; background: var(--cor-secundaria); col
   display: flex; align-items: center; gap: 12px;
 }
 .section-sep::after { content:''; flex:1; height:1px; background: var(--cor-borda); }
+
+/* ─── EDITAR CLIENTE — CONTATOS ─── */
+.contatos-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.contato-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.contato-row .form-input {
+  flex: 1;
+}
+.btn-remove-contato {
+  width: 38px;
+  height: 38px;
+  border: 1.5px solid #fecdd3;
+  background: #fff1f2;
+  color: #c62828;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.btn-remove-contato:hover {
+  background: #fecdd3;
+  border-color: #c62828;
+}
+.btn-add-contato {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: #f1f8e9;
+  color: #2e7d32;
+  border: 1.5px solid #c5e1a5;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 4px;
+}
+.btn-add-contato:hover {
+  background: #dcedc8;
+  border-color: #2e7d32;
+}
+
+/* ─── BOTÃO EXCLUIR PADRÃO ─── */
+.btn-sm-danger {
+  padding: 13px 24px;
+  background: #fff1f2;
+  color: #c62828;
+  border: 1.5px solid #fecdd3;
+  border-radius: 8px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-sm-danger:hover {
+  background: #fecdd3;
+  border-color: #c62828;
+}

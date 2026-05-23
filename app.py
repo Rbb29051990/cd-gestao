@@ -11,6 +11,15 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.secret_key = os.environ.get('SECRET_KEY', 'cd-gestao-2026-secret')
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
+def parse_brl(val, default=0):
+    """Converte valor em formato BRL (1.000,00) para float."""
+    try:
+        if not val: return default
+        return float(str(val).replace('.','').replace(',','.'))
+    except:
+        return default
+
+
 CLIENTE = {
     'nome': 'CD Gestao Empresarial',
     'loja': 'By Carol Duarte',
@@ -439,10 +448,10 @@ def novo_estoque():
             (f"P{n+1}", request.form.get('modelo','').strip(),
              request.form.get('descricao','').strip() or None,
              request.form.get('tamanho','').strip(), qtd, qtd,
-             float(request.form.get('custo_unitario',0) or 0),
-             float(request.form.get('markup',0) or 0),
-             float(request.form.get('valor_venda',0) or 0),
-             float(request.form.get('margem_lucro',0) or 0)))
+             parse_brl(request.form.get('custo_unitario','0')),
+             parse_brl(request.form.get('markup','0')),
+             parse_brl(request.form.get('valor_venda','0')),
+             parse_brl(request.form.get('margem_lucro','0'))))
         conn.commit(); flash('Produto cadastrado!','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); conn.close()
@@ -500,10 +509,10 @@ def editar_estoque(eid):
             (request.form.get('modelo','').strip(),
              request.form.get('descricao','').strip() or None,
              request.form.get('tamanho','').strip(), qtd,
-             float(request.form.get('custo_unitario',0) or 0),
-             float(request.form.get('markup',0) or 0),
-             float(request.form.get('valor_venda',0) or 0),
-             float(request.form.get('margem_lucro',0) or 0), eid))
+             parse_brl(request.form.get('custo_unitario','0')),
+             parse_brl(request.form.get('markup','0')),
+             parse_brl(request.form.get('valor_venda','0')),
+             parse_brl(request.form.get('margem_lucro','0')), eid))
         conn.commit(); cur.close(); conn.close()
         flash('Produto atualizado!','ok')
         return redirect(url_for('ficha_estoque',eid=eid))
@@ -591,7 +600,7 @@ def nova_venda():
             if pid:
                 cur.execute("UPDATE estoque SET quantidade=quantidade-%s,ultima_venda=CURRENT_DATE WHERE id=%s",(qtd,pid))
         if forma == 'crediario':
-            entrada = float(request.form.get('entrada',0) or 0)
+            entrada = parse_brl(request.form.get('entrada','0'))
             saldo = valor_total - entrada
             cur.execute("""INSERT INTO crediarios (venda_id,cliente_id,cliente_nome,valor_total,entrada,saldo_devedor)
                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",

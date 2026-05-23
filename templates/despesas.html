@@ -33,7 +33,7 @@
       <div class="page-header">
         <div>
           <div class="page-title">Despesas</div>
-          <div class="page-date">Total no período: <strong style="color:#c62828">R$ {{ "%.2f"|format(total)|replace(".",",") }}</strong></div>
+          <div class="page-date">Total no período: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong></div>
         </div>
         <div style="display:flex;gap:10px;align-items:center">
           <form method="GET">
@@ -57,7 +57,7 @@
               <td style="font-weight:600">{{ d.descricao }}</td>
               <td>{{ d.categoria or '—' }}</td>
               <td>{{ d.forma_pagamento or '—' }}</td>
-              <td style="font-weight:700;color:#c62828">R$ {{ "%.2f"|format(d.valor|float)|replace(".",",") }}</td>
+              <td style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
               <td>
                 <form method="POST" action="/despesas/{{ d.id }}/excluir" onsubmit="return confirm('Excluir esta despesa?')">
                   <button type="submit" class="btn-sm btn-sm-danger">🗑️</button>

@@ -55,7 +55,7 @@
         <div class="fv-grid">
           <div class="fv-campo"><span class="fv-label">Vendedora</span><span class="fv-val">{{ venda.vendedora_nome or '—' }}</span></div>
           <div class="fv-campo"><span class="fv-label">Cliente</span><span class="fv-val">{{ venda.cliente_nome or '—' }}</span></div>
-          <div class="fv-campo"><span class="fv-label">Valor total</span><span class="fv-val" style="color:#2e7d32;font-size:20px">R$ {{ "%.2f"|format(venda.valor_total|float)|replace(".",",") }}</span></div>
+          <div class="fv-campo"><span class="fv-label">Valor total</span><span class="fv-val" style="color:#2e7d32;font-size:20px">R$ {{ "{:,.2f}".format(venda.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
         </div>
         <div class="section-sep">Itens da venda</div>
         <table class="itens-table">
@@ -68,22 +68,22 @@
               <td>{{ item.descricao or '—' }}</td>
               <td>{{ item.tamanho or '—' }}</td>
               <td>{{ item.quantidade }}</td>
-              <td>R$ {{ "%.2f"|format(item.valor_unitario|float)|replace(".",",") }}</td>
-              <td style="font-weight:700;color:#2e7d32">R$ {{ "%.2f"|format(item.valor_total|float)|replace(".",",") }}</td>
+              <td>R$ {{ "{:,.2f}".format(item.valor_unitario|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
+              <td style="font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(item.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
         <div class="total-row">
           <span class="total-row-label">Total da venda</span>
-          <span class="total-row-val">R$ {{ "%.2f"|format(venda.valor_total|float)|replace(".",",") }}</span>
+          <span class="total-row-val">R$ {{ "{:,.2f}".format(venda.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
         </div>
         {% if crediario %}
         <div class="section-sep">Detalhamento do crediário</div>
         <div class="fv-grid" style="margin-bottom:16px">
-          <div class="fv-campo"><span class="fv-label">Valor total</span><span class="fv-val">R$ {{ "%.2f"|format(crediario.valor_total|float)|replace(".",",") }}</span></div>
-          <div class="fv-campo"><span class="fv-label">Entrada paga</span><span class="fv-val" style="color:#2e7d32">R$ {{ "%.2f"|format(crediario.entrada|float)|replace(".",",") }}</span></div>
-          <div class="fv-campo"><span class="fv-label">Saldo devedor</span><span class="fv-val" style="color:{% if crediario.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "%.2f"|format(crediario.saldo_devedor|float)|replace(".",",") }}</span></div>
+          <div class="fv-campo"><span class="fv-label">Valor total</span><span class="fv-val">R$ {{ "{:,.2f}".format(crediario.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fv-campo"><span class="fv-label">Entrada paga</span><span class="fv-val" style="color:#2e7d32">R$ {{ "{:,.2f}".format(crediario.entrada|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fv-campo"><span class="fv-label">Saldo devedor</span><span class="fv-val" style="color:{% if crediario.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "{:,.2f}".format(crediario.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
         </div>
         <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;overflow:hidden">
           {% for p in crediario.parcelas %}
@@ -95,7 +95,7 @@
               {% if not p.pago %}<span style="font-size:11px;color:#1565c0;font-weight:600;margin-left:10px">clique para registrar pagamento</span>{% endif %}
             </div>
             <span class="{{ 'parcela-paga' if p.pago else 'parcela-aberto' }}">
-              R$ {{ "%.2f"|format(p.valor|float)|replace(".",",") }}
+              R$ {{ "{:,.2f}".format(p.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}
               {% if p.pago %}✅ Pago em {{ p.data_pagamento.strftime('%d/%m/%Y') }}{% else %}⏳ Em aberto{% endif %}
             </span>
           </div>

@@ -84,22 +84,22 @@
 
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#bbb;margin-bottom:6px">Custo unitário</div>
-            <div style="font-size:16px;font-weight:700;color:#1a1a2e">R$ {{ "%.2f"|format(item.custo_unitario|float)|replace('.',',') }}</div>
+            <div style="font-size:16px;font-weight:700;color:#1a1a2e">R$ {{ "{:,.2f}".format(item.custo_unitario|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
           </div>
 
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#bbb;margin-bottom:6px">Markup</div>
-            <div style="font-size:16px;font-weight:700;color:#1a1a2e">{{ "%.1f"|format(item.markup|float)|replace('.',',') }} %</div>
+            <div style="font-size:16px;font-weight:700;color:#1a1a2e">{{ "{:,.1f}".format(item.markup|float)|replace('.',',') }} %</div>
           </div>
 
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#bbb;margin-bottom:6px">Margem de lucro</div>
-            <div style="font-size:16px;font-weight:700;color:#2e7d32">{{ "%.1f"|format(item.margem_lucro|float)|replace('.',',') }} %</div>
+            <div style="font-size:16px;font-weight:700;color:#2e7d32">{{ "{:,.1f}".format(item.margem_lucro|float)|replace('.',',') }} %</div>
           </div>
 
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#bbb;margin-bottom:6px">Valor de venda</div>
-            <div style="font-size:20px;font-weight:700;color:#2e7d32">R$ {{ "%.2f"|format(item.valor_venda|float)|replace('.',',') }}</div>
+            <div style="font-size:20px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(item.valor_venda|float)|replace(",","X")|replace(",","X")|replace(",","X")|replace(".",",")|replace("X",".")|replace("X",".")|replace("X",".") }}</div>
           </div>
 
           <div>
@@ -114,12 +114,12 @@
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px">
         <div class="resumo-card laranja">
           <div class="resumo-label">Custo total em estoque</div>
-          <div class="resumo-valor">R$ {{ "%.2f"|format(item.custo_unitario|float * item.quantidade|float)|replace('.',',') }}</div>
+          <div class="resumo-valor">R$ {{ "{:,.2f}".format(item.custo_unitario|float * item.quantidade|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
           <div class="resumo-hint">custo × {{ item.quantidade }} unid.</div>
         </div>
         <div class="resumo-card verde">
           <div class="resumo-label">Valor total em estoque</div>
-          <div class="resumo-valor">R$ {{ "%.2f"|format(item.valor_venda|float * item.quantidade|float)|replace('.',',') }}</div>
+          <div class="resumo-valor">R$ {{ "{:,.2f}".format(item.valor_venda|float * item.quantidade|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
           <div class="resumo-hint">venda × {{ item.quantidade }} unid.</div>
         </div>
         <div class="resumo-card azul">

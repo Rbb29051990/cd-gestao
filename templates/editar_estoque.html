@@ -70,27 +70,27 @@
             <div class="form-field">
               <span class="form-label">Custo unitário (R$)</span>
               <input class="form-input" type="text" name="custo_unitario" id="eCusto"
-                     value="{{ '%.2f'|format(item.custo_unitario|float)|replace('.',',') }}"
+                     value="{{ "{:,.2f}".format(item.custo_unitario|float)|replace(",","X")|replace(".",",")|replace("X",".") }}"
                      inputmode="numeric" placeholder="0,00">
             </div>
             <div class="form-field">
               <span class="form-label">% Markup</span>
               <input class="form-input" type="text" name="markup" id="eMarkup"
-                     value="{{ '%.2f'|format(item.markup|float)|replace('.',',') }}"
+                     value="{{ "{:,.2f}".format(item.markup|float)|replace(",","X")|replace(".",",")|replace("X",".") }}"
                      oninput="eCalcDoMarkup()" placeholder="0,00">
               <div class="campo-hint" id="eHintMarkup"></div>
             </div>
             <div class="form-field">
               <span class="form-label">Valor de venda (R$)</span>
               <input class="form-input auto-yellow" type="text" name="valor_venda" id="eVenda"
-                     value="{{ '%.2f'|format(item.valor_venda|float)|replace('.',',') }}"
+                     value="{{ "{:,.2f}".format(item.valor_venda|float)|replace(",","X")|replace(".",",")|replace("X",".") }}"
                      inputmode="numeric" placeholder="0,00">
               <div class="campo-hint hint-edit" id="eHintVenda">✏️ Ajuste livremente — o markup recalcula</div>
             </div>
             <div class="form-field">
               <span class="form-label">% Margem de lucro</span>
               <input class="form-input auto-green" type="text" name="margem_lucro" id="eMargem"
-                     value="{{ '%.2f'|format(item.margem_lucro|float)|replace('.',',') }} %" readonly>
+                     value="{{ "{:,.2f}".format(item.margem_lucro|float)|replace(",","X")|replace(".",",")|replace("X",".") }} %" readonly>
             </div>
           </div>
 
@@ -99,12 +99,12 @@
           <div class="resumo-fin">
             <div class="fin-card laranja">
               <div class="fin-label">Custo total em estoque</div>
-              <div class="fin-valor" id="eCustoTotal">R$ {{ '%.2f'|format(item.custo_unitario|float * item.quantidade|float)|replace('.',',') }}</div>
+              <div class="fin-valor" id="eCustoTotal">R$ {{ "{:,.2f}".format(item.custo_unitario|float * item.quantidade|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
               <div class="fin-hint">custo unitário × quantidade</div>
             </div>
             <div class="fin-card verde">
               <div class="fin-label">Valor total em estoque</div>
-              <div class="fin-valor" id="eValorTotal">R$ {{ '%.2f'|format(item.valor_venda|float * item.quantidade|float)|replace('.',',') }}</div>
+              <div class="fin-valor" id="eValorTotal">R$ {{ "{:,.2f}".format(item.valor_venda|float * item.quantidade|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
               <div class="fin-hint">preço de venda × quantidade</div>
             </div>
           </div>

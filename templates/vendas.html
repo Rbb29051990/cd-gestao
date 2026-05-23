@@ -126,7 +126,7 @@
               <tr>
                 <td><span class="rank-pos {% if loop.index==1 %}r1{% elif loop.index==2 %}r2{% elif loop.index==3 %}r3{% else %}rn{% endif %}">{{ loop.index }}</span></td>
                 <td style="font-weight:600">{{ r.vendedora_nome }}</td>
-                <td style="color:#2e7d32;font-weight:700">R$ {{ "%.2f"|format(r.total|float)|replace(".",",") }}</td>
+                <td style="color:#2e7d32;font-weight:700">R$ {{ "{:,.2f}".format(r.total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
                 <td>{{ r.num_vendas }}</td><td>{{ r.clientes }}</td>
               </tr>
               {% else %}<tr><td colspan="5" class="empty-row">Nenhuma venda neste mês.</td></tr>{% endfor %}
@@ -155,7 +155,7 @@
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.vendedora_nome or '—' }}</td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.cliente_nome or '—' }}</td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.qtd_itens }}</td>
-                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer;font-weight:700">R$ {{ "%.2f"|format(v.valor_total|float)|replace(".",",") }}</td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer;font-weight:700">R$ {{ "{:,.2f}".format(v.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">
                   {% if v.forma_pagamento=='pix' %}<span class="badge bp-pix">⚡ Pix</span>
                   {% elif v.forma_pagamento=='dinheiro' %}<span class="badge bp-dinheiro">💵 Dinheiro</span>
@@ -190,9 +190,9 @@
               <tr onclick="window.location='/vendas/{{ c.venda_id }}'" style="cursor:pointer">
                 <td>{{ c.data_venda.strftime('%d/%m/%Y') }}</td>
                 <td style="font-weight:600">{{ c.cliente_nome }}</td>
-                <td style="font-weight:700">R$ {{ "%.2f"|format(c.valor_total|float)|replace(".",",") }}</td>
-                <td>R$ {{ "%.2f"|format(c.entrada|float)|replace(".",",") }}</td>
-                <td style="color:#c62828;font-weight:700">R$ {{ "%.2f"|format(c.saldo_devedor|float)|replace(".",",") }}</td>
+                <td style="font-weight:700">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
+                <td>R$ {{ "{:,.2f}".format(c.entrada|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
+                <td style="color:#c62828;font-weight:700">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
                 <td>{{ c.status }}</td>
                 <td><span class="badge bp-crediario">{{ 'Quitado' if c.status == 'quitado' else 'Em aberto' }}</span></td>
               </tr>

@@ -36,19 +36,19 @@
       <div class="dash-grid">
         <div class="card-fat">
           <div class="card-title"><div class="card-title-dot" style="background:#2e7d32"></div>Faturamento bruto</div>
-          <div class="fat-row"><span class="fat-label">Dinheiro</span><span class="fat-value">R$ {{ "%.2f"|format(fat.dinheiro)|replace(".",",") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Pix</span><span class="fat-value">R$ {{ "%.2f"|format(fat.pix)|replace(".",",") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Débito</span><span class="fat-value">R$ {{ "%.2f"|format(fat.debito)|replace(".",",") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Crédito à vista</span><span class="fat-value">R$ {{ "%.2f"|format(fat.credito_vista)|replace(".",",") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Crédito parcelado</span><span class="fat-value">R$ {{ "%.2f"|format(fat.credito_parcelado)|replace(".",",") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Link</span><span class="fat-value">R$ {{ "%.2f"|format(fat.link)|replace(".",",") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Crediário</span><span class="fat-value">R$ {{ "%.2f"|format(fat.crediario)|replace(".",",") }}</span></div>
-          <div class="fat-total-row"><span class="fat-total-label">Total do mês</span><span class="fat-total-value">R$ {{ "%.2f"|format(fat_total)|replace(".",",") }}</span></div>
+          <div class="fat-row"><span class="fat-label">Dinheiro</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.dinheiro)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fat-row"><span class="fat-label">Pix</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.pix)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fat-row"><span class="fat-label">Débito</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.debito)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fat-row"><span class="fat-label">Crédito à vista</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.credito_vista)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fat-row"><span class="fat-label">Crédito parcelado</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.credito_parcelado)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fat-row"><span class="fat-label">Link</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.link)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fat-row"><span class="fat-label">Crediário</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.crediario)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+          <div class="fat-total-row"><span class="fat-total-label">Total do mês</span><span class="fat-total-value">R$ {{ "{:,.2f}".format(fat_total)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
         </div>
         <div class="cards-right">
-          <div class="card-sm estoque"><div class="card-sm-title"><div class="card-title-dot" style="background:#1565c0"></div>Valor em estoque</div><div class="card-sm-value">R$ {{ "%.2f"|format(val_estoque)|replace(".",",") }}</div></div>
-          <div class="card-sm fiados"><div class="card-sm-title"><div class="card-title-dot" style="background:#c0396b"></div>Crediários em aberto</div><div class="card-sm-value">R$ {{ "%.2f"|format(val_crediarios)|replace(".",",") }}</div></div>
-          <div class="card-sm saidas"><div class="card-sm-title"><div class="card-title-dot" style="background:#f9a825"></div>Despesas do mês</div><div class="card-sm-value">R$ {{ "%.2f"|format(val_despesas)|replace(".",",") }}</div></div>
+          <div class="card-sm estoque"><div class="card-sm-title"><div class="card-title-dot" style="background:#1565c0"></div>Valor em estoque</div><div class="card-sm-value">R$ {{ "{:,.2f}".format(val_estoque)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+          <div class="card-sm fiados"><div class="card-sm-title"><div class="card-title-dot" style="background:#c0396b"></div>Crediários em aberto</div><div class="card-sm-value">R$ {{ "{:,.2f}".format(val_crediarios)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+          <div class="card-sm saidas"><div class="card-sm-title"><div class="card-title-dot" style="background:#f9a825"></div>Despesas do mês</div><div class="card-sm-value">R$ {{ "{:,.2f}".format(val_despesas)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
         </div>
       </div>
       <div class="section-title">Movimentações recentes</div>
@@ -61,7 +61,7 @@
               <td>{{ m.criado_em.strftime("%d/%m/%Y") }}</td>
               <td>{{ m.vendedora_nome or "—" }}</td>
               <td>{{ m.cliente_nome or "—" }}</td>
-              <td style="font-weight:700">R$ {{ "%.2f"|format(m.valor_total|float)|replace(".",",") }}</td>
+              <td style="font-weight:700">R$ {{ "{:,.2f}".format(m.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
               <td>{% if m.forma_pagamento == "pix" %}<span class="badge badge-pix">⚡ Pix</span>
                 {% elif m.forma_pagamento == "dinheiro" %}<span class="badge badge-dinheiro">💵 Dinheiro</span>
                 {% elif m.forma_pagamento == "debito" %}<span class="badge badge-debito">💳 Débito</span>

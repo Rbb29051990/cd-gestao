@@ -33,7 +33,7 @@
       <div class="page-header">
         <div>
           <div class="page-title">Crediários</div>
-          <div class="page-date">Total em aberto: <strong style="color:#c62828">R$ {{ "%.2f"|format(total_aberto)|replace(".",",") }}</strong></div>
+          <div class="page-date">Total em aberto: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total_aberto)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong></div>
         </div>
       </div>
       {% for c in lista %}
@@ -44,9 +44,9 @@
             <div style="font-size:12px;color:#aaa;margin-top:3px">Venda {{ c.codigo_venda }} · {{ c.data_venda.strftime('%d/%m/%Y') }}</div>
           </div>
           <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Total</div><div style="font-size:16px;font-weight:700;color:#1a1a2e">R$ {{ "%.2f"|format(c.valor_total|float)|replace(".",",") }}</div></div>
-            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Entrada</div><div style="font-size:16px;font-weight:700;color:#2e7d32">R$ {{ "%.2f"|format(c.entrada|float)|replace(".",",") }}</div></div>
-            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Saldo devedor</div><div style="font-size:18px;font-weight:700;color:{% if c.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "%.2f"|format(c.saldo_devedor|float)|replace(".",",") }}</div></div>
+            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Total</div><div style="font-size:16px;font-weight:700;color:#1a1a2e">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Entrada</div><div style="font-size:16px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(c.entrada|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Saldo devedor</div><div style="font-size:18px;font-weight:700;color:{% if c.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
             <span class="badge {% if c.status == 'quitado' %}badge-hab{% else %}badge-fiado{% endif %}">{% if c.status == 'quitado' %}✅ Quitado{% else %}⏳ Em aberto{% endif %}</span>
           </div>
         </div>
@@ -60,7 +60,7 @@
               {% if p.pago and p.data_pagamento %}<span style="font-size:12px;color:#2e7d32;margin-left:10px">· pago em {{ p.data_pagamento.strftime('%d/%m/%Y') }}</span>{% endif %}
             </div>
             <div style="display:flex;align-items:center;gap:12px">
-              <span style="font-size:15px;font-weight:700;color:{% if p.pago %}#2e7d32{% else %}#c62828{% endif %}">R$ {{ "%.2f"|format(p.valor|float)|replace(".",",") }}</span>
+              <span style="font-size:15px;font-weight:700;color:{% if p.pago %}#2e7d32{% else %}#c62828{% endif %}">R$ {{ "{:,.2f}".format(p.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
               {% if not p.pago %}
               <button onclick="abrirPagamento({{ c.id }},{{ p.id }},'{{ p.data_vencimento.strftime('%d/%m/%Y') }}',{{ p.valor }})"
                 style="padding:7px 14px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">

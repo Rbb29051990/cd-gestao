@@ -47,15 +47,15 @@
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px">
         <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:20px 24px;box-shadow:0 4px 14px rgba(0,0,0,0.05);border-top:3px solid #2e7d32">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:8px">Total Entradas</div>
-          <div style="font-size:24px;font-weight:700;color:#2e7d32">R$ {{ "%.2f"|format(entradas)|replace(".",",") }}</div>
+          <div style="font-size:24px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(entradas)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
         </div>
         <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:20px 24px;box-shadow:0 4px 14px rgba(0,0,0,0.05);border-top:3px solid #c62828">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:8px">Total Saídas</div>
-          <div style="font-size:24px;font-weight:700;color:#c62828">R$ {{ "%.2f"|format(saidas)|replace(".",",") }}</div>
+          <div style="font-size:24px;font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(saidas)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
         </div>
         <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:20px 24px;box-shadow:0 4px 14px rgba(0,0,0,0.05);border-top:3px solid {% if saldo >= 0 %}#1565c0{% else %}#c62828{% endif %}">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:8px">Saldo do Período</div>
-          <div style="font-size:24px;font-weight:700;color:{% if saldo >= 0 %}#1565c0{% else %}#c62828{% endif %}">R$ {{ "%.2f"|format(saldo)|replace(".",",") }}</div>
+          <div style="font-size:24px;font-weight:700;color:{% if saldo >= 0 %}#1565c0{% else %}#c62828{% endif %}">R$ {{ "{:,.2f}".format(saldo)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
         </div>
       </div>
 
@@ -75,7 +75,7 @@
               <td>{{ m.forma_pagamento or '—' }}</td>
               <td>{{ m.vendedora_nome or '—' }}</td>
               <td style="font-weight:700;color:{% if m.tipo == 'entrada' %}#2e7d32{% else %}#c62828{% endif %}">
-                {% if m.tipo == 'entrada' %}+{% else %}-{% endif %} R$ {{ "%.2f"|format(m.valor|float)|replace(".",",") }}
+                {% if m.tipo == 'entrada' %}+{% else %}-{% endif %} R$ {{ "{:,.2f}".format(m.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}
               </td>
             </tr>
             {% else %}

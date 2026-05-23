@@ -45,6 +45,10 @@
             </div>
           </div>
           <div style="display:flex;gap:10px;align-items:center">
+            <button onclick="document.getElementById('modalEntrada').style.display='flex'" class="btn-cancelar" style="display:inline-flex;align-items:center;gap:8px;border-color:#2e7d32;color:#2e7d32">
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+              Nova entrada
+            </button>
             <a href="/estoque/{{ item.id }}/editar" class="btn-salvar" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px">
               <svg width="15" height="15" viewBox="0 0 22 22" fill="none"><path d="M4 18h3l9-9-3-3-9 9v3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 5l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
               Editar cadastro
@@ -132,6 +136,108 @@
     </main>
   </div>
 </div>
+
+<!-- MODAL NOVA ENTRADA -->
+<div class="modal-overlay" id="modalEntrada" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="max-width:480px">
+    <button class="modal-close" onclick="document.getElementById('modalEntrada').style.display='none'">×</button>
+    <div class="modal-title">Nova entrada de estoque</div>
+    <div class="modal-sub">{{ item.modelo }}{% if item.descricao %} — {{ item.descricao }}{% endif %} · {{ item.tamanho or 'ÚNICO' }}</div>
+    <form method="POST" action="/estoque/{{ item.id }}/nova-entrada">
+      <div class="section-sep" style="margin:20px 0 16px">Quantidade</div>
+      <div class="form-field">
+        <span class="form-label">Quantas unidades chegaram? *</span>
+        <input class="form-input" type="number" name="quantidade" min="1" required placeholder="Ex: 10" autofocus>
+        <div class="campo-hint">Saldo atual: {{ item.quantidade }} unidade(s)</div>
+      </div>
+
+      <div class="section-sep" style="margin:20px 0 16px">Precificação <span style="font-weight:400;font-size:11px;color:#bbb">(deixe em branco para manter os valores atuais)</span></div>
+      <div class="form-grid">
+        <div class="form-field">
+          <span class="form-label">Custo unitário (R$)</span>
+          <input class="form-input" type="text" name="custo_unitario" id="mCusto" inputmode="numeric"
+                 placeholder="{{ '{:,.2f}'.format(item.custo_unitario|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
+          <div class="campo-hint">Atual: R$ {{ '{:,.2f}'.format(item.custo_unitario|float)|replace(',','X')|replace('.',',')|replace('X','.') }}</div>
+        </div>
+        <div class="form-field">
+          <span class="form-label">% Markup</span>
+          <input class="form-input" type="text" name="markup" id="mMarkup"
+                 placeholder="{{ '{:,.2f}'.format(item.markup|float)|replace(',','X')|replace('.',',')|replace('X','.') }}"
+                 oninput="mCalcMarkup()">
+        </div>
+        <div class="form-field">
+          <span class="form-label">Valor de venda (R$)</span>
+          <input class="form-input auto-yellow" type="text" name="valor_venda" id="mVenda" inputmode="numeric"
+                 placeholder="{{ '{:,.2f}'.format(item.valor_venda|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
+          <div class="campo-hint">Atual: R$ {{ '{:,.2f}'.format(item.valor_venda|float)|replace(',','X')|replace('.',',')|replace('X','.') }}</div>
+        </div>
+        <div class="form-field">
+          <span class="form-label">% Margem de lucro</span>
+          <input class="form-input auto-green" type="text" name="margem_lucro" id="mMargem" readonly>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="margin-top:8px">
+        <button type="submit" class="btn-salvar" style="display:inline-flex;align-items:center;gap:8px">
+          <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><path d="M11 4v14M4 11h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Registrar entrada
+        </button>
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalEntrada').style.display='none'">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function mParseMoeda(s) {
+  if (!s) return 0;
+  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+function mInitMoeda(el, onChangeFn) {
+  if (!el) return;
+  let digits = '';
+  function render() {
+    if (!digits) { el.value = ''; return; }
+    let num = parseInt(digits, 10);
+    let val = (num / 100).toFixed(2);
+    let parts = val.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    el.value = parts[0] + ',' + parts[1];
+    if (onChangeFn) onChangeFn();
+  }
+  el.addEventListener('keydown', function(e) {
+    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); if(digits.length>=10)return; digits+=e.key; render(); }
+    else if (e.key==='Backspace') { e.preventDefault(); digits=digits.slice(0,-1); render(); }
+    else if (e.key==='Delete') { e.preventDefault(); digits=''; render(); }
+  });
+  el.addEventListener('blur', function() { if(!digits) el.value=''; });
+  el.addEventListener('focus', function() { if(el.value==='0,00'){digits='';el.value='';} });
+}
+function mCalcMarkup() {
+  const custo = mParseMoeda(document.getElementById('mCusto').value);
+  const markup = mParseMoeda(document.getElementById('mMarkup').value);
+  if (custo > 0 && markup > 0) {
+    const venda = custo * (1 + markup / 100);
+    document.getElementById('mVenda').value = venda.toFixed(2).replace('.',',');
+    const margem = ((venda - custo) / venda * 100);
+    document.getElementById('mMargem').value = margem.toFixed(2).replace('.',',') + ' %';
+  }
+}
+function mCalcVenda() {
+  const custo = mParseMoeda(document.getElementById('mCusto').value);
+  const venda = mParseMoeda(document.getElementById('mVenda').value);
+  if (custo > 0 && venda > 0) {
+    const markup = ((venda - custo) / custo * 100);
+    document.getElementById('mMarkup').value = markup.toFixed(2).replace('.',',');
+    const margem = ((venda - custo) / venda * 100);
+    document.getElementById('mMargem').value = margem.toFixed(2).replace('.',',') + ' %';
+  }
+}
+document.addEventListener('DOMContentLoaded', function() {
+  mInitMoeda(document.getElementById('mCusto'), mCalcMarkup);
+  mInitMoeda(document.getElementById('mVenda'), mCalcVenda);
+});
+</script>
 
 <!-- MODAL CONFIRMAR EXCLUSÃO -->
 <div class="modal-overlay" id="confirmExc" style="display:none" onclick="if(event.target===this)this.style.display='none'">

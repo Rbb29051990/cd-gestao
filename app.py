@@ -68,6 +68,15 @@ def init_db():
         valor_venda NUMERIC(10,2) DEFAULT 0, margem_lucro NUMERIC(10,2) DEFAULT 0,
         ativo BOOLEAN DEFAULT TRUE, ultima_venda DATE,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS estoque_entradas (
+        id SERIAL PRIMARY KEY,
+        estoque_id INTEGER NOT NULL,
+        quantidade INTEGER NOT NULL,
+        custo_unitario NUMERIC(10,2) DEFAULT 0,
+        valor_venda NUMERIC(10,2) DEFAULT 0,
+        markup NUMERIC(10,2) DEFAULT 0,
+        margem_lucro NUMERIC(10,2) DEFAULT 0,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS vendas (
         id SERIAL PRIMARY KEY, codigo VARCHAR(10) UNIQUE,
         usuario_id INTEGER, vendedora_nome VARCHAR(200),
@@ -426,9 +435,15 @@ def estoque():
     cur.execute("SELECT COUNT(*) as t FROM estoque"); n = cur.fetchone()['t']
     cur.close(); conn.close()
     hoje = date.today()
+    # Buscar total de entradas adicionais por item
+    cur2 = conn.cursor() if False else get_db().cursor()
+    cur2.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
+    entradas_map = {r['estoque_id']: int(r['total']) for r in cur2.fetchall()}
+    cur2.close()
     for i in itens:
         i['dias_estoque'] = (hoje - i['criado_em'].date()).days
-        i['saidas'] = (i['estoque_inicial'] or 0) - i['quantidade']
+        i['entradas_adicionais'] = entradas_map.get(i['id'], 0)
+        i['saidas'] = max(0, (i['estoque_inicial'] or 0) + i['entradas_adicionais'] - i['quantidade'])
     ctx = get_ctx()
     ctx.update(itens=itens, modelos=modelos, tamanhos=tamanhos,
                custo_total=float(tots['ct']), valor_total=float(tots['vt']),
@@ -456,6 +471,37 @@ def novo_estoque():
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); conn.close()
     return redirect(url_for('estoque'))
+
+@app.route('/estoque/<int:eid>/nova-entrada', methods=['POST'])
+@login_required
+def nova_entrada_estoque(eid):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        qtd = int(request.form.get('quantidade', 0) or 0)
+        custo = parse_brl(request.form.get('custo_unitario', '0'))
+        markup = parse_brl(request.form.get('markup', '0'))
+        venda = parse_brl(request.form.get('valor_venda', '0'))
+        margem = parse_brl(request.form.get('margem_lucro', '0'))
+        if qtd <= 0:
+            flash('Informe uma quantidade válida.', 'erro')
+            return redirect(url_for('ficha_estoque', eid=eid))
+        # Registrar entrada
+        cur.execute("""INSERT INTO estoque_entradas (estoque_id, quantidade, custo_unitario, valor_venda, markup, margem_lucro)
+                       VALUES (%s,%s,%s,%s,%s,%s)""", (eid, qtd, custo, venda, markup, margem))
+        # Atualizar saldo e último custo/venda do produto
+        cur.execute("""UPDATE estoque SET
+                       quantidade = quantidade + %s,
+                       custo_unitario = %s,
+                       valor_venda = %s,
+                       markup = %s,
+                       margem_lucro = %s
+                       WHERE id = %s""", (qtd, custo, venda, markup, margem, eid))
+        conn.commit()
+        flash(f'Nova entrada de {qtd} unidade(s) registrada com sucesso!', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); conn.close()
+    return redirect(url_for('ficha_estoque', eid=eid))
 
 @app.route('/estoque/modelo/novo', methods=['POST'])
 @login_required

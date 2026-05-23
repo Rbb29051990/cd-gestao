@@ -76,6 +76,7 @@
               <th>Descrição</th>
               <th onclick="ordenarE(4)">TAM</th>
               <th onclick="ordenarE(5)" title="Estoque inicial cadastrado">Inicial</th>
+              <th title="Novas entradas adicionadas">Entradas</th>
               <th onclick="ordenarE(6)" title="Unidades vendidas">Saídas</th>
               <th onclick="ordenarE(7)" title="Saldo atual em estoque">Saldo</th>
               <th onclick="ordenarE(8)">Custo</th>
@@ -92,6 +93,7 @@
                 <td>{{ item.descricao or '—' }}</td>
                 <td>{{ item.tamanho or '—' }}</td>
                 <td style="font-weight:600">{{ item.estoque_inicial or item.quantidade }}</td>
+                <td style="color:#2e7d32;font-weight:700">{% if item.entradas_adicionais > 0 %}+{{ item.entradas_adicionais }}{% else %}<span style="color:#ccc">—</span>{% endif %}</td>
                 <td style="color:{% if item.saidas > 0 %}#c62828{% else %}#aaa{% endif %};font-weight:{% if item.saidas > 0 %}700{% else %}500{% endif %}">
                   {{ item.saidas if item.saidas > 0 else '—' }}
                 </td>

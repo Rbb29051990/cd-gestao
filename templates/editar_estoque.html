@@ -110,10 +110,19 @@
           </div>
 
           <!-- BOTÕES -->
-          <div class="modal-footer">
-            <button type="submit" class="btn-salvar">💾 Salvar alterações</button>
-            <a href="/estoque/{{ item.id }}" class="btn-cancelar">Cancelar</a>
-            <button type="button" class="btn-sm btn-sm-danger" onclick="document.getElementById('confirmExc').style.display='flex'">🗑️ Excluir produto</button>
+          <div class="footer-btns" style="display:flex;gap:12px;padding-top:24px;border-top:1.5px solid var(--cor-borda);flex-wrap:wrap">
+            <button type="submit" class="btn-salvar" style="display:inline-flex;align-items:center;gap:8px">
+              <svg width="15" height="15" viewBox="0 0 22 22" fill="none"><path d="M4 4h10l4 4v10a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.8"/><path d="M8 21v-7h6v7M8 4v4h6V4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Salvar alterações
+            </button>
+            <button type="button" class="btn-sm btn-sm-danger" onclick="document.getElementById('confirmExc').style.display='flex'" style="display:inline-flex;align-items:center;gap:8px">
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><polyline points="3 6 5 6 19 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 6V4h6v2M19 6l-1 13H4L3 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Excluir produto
+            </button>
+            <a href="/estoque/{{ item.id }}" class="btn-cancelar" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none">
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Cancelar
+            </a>
           </div>
 
         </form>

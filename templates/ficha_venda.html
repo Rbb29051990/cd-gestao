@@ -54,10 +54,18 @@
               </div>
             </div>
           </div>
-          <button onclick="document.getElementById('confirmExcVenda').style.display='flex'" class="btn-sm btn-sm-danger" style="display:inline-flex;align-items:center;gap:8px">
-            <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><polyline points="3 6 5 6 19 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 6V4h6v2M19 6l-1 13H4L3 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Excluir venda
-          </button>
+          {% if perfil == "admin" %}
+          <div style="display:flex;gap:10px;align-items:center">
+            <a href="/vendas/{{ venda.id }}/editar" class="btn-salvar" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px">
+              <svg width="15" height="15" viewBox="0 0 22 22" fill="none"><path d="M4 18h3l9-9-3-3-9 9v3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 5l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Editar venda
+            </a>
+            <button onclick="document.getElementById('confirmExcVenda').style.display='flex'" class="btn-sm btn-sm-danger" style="display:inline-flex;align-items:center;gap:8px">
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><polyline points="3 6 5 6 19 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 6V4h6v2M19 6l-1 13H4L3 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Excluir venda
+            </button>
+          </div>
+          {% endif %}
         </div>
 
         <!-- INFO GRID -->

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
+    <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout">Minha senha</a>
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/vendas" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/></svg> Estoque</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
+        <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
+      </div>
+    </nav>
+    <main class="main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+
+      <a href="/vendas/{{ venda.id }}" class="voltar-btn">← Voltar para ficha</a>
+      <div class="page-title" style="margin-bottom:4px">Editar venda</div>
+      <div class="page-date" style="margin-bottom:24px">Venda #{{ '%04d'|format(venda.id) }} — {{ venda.criado_em.strftime('%d/%m/%Y') }}</div>
+
+      <div class="table-wrap" style="padding:32px;max-width:660px">
+        <form method="POST">
+
+          <div class="section-sep">Informações da venda</div>
+          <div class="form-grid">
+            <div class="form-field">
+              <span class="form-label">Vendedora</span>
+              <select class="form-input" name="vendedora_nome" style="cursor:pointer">
+                {% for v in vendedoras %}
+                <option {% if v == venda.vendedora_nome %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-field">
+              <span class="form-label">Cliente</span>
+              <input class="form-input" type="text" name="cliente_nome" value="{{ venda.cliente_nome or '' }}" placeholder="Nome do cliente">
+            </div>
+            <div class="form-field">
+              <span class="form-label">Forma de pagamento</span>
+              <select class="form-input" name="forma_pagamento" style="cursor:pointer">
+                <option value="dinheiro" {% if venda.forma_pagamento=='dinheiro' %}selected{% endif %}>💵 Dinheiro</option>
+                <option value="pix" {% if venda.forma_pagamento=='pix' %}selected{% endif %}>⚡ Pix</option>
+                <option value="debito" {% if venda.forma_pagamento=='debito' %}selected{% endif %}>💳 Débito</option>
+                <option value="credito_vista" {% if venda.forma_pagamento=='credito_vista' %}selected{% endif %}>💳 Crédito à vista</option>
+                <option value="credito_parcelado" {% if venda.forma_pagamento=='credito_parcelado' %}selected{% endif %}>💳 Crédito parcelado</option>
+                <option value="crediario" {% if venda.forma_pagamento=='crediario' %}selected{% endif %}>📋 Crediário</option>
+                <option value="link" {% if venda.forma_pagamento=='link' %}selected{% endif %}>🔗 Link</option>
+              </select>
+            </div>
+            <div class="form-field" id="campoParcelasEdit" style="{% if venda.forma_pagamento != 'credito_parcelado' %}display:none{% endif %}">
+              <span class="form-label">Nº de parcelas</span>
+              <select class="form-input" name="parcelas" style="cursor:pointer">
+                {% for n in range(2,13) %}
+                <option value="{{ n }}" {% if venda.parcelas == n %}selected{% endif %}>{{ n }}x</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-footer" style="margin-top:8px">
+            <button type="submit" class="btn-salvar" style="display:inline-flex;align-items:center;gap:8px">
+              <svg width="15" height="15" viewBox="0 0 22 22" fill="none"><path d="M4 4h10l4 4v10a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.8"/><path d="M8 21v-7h6v7M8 4v4h6V4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Salvar alterações
+            </button>
+            <a href="/vendas/{{ venda.id }}" class="btn-cancelar" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+<script>
+document.querySelector('[name=forma_pagamento]').addEventListener('change', function() {
+  document.getElementById('campoParcelasEdit').style.display =
+    this.value === 'credito_parcelado' ? '' : 'none';
+});
+</script>
+{% endblock %}

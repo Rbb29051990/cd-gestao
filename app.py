@@ -645,6 +645,9 @@ def ficha_venda(vid):
 @app.route('/vendas/<int:vid>/excluir', methods=['POST'])
 @login_required
 def excluir_venda(vid):
+    if session.get('perfil') != 'admin':
+        flash('Apenas administradores podem excluir vendas.','erro')
+        return redirect(url_for('ficha_venda', vid=vid))
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s",(vid,))
@@ -656,6 +659,42 @@ def excluir_venda(vid):
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); conn.close()
     return redirect(url_for('vendas'))
+
+
+@app.route('/vendas/<int:vid>/editar', methods=['GET','POST'])
+@login_required
+def editar_venda(vid):
+    if session.get('perfil') != 'admin':
+        flash('Apenas administradores podem editar vendas.','erro')
+        return redirect(url_for('ficha_venda', vid=vid))
+    conn = get_db(); cur = conn.cursor()
+    if request.method == 'POST':
+        try:
+            cliente_nome = request.form.get('cliente_nome','').strip()
+            vendedora_nome = request.form.get('vendedora_nome','').strip()
+            forma_pagamento = request.form.get('forma_pagamento','')
+            parcelas = int(request.form.get('parcelas', 1) or 1)
+            cur.execute("""UPDATE vendas SET cliente_nome=%s, vendedora_nome=%s,
+                          forma_pagamento=%s, parcelas=%s WHERE id=%s""",
+                       (cliente_nome, vendedora_nome, forma_pagamento, parcelas, vid))
+            conn.commit()
+            flash('Venda atualizada com sucesso!','ok')
+            return redirect(url_for('ficha_venda', vid=vid))
+        except Exception as e:
+            conn.rollback(); flash(str(e),'erro')
+        finally: cur.close(); conn.close()
+        return redirect(url_for('ficha_venda', vid=vid))
+    cur.execute("SELECT * FROM vendas WHERE id=%s",(vid,))
+    row = cur.fetchone()
+    if not row:
+        flash('Venda não encontrada.','erro')
+        return redirect(url_for('vendas'))
+    venda = dict(row)
+    cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+    vendedoras = [dict(u)['nome'] for u in cur.fetchall()]
+    cur.close(); conn.close()
+    ctx = get_ctx(); ctx.update(venda=venda, vendedoras=vendedoras)
+    return render_template('editar_venda.html', **ctx)
 
 @app.route('/vendas/ranking')
 @login_required

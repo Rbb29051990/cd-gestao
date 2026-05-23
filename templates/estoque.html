@@ -85,7 +85,7 @@
             </tr></thead>
             <tbody id="tbodyEstoque">
               {% for item in itens %}
-              <tr onclick="window.location='/estoque/{{ item.id }}'" style="cursor:pointer">
+              <tr onclick="window.location='/estoque/{{ item.id }}'" style="cursor:pointer" data-saldo="{{ item.quantidade }}" data-dias="{{ item.dias_estoque }}">
                 <td>{{ item.criado_em.strftime('%d/%m/%Y') }}</td>
                 <td><span class="ref-code">{{ item.codigo }}</span></td>
                 <td>{{ item.modelo or '—' }}</td>
@@ -410,19 +410,12 @@ function filtrarSaldo(btn, tipo) {
   document.querySelectorAll(".filtro-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   document.querySelectorAll("#tbodyEstoque tr").forEach(tr => {
-    if (tr.cells.length < 2) return;
-    const saldoCell = tr.cells[8];
-    if (!saldoCell) return;
-    const saldo = parseInt(saldoCell.textContent.trim()) || 0;
+    const saldo = parseInt(tr.dataset.saldo) || 0;
+    const dias  = parseInt(tr.dataset.dias)  || 0;
     let show = true;
-    if (tipo === 1) show = saldo > 0;
+    if      (tipo === 1) show = saldo > 0;
     else if (tipo === 2) show = saldo === 0;
-    else if (tipo === 3) {
-      // Crítico = mais de 60 dias em estoque (coluna índice 4 = dias)
-      const diasCell = tr.cells[4];
-      const dias = diasCell ? parseInt(diasCell.textContent.replace(/\D/g,'')) || 0 : 0;
-      show = dias > 60;
-    }
+    else if (tipo === 3) show = dias > 60;
     tr.style.display = show ? "" : "none";
   });
 }

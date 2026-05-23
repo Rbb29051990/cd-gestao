@@ -255,13 +255,30 @@
 </div>
 
 <script>
-/* ── MÁSCARA MOEDA ── */
+/* ── MÁSCARA MOEDA (estilo caixa registradora) ── */
 function mascaraMoeda(el) {
-  let v = el.value.replace(/[^0-9]/g, '');
-  if (!v) { el.value = ''; return; }
-  v = (parseInt(v) / 100).toFixed(2);
-  v = v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  el.value = v;
+  let digits = el.value.replace(/[^0-9]/g, '');
+  if (!digits) { el.value = '0,00'; return; }
+  digits = digits.slice(-10);
+  let num = parseInt(digits, 10);
+  let formatted = (num / 100).toFixed(2);
+  let parts = formatted.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  el.value = parts[0] + ',' + parts[1];
+}
+
+function initMoeda(el) {
+  if (!el) return;
+  el.addEventListener('focus', function() {
+    if (this.value === '0,00') this.value = '';
+  });
+  el.addEventListener('keydown', function(e) {
+    const allowed = ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
+    if (!allowed.includes(e.key) && !/^[0-9]$/.test(e.key)) e.preventDefault();
+  });
+  el.addEventListener('blur', function() {
+    if (!this.value) this.value = '0,00';
+  });
 }
 
 /* ── TABS ── */
@@ -432,6 +449,8 @@ function buscarEtiquetas() {
 
 /* ── DATA PADRÃO ETIQUETAS (hoje) ── */
 document.addEventListener('DOMContentLoaded', () => {
+  initMoeda(document.getElementById('eCusto'));
+  initMoeda(document.getElementById('eVenda'));
   const hoje = new Date();
   const iso = hoje.toISOString().split('T')[0];
   document.getElementById('dataEtiq').value = iso;

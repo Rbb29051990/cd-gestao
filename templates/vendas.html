@@ -299,7 +299,7 @@
         <div class="form-grid2" style="margin-bottom:12px">
           <div class="form-field">
             <label class="form-label">Valor de entrada (R$)</label>
-            <input class="form-input" type="number" step="0.01" min="0" name="entrada" id="entradaVal" placeholder="0.00" oninput="calcSaldo()">
+            <input class="form-input" type="text" inputmode="numeric" name="entrada" id="entradaVal" placeholder="0,00">
           </div>
           <div class="form-field">
             <label class="form-label">Qtd de parcelas</label>
@@ -465,9 +465,55 @@ function selPg(tipo, btn) {
   document.getElementById('secCrediario').style.display = tipo==='crediario' ? 'block' : 'none';
 }
 
+/* ── MÁSCARA MOEDA ENTRADA (caixa registradora) ── */
+function parseMoeda(s) {
+  if (!s) return 0;
+  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+
+function initMoeda(el, onChangeFn) {
+  if (!el) return;
+  let digits = '';
+
+  function render() {
+    if (!digits) { el.value = ''; return; }
+    let num = parseInt(digits, 10);
+    let val = (num / 100).toFixed(2);
+    let parts = val.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    el.value = parts[0] + ',' + parts[1];
+    if (onChangeFn) onChangeFn();
+  }
+
+  el.addEventListener('keydown', function(e) {
+    if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+      if (digits.length >= 10) return;
+      digits += e.key;
+      render();
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      digits = digits.slice(0, -1);
+      render();
+    } else if (e.key === 'Delete') {
+      e.preventDefault();
+      digits = '';
+      render();
+    }
+  });
+
+  el.addEventListener('blur', function() {
+    if (!digits) el.value = '0,00';
+  });
+
+  el.addEventListener('focus', function() {
+    if (el.value === '0,00') { digits = ''; el.value = ''; }
+  });
+}
+
 function calcSaldo() {
   const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
-  const entrada = parseFloat(document.getElementById('entradaVal').value||0);
+  const entrada = parseMoeda(document.getElementById('entradaVal').value);
   const saldo = Math.max(0, Math.round((total-entrada)*100)/100);
   document.getElementById('saldoDevedor').value = 'R$ ' + saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
   gerarParcelas();
@@ -477,7 +523,7 @@ function gerarParcelas() {
   const n = parseInt(document.getElementById('nParcelas').value)||0;
   if (!n) return;
   const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
-  const entrada = parseFloat(document.getElementById('entradaVal').value||0);
+  const entrada = parseMoeda(document.getElementById('entradaVal').value);
   const saldo = Math.max(0, Math.round((total-entrada)*100)/100);
   document.getElementById('saldoDevedor').value = 'R$ ' + saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
   const container = document.getElementById('parcelasCrediario');
@@ -499,7 +545,7 @@ function gerarParcelas() {
 
 function atualizarConferencia() {
   const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
-  const entrada = parseFloat(document.getElementById('entradaVal').value||0);
+  const entrada = parseMoeda(document.getElementById('entradaVal').value);
   const n = parseInt(document.getElementById('nParcelas').value)||0;
   let soma = 0;
   for (let i=1; i<=n; i++) {
@@ -570,5 +616,10 @@ function ordenarV(col) {
   });
   rows.forEach(r=>tbody.appendChild(r));
 }
+
+// Inicializar máscara de moeda no campo entrada
+document.addEventListener('DOMContentLoaded', function() {
+  initMoeda(document.getElementById('entradaVal'), calcSaldo);
+});
 </script>
 {% endblock %}

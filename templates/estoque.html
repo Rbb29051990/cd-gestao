@@ -64,7 +64,7 @@
             <button class="filtro-btn active" onclick="filtrarSaldo(this, 0)">Todos</button>
             <button class="filtro-btn" onclick="filtrarSaldo(this, 1)">Com saldo</button>
             <button class="filtro-btn" onclick="filtrarSaldo(this, 2)">Zerados</button>
-            <button class="filtro-btn" onclick="filtrarSaldo(this, 3)">Crítico (≤2)</button>
+            <button class="filtro-btn" onclick="filtrarSaldo(this, 3)">⚠️ Crítico (+60 dias)</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -255,6 +255,15 @@
 </div>
 
 <script>
+/* ── MÁSCARA MOEDA ── */
+function mascaraMoeda(el) {
+  let v = el.value.replace(/[^0-9]/g, '');
+  if (!v) { el.value = ''; return; }
+  v = (parseInt(v) / 100).toFixed(2);
+  v = v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  el.value = v;
+}
+
 /* ── TABS ── */
 function trocarEtab(id, btn) {
   document.querySelectorAll('.etela').forEach(p => p.classList.remove('active'));
@@ -370,7 +379,12 @@ function filtrarSaldo(btn, tipo) {
     let show = true;
     if (tipo === 1) show = saldo > 0;
     else if (tipo === 2) show = saldo === 0;
-    else if (tipo === 3) show = saldo > 0 && saldo <= 2;
+    else if (tipo === 3) {
+      // Crítico = mais de 60 dias em estoque (coluna índice 4 = dias)
+      const diasCell = tr.cells[4];
+      const dias = diasCell ? parseInt(diasCell.textContent.replace(/\D/g,'')) || 0 : 0;
+      show = dias > 60;
+    }
     tr.style.display = show ? "" : "none";
   });
 }

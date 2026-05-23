@@ -64,7 +64,7 @@
           <div class="form-grid2">
             <div class="form-field">
               <span class="form-label">Custo unitário (R$)</span>
-              <input class="form-input" type="text" name="custo_unitario" id="eCusto" value="{{ '%.2f'|format(item.custo_unitario|float)|replace('.',',') }}" oninput="eCalcDoCusto()">
+              <input class="form-input" type="text" name="custo_unitario" id="eCusto" value="{{ '%.2f'|format(item.custo_unitario|float)|replace('.',',') }}" oninput="mascaraMoeda(this);eCalcDoCusto()">
             </div>
             <div class="form-field">
               <span class="form-label">% Markup</span>
@@ -73,7 +73,7 @@
             </div>
             <div class="form-field">
               <span class="form-label">Valor de venda (R$)</span>
-              <input class="form-input auto-yellow" type="text" name="valor_venda" id="eVenda" value="{{ '%.2f'|format(item.valor_venda|float)|replace('.',',') }}" oninput="eCalcDaVenda()">
+              <input class="form-input auto-yellow" type="text" name="valor_venda" id="eVenda" value="{{ '%.2f'|format(item.valor_venda|float)|replace('.',',') }}" oninput="mascaraMoeda(this);eCalcDaVenda()">
               <div class="calc-hint" id="eHintVenda"></div>
             </div>
             <div class="form-field">
@@ -94,13 +94,91 @@
               <div class="fin-hint">preço de venda × quantidade</div>
             </div>
           </div>
-          <div class="modal-footer">
+          <div class="footer-btns">
             <button type="submit" class="btn-salvar">💾 Salvar alterações</button>
-            <button type="button" class="btn-excluir" onclick="document.getElementById('confirmExc').style.display='flex'">🗑️ Excluir produto</button>
+            <a href="/estoque" class="btn-cancelar">Cancelar</a>
+            <button type="button" class="btn-sm btn-sm-danger" onclick="document.getElementById('confirmExc').style.display='flex'">🗑️ Excluir produto</button>
           </div>
         </form>
       </div>
     </main>
   </div>
 </div>
+
+<!-- MODAL CONFIRMAR EXCLUSÃO -->
+<div class="modal-overlay" id="confirmExc" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal" style="max-width:400px;text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+    <div class="modal-title" style="font-size:20px;margin-bottom:8px">Excluir produto?</div>
+    <p style="color:#666;font-size:14px;margin-bottom:28px;line-height:1.6">Esta ação é <strong>irreversível</strong>. O produto será removido permanentemente do estoque.</p>
+    <form method="POST" action="/estoque/{{ item.id }}/excluir">
+      <div style="display:flex;gap:12px;justify-content:center">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('confirmExc').style.display='none'">Cancelar</button>
+        <button type="submit" style="padding:13px 28px;background:#c62828;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;border-radius:8px">🗑️ Sim, excluir</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ── MÁSCARA MOEDA ── */
+function mascaraMoeda(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (!v) { el.value = ''; return; }
+  v = (parseInt(v) / 100).toFixed(2);
+  v = v.replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  el.value = v;
+}
+
+function parseMoeda(s) {
+  if (!s) return 0;
+  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+
+function fmtMoeda(v) {
+  return 'R$ ' + v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+}
+
+/* ── CÁLCULOS ── */
+function eCalcDoCusto() {
+  const custo  = parseMoeda(document.getElementById('eCusto').value);
+  const markup = parseMoeda(document.getElementById('eMarkup').value);
+  if (custo > 0 && markup > 0) {
+    const venda = custo * (1 + markup / 100);
+    document.getElementById('eVenda').value = venda.toFixed(2).replace('.',',');
+    const margem = ((venda - custo) / venda * 100);
+    document.getElementById('eMargem').value = margem.toFixed(2).replace('.',',') + ' %';
+    document.getElementById('eHintMarkup').textContent = 'Venda calculada pelo markup';
+  }
+  eAtualizarTotais();
+}
+
+function eCalcDoMarkup() { eCalcDoCusto(); }
+
+function eCalcDaVenda() {
+  const custo = parseMoeda(document.getElementById('eCusto').value);
+  const venda = parseMoeda(document.getElementById('eVenda').value);
+  if (custo > 0 && venda > 0) {
+    const markup = ((venda - custo) / custo * 100);
+    document.getElementById('eMarkup').value = markup.toFixed(2).replace('.',',');
+    const margem = ((venda - custo) / venda * 100);
+    document.getElementById('eMargem').value = margem.toFixed(2).replace('.',',') + ' %';
+    document.getElementById('eHintVenda').textContent = '✏️ Ajuste livremente — o markup recalcula';
+  }
+  eAtualizarTotais();
+}
+
+function eCalcular() { eAtualizarTotais(); }
+
+function eAtualizarTotais() {
+  const custo = parseMoeda(document.getElementById('eCusto').value);
+  const venda = parseMoeda(document.getElementById('eVenda').value);
+  const qtd   = parseInt(document.getElementById('eQtd').value) || 0;
+  document.getElementById('eCustoTotal').textContent = fmtMoeda(custo * qtd);
+  document.getElementById('eValorTotal').textContent = fmtMoeda(venda * qtd);
+}
+
+// Inicializar totais ao carregar
+document.addEventListener('DOMContentLoaded', () => { eAtualizarTotais(); });
+</script>
 {% endblock %}

@@ -105,7 +105,6 @@
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}" style="margin:16px 28px 0">{{ msg }}</div>{% endfor %}{% endwith %}
       <div class="tabs-wrap">
         <button class="vtab active" onclick="trocarTab('tVendas',this)">💰 Vendas</button>
-        <button class="vtab" onclick="trocarTab('tCrediarios',this)">📋 Crediários</button>
       </div>
 
       <!-- ABA VENDAS -->
@@ -177,30 +176,6 @@
         </div>
       </div>
 
-      <!-- ABA CREDIÁRIOS -->
-      <div class="vtela" id="tCrediarios">
-        <div class="list-header">
-          <div><div class="page-title">Crediários</div><div class="page-date">{{ lista_crediarios|length }} crediário(s)</div></div>
-        </div>
-        <div class="table-wrap">
-          <table class="vtable">
-            <thead><tr><th>Data</th><th>Cliente</th><th>Total</th><th>Entrada</th><th>Saldo</th><th>Parcelas</th><th>Status</th></tr></thead>
-            <tbody>
-              {% for c in lista_crediarios %}
-              <tr onclick="window.location='/vendas/{{ c.venda_id }}'" style="cursor:pointer">
-                <td>{{ c.data_venda.strftime('%d/%m/%Y') }}</td>
-                <td style="font-weight:600">{{ c.cliente_nome }}</td>
-                <td style="font-weight:700">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
-                <td>R$ {{ "{:,.2f}".format(c.entrada|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
-                <td style="color:#c62828;font-weight:700">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
-                <td>{{ c.status }}</td>
-                <td><span class="badge bp-crediario">{{ 'Quitado' if c.status == 'quitado' else 'Em aberto' }}</span></td>
-              </tr>
-              {% else %}<tr><td colspan="7" class="empty-row">Nenhum crediário ainda.</td></tr>{% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
     </main>
   </div>
 </div>

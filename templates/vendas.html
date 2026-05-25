@@ -236,6 +236,7 @@
           <div><div class="ri-label">Descrição</div><div class="ri-val" id="rDesc">—</div></div>
           <div><div class="ri-label">Tamanho</div><div class="ri-val" id="rTam">—</div></div>
           <div><div class="ri-label">Valor</div><div class="ri-preco" id="rVal">—</div></div>
+          <div id="rSaldoWrap"><div class="ri-label">Saldo em estoque</div><div class="ri-val" id="rSaldo" style="font-weight:700">—</div></div>
         </div>
       </div>
 
@@ -377,6 +378,8 @@ async function buscarRef(v) {
     document.getElementById('rDesc').textContent = (d.item.descricao || '—') + ' / ' + (d.item.tamanho || '—');
     document.getElementById('rTam').textContent = d.item.tamanho || '—';
     document.getElementById('rVal').textContent = 'R$ ' + parseFloat(d.item.valor_venda).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    document.getElementById('rSaldo').textContent = d.item.quantidade + ' unidade(s) em estoque';
+    document.getElementById('rSaldoWrap').style.color = d.item.quantidade <= 0 ? '#c62828' : d.item.quantidade <= 2 ? '#f57f17' : '#2e7d32';
     document.getElementById('refInfo').style.display = 'block';
   } else {
     refAtual = null;
@@ -387,6 +390,20 @@ async function buscarRef(v) {
 function addItemCarrinho() {
   if (!refAtual) return;
   const qtd = parseInt(document.getElementById('refQtd').value) || 1;
+
+  // Validar saldo disponível
+  const saldoDisp = parseInt(refAtual.quantidade) || 0;
+  // Verificar também qty já no carrinho para este produto
+  const jaNoCarrinho = carrinhoItens.filter(i => i.produto_id === refAtual.produto_id).reduce((s,i) => s + i.quantidade, 0);
+  const saldoReal = saldoDisp - jaNoCarrinho;
+  if (qtd > saldoReal) {
+    const msg = saldoReal <= 0
+      ? '⚠️ Saldo insuficiente! Este produto não tem unidades disponíveis em estoque.'
+      : '⚠️ Saldo insuficiente! Disponível: ' + saldoReal + ' unidade(s) (saldo: ' + saldoDisp + ', já no carrinho: ' + jaNoCarrinho + ').';
+    alert(msg);
+    return;
+  }
+
   carrinhoItens.push({
     produto_id: refAtual.produto_id,
     codigo: refAtual.codigo,
@@ -540,6 +557,37 @@ function atualizarConferencia() {
 }
 
 function prepararEnvio() {
+  // ── Validações obrigatórias ──
+  const vendedora = document.getElementById('vendedoraSel')?.value;
+  if (!vendedora) { alert('⚠️ Selecione a vendedora antes de finalizar.'); return false; }
+
+  const cliente = document.getElementById('clienteNome')?.value?.trim();
+  if (!cliente) { alert('⚠️ Informe o cliente antes de finalizar.'); return false; }
+
+  if (carrinhoItens.length === 0) { alert('⚠️ Adicione pelo menos um produto ao carrinho.'); return false; }
+
+  const forma = document.getElementById('formaPagamento')?.value;
+  if (!forma) { alert('⚠️ Selecione a forma de pagamento.'); return false; }
+
+  if (forma === 'credito_parcelado') {
+    const parc = document.querySelector('[name=parcelas]')?.value;
+    if (!parc || parc === '' || parc === '1') {
+      alert('⚠️ Informe o número de parcelas para crédito parcelado (mínimo 2x).'); return false;
+    }
+  }
+
+  if (forma === 'crediario') {
+    const entradaEl = document.getElementById('entradaVal');
+    if (!entradaEl || entradaEl.value.trim() === '') {
+      alert('⚠️ Informe o valor de entrada do crediário (pode ser 0,00).'); return false;
+    }
+    const parcCrediario = document.getElementById('nParcelas')?.value;
+    if (!parcCrediario || parcCrediario === '') {
+      alert('⚠️ Informe o número de parcelas do crediário.'); return false;
+    }
+  }
+
+  // ── Validação das parcelas do crediário ──
   if (document.getElementById('secCrediario').style.display !== 'none') {
     const dif = document.getElementById('confDif');
     if (dif && dif.style.color === 'rgb(198, 40, 40)') {

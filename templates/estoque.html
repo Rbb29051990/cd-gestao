@@ -160,7 +160,7 @@
             <div class="form-grid2">
               <div class="form-field">
                 <span class="form-label">Custo unitário (R$)</span>
-                <input class="form-input" type="text" name="custo_unitario" id="eCusto" placeholder="Ex: 52,00" oninput="eCalcDoCusto()">
+                <input class="form-input" type="text" name="custo_unitario" id="eCusto" inputmode="numeric" required placeholder="Ex: 52,00">
               </div>
               <div class="form-field">
                 <span class="form-label">% Markup</span>
@@ -169,7 +169,7 @@
               </div>
               <div class="form-field">
                 <span class="form-label">Valor de venda (R$)</span>
-                <input class="form-input auto-yellow" type="text" name="valor_venda" id="eVenda" placeholder="Calculado ou ajuste aqui" oninput="eCalcDaVenda()">
+                <input class="form-input auto-yellow" type="text" name="valor_venda" id="eVenda" inputmode="numeric" required placeholder="Calculado ou ajuste aqui">
                 <div class="calc-hint" id="eHintVenda"><span class="hint-edit">✏️ Ajuste livremente — o markup recalcula</span></div>
               </div>
               <div class="form-field">

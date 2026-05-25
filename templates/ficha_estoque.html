@@ -151,11 +151,11 @@
         <div class="campo-hint">Saldo atual: {{ item.quantidade }} unidade(s)</div>
       </div>
 
-      <div class="section-sep" style="margin:20px 0 16px">Precificação <span style="font-weight:400;font-size:11px;color:#bbb">(deixe em branco para manter os valores atuais)</span></div>
+      <div class="section-sep" style="margin:20px 0 16px">Precificação</div>
       <div class="form-grid">
         <div class="form-field">
           <span class="form-label">Custo unitário (R$)</span>
-          <input class="form-input" type="text" name="custo_unitario" id="mCusto" inputmode="numeric"
+          <input class="form-input" type="text" name="custo_unitario" id="mCusto" inputmode="numeric" required
                  placeholder="{{ '{:,.2f}'.format(item.custo_unitario|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
           <div class="campo-hint">Atual: R$ {{ '{:,.2f}'.format(item.custo_unitario|float)|replace(',','X')|replace('.',',')|replace('X','.') }}</div>
         </div>
@@ -167,7 +167,7 @@
         </div>
         <div class="form-field">
           <span class="form-label">Valor de venda (R$)</span>
-          <input class="form-input auto-yellow" type="text" name="valor_venda" id="mVenda" inputmode="numeric"
+          <input class="form-input auto-yellow" type="text" name="valor_venda" id="mVenda" inputmode="numeric" required
                  placeholder="{{ '{:,.2f}'.format(item.valor_venda|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
           <div class="campo-hint">Atual: R$ {{ '{:,.2f}'.format(item.valor_venda|float)|replace(',','X')|replace('.',',')|replace('X','.') }}</div>
         </div>

@@ -457,6 +457,16 @@ def novo_estoque():
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT COUNT(*) as t FROM estoque"); n = cur.fetchone()['t']
     qtd = int(request.form.get('quantidade',1) or 1)
+    custo_raw = request.form.get('custo_unitario','').strip()
+    venda_raw = request.form.get('valor_venda','').strip()
+    if not custo_raw or parse_brl(custo_raw) <= 0:
+        flash('O custo unitário é obrigatório e deve ser maior que zero.','erro')
+        cur.close(); conn.close()
+        return redirect(url_for('estoque'))
+    if not venda_raw or parse_brl(venda_raw) <= 0:
+        flash('O valor de venda é obrigatório e deve ser maior que zero.','erro')
+        cur.close(); conn.close()
+        return redirect(url_for('estoque'))
     try:
         cur.execute("""INSERT INTO estoque (codigo,modelo,descricao,tamanho,quantidade,estoque_inicial,
             custo_unitario,markup,valor_venda,margem_lucro) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
@@ -484,6 +494,12 @@ def nova_entrada_estoque(eid):
         margem = parse_brl(request.form.get('margem_lucro', '0'))
         if qtd <= 0:
             flash('Informe uma quantidade válida.', 'erro')
+            return redirect(url_for('ficha_estoque', eid=eid))
+        if custo <= 0:
+            flash('O custo unitário é obrigatório para nova entrada.', 'erro')
+            return redirect(url_for('ficha_estoque', eid=eid))
+        if venda <= 0:
+            flash('O valor de venda é obrigatório para nova entrada.', 'erro')
             return redirect(url_for('ficha_estoque', eid=eid))
         # Registrar entrada
         cur.execute("""INSERT INTO estoque_entradas (estoque_id, quantidade, custo_unitario, valor_venda, markup, margem_lucro)

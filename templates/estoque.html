@@ -50,9 +50,9 @@
             <div class="resumo-hint">potencial de receita</div>
           </div>
           <div class="resumo-card azul">
-            <div class="resumo-label">Lucro potencial total</div>
+            <div class="resumo-label">Receita potencial do estoque</div>
             <div class="resumo-valor">R$ {{ "{:,.2f}".format(lucro_potencial|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
-            <div class="resumo-hint">se vender todo o estoque</div>
+            <div class="resumo-hint">(venda × saldo) − custo total</div>
           </div>
         </div>
         <div class="filtros" style="margin-bottom:16px">

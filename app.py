@@ -937,6 +937,7 @@ def caixa():
     cur.execute("SELECT DISTINCT TO_CHAR(criado_em,'YYYY-MM') as mes FROM caixa ORDER BY mes DESC")
     meses = [r['mes'] for r in cur.fetchall()]
     cur.close(); conn.close()
+    taxa_vigente_hoje = get_taxa_vigente()
     ctx = get_ctx()
     # Calcular líquido por movimento
     total_desconto = 0

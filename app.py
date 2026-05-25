@@ -644,7 +644,8 @@ def nova_venda():
         parcelas = int(request.form.get('parcelas',1) or 1)
         valor_total = float(request.form.get('valor_total',0) or 0)
         itens = json.loads(request.form.get('itens','[]'))
-        cur.execute("SELECT COUNT(*) as t FROM vendas"); n = cur.fetchone()['t']
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM vendas WHERE codigo ~ '^V[0-9]+$'")
+        n = cur.fetchone()['n']
         cod = f"V{n+1}"
         cur.execute("""INSERT INTO vendas (codigo,usuario_id,vendedora_nome,cliente_id,cliente_nome,
             valor_total,forma_pagamento,parcelas) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",

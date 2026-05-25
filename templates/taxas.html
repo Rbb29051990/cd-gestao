@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
+    <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout">Minha senha</a>
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/></svg> Estoque</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
+        <a href="/taxas" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#f57f17" stroke-width="1.6" fill="none"/><path d="M8 14l6-6M9 9h.01M13 13h.01" stroke="#f57f17" stroke-width="1.6" stroke-linecap="round"/></svg> Taxas</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      </div>
+    </nav>
+    <main class="main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Taxas de pagamento</div>
+          <div class="page-date">Vigentes hoje — altere apenas quando o banco mudar</div>
+        </div>
+      </div>
+
+      <!-- TAXAS VIGENTES -->
+      <div class="table-wrap" style="padding:32px;margin-bottom:24px">
+        <div class="section-sep" style="margin-bottom:20px">Taxas vigentes hoje</div>
+
+        <!-- CARDS das taxas atuais -->
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:32px">
+          <div class="fin-card" style="background:#fff8e1;border-color:#ffe082;text-align:center">
+            <div class="fin-label">Crédito à vista</div>
+            <div class="fin-valor" style="font-size:26px;color:#f57f17">{{ "{:,.2f}".format(taxa_atual.credito_vista|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</div>
+            <div class="fin-hint">operadora + antecipação</div>
+          </div>
+          <div class="fin-card" style="background:#fff8e1;border-color:#ffe082;text-align:center">
+            <div class="fin-label">Crédito parcelado</div>
+            <div class="fin-valor" style="font-size:26px;color:#f57f17">{{ "{:,.2f}".format(taxa_atual.credito_parcelado|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</div>
+            <div class="fin-hint">operadora + antecipação</div>
+          </div>
+          <div class="fin-card" style="background:#e8f5e9;border-color:#c5e1a5;text-align:center">
+            <div class="fin-label">Débito</div>
+            <div class="fin-valor" style="font-size:26px;color:#2e7d32">{{ "{:,.2f}".format(taxa_atual.debito|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</div>
+            <div class="fin-hint">operadora + antecipação</div>
+          </div>
+          <div class="fin-card" style="background:#e8f5e9;border-color:#c5e1a5;text-align:center">
+            <div class="fin-label">Link de pagamento</div>
+            <div class="fin-valor" style="font-size:26px;color:#2e7d32">{{ "{:,.2f}".format(taxa_atual.link|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</div>
+            <div class="fin-hint">operadora + antecipação</div>
+          </div>
+          <div class="fin-card" style="background:#fce4ec;border-color:#f48fb1;text-align:center">
+            <div class="fin-label">Antecipação</div>
+            <div class="fin-valor" style="font-size:26px;color:#c0396b">{{ "{:,.2f}".format(taxa_atual.antecipacao|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</div>
+            <div class="fin-hint">aplicada em todas as formas</div>
+          </div>
+        </div>
+
+        <!-- SIMULADOR -->
+        <div class="section-sep" style="margin-bottom:20px">Simulador de desconto</div>
+        <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
+          <div class="form-field" style="width:200px">
+            <span class="form-label">Valor da venda (R$)</span>
+            <input class="form-input" type="text" id="simValor" inputmode="numeric" placeholder="0,00" oninput="simular()">
+          </div>
+          <div class="form-field" style="width:220px">
+            <span class="form-label">Forma de pagamento</span>
+            <select class="form-input" id="simForma" onchange="simular()" style="cursor:pointer">
+              <option value="">Selecione...</option>
+              <option value="credito_vista">Crédito à vista</option>
+              <option value="credito_parcelado">Crédito parcelado</option>
+              <option value="debito">Débito</option>
+              <option value="link">Link de pagamento</option>
+            </select>
+          </div>
+          <div id="simResultado" style="display:none;padding:16px 24px;background:#f8f8fc;border:1.5px solid #e8e8f0;border-radius:10px;min-width:280px">
+            <div style="display:flex;gap:32px">
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:4px">Bruto</div>
+                <div style="font-size:18px;font-weight:700;color:#1a1a2e" id="simBruto">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:4px">Desconto</div>
+                <div style="font-size:18px;font-weight:700;color:#c62828" id="simDesconto">—</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:4px">Líquido</div>
+                <div style="font-size:18px;font-weight:700;color:#2e7d32" id="simLiquido">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FORM NOVA TAXA -->
+        <div class="section-sep" style="margin:28px 0 20px">Registrar nova tabela de taxas</div>
+        <form method="POST" action="/taxas">
+          <div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:20px 24px;margin-bottom:20px">
+            <div style="font-size:12px;font-weight:600;color:#f57f17;margin-bottom:4px">⚠️ Atenção</div>
+            <div style="font-size:13px;color:#555">As novas taxas só serão aplicadas às vendas a partir da data de vigência informada. Vendas anteriores mantêm as taxas do período.</div>
+          </div>
+          <div class="form-grid">
+            <div class="form-field">
+              <span class="form-label">Data de vigência *</span>
+              <input class="form-input" type="date" name="vigencia_em" required
+                     value="{{ today }}" min="{{ today }}">
+              <div class="campo-hint">Não pode ser retroativa</div>
+            </div>
+            <div class="form-field">
+              <span class="form-label">Antecipação (%)</span>
+              <input class="form-input" type="text" name="antecipacao" placeholder="0,00"
+                     value="{{ '{:,.2f}'.format(taxa_atual.antecipacao|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
+            </div>
+            <div class="form-field">
+              <span class="form-label">Crédito à vista (%)</span>
+              <input class="form-input" type="text" name="credito_vista" placeholder="0,00"
+                     value="{{ '{:,.2f}'.format(taxa_atual.credito_vista|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
+            </div>
+            <div class="form-field">
+              <span class="form-label">Crédito parcelado (%)</span>
+              <input class="form-input" type="text" name="credito_parcelado" placeholder="0,00"
+                     value="{{ '{:,.2f}'.format(taxa_atual.credito_parcelado|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
+            </div>
+            <div class="form-field">
+              <span class="form-label">Débito (%)</span>
+              <input class="form-input" type="text" name="debito" placeholder="0,00"
+                     value="{{ '{:,.2f}'.format(taxa_atual.debito|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
+            </div>
+            <div class="form-field">
+              <span class="form-label">Link de pagamento (%)</span>
+              <input class="form-input" type="text" name="link" placeholder="0,00"
+                     value="{{ '{:,.2f}'.format(taxa_atual.link|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
+            </div>
+          </div>
+          <div class="modal-footer" style="margin-top:8px">
+            <button type="submit" class="btn-salvar" style="display:inline-flex;align-items:center;gap:8px">
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><path d="M4 4h10l4 4v10a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.8"/><path d="M8 21v-7h6v7M8 4v4h6V4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Salvar nova tabela de taxas
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- HISTÓRICO -->
+      <div class="table-wrap" style="margin-bottom:24px">
+        <div style="padding:20px 24px;border-bottom:1.5px solid var(--cor-borda)">
+          <div style="font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;color:#1a1a2e">Histórico de taxas</div>
+          <div style="font-size:12px;color:#aaa;margin-top:2px">Útil para negociações com o banco</div>
+        </div>
+        <table class="etable">
+          <thead>
+            <tr>
+              <th>Data vigência</th>
+              <th>Créd. à vista</th>
+              <th>Créd. parc.</th>
+              <th>Débito</th>
+              <th>Link</th>
+              <th>Antecipação</th>
+              <th>Registrado por</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in historico %}
+            <tr {% if loop.first %}style="background:#fffde7"{% endif %}>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  {% if loop.first %}<span style="background:#f9a825;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px">ATUAL</span>{% endif %}
+                  <strong>{{ h.vigencia_em.strftime('%d/%m/%Y') }}</strong>
+                </div>
+              </td>
+              <td>{{ "{:,.2f}".format(h.credito_vista|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</td>
+              <td>{{ "{:,.2f}".format(h.credito_parcelado|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</td>
+              <td>{{ "{:,.2f}".format(h.debito|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</td>
+              <td>{{ "{:,.2f}".format(h.link|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</td>
+              <td style="color:#c0396b;font-weight:700">{{ "{:,.2f}".format(h.antecipacao|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</td>
+              <td style="color:#aaa">{{ h.usuario_nome or '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty-row">Nenhum registro ainda.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+/* Taxas vigentes para o simulador */
+const taxas = {
+  credito_vista:     {{ taxa_atual.credito_vista|float }},
+  credito_parcelado: {{ taxa_atual.credito_parcelado|float }},
+  debito:            {{ taxa_atual.debito|float }},
+  link:              {{ taxa_atual.link|float }},
+  antecipacao:       {{ taxa_atual.antecipacao|float }}
+};
+
+function parseMoeda(s) {
+  if (!s) return 0;
+  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+function fmtBRL(v) {
+  return 'R$ ' + v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+}
+function fmtPct(v) {
+  return v.toFixed(2).replace('.',',') + '%';
+}
+
+function simular() {
+  const valor = parseMoeda(document.getElementById('simValor').value);
+  const forma = document.getElementById('simForma').value;
+  const res   = document.getElementById('simResultado');
+  if (!valor || !forma) { res.style.display='none'; return; }
+  const taxaOp  = taxas[forma] || 0;
+  const taxaAnt = taxas.antecipacao || 0;
+  const taxaTot = taxaOp + taxaAnt;
+  const desconto = Math.round(valor * taxaTot / 100 * 100) / 100;
+  const liquido  = Math.round((valor - desconto) * 100) / 100;
+  const pct      = valor > 0 ? (desconto/valor*100) : 0;
+  document.getElementById('simBruto').textContent    = fmtBRL(valor);
+  document.getElementById('simDesconto').textContent = '- ' + fmtBRL(desconto) + ' (' + fmtPct(pct) + ')';
+  document.getElementById('simLiquido').textContent  = fmtBRL(liquido);
+  res.style.display = 'block';
+}
+
+/* Máscara percentual nos inputs */
+document.querySelectorAll('input[name=credito_vista],input[name=credito_parcelado],input[name=debito],input[name=link],input[name=antecipacao]').forEach(el => {
+  el.addEventListener('input', function() {
+    let v = this.value.replace(/[^0-9,]/g,'');
+    this.value = v;
+  });
+});
+
+/* Máscara moeda no simulador */
+(function() {
+  const el = document.getElementById('simValor');
+  let digits = '';
+  el.addEventListener('keydown', function(e) {
+    if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault(); if(digits.length>=10)return; digits+=e.key;
+      const num=parseInt(digits,10); const val=(num/100).toFixed(2);
+      const parts=val.split('.'); parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+      el.value=parts[0]+','+parts[1]; simular();
+    } else if(e.key==='Backspace'){e.preventDefault();digits=digits.slice(0,-1);
+      if(!digits){el.value='';simular();return;}
+      const num=parseInt(digits,10);const val=(num/100).toFixed(2);
+      const parts=val.split('.');parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+      el.value=parts[0]+','+parts[1];simular();
+    }
+  });
+})();
+</script>
+{% endblock %}

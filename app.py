@@ -11,6 +11,35 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 app.secret_key = os.environ.get('SECRET_KEY', 'cd-gestao-2026-secret')
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
+def get_taxa_vigente(data=None):
+    """Retorna a taxa vigente para uma data específica (ou hoje)."""
+    conn = get_db(); cur = conn.cursor()
+    if data is None:
+        data = date.today()
+    cur.execute("""SELECT * FROM taxas_pagamento
+                   WHERE vigencia_em <= %s
+                   ORDER BY vigencia_em DESC LIMIT 1""", (data,))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    if row:
+        return dict(row)
+    return {'credito_vista':2.06,'credito_parcelado':2.70,'debito':1.59,'link':0.0,'antecipacao':0.0}
+
+def calcular_liquido(valor_bruto, forma_pagamento, taxa):
+    """Calcula valor líquido após taxas da operadora + antecipação."""
+    if not taxa: return valor_bruto, 0, 0
+    taxa_op = 0
+    fp = forma_pagamento or ''
+    if fp == 'credito_vista':     taxa_op = float(taxa.get('credito_vista', 0))
+    elif fp == 'credito_parcelado': taxa_op = float(taxa.get('credito_parcelado', 0))
+    elif fp == 'debito':           taxa_op = float(taxa.get('debito', 0))
+    elif fp == 'link':             taxa_op = float(taxa.get('link', 0))
+    taxa_ant = float(taxa.get('antecipacao', 0))
+    taxa_total = taxa_op + taxa_ant
+    desconto = round(valor_bruto * taxa_total / 100, 2)
+    liquido = round(valor_bruto - desconto, 2)
+    return liquido, desconto, taxa_total
+
 def parse_brl(val, default=0):
     """Converte valor em formato BRL (1.000,00) para float."""
     try:
@@ -104,6 +133,21 @@ def init_db():
         numero_parcela INTEGER, data_vencimento DATE,
         valor NUMERIC(10,2) DEFAULT 0,
         pago BOOLEAN DEFAULT FALSE, data_pagamento DATE)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS taxas_pagamento (
+        id SERIAL PRIMARY KEY,
+        vigencia_em DATE NOT NULL DEFAULT CURRENT_DATE,
+        credito_vista NUMERIC(5,2) DEFAULT 2.06,
+        credito_parcelado NUMERIC(5,2) DEFAULT 2.70,
+        debito NUMERIC(5,2) DEFAULT 1.59,
+        link NUMERIC(5,2) DEFAULT 0.00,
+        antecipacao NUMERIC(5,2) DEFAULT 0.00,
+        usuario_id INTEGER,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    # Inserir taxa padrão se não existir
+    cur.execute("SELECT COUNT(*) as t FROM taxas_pagamento")
+    if cur.fetchone()['t'] == 0:
+        cur.execute("""INSERT INTO taxas_pagamento (vigencia_em,credito_vista,credito_parcelado,debito,link,antecipacao)
+                       VALUES (CURRENT_DATE,2.06,2.70,1.59,0.00,0.00)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS caixa (
         id SERIAL PRIMARY KEY, descricao TEXT,
         valor NUMERIC(10,2) DEFAULT 0, tipo VARCHAR(20) DEFAULT 'entrada',
@@ -842,6 +886,42 @@ def pagar_parcela(cid, pid):
     finally: cur.close(); conn.close()
     return redirect(url_for('crediarios'))
 
+@app.route('/taxas', methods=['GET','POST'])
+@login_required
+def taxas():
+    if session.get('perfil') != 'admin':
+        flash('Apenas administradores podem gerenciar taxas.','erro')
+        return redirect(url_for('caixa'))
+    conn = get_db(); cur = conn.cursor()
+    if request.method == 'POST':
+        try:
+            cv  = parse_brl(request.form.get('credito_vista','0'))
+            cp  = parse_brl(request.form.get('credito_parcelado','0'))
+            deb = parse_brl(request.form.get('debito','0'))
+            lnk = parse_brl(request.form.get('link','0'))
+            ant = parse_brl(request.form.get('antecipacao','0'))
+            vig = request.form.get('vigencia_em', str(date.today()))
+            cur.execute("""INSERT INTO taxas_pagamento
+                (vigencia_em,credito_vista,credito_parcelado,debito,link,antecipacao,usuario_id)
+                VALUES (%s,%s,%s,%s,%s,%s,%s)""",
+                (vig, cv, cp, deb, lnk, ant, session.get('usuario_id')))
+            conn.commit()
+            flash('Taxas atualizadas com sucesso!','ok')
+        except Exception as e:
+            conn.rollback(); flash(str(e),'erro')
+        finally: cur.close(); conn.close()
+        return redirect(url_for('taxas'))
+    # GET
+    taxa_atual = get_taxa_vigente()
+    cur.execute("""SELECT t.*,u.nome as usuario_nome FROM taxas_pagamento t
+                   LEFT JOIN usuarios u ON t.usuario_id=u.id
+                   ORDER BY t.vigencia_em DESC LIMIT 20""")
+    historico = [dict(r) for r in cur.fetchall()]
+    cur.close(); conn.close()
+    ctx = get_ctx()
+    ctx.update(taxa_atual=taxa_atual, historico=historico, today=str(date.today()))
+    return render_template('taxas.html', **ctx)
+
 @app.route('/caixa')
 @login_required
 def caixa():
@@ -858,7 +938,24 @@ def caixa():
     meses = [r['mes'] for r in cur.fetchall()]
     cur.close(); conn.close()
     ctx = get_ctx()
-    ctx.update(movs=movs, entradas=entradas, saidas=saidas, saldo=entradas-saidas,
+    # Calcular líquido por movimento
+    total_desconto = 0
+    for m in movs:
+        if m['tipo'] == 'entrada' and m.get('forma_pagamento') in ['credito_vista','credito_parcelado','debito','link']:
+            taxa_data = get_taxa_vigente(m['criado_em'].date() if hasattr(m.get('criado_em',''), 'date') else date.today())
+            liq, desc, ptc = calcular_liquido(float(m['valor']), m['forma_pagamento'], taxa_data)
+            m['valor_liquido'] = liq
+            m['desconto_taxa'] = desc
+            m['taxa_total_pct'] = ptc
+            total_desconto += desc
+        else:
+            m['valor_liquido'] = float(m['valor'])
+            m['desconto_taxa'] = 0
+            m['taxa_total_pct'] = 0
+    saldo_liquido = round(entradas - saidas - total_desconto, 2)
+    ctx.update(movs=movs, entradas=entradas, saidas=saidas, saldo=round(entradas-saidas,2),
+               total_desconto=round(total_desconto,2), saldo_liquido=saldo_liquido,
+               taxa_vigente=taxa_vigente_hoje,
                mes_atual=mes, meses=meses)
     return render_template('caixa.html', **ctx)
 

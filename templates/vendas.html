@@ -756,7 +756,9 @@ document.addEventListener('DOMContentLoaded', function() {
 /* ── DESCONTO PIX/DINHEIRO ── */
 function parseMoedaD(s) {
   if (!s) return 0;
-  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+  // Remove R$, espaços e pontos de milhar, troca vírgula por ponto
+  const clean = String(s).replace(/R\$\s*/g,'').replace(/\./g,'').replace(',','.').trim();
+  return parseFloat(clean) || 0;
 }
 function fmtBRLD(v) {
   return 'R$ ' + v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
@@ -767,6 +769,12 @@ function toggleDesconto(checked) {
   if (!checked) {
     document.getElementById('descontoValorHidden').value = '0';
     document.getElementById('pctDescontoHidden').value = '0';
+    document.getElementById('descontoValor').value = '';
+    document.getElementById('descontoPct').value = '';
+    document.getElementById('descontoHint').textContent = '';
+    atualizarValorFinal(0, 0);
+  } else {
+    // Mostrar total atual como valor final ao abrir
     atualizarValorFinal(0, 0);
   }
 }

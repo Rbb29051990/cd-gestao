@@ -111,6 +111,8 @@ def init_db():
         usuario_id INTEGER, vendedora_nome VARCHAR(200),
         cliente_id INTEGER, cliente_nome VARCHAR(200),
         valor_total NUMERIC(10,2) DEFAULT 0,
+        desconto NUMERIC(10,2) DEFAULT 0,
+        pct_desconto NUMERIC(5,2) DEFAULT 0,
         forma_pagamento VARCHAR(50), parcelas INTEGER DEFAULT 1,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS venda_itens (
@@ -650,9 +652,17 @@ def vendas():
         vendedoras = [dict(u) for u in cur.fetchall()]
         cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE ORDER BY nome")
         clientes_lista = [dict(c) for c in cur.fetchall()]
+        hoje = date.today()
+        data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+        data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+        try: date.fromisoformat(data_inicio)
+        except: data_inicio = hoje.strftime('%Y-%m-01')
+        try: date.fromisoformat(data_fim)
+        except: data_fim = hoje.strftime('%Y-%m-%d')
         cur.execute("""SELECT v.*, COUNT(vi.id) as qtd_itens FROM vendas v
             LEFT JOIN venda_itens vi ON vi.venda_id=v.id
-            GROUP BY v.id ORDER BY v.criado_em DESC""")
+            WHERE DATE(v.criado_em) BETWEEN %s AND %s
+            GROUP BY v.id ORDER BY v.criado_em DESC""", (data_inicio, data_fim))
         lista_vendas = [dict(v) for v in cur.fetchall()]
         cur.execute("""SELECT c.*,v.criado_em as data_venda FROM crediarios c
             JOIN vendas v ON v.id=c.venda_id ORDER BY c.criado_em DESC""")
@@ -670,7 +680,8 @@ def vendas():
         ctx = get_ctx()
         ctx.update(vendedoras=vendedoras, clientes=clientes_lista,
                    lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
-                   ranking=ranking, meses=meses, now_mes=now_mes, now_mes_label=now_mes_label)
+                   ranking=ranking, meses=meses, now_mes=now_mes, now_mes_label=now_mes_label,
+                   data_inicio=data_inicio, data_fim=data_fim)
         return render_template('vendas.html', **ctx)
     except Exception as e:
         return "<pre style='padding:20px'>ERRO VENDAS: " + str(e) + "</pre>", 500
@@ -686,14 +697,16 @@ def nova_venda():
         cliente_nome = request.form.get('cliente_nome','').strip()
         forma = request.form.get('forma_pagamento','').strip()
         parcelas = int(request.form.get('parcelas',1) or 1)
-        valor_total = float(request.form.get('valor_total',0) or 0)
+        valor_total  = parse_brl(request.form.get('valor_total','0'))
+        desconto     = parse_brl(request.form.get('desconto_valor','0'))
+        pct_desconto = parse_brl(request.form.get('pct_desconto','0'))
         itens = json.loads(request.form.get('itens','[]'))
         cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM vendas WHERE codigo ~ '^V[0-9]+$'")
         n = cur.fetchone()['n']
         cod = f"V{n+1}"
         cur.execute("""INSERT INTO vendas (codigo,usuario_id,vendedora_nome,cliente_id,cliente_nome,
-            valor_total,forma_pagamento,parcelas) VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-            (cod,usuario_id or None,vendedora_nome,cliente_id or None,cliente_nome,valor_total,forma,parcelas))
+            valor_total,desconto,pct_desconto,forma_pagamento,parcelas) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (cod,usuario_id or None,vendedora_nome,cliente_id or None,cliente_nome,valor_total,desconto,pct_desconto,forma,parcelas))
         venda_id = cur.fetchone()['id']
         for item in itens:
             pid = item.get('produto_id')

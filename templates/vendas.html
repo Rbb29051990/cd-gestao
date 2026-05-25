@@ -135,8 +135,28 @@
         </div>
 
         <!-- LISTAGEM -->
-        <div class="list-header">
-          <div><div class="page-title">Vendas</div><div class="page-date">{{ lista_vendas|length }} venda(s) registrada(s)</div></div>
+        <div class="list-header" style="flex-wrap:wrap;gap:12px">
+          <div>
+            <div class="page-title">Vendas</div>
+            <div class="page-date">{{ lista_vendas|length }} venda(s) no período</div>
+          </div>
+          <form method="GET" id="formFiltroVendas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
+              <input type="date" name="data_inicio" class="form-input" style="width:auto;padding:9px 14px"
+                     value="{{ data_inicio }}" onchange="this.form.submit()">
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
+              <input type="date" name="data_fim" class="form-input" style="width:auto;padding:9px 14px"
+                     value="{{ data_fim }}" onchange="this.form.submit()">
+            </div>
+            <div style="display:flex;gap:6px">
+              <button type="button" class="filtro-btn" onclick="atalhoVendas('hoje')">Hoje</button>
+              <button type="button" class="filtro-btn" onclick="atalhoVendas('semana')">7 dias</button>
+              <button type="button" class="filtro-btn" onclick="atalhoVendas('mes')">Mês</button>
+            </div>
+          </form>
           <button class="btn-acao" onclick="document.getElementById('modalVenda').style.display='flex'">+ Nova venda</button>
         </div>
         <div class="table-wrap">
@@ -144,8 +164,8 @@
             <thead><tr>
               <th onclick="ordenarV(0)">Data</th><th onclick="ordenarV(1)">Cód</th>
               <th onclick="ordenarV(2)">Vendedora</th><th onclick="ordenarV(3)">Cliente</th>
-              <th onclick="ordenarV(4)">Itens</th><th onclick="ordenarV(5)">Valor</th>
-              <th>Pagamento</th><th></th>
+              <th onclick="ordenarV(4)">Itens</th><th onclick="ordenarV(5)">Valor venda</th>
+              <th>Desconto</th><th>Valor final</th><th>Pagamento</th><th></th>
             </tr></thead>
             <tbody id="tbodyVendas">
               {% for v in lista_vendas %}
@@ -156,6 +176,15 @@
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.cliente_nome or '—' }}</td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">{{ v.qtd_itens }}</td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer;font-weight:700">R$ {{ "{:,.2f}".format(v.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">
+                  {% if v.desconto and v.desconto > 0 %}
+                  <span style="color:#c62828;font-weight:700">- R$ {{ "{:,.2f}".format(v.desconto|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+                  <span style="font-size:11px;color:#aaa"> ({{ "{:,.1f}".format(v.pct_desconto|float)|replace(".",",") }}%)</span>
+                  {% else %}<span style="color:#ccc">—</span>{% endif %}
+                </td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer;font-weight:700;color:#2e7d32">
+                  R$ {{ "{:,.2f}".format((v.valor_total|float - (v.desconto|float if v.desconto else 0)))|replace(",","X")|replace(".",",")|replace("X",".") }}
+                </td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">
                   {% if v.forma_pagamento=='pix' %}<span class="badge bp-pix">⚡ Pix</span>
                   {% elif v.forma_pagamento=='dinheiro' %}<span class="badge bp-dinheiro">💵 Dinheiro</span>
@@ -192,6 +221,8 @@
       <input type="hidden" name="valor_total" id="valorTotalHidden" value="0">
       <input type="hidden" name="parcelas_datas" id="parcelasDatasJson" value="[]">
       <input type="hidden" name="forma_pagamento" id="formaPagamento">
+      <input type="hidden" name="desconto_valor" id="descontoValorHidden" value="0">
+      <input type="hidden" name="pct_desconto" id="pctDescontoHidden" value="0">
 
       <div class="step-sep">1. Vendedora e cliente</div>
       <div class="form-grid2">
@@ -260,6 +291,39 @@
         <button type="button" class="pg-opt" onclick="selPg('credito_parcelado',this)">💳 Crédito parc.</button>
         <button type="button" class="pg-opt" onclick="selPg('link',this)">🔗 Link</button>
         <button type="button" class="pg-opt" id="btnCrediario" onclick="selPg('crediario',this)" disabled style="opacity:0.4">📋 Crediário</button>
+      </div>
+
+      <!-- DESCONTO (pix e dinheiro) -->
+      <div id="secDesconto" style="display:none;margin-bottom:14px;background:#f0faf4;border:1.5px solid #c5e1a5;border-radius:10px;padding:18px 20px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#2e7d32;margin-bottom:14px">💸 Desconto</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <span style="font-size:13px;font-weight:600;color:#333">Deseja conceder desconto?</span>
+          <div style="display:flex;gap:8px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600">
+              <input type="checkbox" id="chkDesconto" onchange="toggleDesconto(this.checked)" style="width:16px;height:16px;accent-color:#2e7d32">
+              Sim
+            </label>
+          </div>
+        </div>
+        <div id="camposDesconto" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+            <div class="form-field" style="margin:0">
+              <span class="form-label">Valor do desconto (R$)</span>
+              <input class="form-input" type="text" id="descontoValor" inputmode="numeric" placeholder="0,00"
+                     style="border-color:#2e7d32">
+            </div>
+            <div class="form-field" style="margin:0">
+              <span class="form-label">% Desconto</span>
+              <input class="form-input" type="text" id="descontoPct" placeholder="0,00"
+                     style="border-color:#2e7d32" oninput="calcDescontoPct(this.value)">
+              <div class="campo-hint" id="descontoHint"></div>
+            </div>
+          </div>
+          <div style="background:#fff;border:1.5px solid #c5e1a5;border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:12px;color:#aaa;font-weight:600">VALOR FINAL</div>
+            <div style="font-size:20px;font-weight:700;color:#2e7d32" id="valorFinalDesconto">R$ 0,00</div>
+          </div>
+        </div>
       </div>
 
       <div id="secParcelado" style="display:none;margin-bottom:14px">
@@ -456,6 +520,15 @@ function selPg(tipo, btn) {
   document.getElementById('formaPagamento').value = tipo;
   document.getElementById('secParcelado').style.display = tipo==='credito_parcelado' ? 'block' : 'none';
   document.getElementById('secCrediario').style.display = tipo==='crediario' ? 'block' : 'none';
+  // Mostrar seção de desconto só para pix e dinheiro
+  const temDesconto = (tipo==='pix' || tipo==='dinheiro');
+  document.getElementById('secDesconto').style.display = temDesconto ? 'block' : 'none';
+  if (!temDesconto) {
+    document.getElementById('chkDesconto').checked = false;
+    document.getElementById('camposDesconto').style.display = 'none';
+    document.getElementById('descontoValorHidden').value = '0';
+    document.getElementById('pctDescontoHidden').value = '0';
+  }
 }
 
 /* ── MÁSCARA MOEDA ENTRADA (caixa registradora) ── */
@@ -644,6 +717,88 @@ function ordenarV(col) {
 // Inicializar máscara de moeda no campo entrada
 document.addEventListener('DOMContentLoaded', function() {
   initMoeda(document.getElementById('entradaVal'), calcSaldo);
+  // Máscara no campo desconto valor
+  const dvEl = document.getElementById('descontoValor');
+  if (dvEl) {
+    let dvDigits = '';
+    dvEl.addEventListener('keydown', function(e) {
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault(); if(dvDigits.length>=10)return; dvDigits+=e.key;
+        const num=parseInt(dvDigits,10); const val=(num/100).toFixed(2);
+        const parts=val.split('.'); parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+        dvEl.value=parts[0]+','+parts[1];
+        // Sync
+        const desc = parseMoedaD(dvEl.value);
+        const total = parseMoedaD(document.getElementById('totalVenda').textContent);
+        const pct = total > 0 ? (desc/total*100) : 0;
+        document.getElementById('descontoPct').value = pct.toFixed(2).replace('.',',');
+        document.getElementById('descontoValorHidden').value = desc.toFixed(2);
+        document.getElementById('pctDescontoHidden').value = pct.toFixed(2);
+        atualizarValorFinal(desc, pct);
+      } else if(e.key==='Backspace') {
+        e.preventDefault(); dvDigits=dvDigits.slice(0,-1);
+        if(!dvDigits){dvEl.value=''; atualizarValorFinal(0,0); return;}
+        const num=parseInt(dvDigits,10); const val=(num/100).toFixed(2);
+        const parts=val.split('.'); parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+        dvEl.value=parts[0]+','+parts[1];
+        const desc=parseMoedaD(dvEl.value);
+        const total=parseMoedaD(document.getElementById('totalVenda').textContent);
+        const pct=total>0?(desc/total*100):0;
+        document.getElementById('descontoValorHidden').value=desc.toFixed(2);
+        document.getElementById('pctDescontoHidden').value=pct.toFixed(2);
+        atualizarValorFinal(desc,pct);
+      }
+    });
+    dvEl.addEventListener('blur', function() { if(!dvDigits) dvEl.value=''; });
+  }
 });
+
+/* ── DESCONTO PIX/DINHEIRO ── */
+function parseMoedaD(s) {
+  if (!s) return 0;
+  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+function fmtBRLD(v) {
+  return 'R$ ' + v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+}
+
+function toggleDesconto(checked) {
+  document.getElementById('camposDesconto').style.display = checked ? 'block' : 'none';
+  if (!checked) {
+    document.getElementById('descontoValorHidden').value = '0';
+    document.getElementById('pctDescontoHidden').value = '0';
+    atualizarValorFinal(0, 0);
+  }
+}
+
+function calcDescontoPct(pct) {
+  const p = parseFloat(String(pct).replace(',','.')) || 0;
+  const total = parseMoedaD(document.getElementById('totalVenda').textContent);
+  const desc = Math.round(total * p / 100 * 100) / 100;
+  // Atualizar campo valor
+  document.getElementById('descontoValorHidden').value = desc.toFixed(2);
+  document.getElementById('pctDescontoHidden').value = p.toFixed(2);
+  document.getElementById('descontoHint').textContent = desc > 0 ? '= ' + fmtBRLD(desc) + ' de desconto' : '';
+  atualizarValorFinal(desc, p);
+}
+
+function atualizarValorFinal(desc, pct) {
+  const total = parseMoedaD(document.getElementById('totalVenda').textContent);
+  const final = Math.max(0, total - desc);
+  document.getElementById('valorFinalDesconto').textContent = fmtBRLD(final);
+}
+
+function atalhoVendas(tipo) {
+  const hoje = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  let ini, fim = fmt(hoje);
+  if (tipo === 'hoje') ini = fmt(hoje);
+  else if (tipo === 'semana') { const d=new Date(hoje); d.setDate(d.getDate()-6); ini=fmt(d); }
+  else if (tipo === 'mes') ini = fmt(hoje).slice(0,7)+'-01';
+  const form = document.getElementById('formFiltroVendas');
+  form.querySelector('[name=data_inicio]').value = ini;
+  form.querySelector('[name=data_fim]').value = fim;
+  form.submit();
+}
 </script>
 {% endblock %}

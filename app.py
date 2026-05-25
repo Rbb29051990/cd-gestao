@@ -41,10 +41,21 @@ def calcular_liquido(valor_bruto, forma_pagamento, taxa):
     return liquido, desconto, taxa_total
 
 def parse_brl(val, default=0):
-    """Converte valor em formato BRL (1.000,00) para float."""
+    """Converte valor BRL (1.000,00) ou americano (1000.00) para float."""
     try:
         if not val: return default
-        return float(str(val).replace('.','').replace(',','.'))
+        s = str(val).strip().replace('R$','').replace(' ','')
+        # Formato americano: tem ponto como decimal (ex: 120.00, 1000.50)
+        # Formato BRL: tem vírgula como decimal (ex: 120,00 ou 1.000,00)
+        if ',' in s and '.' in s:
+            # Ex: 1.000,00 → BRL
+            return float(s.replace('.','').replace(',','.'))
+        elif ',' in s:
+            # Ex: 120,00 → BRL sem milhar
+            return float(s.replace(',','.'))
+        else:
+            # Ex: 120.00 ou 1000 → americano ou inteiro
+            return float(s)
     except:
         return default
 

@@ -959,8 +959,11 @@ def caixa():
             m['valor_liquido'] = float(m['valor'])
             m['desconto_taxa'] = 0
             m['taxa_total_pct'] = 0
-    saldo_liquido = round(entradas - saidas - total_desconto, 2)
-    ctx.update(movs=movs, entradas=entradas, saidas=saidas, saldo=round(entradas-saidas,2),
+    saldo_bruto   = round(entradas - total_desconto, 2)
+    saldo_liquido = round(saldo_bruto - saidas, 2)
+    ctx.update(movs=movs, entradas=entradas, saidas=saidas,
+               saldo=round(entradas-saidas,2),
+               saldo_bruto=saldo_bruto,
                total_desconto=round(total_desconto,2), saldo_liquido=saldo_liquido,
                taxa_vigente=taxa_vigente_hoje,
                data_inicio=data_inicio, data_fim=data_fim)

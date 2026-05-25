@@ -1115,6 +1115,36 @@ with app.app_context():
 if __name__ == '__main__':
     app.run(debug=False)
 
+@app.route('/admin/limpar-caixa-orfaos')
+@login_required
+def limpar_caixa_orfaos():
+    if session.get('perfil') != 'admin':
+        return 'Acesso negado', 403
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Remover registros do caixa cujas vendas não existem mais
+        cur.execute("""DELETE FROM caixa
+                       WHERE venda_id IS NOT NULL
+                       AND venda_id NOT IN (SELECT id FROM vendas)""")
+        removidos = cur.rowcount
+        # Remover crediários órfãos
+        cur.execute("""DELETE FROM crediarios
+                       WHERE venda_id IS NOT NULL
+                       AND venda_id NOT IN (SELECT id FROM vendas)""")
+        cred_removidos = cur.rowcount
+        conn.commit()
+        return f"""<div style='font-family:monospace;padding:40px'>
+        <b>✅ Limpeza concluída!</b><br><br>
+        Registros de caixa removidos: <b>{removidos}</b><br>
+        Crediários órfãos removidos: <b>{cred_removidos}</b><br><br>
+        <a href='/caixa'>← Voltar ao Caixa</a>
+        </div>"""
+    except Exception as e:
+        conn.rollback()
+        return f'Erro: {e}', 500
+    finally:
+        cur.close(); conn.close()
+
 @app.route('/versao')
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>

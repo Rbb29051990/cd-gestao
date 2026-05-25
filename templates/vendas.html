@@ -558,11 +558,11 @@ function atualizarConferencia() {
 
 function prepararEnvio() {
   // ── Validações obrigatórias ──
-  const vendedora = document.getElementById('vendedoraSel')?.value;
+  const vendedora = document.getElementById('selVendedora')?.value;
   if (!vendedora) { alert('⚠️ Selecione a vendedora antes de finalizar.'); return false; }
 
   const cliente = document.getElementById('clienteNome')?.value?.trim();
-  if (!cliente) { alert('⚠️ Informe o cliente antes de finalizar.'); return false; }
+  if (!cliente) { alert('⚠️ Informe o nome do cliente antes de finalizar.'); return false; }
 
   if (carrinhoItens.length === 0) { alert('⚠️ Adicione pelo menos um produto ao carrinho.'); return false; }
 

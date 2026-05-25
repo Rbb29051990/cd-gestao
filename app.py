@@ -112,7 +112,7 @@ def init_db():
         cliente_id INTEGER, cliente_nome VARCHAR(200),
         valor_total NUMERIC(10,2) DEFAULT 0,
         desconto NUMERIC(10,2) DEFAULT 0,
-        pct_desconto NUMERIC(5,2) DEFAULT 0,
+        pct_desconto NUMERIC(6,2) DEFAULT 0,
         forma_pagamento VARCHAR(50), parcelas INTEGER DEFAULT 1,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS venda_itens (
@@ -166,7 +166,8 @@ def init_db():
     # ── MIGRAÇÕES — adiciona colunas novas em tabelas existentes ──
     migracoes = [
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS desconto NUMERIC(10,2) DEFAULT 0",
-        "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS pct_desconto NUMERIC(5,2) DEFAULT 0",
+        "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS pct_desconto NUMERIC(6,2) DEFAULT 0",
+        "ALTER TABLE vendas ALTER COLUMN pct_desconto TYPE NUMERIC(6,2)",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS dias_estoque INTEGER DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS margem_lucro NUMERIC(10,2) DEFAULT 0",
@@ -713,7 +714,8 @@ def nova_venda():
         parcelas = int(request.form.get('parcelas',1) or 1)
         valor_total  = parse_brl(request.form.get('valor_total','0'))
         desconto     = parse_brl(request.form.get('desconto_valor','0'))
-        pct_desconto = parse_brl(request.form.get('pct_desconto','0'))
+        pct_desconto = min(100.0, max(0.0, parse_brl(request.form.get('pct_desconto','0'))))
+        desconto     = min(desconto, valor_total)  # desconto nunca maior que o total
         itens = json.loads(request.form.get('itens','[]'))
         cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM vendas WHERE codigo ~ '^V[0-9]+$'")
         n = cur.fetchone()['n']

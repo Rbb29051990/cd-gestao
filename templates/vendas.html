@@ -223,6 +223,7 @@
       <input type="hidden" name="forma_pagamento" id="formaPagamento">
       <input type="hidden" name="desconto_valor" id="descontoValorHidden" value="0">
       <input type="hidden" name="pct_desconto" id="pctDescontoHidden" value="0">
+      <input type="hidden" name="valor_final" id="valorFinalHidden" value="0">
 
       <div class="step-sep">1. Vendedora e cliente</div>
       <div class="form-grid2">
@@ -678,6 +679,11 @@ function prepararEnvio() {
     if (data && val) parcelas.push({data, valor: val});
   }
   document.getElementById('parcelasDatasJson').value = JSON.stringify(parcelas);
+  // Calcular valor_final = total - desconto e enviar ao servidor
+  const vTotal = parseFloat(document.getElementById('valorTotalHidden').value || 0);
+  const vDesc  = parseFloat(document.getElementById('descontoValorHidden').value || 0);
+  const vFinal = Math.max(0, Math.round((vTotal - vDesc) * 100) / 100);
+  document.getElementById('valorFinalHidden').value = vFinal.toFixed(2);
   return true;
 }
 

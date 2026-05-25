@@ -756,9 +756,24 @@ def nova_venda():
             for i,p in enumerate(json.loads(request.form.get('parcelas_datas','[]'))):
                 cur.execute("INSERT INTO crediario_parcelas (crediario_id,numero_parcela,data_vencimento,valor) VALUES (%s,%s,%s,%s)",
                     (cred_id,i+1,p.get('data'),float(p.get('valor',0))))
-        cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
-            VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
-            (f"Venda {cod} - {cliente_nome}",valor_total,forma,venda_id,usuario_id or None,vendedora_nome))
+        # Valor final = total - desconto (enviado já calculado pelo JS)
+        valor_final_form = parse_brl(request.form.get('valor_final', '0'))
+        valor_final = valor_final_form if valor_final_form > 0 else round(valor_total - desconto, 2)
+
+        # Registrar no caixa conforme forma de pagamento
+        formas_a_vista = ['pix','dinheiro','debito','credito_vista','credito_parcelado','link']
+        if forma in formas_a_vista:
+            # Entra tudo no caixa no dia
+            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
+                VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
+                (f"Venda {cod} - {cliente_nome}", valor_final, forma, venda_id, usuario_id or None, vendedora_nome))
+        elif forma == 'crediario':
+            # Só registra a entrada paga (se houver)
+            if entrada > 0:
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
+                    VALUES (%s,%s,'entrada','crediario',%s,%s,%s)""",
+                    (f"Entrada crediário - {cliente_nome}", entrada, venda_id, usuario_id or None, vendedora_nome))
+
         conn.commit(); flash('Venda registrada!','ok')
     except Exception as e:
         conn.rollback(); flash(str(e),'erro')

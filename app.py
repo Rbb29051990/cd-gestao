@@ -926,16 +926,22 @@ def taxas():
 @login_required
 def caixa():
     conn = get_db(); cur = conn.cursor()
-    mes = request.args.get('mes', datetime.now().strftime('%Y-%m'))
-    cur.execute("SELECT * FROM caixa WHERE TO_CHAR(criado_em,'YYYY-MM')=%s ORDER BY criado_em DESC",(mes,))
+    hoje = date.today()
+    # Suporte a filtro por data_inicio e data_fim
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+    # Garantir formato correto
+    try: date.fromisoformat(data_inicio)
+    except: data_inicio = hoje.strftime('%Y-%m-01')
+    try: date.fromisoformat(data_fim)
+    except: data_fim = hoje.strftime('%Y-%m-%d')
+    cur.execute("SELECT * FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em DESC",(data_inicio, data_fim))
     movs = [dict(m) for m in cur.fetchall()]
     cur.execute("""SELECT COALESCE(SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END),0) as entradas,
         COALESCE(SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END),0) as saidas
-        FROM caixa WHERE TO_CHAR(criado_em,'YYYY-MM')=%s""",(mes,))
+        FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s""",(data_inicio, data_fim))
     tots = cur.fetchone()
     entradas = float(tots['entradas']); saidas = float(tots['saidas'])
-    cur.execute("SELECT DISTINCT TO_CHAR(criado_em,'YYYY-MM') as mes FROM caixa ORDER BY mes DESC")
-    meses = [r['mes'] for r in cur.fetchall()]
     cur.close(); conn.close()
     taxa_vigente_hoje = get_taxa_vigente()
     ctx = get_ctx()
@@ -957,7 +963,7 @@ def caixa():
     ctx.update(movs=movs, entradas=entradas, saidas=saidas, saldo=round(entradas-saidas,2),
                total_desconto=round(total_desconto,2), saldo_liquido=saldo_liquido,
                taxa_vigente=taxa_vigente_hoje,
-               mes_atual=mes, meses=meses)
+               data_inicio=data_inicio, data_fim=data_fim)
     return render_template('caixa.html', **ctx)
 
 @app.route('/despesas')

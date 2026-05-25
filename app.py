@@ -801,8 +801,12 @@ def excluir_venda(vid):
         for item in cur.fetchall():
             if item['produto_id']:
                 cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s",(item['quantidade'],item['produto_id']))
+        # Remover registros do caixa vinculados a esta venda
+        cur.execute("DELETE FROM caixa WHERE venda_id=%s",(vid,))
+        # Remover crediário vinculado (e suas parcelas)
+        cur.execute("DELETE FROM crediarios WHERE venda_id=%s",(vid,))
         cur.execute("DELETE FROM vendas WHERE id=%s",(vid,))
-        conn.commit(); flash('Venda excluida. Estoque restaurado.','ok')
+        conn.commit(); flash('Venda excluída. Estoque e caixa restaurados.','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); conn.close()
     return redirect(url_for('vendas'))

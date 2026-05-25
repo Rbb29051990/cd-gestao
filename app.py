@@ -163,6 +163,20 @@ def init_db():
         forma_pagamento VARCHAR(50), usuario_id INTEGER, usuario_nome VARCHAR(200),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     conn.commit()
+    # ── MIGRAÇÕES — adiciona colunas novas em tabelas existentes ──
+    migracoes = [
+        "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS desconto NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS pct_desconto NUMERIC(5,2) DEFAULT 0",
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS dias_estoque INTEGER DEFAULT 0",
+        "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS margem_lucro NUMERIC(10,2) DEFAULT 0",
+    ]
+    for sql in migracoes:
+        try:
+            cur.execute(sql)
+        except Exception:
+            conn.rollback()
+    conn.commit()
     try:
         for cod, nome, senha in [('F1','Renan Barcellos','renan123'),('F2','Carol Duarte','carol123')]:
             cur.execute("SELECT id FROM usuarios WHERE nome=%s",(nome,))

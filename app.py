@@ -981,11 +981,16 @@ def caixa():
     except: data_fim = hoje.strftime('%Y-%m-%d')
     cur.execute("SELECT * FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em DESC",(data_inicio, data_fim))
     movs = [dict(m) for m in cur.fetchall()]
-    cur.execute("""SELECT COALESCE(SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END),0) as entradas,
-        COALESCE(SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END),0) as saidas
+    cur.execute("""SELECT
+        COALESCE(SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END),0) as entradas,
+        COALESCE(SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END),0) as saidas,
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND (forma_pagamento NOT IN ('crediario') OR forma_pagamento IS NULL) AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_vendas,
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' THEN valor ELSE 0 END),0) as entradas_crediarios
         FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s""",(data_inicio, data_fim))
     tots = cur.fetchone()
     entradas = float(tots['entradas']); saidas = float(tots['saidas'])
+    entradas_vendas     = float(tots['entradas_vendas'])
+    entradas_crediarios = float(tots['entradas_crediarios'])
     cur.close(); conn.close()
     taxa_vigente_hoje = get_taxa_vigente()
     ctx = get_ctx()
@@ -1006,6 +1011,7 @@ def caixa():
     saldo_bruto   = round(entradas - total_desconto, 2)
     saldo_liquido = round(saldo_bruto - saidas, 2)
     ctx.update(movs=movs, entradas=entradas, saidas=saidas,
+               entradas_vendas=entradas_vendas, entradas_crediarios=entradas_crediarios,
                saldo=round(entradas-saidas,2),
                saldo_bruto=saldo_bruto,
                total_desconto=round(total_desconto,2), saldo_liquido=saldo_liquido,

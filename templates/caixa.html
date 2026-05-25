@@ -64,7 +64,16 @@
         <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:20px 24px;box-shadow:0 4px 14px rgba(0,0,0,0.05);border-top:3px solid #2e7d32">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:8px">Total entradas</div>
           <div style="font-size:22px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(entradas)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
-          <div style="font-size:11px;color:#aaa;margin-top:4px">valor bruto recebido</div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e8e8f0;display:flex;flex-direction:column;gap:5px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#aaa;font-weight:600">📦 Vendas</span>
+              <span style="font-size:12px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(entradas_vendas)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#aaa;font-weight:600">📋 Crediários</span>
+              <span style="font-size:12px;font-weight:700;color:#1565c0">R$ {{ "{:,.2f}".format(entradas_crediarios)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+            </div>
+          </div>
         </div>
 
         <!-- 2. TAXAS DESCONTADAS -->

@@ -70,8 +70,12 @@
               <span style="font-size:12px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(entradas_vendas)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-size:11px;color:#aaa;font-weight:600">📋 Crediários</span>
-              <span style="font-size:12px;font-weight:700;color:#1565c0">R$ {{ "{:,.2f}".format(entradas_crediarios)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+              <span style="font-size:11px;color:#aaa;font-weight:600">📋 Crediário (entradas)</span>
+              <span style="font-size:12px;font-weight:700;color:#1565c0">R$ {{ "{:,.2f}".format(entradas_cred_entrada|default(0))|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#aaa;font-weight:600">💳 Crediário (parcelas)</span>
+              <span style="font-size:12px;font-weight:700;color:#1565c0">R$ {{ "{:,.2f}".format(entradas_cred_parcelas|default(0))|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
             </div>
           </div>
         </div>

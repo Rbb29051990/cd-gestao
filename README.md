@@ -1,4 +1,9 @@
-# CD Gestão Empresarial — v61
+# CD Gestão Empresarial — v62
+
+## Novidades da v62 (2026-06-04)
+- **Caixa — crediário detalhado**: o card "Total entradas" agora separa o crediário em duas linhas:
+  - **Crediário (entradas)** — valor de entrada/sinal pago no momento da venda no crediário.
+  - **Crediário (parcelas)** — pagamentos de parcelas recebidos na aba Crediários.
 
 ## Novidades da v61 (2026-06-04)
 - Corrigido vazamento de conexão na tela de Estoque (esgotava o banco em produção).

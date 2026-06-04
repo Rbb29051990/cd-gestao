@@ -1013,12 +1013,16 @@ def caixa():
         COALESCE(SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END),0) as entradas,
         COALESCE(SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END),0) as saidas,
         COALESCE(SUM(CASE WHEN tipo='entrada' AND (forma_pagamento NOT IN ('crediario') OR forma_pagamento IS NULL) AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_vendas,
-        COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' THEN valor ELSE 0 END),0) as entradas_crediarios
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' THEN valor ELSE 0 END),0) as entradas_crediarios,
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_cred_entrada,
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' AND crediario_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_cred_parcelas
         FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s""",(data_inicio, data_fim))
     tots = cur.fetchone()
     entradas = float(tots['entradas']); saidas = float(tots['saidas'])
-    entradas_vendas     = float(tots['entradas_vendas'])
-    entradas_crediarios = float(tots['entradas_crediarios'])
+    entradas_vendas        = float(tots['entradas_vendas'])
+    entradas_crediarios    = float(tots['entradas_crediarios'])
+    entradas_cred_entrada  = float(tots['entradas_cred_entrada'])
+    entradas_cred_parcelas = float(tots['entradas_cred_parcelas'])
     cur.close(); conn.close()
     taxa_vigente_hoje = get_taxa_vigente()
     ctx = get_ctx()
@@ -1040,6 +1044,8 @@ def caixa():
     saldo_liquido = round(saldo_bruto - saidas, 2)
     ctx.update(movs=movs, entradas=entradas, saidas=saidas,
                entradas_vendas=entradas_vendas, entradas_crediarios=entradas_crediarios,
+               entradas_cred_entrada=entradas_cred_entrada,
+               entradas_cred_parcelas=entradas_cred_parcelas,
                saldo=round(entradas-saidas,2),
                saldo_bruto=saldo_bruto,
                total_desconto=round(total_desconto,2), saldo_liquido=saldo_liquido,
@@ -1180,11 +1186,9 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v61 — 2026-06-04</b><br>
-    Estoque: corrigido vazamento de conexão ✅<br>
-    Taxas: registra corretamente o autor (usuário) ✅<br>
-    Rotas /versao e /admin sempre ativas (local e produção) ✅<br>
-    Fichas/edição: sem mais erro ao abrir registro inexistente ✅<br>
+    Versão: <b style='color:green'>v62 — 2026-06-04</b><br>
+    Caixa: crediário detalhado em entradas (sinal da venda) e parcelas pagas ✅<br>
+    <br><span style='color:#888;font-size:14px'>Correções da v61 (estoque, taxas, rotas, fichas) incluídas.</span><br>
     <br><a href='/'>← Voltar</a>
     </div>"""
 

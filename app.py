@@ -350,7 +350,11 @@ def usuario_editar(uid):
         flash('Usuario atualizado!','ok')
         return redirect(url_for('usuarios'))
     cur.execute("SELECT * FROM usuarios WHERE id=%s",(uid,))
-    user = dict(cur.fetchone())
+    row = cur.fetchone()
+    if not row:
+        cur.close(); conn.close()
+        flash('Usuario nao encontrado.','erro'); return redirect(url_for('usuarios'))
+    user = dict(row)
     user['perms_lista'] = user.get('permissoes','').split(',')
     cur.close(); conn.close()
     ctx = get_ctx(); ctx['user'] = user
@@ -447,7 +451,10 @@ def verificar_cliente():
 def ficha_cliente(cid):
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM clientes WHERE id=%s",(cid,))
-    c = dict(cur.fetchone()); cur.close(); conn.close()
+    row = cur.fetchone(); cur.close(); conn.close()
+    if not row:
+        flash('Cliente nao encontrado.','erro'); return redirect(url_for('clientes'))
+    c = dict(row)
     p = c['nome'].split()
     c['iniciais'] = (p[0][0]+(p[1][0] if len(p)>1 else p[0][-1])).upper()
     ctx = get_ctx(); ctx['c'] = c
@@ -480,6 +487,8 @@ def editar_cliente(cid):
         return redirect(url_for('ficha_cliente',cid=cid))
     cur.execute("SELECT * FROM clientes WHERE id=%s",(cid,))
     c = cur.fetchone(); cur.close(); conn.close()
+    if not c:
+        flash('Cliente nao encontrado.','erro'); return redirect(url_for('clientes'))
     ctx = get_ctx(); ctx['c'] = c
     return render_template('editar_cliente.html', **ctx)
 
@@ -505,13 +514,11 @@ def estoque():
     cur.execute("SELECT nome FROM tamanhos_estoque ORDER BY id")
     tamanhos = [r['nome'] for r in cur.fetchall()]
     cur.execute("SELECT COUNT(*) as t FROM estoque"); n = cur.fetchone()['t']
+    # Buscar total de entradas adicionais por item (mesma conexão, antes de fechar)
+    cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
+    entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
     cur.close(); conn.close()
     hoje = date.today()
-    # Buscar total de entradas adicionais por item
-    cur2 = conn.cursor() if False else get_db().cursor()
-    cur2.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
-    entradas_map = {r['estoque_id']: int(r['total']) for r in cur2.fetchall()}
-    cur2.close()
     for i in itens:
         i['dias_estoque'] = (hoje - i['criado_em'].date()).days
         i['entradas_adicionais'] = entradas_map.get(i['id'], 0)
@@ -626,7 +633,10 @@ def etiquetas():
 def ficha_estoque(eid):
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM estoque WHERE id=%s",(eid,))
-    item = dict(cur.fetchone()); cur.close(); conn.close()
+    row = cur.fetchone(); cur.close(); conn.close()
+    if not row:
+        flash('Produto nao encontrado.','erro'); return redirect(url_for('estoque'))
+    item = dict(row)
     item['dias_estoque'] = (date.today() - item['criado_em'].date()).days
     item['saidas'] = (item['estoque_inicial'] or 0) - item['quantidade']
     ctx = get_ctx(); ctx['item'] = item
@@ -652,6 +662,9 @@ def editar_estoque(eid):
         return redirect(url_for('ficha_estoque',eid=eid))
     cur.execute("SELECT * FROM estoque WHERE id=%s",(eid,))
     item = cur.fetchone()
+    if not item:
+        cur.close(); conn.close()
+        flash('Produto nao encontrado.','erro'); return redirect(url_for('estoque'))
     cur.execute("SELECT nome FROM modelos_estoque ORDER BY nome")
     modelos = [r['nome'] for r in cur.fetchall()]
     cur.execute("SELECT nome FROM tamanhos_estoque ORDER BY id")
@@ -963,7 +976,7 @@ def taxas():
             cur.execute("""INSERT INTO taxas_pagamento
                 (vigencia_em,credito_vista,credito_parcelado,debito,link,antecipacao,usuario_id)
                 VALUES (%s,%s,%s,%s,%s,%s,%s)""",
-                (vig, cv, cp, deb, lnk, ant, session.get('usuario_id')))
+                (vig, cv, cp, deb, lnk, ant, session.get('uid')))
             conn.commit()
             flash('Taxas atualizadas com sucesso!','ok')
         except Exception as e:
@@ -1133,9 +1146,6 @@ with app.app_context():
     try: init_db()
     except Exception as e: print(f"init_db: {e}")
 
-if __name__ == '__main__':
-    app.run(debug=False)
-
 @app.route('/admin/limpar-caixa-orfaos')
 @login_required
 def limpar_caixa_orfaos():
@@ -1175,3 +1185,6 @@ def versao():
     Estoque: design corrigido ✅<br>
     <br><a href='/'>← Voltar</a>
     </div>"""
+
+if __name__ == '__main__':
+    app.run(debug=False)

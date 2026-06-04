@@ -1,4 +1,23 @@
-# CD Gestão Empresarial — v62
+# CD Gestão Empresarial — v67
+
+## Novidades da v67 (2026-06-04)
+- **Visão Geral — design moderno**: a tabela "Controle de Entradas" ganhou visual de app de gestão: cabeçalho com os totais (bruto e líquido) em destaque, ícone por forma de pagamento, efeito de hover nas linhas, números alinhados e linha de total realçada. Mesmas informações da v66.
+
+## Novidades da v66 (2026-06-04)
+- **Visão Geral — tabela "Controle de Entradas"**: o card de faturamento virou uma tabela clara, com cabeçalho e colunas Forma de Pagamento / Valor Bruto / Valor Líquido, e linha de TOTAL destacada. Mesmos dados da v65, só com apresentação em formato de planilha.
+
+## Novidades da v65 (2026-06-04)
+- **Visão Geral — crediário detalhado**: a linha "Crediário" do faturamento foi substituída por duas, iguais às do Caixa:
+  - **Crediário (entradas)** — sinal pago no momento da venda no crediário.
+  - **Crediário (parcelas)** — parcelas recebidas no período.
+  - Importante: o crediário agora reflete o que **entrou** no período (recebido), não o valor total da venda. O total do período passa a somar essas entradas/parcelas.
+
+## Novidades da v64 (2026-06-04)
+- **Visão Geral — bruto e líquido**: o card de faturamento agora mostra, lado a lado, o valor **bruto** e o **líquido** (após taxas de cartão) de cada forma de pagamento, com totais.
+- **Visão Geral — filtro de período**: adicionado o mesmo seletor de datas do Caixa (De/Até + atalhos Hoje, 7 dias, Mês). O faturamento passa a respeitar o período escolhido.
+
+## Novidades da v63 (2026-06-04)
+- **Caixa — taxas descontadas detalhadas**: o card "Taxas descontadas" agora mostra o desconto de cada forma de pagamento (crédito à vista, crédito parcelado, débito, link). Só aparecem as formas com desconto no período.
 
 ## Novidades da v62 (2026-06-04)
 - **Caixa — crediário detalhado**: o card "Total entradas" agora separa o crediário em duas linhas:

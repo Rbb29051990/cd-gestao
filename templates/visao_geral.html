@@ -1,5 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
+{% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+<style>
+.ce-card{display:flex;flex-direction:column}
+.ce-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;padding:22px 24px 16px}
+.ce-h-title{font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;color:var(--cor-texto);letter-spacing:.2px}
+.ce-h-sub{font-size:11.5px;color:#a0a0ad;font-weight:500;margin-top:3px}
+.ce-chips{display:flex;gap:10px}
+.ce-chip{background:#f5f5f9;border-radius:12px;padding:9px 16px;text-align:right;min-width:110px}
+.ce-chip-liq{background:#e8f5e9}
+.ce-chip-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a0a0ad}
+.ce-chip-liq .ce-chip-lbl{color:#7cb342}
+.ce-chip-val{font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;color:var(--cor-texto);margin-top:2px}
+.ce-chip-liq .ce-chip-val{color:var(--cor-verde)}
+.ce-table{width:100%;border-collapse:collapse;font-size:13.5px}
+.ce-table thead th{text-align:left;padding:10px 24px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#a0a0ad;background:#fafafc;border-top:1px solid #f0f0f4;border-bottom:1px solid #eeeef3}
+.ce-table thead th.ce-num{text-align:right}
+.ce-table td{padding:11px 24px;border-bottom:1px solid #f4f4f6;color:#444;font-weight:600;vertical-align:middle}
+.ce-num{text-align:right;font-family:'Outfit',sans-serif;font-variant-numeric:tabular-nums}
+.ce-table tbody tr{transition:background .15s}
+.ce-table tbody tr:hover td{background:#f8fbf8}
+.ce-forma{display:flex;align-items:center}
+.ce-ico{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9px;margin-right:11px;font-size:14px;flex-shrink:0}
+.ce-bruto{color:var(--cor-texto);font-weight:700}
+.ce-liq{color:var(--cor-verde);font-weight:700}
+.ce-table tfoot .ce-total td{padding:15px 24px;border-top:2px solid #ececf2;border-bottom:none;background:#f3faf4;font-weight:800;font-size:15px;color:var(--cor-texto);text-transform:uppercase;letter-spacing:.4px}
+.ce-table tfoot .ce-total td.ce-num{font-size:16px}
+.ce-table tfoot .ce-total td.ce-total-liq{color:var(--cor-verde)}
+</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -33,18 +61,75 @@
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
       <div class="page-title">Visão Geral</div>
       <div class="page-date">{{ hoje }}</div>
-      <div class="page-mes">📅 Período: {{ mes_atual }}</div>
+      <form method="GET" id="formFiltro" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:10px 0 4px">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
+          <input type="date" name="data_inicio" id="dataInicio" class="form-input" style="width:auto;padding:10px 14px" value="{{ data_inicio }}" onchange="this.form.submit()">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
+          <input type="date" name="data_fim" id="dataFim" class="form-input" style="width:auto;padding:10px 14px" value="{{ data_fim }}" onchange="this.form.submit()">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="filtro-btn" onclick="atalho('hoje')">Hoje</button>
+          <button type="button" class="filtro-btn" onclick="atalho('semana')">7 dias</button>
+          <button type="button" class="filtro-btn" onclick="atalho('mes')">Mês</button>
+        </div>
+      </form>
+      <div class="page-mes" id="periodoLabel">📅 Período: {{ mes_atual }}</div>
       <div class="dash-grid">
-        <div class="card-fat">
-          <div class="card-title"><div class="card-title-dot" style="background:#2e7d32"></div>Faturamento bruto</div>
-          <div class="fat-row"><span class="fat-label">Dinheiro</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.dinheiro)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Pix</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.pix)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Débito</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.debito)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Crédito à vista</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.credito_vista)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Crédito parcelado</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.credito_parcelado)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Link</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.link)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-          <div class="fat-row"><span class="fat-label">Crediário</span><span class="fat-value">R$ {{ "{:,.2f}".format(fat.crediario)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-          <div class="fat-total-row"><span class="fat-total-label">Total do mês</span><span class="fat-total-value">R$ {{ "{:,.2f}".format(fat_total)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
+        <div class="card-fat ce-card" style="padding:0">
+          <div class="ce-header">
+            <div>
+              <div class="ce-h-title">Controle de Entradas</div>
+              <div class="ce-h-sub">Bruto e líquido por forma de pagamento</div>
+            </div>
+            <div class="ce-chips">
+              <div class="ce-chip">
+                <div class="ce-chip-lbl">Total bruto</div>
+                <div class="ce-chip-val">{{ brl(fat_total) }}</div>
+              </div>
+              <div class="ce-chip ce-chip-liq">
+                <div class="ce-chip-lbl">Total líquido</div>
+                <div class="ce-chip-val">{{ brl(fat_total_liq) }}</div>
+              </div>
+            </div>
+          </div>
+          <table class="ce-table">
+            <thead>
+              <tr>
+                <th>Forma de pagamento</th>
+                <th class="ce-num">Bruto</th>
+                <th class="ce-num">Líquido</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set linhas = [
+                ('Dinheiro', fat.dinheiro, fat_liq.dinheiro, '💵', '#e8f5e9'),
+                ('Pix', fat.pix, fat_liq.pix, '⚡', '#e3f2fd'),
+                ('Débito', fat.debito, fat_liq.debito, '💳', '#e3f2fd'),
+                ('Crédito à vista', fat.credito_vista, fat_liq.credito_vista, '💳', '#ede7f6'),
+                ('Crédito parcelado', fat.credito_parcelado, fat_liq.credito_parcelado, '💳', '#ede7f6'),
+                ('Link', fat.link, fat_liq.link, '🔗', '#fff3e0'),
+                ('Crediário (entrada)', cred_entrada, cred_entrada, '📋', '#fce4ec'),
+                ('Crediário (parcelas)', cred_parcelas, cred_parcelas, '🗓️', '#fce4ec')
+              ] %}
+              {% for nome, bruto, liquido, icon, bg in linhas %}
+              <tr>
+                <td class="ce-forma"><span class="ce-ico" style="background:{{ bg }}">{{ icon }}</span>{{ nome }}</td>
+                <td class="ce-num ce-bruto">{{ brl(bruto) }}</td>
+                <td class="ce-num ce-liq">{{ brl(liquido) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr class="ce-total">
+                <td>Total do período</td>
+                <td class="ce-num">{{ brl(fat_total) }}</td>
+                <td class="ce-num ce-total-liq">{{ brl(fat_total_liq) }}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
         <div class="cards-right">
           <div class="card-sm estoque"><div class="card-sm-title"><div class="card-title-dot" style="background:#1565c0"></div>Valor em estoque</div><div class="card-sm-value">R$ {{ "{:,.2f}".format(val_estoque)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
@@ -78,4 +163,26 @@
     </main>
   </div>
 </div>
+<script>
+function atalho(tipo){
+  const hoje = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  let inicio, fim = fmt(hoje);
+  if (tipo === 'hoje'){ inicio = fmt(hoje); }
+  else if (tipo === 'semana'){ const d = new Date(hoje); d.setDate(d.getDate()-6); inicio = fmt(d); }
+  else if (tipo === 'mes'){ inicio = fmt(hoje).slice(0,7) + '-01'; }
+  document.getElementById('dataInicio').value = inicio;
+  document.getElementById('dataFim').value = fim;
+  document.getElementById('formFiltro').submit();
+}
+document.addEventListener('DOMContentLoaded', function(){
+  const ini = document.getElementById('dataInicio').value;
+  const fim = document.getElementById('dataFim').value;
+  if (ini && fim){
+    const fmtBR = d => d.split('-').reverse().join('/');
+    const label = ini === fim ? 'Dia ' + fmtBR(ini) : fmtBR(ini) + ' até ' + fmtBR(fim);
+    document.getElementById('periodoLabel').textContent = '📅 Período: ' + label;
+  }
+});
+</script>
 {% endblock %}

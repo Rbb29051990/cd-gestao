@@ -85,6 +85,34 @@
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:8px">Taxas descontadas</div>
           <div style="font-size:22px;font-weight:700;color:#f57f17">- R$ {{ "{:,.2f}".format(total_desconto|default(0))|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
           <div style="font-size:11px;color:#aaa;margin-top:4px">{{ "{:,.2f}".format((total_desconto/entradas*100) if entradas > 0 else 0)|replace(",","X")|replace(".",",")|replace("X",".") }}% do total de entradas</div>
+          {% if total_desconto|default(0) > 0 %}
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ffe082;display:flex;flex-direction:column;gap:5px">
+            {% if desconto_formas.credito_vista > 0 %}
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#aaa;font-weight:600">💳 Créd. à vista</span>
+              <span style="font-size:12px;font-weight:700;color:#f57f17">- R$ {{ "{:,.2f}".format(desconto_formas.credito_vista)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+            </div>
+            {% endif %}
+            {% if desconto_formas.credito_parcelado > 0 %}
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#aaa;font-weight:600">💳 Créd. parcelado</span>
+              <span style="font-size:12px;font-weight:700;color:#f57f17">- R$ {{ "{:,.2f}".format(desconto_formas.credito_parcelado)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+            </div>
+            {% endif %}
+            {% if desconto_formas.debito > 0 %}
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#aaa;font-weight:600">💳 Débito</span>
+              <span style="font-size:12px;font-weight:700;color:#f57f17">- R$ {{ "{:,.2f}".format(desconto_formas.debito)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+            </div>
+            {% endif %}
+            {% if desconto_formas.link > 0 %}
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:11px;color:#aaa;font-weight:600">🔗 Link</span>
+              <span style="font-size:12px;font-weight:700;color:#f57f17">- R$ {{ "{:,.2f}".format(desconto_formas.link)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
 
         <!-- 3. SALDO BRUTO -->

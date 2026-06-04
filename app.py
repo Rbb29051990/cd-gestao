@@ -264,15 +264,50 @@ def logout():
 def visao_geral():
     conn = get_db(); cur = conn.cursor()
     hoje = datetime.now()
-    mes_ini = hoje.replace(day=1,hour=0,minute=0,second=0,microsecond=0)
-    formas = ['dinheiro','pix','debito','credito_vista','credito_parcelado','link','crediario']
-    fat = {}
-    for f in formas:
-        try:
-            cur.execute("SELECT COALESCE(SUM(valor_total),0) as v FROM vendas WHERE forma_pagamento=%s AND criado_em>=%s",(f,mes_ini))
-            fat[f] = float(cur.fetchone()['v'])
-        except: fat[f] = 0.0
-    fat_total = sum(fat.values())
+    # Período (mesmo padrão da aba Caixa)
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except: data_inicio = hoje.strftime('%Y-%m-01')
+    try: date.fromisoformat(data_fim)
+    except: data_fim = hoje.strftime('%Y-%m-%d')
+    formas = ['dinheiro','pix','debito','credito_vista','credito_parcelado','link']  # crediário é detalhado via caixa
+    formas_com_taxa = ['credito_vista','credito_parcelado','debito','link']
+    fat     = {f:0.0 for f in formas}   # bruto por forma
+    fat_liq = {f:0.0 for f in formas}   # líquido por forma (após taxas de cartão)
+    try:
+        cur.execute("""SELECT forma_pagamento, valor_total, criado_em FROM vendas
+                       WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
+        for r in cur.fetchall():
+            f = r['forma_pagamento'] or ''
+            if f not in fat: continue
+            bruto = float(r['valor_total'] or 0)
+            fat[f] += bruto
+            if f in formas_com_taxa:
+                taxa_data = get_taxa_vigente(r['criado_em'].date() if hasattr(r['criado_em'],'date') else date.today())
+                liq, _d, _p = calcular_liquido(bruto, f, taxa_data)
+                fat_liq[f] += liq
+            else:
+                fat_liq[f] += bruto
+    except Exception:
+        pass
+    # Crediário detalhado igual ao Caixa: entradas (sinal da venda, venda_id) e parcelas recebidas (crediario_id)
+    cred_entrada = 0.0; cred_parcelas = 0.0
+    try:
+        cur.execute("""SELECT
+            COALESCE(SUM(CASE WHEN venda_id IS NOT NULL THEN valor ELSE 0 END),0) as ent,
+            COALESCE(SUM(CASE WHEN crediario_id IS NOT NULL THEN valor ELSE 0 END),0) as parc
+            FROM caixa WHERE tipo='entrada' AND forma_pagamento='crediario'
+            AND DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
+        cr = cur.fetchone()
+        cred_entrada = float(cr['ent']); cred_parcelas = float(cr['parc'])
+    except Exception:
+        pass
+    fat     = {k: round(v,2) for k,v in fat.items()}
+    fat_liq = {k: round(v,2) for k,v in fat_liq.items()}
+    cred_entrada = round(cred_entrada, 2); cred_parcelas = round(cred_parcelas, 2)
+    fat_total     = round(sum(fat.values()) + cred_entrada + cred_parcelas, 2)
+    fat_total_liq = round(sum(fat_liq.values()) + cred_entrada + cred_parcelas, 2)
     try:
         cur.execute("SELECT COALESCE(SUM(valor_venda*quantidade),0) as v FROM estoque WHERE ativo=TRUE")
         val_estoque = float(cur.fetchone()['v'])
@@ -295,9 +330,12 @@ def visao_geral():
     except: estoque_baixo = []
     cur.close(); conn.close()
     ctx = get_ctx()
-    ctx.update(fat=fat, fat_total=fat_total, val_estoque=val_estoque,
+    ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
+               cred_entrada=cred_entrada, cred_parcelas=cred_parcelas,
+               val_estoque=val_estoque,
                val_crediarios=val_crediarios, val_despesas=val_despesas,
                movs=movs, estoque_baixo=estoque_baixo,
+               data_inicio=data_inicio, data_fim=data_fim,
                mes_atual=hoje.strftime('%B / %Y').capitalize(),
                hoje=hoje.strftime('%A, %d de %B de %Y').capitalize())
     return render_template('visao_geral.html', **ctx)
@@ -1028,6 +1066,7 @@ def caixa():
     ctx = get_ctx()
     # Calcular líquido por movimento
     total_desconto = 0
+    desconto_formas = {'credito_vista':0.0,'credito_parcelado':0.0,'debito':0.0,'link':0.0}
     for m in movs:
         if m['tipo'] == 'entrada' and m.get('forma_pagamento') in ['credito_vista','credito_parcelado','debito','link']:
             taxa_data = get_taxa_vigente(m['criado_em'].date() if hasattr(m.get('criado_em',''), 'date') else date.today())
@@ -1036,6 +1075,7 @@ def caixa():
             m['desconto_taxa'] = desc
             m['taxa_total_pct'] = ptc
             total_desconto += desc
+            desconto_formas[m['forma_pagamento']] += desc
         else:
             m['valor_liquido'] = float(m['valor'])
             m['desconto_taxa'] = 0
@@ -1049,6 +1089,7 @@ def caixa():
                saldo=round(entradas-saidas,2),
                saldo_bruto=saldo_bruto,
                total_desconto=round(total_desconto,2), saldo_liquido=saldo_liquido,
+               desconto_formas={k: round(v,2) for k,v in desconto_formas.items()},
                taxa_vigente=taxa_vigente_hoje,
                data_inicio=data_inicio, data_fim=data_fim)
     return render_template('caixa.html', **ctx)
@@ -1186,8 +1227,12 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v62 — 2026-06-04</b><br>
-    Caixa: crediário detalhado em entradas (sinal da venda) e parcelas pagas ✅<br>
+    Versão: <b style='color:green'>v67 — 2026-06-04</b><br>
+    Visão Geral: "Controle de Entradas" com design moderno (ícones, totais, hover) ✅<br>
+    Visão Geral: crediário detalhado em entrada e parcelas (igual Caixa) ✅<br>
+    Visão Geral: filtro de período (igual Caixa) ✅<br>
+    Caixa: taxas descontadas detalhadas por forma de pagamento ✅<br>
+    Caixa: crediário detalhado em entradas (sinal) e parcelas pagas ✅<br>
     <br><span style='color:#888;font-size:14px'>Correções da v61 (estoque, taxas, rotas, fichas) incluídas.</span><br>
     <br><a href='/'>← Voltar</a>
     </div>"""

@@ -1,4 +1,11 @@
-# CD Gestão Empresarial — v24
+# CD Gestão Empresarial — v61
+
+## Novidades da v61 (2026-06-04)
+- Corrigido vazamento de conexão na tela de Estoque (esgotava o banco em produção).
+- Taxas: passa a registrar corretamente o autor (usuário) da alteração.
+- Rotas `/versao` e `/admin/limpar-caixa-orfaos` agora funcionam também ao rodar localmente.
+- Fichas e telas de edição (cliente, estoque, usuário) não dão mais erro ao abrir um registro inexistente — redirecionam com aviso.
+
 
 ## Como fazer o deploy (atualizar o sistema)
 

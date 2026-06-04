@@ -1180,9 +1180,11 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v24 — 2026-05-22</b><br>
-    Clientes: máscaras telefone/CEP, WhatsApp, GPS, aniversários ✅<br>
-    Estoque: design corrigido ✅<br>
+    Versão: <b style='color:green'>v61 — 2026-06-04</b><br>
+    Estoque: corrigido vazamento de conexão ✅<br>
+    Taxas: registra corretamente o autor (usuário) ✅<br>
+    Rotas /versao e /admin sempre ativas (local e produção) ✅<br>
+    Fichas/edição: sem mais erro ao abrir registro inexistente ✅<br>
     <br><a href='/'>← Voltar</a>
     </div>"""
 

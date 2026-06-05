@@ -5,6 +5,7 @@
 .sortable::after{content:'⇅';position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;color:#ccc;transition:color .15s}
 .sortable.asc::after{content:'↑';color:#1a1a2e}
 .sortable.desc::after{content:'↓';color:#1a1a2e}
+.table thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
 </style>
 <div class="dash-wrap">
   <div class="topbar">
@@ -146,7 +147,7 @@
 
       <!-- TABELA -->
       <div class="section-title">Movimentações</div>
-      <div class="table-wrap">
+      <div class="table-wrap" style="max-height:420px;overflow-y:auto">
         <table class="table">
           <thead><tr>
             <th class="sortable" onclick="ordenarCx(0)">Data</th><th>Descrição</th><th class="sortable" onclick="ordenarCx(2)">Tipo</th><th class="sortable" onclick="ordenarCx(3)">Forma</th><th class="sortable" onclick="ordenarCx(4)">Vendedora</th><th>Bruto</th><th>Taxa</th><th class="sortable" onclick="ordenarCx(7)">Líquido</th>

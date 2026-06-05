@@ -1,5 +1,6 @@
 ﻿{% extends "base.html" %}
 {% block content %}
+<style>.table thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -69,7 +70,7 @@
         <span id="bannerAnivTexto"></span>
       </div>
 
-      <div class="table-wrap">
+      <div class="table-wrap" style="max-height:520px;overflow-y:auto">
         <table class="table" id="tabelaClientes">
           <thead>
             <tr>

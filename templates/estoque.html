@@ -1,5 +1,6 @@
 ﻿{% extends "base.html" %}
 {% block content %}
+<style>.etable thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -68,7 +69,7 @@
             <button class="filtro-btn" onclick="filtrarSaldo(this, 3)">⚠️ Crítico (+60 dias)</button>
           </div>
         </div>
-        <div class="table-wrap">
+        <div class="table-wrap" style="max-height:520px;overflow-y:auto">
           <table class="etable" id="tabelaEstoque">
             <thead><tr>
               <th onclick="ordenarE(0)">Data entrada</th>

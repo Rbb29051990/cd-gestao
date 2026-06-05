@@ -31,66 +31,87 @@
     </nav>
     <main class="main-content">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div class="page-header">
+      <!-- HEADER + FILTROS -->
+      <div class="page-header" style="flex-wrap:wrap;gap:16px">
         <div>
           <div class="page-title">Crediários</div>
           <div class="page-date">Total em aberto: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total_aberto)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong></div>
         </div>
+        <form method="GET" id="formFiltroCred" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
+            <input type="date" name="data_inicio" class="form-input" style="width:auto;padding:9px 14px"
+                   value="{{ data_inicio|default('') }}" onchange="this.form.submit()">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
+            <input type="date" name="data_fim" class="form-input" style="width:auto;padding:9px 14px"
+                   value="{{ data_fim|default('') }}" onchange="this.form.submit()">
+          </div>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="filtro-btn" onclick="atalhoCred('hoje')">Hoje</button>
+            <button type="button" class="filtro-btn" onclick="atalhoCred('semana')">7 dias</button>
+            <button type="button" class="filtro-btn" onclick="atalhoCred('mes')">Mês</button>
+            <button type="button" class="filtro-btn" onclick="atalhoCred('todos')">Todos</button>
+          </div>
+        </form>
       </div>
 
+      <!-- BUSCA -->
+      <div style="margin-bottom:12px">
+        <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:300px;font-weight:500" type="text" id="buscaCred" placeholder="Buscar por cliente..." oninput="filtrarCred(this.value)">
+      </div>
+
+      <!-- LISTA DE CLIENTES (scroll fixo) -->
+      <div style="max-height:520px;overflow-y:auto;padding-right:4px" id="listaCred">
       {% for cli in clientes %}
-      <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:20px 24px;margin-bottom:16px;box-shadow:0 4px 14px rgba(0,0,0,0.05)">
-        <!-- CABEÇALHO DO CLIENTE (compilado) -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:1.5px solid #f0f0f6;flex-wrap:wrap;gap:10px">
-          <div>
-            <div style="font-size:18px;font-weight:700;color:#1a1a2e">{{ cli.cliente_nome }}</div>
-            <div style="font-size:12px;color:#aaa;margin-top:3px">{{ cli.vendas|length }} compra(s) no crediário</div>
+      <div class="cred-cli-card" data-nome="{{ cli.cliente_nome|lower }}" style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;margin-bottom:14px;box-shadow:0 4px 14px rgba(0,0,0,0.05);overflow:hidden">
+        <!-- CABEÇALHO DO CLIENTE (clicável — accordion nível 1) -->
+        <div onclick="toggleAcc('cli_{{ loop.index }}')" style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;cursor:pointer;transition:background .15s;user-select:none" onmouseover="this.style.background='#f8f8fc'" onmouseout="this.style.background='#fff'">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="arrow_cli_{{ loop.index }}" style="font-size:14px;color:#aaa;transition:transform .2s;display:inline-block">▶</span>
+            <div>
+              <div style="font-size:16px;font-weight:700;color:#1a1a2e">{{ cli.cliente_nome }}</div>
+              <div style="font-size:11px;color:#aaa;margin-top:2px">{{ cli.vendas|length }} compra(s)</div>
+            </div>
           </div>
-          <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap">
-            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Total compras</div><div style="font-size:17px;font-weight:700;color:#1a1a2e">R$ {{ "{:,.2f}".format(cli.total)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
-            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Já pago</div><div style="font-size:17px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(cli.pago)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
-            <div style="text-align:right"><div style="font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Saldo devedor</div><div style="font-size:19px;font-weight:800;color:{% if cli.saldo > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "{:,.2f}".format(cli.saldo)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
-            <span class="badge {% if cli.saldo <= 0 %}badge-hab{% else %}badge-fiado{% endif %}">{% if cli.saldo <= 0 %}✅ Quitado{% else %}⏳ Em aberto{% endif %}</span>
+          <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+            <div style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Total</div><div style="font-size:15px;font-weight:700;color:#1a1a2e">R$ {{ "{:,.2f}".format(cli.total)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+            <div style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Pago</div><div style="font-size:15px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(cli.pago)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+            <div style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Devedor</div><div style="font-size:16px;font-weight:800;color:{% if cli.saldo > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "{:,.2f}".format(cli.saldo)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+            <span class="badge {% if cli.saldo <= 0 %}badge-hab{% else %}badge-fiado{% endif %}" style="font-size:10px">{% if cli.saldo <= 0 %}✅ Quitado{% else %}⏳ Em aberto{% endif %}</span>
           </div>
         </div>
-
-        <!-- VENDAS DO CLIENTE (accordion) -->
-        <div style="display:flex;flex-direction:column;gap:10px">
+        <!-- VENDAS (colapsado — accordion nível 1) -->
+        <div id="cli_{{ loop.index }}" style="display:none;padding:0 20px 16px;flex-direction:column;gap:10px">
           {% for c in cli.vendas %}
           <div style="border:1.5px solid #ececf3;border-radius:10px;overflow:hidden">
-            <!-- Linha da venda (clicável) -->
-            <div onclick="toggleVenda('vd_{{ c.id }}')" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;background:#f8f8fc;transition:background .15s;user-select:none" onmouseover="this.style.background='#f0f0f8'" onmouseout="this.style.background='#f8f8fc'">
-              <div style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:13px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:3px 10px;border-radius:5px">{{ c.codigo_venda }}</span>
-                <span style="font-size:13px;font-weight:600;color:#1a1a2e">{{ c.data_venda.strftime('%d/%m/%Y') }}</span>
-                <span class="badge {% if c.status == 'quitado' %}badge-hab{% else %}badge-fiado{% endif %}" style="font-size:10px;padding:2px 8px">{% if c.status == 'quitado' %}✅ Quitado{% else %}⏳ Aberto{% endif %}</span>
+            <div onclick="event.stopPropagation();toggleAcc('vd_{{ c.id }}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;background:#f8f8fc;transition:background .15s;user-select:none" onmouseover="this.style.background='#f0f0f8'" onmouseout="this.style.background='#f8f8fc'">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span id="arrow_vd_{{ c.id }}" style="font-size:12px;color:#aaa;transition:transform .2s;display:inline-block">▶</span>
+                <span style="font-size:12px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:2px 8px;border-radius:5px">{{ c.codigo_venda }}</span>
+                <span style="font-size:12px;font-weight:600;color:#1a1a2e">{{ c.data_venda.strftime('%d/%m/%Y') }}</span>
+                <span class="badge {% if c.status == 'quitado' %}badge-hab{% else %}badge-fiado{% endif %}" style="font-size:9px;padding:2px 6px">{% if c.status == 'quitado' %}✅ Quitado{% else %}⏳ Aberto{% endif %}</span>
               </div>
-              <div style="display:flex;align-items:center;gap:16px">
-                <div style="text-align:right"><span style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase">Total</span><br><span style="font-weight:700;color:#1a1a2e;font-size:14px">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-                <div style="text-align:right"><span style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase">Entrada</span><br><span style="font-weight:700;color:#2e7d32;font-size:14px">R$ {{ "{:,.2f}".format(c.entrada|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-                <div style="text-align:right"><span style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase">Saldo</span><br><span style="font-weight:700;color:{% if c.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:14px">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span></div>
-                <span id="arrow_vd_{{ c.id }}" style="font-size:14px;color:#aaa;transition:transform .2s;display:inline-block">▼</span>
+              <div style="display:flex;align-items:center;gap:14px">
+                <span style="font-size:10px;color:#aaa;font-weight:700">TOTAL</span><span style="font-weight:700;color:#1a1a2e;font-size:13px">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+                <span style="font-size:10px;color:#aaa;font-weight:700">SALDO</span><span style="font-weight:700;color:{% if c.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:13px">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
               </div>
             </div>
-            <!-- Parcelas (colapsadas por padrão) -->
-            <div id="vd_{{ c.id }}" style="display:none;padding:10px 16px 14px;flex-direction:column;gap:8px">
+            <div id="vd_{{ c.id }}" style="display:none;padding:10px 14px 12px;flex-direction:column;gap:8px">
               {% for p in c.parcelas %}
-              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border:1.5px solid {% if p.pago %}#c8e6c9{% else %}#e0e0e8{% endif %};border-radius:8px;background:{% if p.pago %}#f0f8f2{% else %}#fff{% endif %}">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1.5px solid {% if p.pago %}#c8e6c9{% else %}#e0e0e8{% endif %};border-radius:8px;background:{% if p.pago %}#f0f8f2{% else %}#fff{% endif %}">
                 <div>
-                  <span style="font-size:13px;font-weight:600;color:#1a1a2e">Parcela {{ p.numero_parcela }}</span>
-                  <span style="font-size:12px;color:#aaa;margin-left:10px">vence {{ p.data_vencimento.strftime('%d/%m/%Y') }}</span>
-                  {% if p.pago and p.data_pagamento %}<span style="font-size:12px;color:#2e7d32;margin-left:10px">· pago em {{ p.data_pagamento.strftime('%d/%m/%Y') }}</span>{% endif %}
+                  <span style="font-size:12px;font-weight:600;color:#1a1a2e">Parcela {{ p.numero_parcela }}</span>
+                  <span style="font-size:11px;color:#aaa;margin-left:8px">vence {{ p.data_vencimento.strftime('%d/%m/%Y') }}</span>
+                  {% if p.pago and p.data_pagamento %}<span style="font-size:11px;color:#2e7d32;margin-left:8px">· pago {{ p.data_pagamento.strftime('%d/%m/%Y') }}</span>{% endif %}
                 </div>
-                <div style="display:flex;align-items:center;gap:12px">
-                  <span style="font-size:15px;font-weight:700;color:{% if p.pago %}#2e7d32{% else %}#c62828{% endif %}">R$ {{ "{:,.2f}".format(p.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="font-size:14px;font-weight:700;color:{% if p.pago %}#2e7d32{% else %}#c62828{% endif %}">R$ {{ "{:,.2f}".format(p.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
                   {% if not p.pago %}
                   <button onclick="event.stopPropagation();abrirPagamento({{ c.id }},{{ p.id }},'{{ p.data_vencimento.strftime('%d/%m/%Y') }}',{{ p.valor }})"
-                    style="padding:7px 14px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">
-                    💰 Receber
-                  </button>
-                  {% else %}
-                  <span style="font-size:12px;font-weight:700;color:#2e7d32">✅ Pago</span>
-                  {% endif %}
+                    style="padding:6px 12px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">💰 Receber</button>
+                  {% else %}<span style="font-size:11px;font-weight:700;color:#2e7d32">✅ Pago</span>{% endif %}
                 </div>
               </div>
               {% endfor %}
@@ -100,8 +121,9 @@
         </div>
       </div>
       {% else %}
-      <div class="table-wrap"><p class="empty-row" style="padding:32px">Nenhum crediário registrado ainda.</p></div>
+      <div style="padding:32px;text-align:center;color:#bbb;font-size:13px;font-style:italic">Nenhum crediário registrado ainda.</div>
       {% endfor %}
+      </div>
     </main>
   </div>
 </div>
@@ -155,17 +177,43 @@
   </div>
 </div>
 <script>
-function toggleVenda(id) {
+function toggleAcc(id) {
   const el = document.getElementById(id);
   const arrow = document.getElementById('arrow_' + id);
   const isHidden = el.style.display === 'none' || el.style.display === '';
   if (isHidden) {
     el.style.display = 'flex';
-    if (arrow) arrow.style.transform = 'rotate(180deg)';
+    if (arrow) arrow.style.transform = 'rotate(90deg)';
   } else {
     el.style.display = 'none';
     if (arrow) arrow.style.transform = 'rotate(0deg)';
   }
+}
+
+function filtrarCred(q) {
+  const termo = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  document.querySelectorAll('.cred-cli-card').forEach(card => {
+    const nome = (card.dataset.nome||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
+    card.style.display = nome.includes(termo) ? '' : 'none';
+  });
+}
+
+function atalhoCred(tipo) {
+  const hoje = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  const form = document.getElementById('formFiltroCred');
+  if (tipo === 'todos') {
+    form.querySelector('[name=data_inicio]').value = '';
+    form.querySelector('[name=data_fim]').value = '';
+  } else {
+    let ini, fim = fmt(hoje);
+    if (tipo === 'hoje') ini = fmt(hoje);
+    else if (tipo === 'semana') { const d=new Date(hoje); d.setDate(d.getDate()-6); ini=fmt(d); }
+    else if (tipo === 'mes') ini = fmt(hoje).slice(0,7)+'-01';
+    form.querySelector('[name=data_inicio]').value = ini;
+    form.querySelector('[name=data_fim]').value = fim;
+  }
+  form.submit();
 }
 // Taxas vigentes (injetadas do backend)
 const TAXAS_CRED = {

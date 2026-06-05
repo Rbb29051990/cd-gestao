@@ -972,9 +972,17 @@ def buscar_cliente():
 @app.route('/crediarios')
 @login_required
 def crediarios():
+    data_inicio = request.args.get('data_inicio','')
+    data_fim = request.args.get('data_fim','')
     conn = get_db(); cur = conn.cursor()
-    cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda
-        FROM crediarios c JOIN vendas v ON v.id=c.venda_id ORDER BY c.status,c.criado_em DESC""")
+    if data_inicio and data_fim:
+        cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda
+            FROM crediarios c JOIN vendas v ON v.id=c.venda_id
+            WHERE DATE(v.criado_em) BETWEEN %s AND %s
+            ORDER BY c.status,c.criado_em DESC""",(data_inicio,data_fim))
+    else:
+        cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda
+            FROM crediarios c JOIN vendas v ON v.id=c.venda_id ORDER BY c.status,c.criado_em DESC""")
     raw = [dict(c) for c in cur.fetchall()]
     for c in raw:
         cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela",(c['id'],))
@@ -997,7 +1005,7 @@ def crediarios():
     vendedoras = [dict(u) for u in cur.fetchall()]
     cur.close(); conn.close()
     taxa_vigente = get_taxa_vigente()
-    ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras, taxa_vigente=taxa_vigente)
+    ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras, taxa_vigente=taxa_vigente, data_inicio=data_inicio, data_fim=data_fim)
     return render_template('crediarios.html', **ctx)
 
 @app.route('/crediarios/<int:cid>/parcela/<int:pid>/pagar', methods=['POST'])
@@ -1264,8 +1272,10 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v78 — 2026-06-05</b><br>
-    Correção: crediário parcelas no caixa/visão geral conta todas as formas de pgto ✅<br>
+    Versão: <b style='color:green'>v79 — 2026-06-05</b><br>
+    Crediários: busca + filtro De/Até + accordion duplo (cliente→vendas→parcelas) ✅<br>
+    Scroll fixo: Crediários, Caixa, Estoque, Clientes, Despesas (tabela não cresce) ✅<br>
+    Sticky headers: Caixa, Estoque, Clientes, Despesas ✅<br>
     Crediários: forma de pagamento ao receber parcela (dinheiro/pix/débito/crédito) ✅<br>
     Crediários: taxas aplicadas automaticamente no caixa (débito/crédito) ✅<br>
     Crediários: agrupado por cliente com accordion (expandir/recolher vendas) ✅<br>

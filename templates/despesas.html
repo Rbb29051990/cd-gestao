@@ -1,6 +1,36 @@
 ﻿{% extends "base.html" %}
 {% block content %}
-<style>.table thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}</style>
+{% macro moeda(v) %}R$ {{ "{:,.2f}".format(v|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+<style>
+.table thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+.desp-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px;margin-bottom:20px}
+.chart-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.chart-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#aaa;margin-bottom:16px}
+.donut2{position:relative;width:140px;height:140px;border-radius:50%;flex-shrink:0}
+.donut2 .hole{position:absolute;inset:20px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px #f4f4f8}
+.donut2 .hole b{font-size:20px;font-weight:800;color:#1a1a2e;line-height:1}
+.donut2 .hole small{font-size:8.5px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.donut-legend{display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+.leg-item{display:flex;align-items:center;gap:8px;font-size:13px}
+.leg-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.leg-item .leg-name{color:#555;font-weight:600;flex:1}
+.leg-item .leg-val{font-weight:800;color:#1a1a2e}
+.bar-row{margin-bottom:11px}
+.bar-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
+.bar-top .bn{font-weight:600;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.bar-top .bv{font-weight:800;color:#1a1a2e}
+.bar-pct{font-size:11px;color:#aaa;font-weight:700;margin-left:6px}
+.bar-track{height:9px;background:#f0f0f5;border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px}
+.chart-empty{padding:24px;text-align:center;color:#bbb;font-size:12.5px;font-style:italic}
+.bdg-tipo{display:inline-block;padding:2px 9px;font-size:10px;font-weight:700;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
+.bdg-fixa{background:#e8eaf6;color:#3949ab}.bdg-avulsa{background:#fff3e0;color:#e65100}
+.tipo-opts{display:flex;gap:10px}
+.tipo-opt{flex:1;padding:11px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;text-align:center;font-weight:700;font-size:13px;color:#888;cursor:pointer;transition:all .15s}
+.tipo-opt input{display:none}
+.tipo-opt.sel-fixa{border-color:#3949ab;background:#3949ab;color:#fff}
+.tipo-opt.sel-avulsa{border-color:#e65100;background:#e65100;color:#fff}
+</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -57,19 +87,93 @@
         <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
       </div>
 
+      <!-- PAINEL DE GRÁFICOS -->
+      {% set pct_fixa = (total_fixa / total * 100) if total > 0 else 0 %}
+      <div class="desp-charts">
+        <!-- DONUT: FIXA vs AVULSA -->
+        <div class="chart-card">
+          <div class="chart-title">Despesa fixa × avulsa</div>
+          {% if total > 0 %}
+          <div style="display:flex;align-items:center;gap:20px">
+            <div class="donut2" style="background:conic-gradient(#3949ab 0 {{ pct_fixa }}%,#e65100 {{ pct_fixa }}% 100%)">
+              <div class="hole"><b>{{ "%.0f"|format(pct_fixa) }}%</b><small>fixa</small></div>
+            </div>
+            <div class="donut-legend">
+              <div class="leg-item"><span class="leg-dot" style="background:#3949ab"></span><span class="leg-name">Fixa ({{ qtd_fixa }})</span><span class="leg-val">{{ moeda(total_fixa) }}</span></div>
+              <div class="leg-item"><span class="leg-dot" style="background:#e65100"></span><span class="leg-name">Avulsa ({{ qtd_avulsa }})</span><span class="leg-val">{{ moeda(total_avulsa) }}</span></div>
+              <div class="leg-item" style="border-top:1px solid #f0f0f5;padding-top:9px"><span class="leg-dot" style="background:#1a1a2e"></span><span class="leg-name">Total</span><span class="leg-val">{{ moeda(total) }}</span></div>
+            </div>
+          </div>
+          {% else %}<div class="chart-empty">Nenhuma despesa no período.</div>{% endif %}
+        </div>
+
+        <!-- DESCRIÇÕES DENTRO DE FIXA -->
+        <div class="chart-card">
+          <div class="chart-title">Descrições · Fixa</div>
+          {% if desc_fixa %}
+            {% set max_f = desc_fixa[0].valor or 1 %}
+            {% for d in desc_fixa[:7] %}
+            <div class="bar-row">
+              <div class="bar-top">
+                <span class="bn">{{ d.descricao }}</span>
+                <span class="bv">{{ moeda(d.valor) }}<span class="bar-pct">{{ "%.0f"|format(d.valor / total_fixa * 100 if total_fixa else 0) }}%</span></span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:{{ (d.valor / max_f * 100) if max_f else 0 }}%;background:#3949ab"></div></div>
+            </div>
+            {% endfor %}
+          {% else %}<div class="chart-empty">Sem despesas fixas no período.</div>{% endif %}
+        </div>
+
+        <!-- DESCRIÇÕES DENTRO DE AVULSA -->
+        <div class="chart-card">
+          <div class="chart-title">Descrições · Avulsa</div>
+          {% if desc_avulsa %}
+            {% set max_a = desc_avulsa[0].valor or 1 %}
+            {% for d in desc_avulsa[:7] %}
+            <div class="bar-row">
+              <div class="bar-top">
+                <span class="bn">{{ d.descricao }}</span>
+                <span class="bv">{{ moeda(d.valor) }}<span class="bar-pct">{{ "%.0f"|format(d.valor / total_avulsa * 100 if total_avulsa else 0) }}%</span></span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:{{ (d.valor / max_a * 100) if max_a else 0 }}%;background:#e65100"></div></div>
+            </div>
+            {% endfor %}
+          {% else %}<div class="chart-empty">Sem despesas avulsas no período.</div>{% endif %}
+        </div>
+
+        <!-- POR FORMA DE PAGAMENTO -->
+        <div class="chart-card">
+          <div class="chart-title">Por forma de pagamento</div>
+          {% if forma_list %}
+            {% set max_fp = forma_list[0].valor or 1 %}
+            {% set cores_fp = ['#2e7d32','#1565c0','#6a1b9a','#f9a825','#00838f','#c62828'] %}
+            {% for f in forma_list[:7] %}
+            <div class="bar-row">
+              <div class="bar-top">
+                <span class="bn">{{ f.forma }}</span>
+                <span class="bv">{{ moeda(f.valor) }}<span class="bar-pct">{{ "%.0f"|format(f.valor / total * 100 if total else 0) }}%</span></span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:{{ (f.valor / max_fp * 100) if max_fp else 0 }}%;background:{{ cores_fp[loop.index0 % 6] }}"></div></div>
+            </div>
+            {% endfor %}
+          {% else %}<div class="chart-empty">Sem dados de pagamento.</div>{% endif %}
+        </div>
+      </div>
+
       <div style="margin-bottom:12px">
         <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:300px;font-weight:500" type="text" placeholder="Buscar por descrição, categoria..." oninput="filtrarDesp(this.value)">
       </div>
 
       <div class="table-wrap" style="max-height:520px;overflow-y:auto">
         <table class="table">
-          <thead><tr><th>Cód</th><th>Data</th><th>Descrição</th><th>Categoria</th><th>Forma</th><th>Valor</th><th></th></tr></thead>
+          <thead><tr><th>Cód</th><th>Data</th><th>Descrição</th><th>Tipo</th><th>Categoria</th><th>Forma</th><th>Valor</th><th></th></tr></thead>
           <tbody>
             {% for d in lista %}
             <tr>
               <td><span style="font-size:11px;font-weight:700;color:#e65100;background:#fff3e0;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ d.codigo }}</span></td>
               <td>{{ d.data_despesa.strftime('%d/%m/%Y') if d.data_despesa else '—' }}</td>
               <td style="font-weight:600">{{ d.descricao }}</td>
+              <td><span class="bdg-tipo {% if d.tipo == 'fixa' %}bdg-fixa{% else %}bdg-avulsa{% endif %}">{{ d.tipo }}</span></td>
               <td>{{ d.categoria or '—' }}</td>
               <td>{{ d.forma_pagamento or '—' }}</td>
               <td style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
@@ -80,7 +184,7 @@
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="7" class="empty-row">Nenhuma despesa neste período.</td></tr>
+            <tr><td colspan="8" class="empty-row">Nenhuma despesa neste período.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -101,9 +205,16 @@
           <label class="form-label">Descrição *</label>
           <input class="form-input" type="text" name="descricao" required placeholder="Ex: Aluguel, fornecedor...">
         </div>
+        <div class="form-field span2">
+          <label class="form-label">Tipo de despesa *</label>
+          <div class="tipo-opts">
+            <label class="tipo-opt sel-fixa" id="optFixa" onclick="selTipo('fixa')"><input type="radio" name="tipo" value="fixa" checked>🔒 Fixa</label>
+            <label class="tipo-opt" id="optAvulsa" onclick="selTipo('avulsa')"><input type="radio" name="tipo" value="avulsa">⚡ Avulsa</label>
+          </div>
+        </div>
         <div class="form-field">
           <label class="form-label">Categoria</label>
-          <input class="form-input" type="text" name="categoria" placeholder="Ex: Fixo, Marketing...">
+          <input class="form-input" type="text" name="categoria" placeholder="Ex: Marketing, Insumos...">
         </div>
         <div class="form-field">
           <label class="form-label">Data</label>
@@ -131,6 +242,13 @@
 </div>
 <script>
 document.querySelector('[name="data_despesa"]').value = new Date().toISOString().split('T')[0];
+
+function selTipo(t){
+  const f=document.getElementById('optFixa'), a=document.getElementById('optAvulsa');
+  f.classList.remove('sel-fixa'); a.classList.remove('sel-avulsa');
+  if(t==='fixa'){ f.classList.add('sel-fixa'); f.querySelector('input').checked=true; }
+  else { a.classList.add('sel-avulsa'); a.querySelector('input').checked=true; }
+}
 
 function atalhoDesp(tipo) {
   const hoje = new Date();

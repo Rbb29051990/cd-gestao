@@ -1,4 +1,16 @@
-# CD Gestão Empresarial — v77
+# CD Gestão Empresarial — v81
+
+## Novidades da v81 (2026-06-05)
+- **Crediários — dashboard moderno** (estilo da aba Vendas): KPIs no topo (total em aberto, clientes devedores, clientes em atraso, valor de parcelas em atraso) e gráficos:
+  - Donut **Em dia × Em atraso** com percentual e valores.
+  - **Clientes por faixa de valor em aberto** (até R$200 / R$200–500 / R$500–1.000 / acima de R$1.000) — quantidade e valor por faixa.
+  - **Maiores devedores** (barras), destacando quem está em atraso.
+  - **Lista de clientes em atraso**: nome, nº de parcelas vencidas, dias de atraso e valor.
+- **Despesas — Fixa × Avulsa**: novo campo **Tipo** no cadastro (Fixa/Avulsa) e coluna na tabela, com gráficos:
+  - Donut **Fixa × Avulsa** (percentual, valores e quantidades).
+  - **% de cada descrição dentro de cada tipo** (barras para Fixa e para Avulsa).
+  - **Despesas por forma de pagamento** (barras com percentual).
+- Despesas existentes sem tipo definido entram como **Avulsa** por padrão (migração automática).
 
 ## Novidades da v77 (2026-06-05)
 - **Crediários — forma de pagamento ao receber**: modal agora inclui seleção da forma de pagamento (Dinheiro, Pix, Débito, Crédito à vista, Crédito parcelado com seleção de parcelas até 10x).

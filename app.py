@@ -182,6 +182,7 @@ def init_db():
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS dias_estoque INTEGER DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS margem_lucro NUMERIC(10,2) DEFAULT 0",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'avulsa'",
     ]
     for sql in migracoes:
         try:
@@ -999,13 +1000,49 @@ def crediarios():
         agrupado[nome]['pago']  += float(c['valor_total']) - float(c['saldo_devedor'])
         agrupado[nome]['saldo'] += float(c['saldo_devedor'])
     clientes = list(agrupado.values())
+    # ── Análise de atraso e distribuição por cliente (para os gráficos) ──
+    hoje = date.today()
+    for cli in clientes:
+        atraso_val = 0.0; atraso_qtd = 0; dias_max = 0; prox_venc = None
+        for c in cli['vendas']:
+            for p in c['parcelas']:
+                if not p.get('pago'):
+                    venc = p.get('data_vencimento')
+                    if venc and venc < hoje:
+                        atraso_val += float(p['valor'] or 0); atraso_qtd += 1
+                        dias_max = max(dias_max, (hoje - venc).days)
+                    elif venc and (prox_venc is None or venc < prox_venc):
+                        prox_venc = venc
+        cli['atraso_valor'] = round(atraso_val, 2)
+        cli['atraso_qtd'] = atraso_qtd
+        cli['dias_atraso'] = dias_max
+        cli['em_atraso'] = atraso_val > 0
+        cli['prox_venc'] = prox_venc
+    clientes_abertos = [c for c in clientes if c['saldo'] > 0.01]
+    clientes_atraso = sorted([c for c in clientes_abertos if c['em_atraso']],
+                             key=lambda c: c['atraso_valor'], reverse=True)
+    top_devedores = sorted(clientes_abertos, key=lambda c: c['saldo'], reverse=True)[:8]
+    valor_atraso = round(sum(c['atraso_valor'] for c in clientes_atraso), 2)
+    valor_em_dia = round(sum(c['saldo'] for c in clientes_abertos) - valor_atraso, 2)
+    # Faixas de valor em aberto (distribuição de clientes)
+    faixas = [('Até R$ 200', 0, 200), ('R$ 200–500', 200, 500),
+              ('R$ 500–1.000', 500, 1000), ('Acima de R$ 1.000', 1000, float('inf'))]
+    faixas_dist = []
+    for lbl, lo, hi in faixas:
+        grp = [c for c in clientes_abertos if lo < c['saldo'] <= hi]
+        faixas_dist.append({'label': lbl, 'qtd': len(grp),
+                            'valor': round(sum(c['saldo'] for c in grp), 2)})
     cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as t FROM crediarios WHERE status='aberto'")
     total_aberto = float(cur.fetchone()['t'])
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u) for u in cur.fetchall()]
     cur.close(); conn.close()
     taxa_vigente = get_taxa_vigente()
-    ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras, taxa_vigente=taxa_vigente, data_inicio=data_inicio, data_fim=data_fim)
+    ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras,
+        taxa_vigente=taxa_vigente, data_inicio=data_inicio, data_fim=data_fim,
+        n_abertos=len(clientes_abertos), n_atraso=len(clientes_atraso),
+        valor_atraso=valor_atraso, valor_em_dia=valor_em_dia,
+        clientes_atraso=clientes_atraso, top_devedores=top_devedores, faixas_dist=faixas_dist)
     return render_template('crediarios.html', **ctx)
 
 @app.route('/crediarios/<int:cid>/parcela/<int:pid>/pagar', methods=['POST'])
@@ -1156,8 +1193,39 @@ def despesas():
     total = float(cur.fetchone()['t'])
     cur.execute("SELECT COUNT(*) as t FROM despesas"); n = cur.fetchone()['t']
     cur.close(); conn.close()
+    # ── Agregações para gráficos (fixa vs avulsa + descrições) ──
+    def _norm_tipo(t):
+        return 'fixa' if (t or '').strip().lower() in ('fixa', 'fixo') else 'avulsa'
+    total_fixa = total_avulsa = 0.0
+    qtd_fixa = qtd_avulsa = 0
+    desc_fixa, desc_avulsa = {}, {}
+    forma_dist = {}
+    for d in lista:
+        v = float(d['valor'] or 0)
+        tp = _norm_tipo(d.get('tipo'))
+        d['tipo'] = tp  # normaliza para o template
+        dsc = (d.get('descricao') or '—').strip() or '—'
+        fp = (d.get('forma_pagamento') or 'Não informado').strip() or 'Não informado'
+        forma_dist[fp] = forma_dist.get(fp, 0.0) + v
+        if tp == 'fixa':
+            total_fixa += v; qtd_fixa += 1
+            desc_fixa[dsc] = desc_fixa.get(dsc, 0.0) + v
+        else:
+            total_avulsa += v; qtd_avulsa += 1
+            desc_avulsa[dsc] = desc_avulsa.get(dsc, 0.0) + v
+    def _ranked(dic):
+        itens = sorted(dic.items(), key=lambda kv: kv[1], reverse=True)
+        return [{'descricao': k, 'valor': round(v, 2)} for k, v in itens]
+    desc_fixa_list = _ranked(desc_fixa)
+    desc_avulsa_list = _ranked(desc_avulsa)
+    forma_list = sorted(
+        [{'forma': k, 'valor': round(v, 2)} for k, v in forma_dist.items()],
+        key=lambda x: x['valor'], reverse=True)
     ctx = get_ctx()
-    ctx.update(lista=lista, total=total, data_inicio=data_inicio, data_fim=data_fim, next_cod=f"D{n+1}")
+    ctx.update(lista=lista, total=total, data_inicio=data_inicio, data_fim=data_fim, next_cod=f"D{n+1}",
+               total_fixa=round(total_fixa, 2), total_avulsa=round(total_avulsa, 2),
+               qtd_fixa=qtd_fixa, qtd_avulsa=qtd_avulsa,
+               desc_fixa=desc_fixa_list, desc_avulsa=desc_avulsa_list, forma_list=forma_list)
     return render_template('despesas.html', **ctx)
 
 @app.route('/despesas/nova', methods=['POST'])
@@ -1168,12 +1236,14 @@ def nova_despesa():
     valor = float(request.form.get('valor',0) or 0)
     descricao = request.form.get('descricao','').strip()
     forma = request.form.get('forma_pagamento','').strip()
+    tipo = request.form.get('tipo','avulsa').strip().lower()
+    if tipo not in ('fixa','avulsa'): tipo = 'avulsa'
     try:
-        cur.execute("""INSERT INTO despesas (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,usuario_id,usuario_nome)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        cur.execute("""INSERT INTO despesas (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,usuario_id,usuario_nome)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (f"D{n+1}",descricao,request.form.get('categoria','').strip() or None,
              valor,request.form.get('data_despesa') or date.today().isoformat(),
-             forma or None,session['uid'],session['nome']))
+             forma or None,tipo,session['uid'],session['nome']))
         desp_id = cur.fetchone()['id']
         cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,despesa_id,usuario_id,vendedora_nome) VALUES (%s,%s,'saida',%s,%s,%s,%s)",
             (f"Despesa: {descricao}",valor,forma or None,desp_id,session['uid'],session['nome']))
@@ -1276,7 +1346,9 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v80 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v81 — 2026-06-05</b><br>
+    Crediários: dashboard moderno — donut em dia × atraso, distribuição por faixa, top devedores, lista de clientes em atraso ✅<br>
+    Despesas: campo Fixa × Avulsa + gráficos (donut fixa/avulsa, % por descrição em cada tipo, por forma de pagamento) ✅<br>
     Despesas: filtro De/Até + atalhos (Hoje/7dias/Mês) + busca rápida ✅<br>
     Crediários: busca + filtro De/Até + accordion duplo (cliente→vendas→parcelas) ✅<br>
     Scroll fixo: Crediários, Caixa, Estoque, Clientes, Despesas (tabela não cresce) ✅<br>

@@ -1,5 +1,37 @@
 ﻿{% extends "base.html" %}
 {% block content %}
+{% macro moeda(v) %}R$ {{ "{:,.2f}".format(v|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+<style>
+.cred-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+.kpi-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05);display:flex;align-items:center;gap:14px}
+.kpi-ico{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.kpi-info b{display:block;font-size:20px;font-weight:800;color:#1a1a2e;line-height:1.15;letter-spacing:-.3px}
+.kpi-info small{font-size:9.5px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px}
+.charts-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px;margin-bottom:20px}
+.chart-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.chart-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#aaa;margin-bottom:16px}
+.donut2{position:relative;width:140px;height:140px;border-radius:50%;flex-shrink:0}
+.donut2 .hole{position:absolute;inset:20px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px #f4f4f8}
+.donut2 .hole b{font-size:22px;font-weight:800;color:#1a1a2e;line-height:1}
+.donut2 .hole small{font-size:8.5px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.donut-legend{display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
+.leg-item{display:flex;align-items:center;gap:8px;font-size:13px}
+.leg-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.leg-item .leg-name{color:#555;font-weight:600;flex:1}
+.leg-item .leg-val{font-weight:800;color:#1a1a2e}
+.bar-row{margin-bottom:11px}
+.bar-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
+.bar-top .bn{font-weight:600;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+.bar-top .bv{font-weight:800;color:#1a1a2e}
+.bar-track{height:9px;background:#f0f0f5;border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px}
+.atraso-list{display:flex;flex-direction:column;gap:8px;max-height:230px;overflow-y:auto}
+.atraso-item{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;border:1.5px solid #f3d6db;background:#fdf3f5;border-radius:9px}
+.atraso-item .ai-nome{font-size:13px;font-weight:700;color:#1a1a2e}
+.atraso-item .ai-sub{font-size:10.5px;color:#b56;font-weight:600;margin-top:1px}
+.atraso-item .ai-val{font-size:14px;font-weight:800;color:#c62828}
+.chart-empty{padding:24px;text-align:center;color:#bbb;font-size:12.5px;font-style:italic}
+</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -55,6 +87,99 @@
             <button type="button" class="filtro-btn" onclick="atalhoCred('todos')">Todos</button>
           </div>
         </form>
+      </div>
+
+      <!-- PAINEL DE INDICADORES + GRÁFICOS -->
+      {% set pct_atraso = (valor_atraso / total_aberto * 100) if total_aberto > 0 else 0 %}
+      <div class="cred-kpis">
+        <div class="kpi-card">
+          <div class="kpi-ico" style="background:#fdecef;color:#c62828">💳</div>
+          <div class="kpi-info"><b>{{ moeda(total_aberto) }}</b><small>Total em aberto</small></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-ico" style="background:#ede7f6;color:#5e35b1">👥</div>
+          <div class="kpi-info"><b>{{ n_abertos }}</b><small>Clientes devedores</small></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-ico" style="background:#fff3e0;color:#e65100">⏰</div>
+          <div class="kpi-info"><b>{{ n_atraso }}</b><small>Clientes em atraso</small></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-ico" style="background:#fdecef;color:#c62828">🚨</div>
+          <div class="kpi-info"><b>{{ moeda(valor_atraso) }}</b><small>Parcelas em atraso</small></div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <!-- DONUT: EM DIA vs ATRASO -->
+        <div class="chart-card">
+          <div class="chart-title">Situação do valor em aberto</div>
+          {% if total_aberto > 0 %}
+          <div style="display:flex;align-items:center;gap:20px">
+            <div class="donut2" style="background:conic-gradient(#c62828 0 {{ pct_atraso }}%,#2e7d32 {{ pct_atraso }}% 100%)">
+              <div class="hole"><b>{{ "%.0f"|format(pct_atraso) }}%</b><small>em atraso</small></div>
+            </div>
+            <div class="donut-legend">
+              <div class="leg-item"><span class="leg-dot" style="background:#c62828"></span><span class="leg-name">Em atraso</span><span class="leg-val">{{ moeda(valor_atraso) }}</span></div>
+              <div class="leg-item"><span class="leg-dot" style="background:#2e7d32"></span><span class="leg-name">Em dia / a vencer</span><span class="leg-val">{{ moeda(valor_em_dia) }}</span></div>
+              <div class="leg-item" style="border-top:1px solid #f0f0f5;padding-top:9px"><span class="leg-dot" style="background:#1a1a2e"></span><span class="leg-name">Total devedor</span><span class="leg-val">{{ moeda(total_aberto) }}</span></div>
+            </div>
+          </div>
+          {% else %}<div class="chart-empty">Sem valores em aberto. 🎉</div>{% endif %}
+        </div>
+
+        <!-- DISTRIBUIÇÃO DE CLIENTES POR FAIXA DE VALOR -->
+        <div class="chart-card">
+          <div class="chart-title">Clientes por faixa de valor em aberto</div>
+          {% set max_faixa = (faixas_dist|map(attribute='qtd')|max) or 1 %}
+          {% set cores_faixa = ['#26a69a','#5c6bc0','#f9a825','#c62828'] %}
+          {% if n_abertos > 0 %}
+            {% for f in faixas_dist %}
+            <div class="bar-row">
+              <div class="bar-top">
+                <span class="bn">{{ f.label }}</span>
+                <span class="bv">{{ f.qtd }} cli · {{ moeda(f.valor) }}</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:{{ (f.qtd / max_faixa * 100) if max_faixa else 0 }}%;background:{{ cores_faixa[loop.index0] }}"></div></div>
+            </div>
+            {% endfor %}
+          {% else %}<div class="chart-empty">Nenhum cliente devedor no momento.</div>{% endif %}
+        </div>
+
+        <!-- TOP DEVEDORES -->
+        <div class="chart-card">
+          <div class="chart-title">Maiores devedores</div>
+          {% set max_dev = (top_devedores|map(attribute='saldo')|max) or 1 %}
+          {% if top_devedores %}
+            {% for c in top_devedores %}
+            <div class="bar-row">
+              <div class="bar-top">
+                <span class="bn">{{ c.cliente_nome }}{% if c.em_atraso %} <span style="color:#c62828">⏰</span>{% endif %}</span>
+                <span class="bv">{{ moeda(c.saldo) }}</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:{{ (c.saldo / max_dev * 100) if max_dev else 0 }}%;background:{% if c.em_atraso %}#c62828{% else %}#5c6bc0{% endif %}"></div></div>
+            </div>
+            {% endfor %}
+          {% else %}<div class="chart-empty">Nenhum devedor.</div>{% endif %}
+        </div>
+
+        <!-- CLIENTES EM ATRASO -->
+        <div class="chart-card">
+          <div class="chart-title">Clientes em atraso ({{ n_atraso }})</div>
+          {% if clientes_atraso %}
+          <div class="atraso-list">
+            {% for c in clientes_atraso %}
+            <div class="atraso-item">
+              <div>
+                <div class="ai-nome">{{ c.cliente_nome }}</div>
+                <div class="ai-sub">{{ c.atraso_qtd }} parcela(s) · atraso de {{ c.dias_atraso }} dia(s)</div>
+              </div>
+              <div class="ai-val">{{ moeda(c.atraso_valor) }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}<div class="chart-empty">Nenhum cliente em atraso. 👏</div>{% endif %}
+        </div>
       </div>
 
       <!-- BUSCA -->

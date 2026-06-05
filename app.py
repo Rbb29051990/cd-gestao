@@ -295,9 +295,9 @@ def visao_geral():
     cred_entrada = 0.0; cred_parcelas = 0.0
     try:
         cur.execute("""SELECT
-            COALESCE(SUM(CASE WHEN venda_id IS NOT NULL THEN valor ELSE 0 END),0) as ent,
+            COALESCE(SUM(CASE WHEN forma_pagamento='crediario' AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as ent,
             COALESCE(SUM(CASE WHEN crediario_id IS NOT NULL THEN valor ELSE 0 END),0) as parc
-            FROM caixa WHERE tipo='entrada' AND forma_pagamento='crediario'
+            FROM caixa WHERE tipo='entrada'
             AND DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
         cr = cur.fetchone()
         cred_entrada = float(cr['ent']); cred_parcelas = float(cr['parc'])
@@ -1090,7 +1090,7 @@ def caixa():
         COALESCE(SUM(CASE WHEN tipo='entrada' AND (forma_pagamento NOT IN ('crediario') OR forma_pagamento IS NULL) AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_vendas,
         COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' THEN valor ELSE 0 END),0) as entradas_crediarios,
         COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_cred_entrada,
-        COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' AND crediario_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_cred_parcelas
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND crediario_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_cred_parcelas
         FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s""",(data_inicio, data_fim))
     tots = cur.fetchone()
     entradas = float(tots['entradas']); saidas = float(tots['saidas'])
@@ -1264,10 +1264,10 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v77 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v78 — 2026-06-05</b><br>
+    Correção: crediário parcelas no caixa/visão geral conta todas as formas de pgto ✅<br>
     Crediários: forma de pagamento ao receber parcela (dinheiro/pix/débito/crédito) ✅<br>
     Crediários: taxas aplicadas automaticamente no caixa (débito/crédito) ✅<br>
-    Crediários: preview de taxa no modal + opção parcelas p/ crédito parcelado ✅<br>
     Crediários: agrupado por cliente com accordion (expandir/recolher vendas) ✅<br>
     Caixa: ordenação clicável em Data, Tipo, Forma, Vendedora e Líquido ✅<br>
     Vendas: layout invertido (topo → tabela → ranking embaixo) ✅<br>

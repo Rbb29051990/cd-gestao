@@ -996,7 +996,8 @@ def crediarios():
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u) for u in cur.fetchall()]
     cur.close(); conn.close()
-    ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras)
+    taxa_vigente = get_taxa_vigente()
+    ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras, taxa_vigente=taxa_vigente)
     return render_template('crediarios.html', **ctx)
 
 @app.route('/crediarios/<int:cid>/parcela/<int:pid>/pagar', methods=['POST'])
@@ -1004,6 +1005,7 @@ def crediarios():
 def pagar_parcela(cid, pid):
     vendedora_nome = request.form.get('vendedora_nome','').strip()
     valor_pago = float(request.form.get('valor_pago',0) or 0)
+    forma_pg = request.form.get('forma_pagamento','dinheiro').strip()
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM crediarios WHERE id=%s",(cid,))
@@ -1022,8 +1024,10 @@ def pagar_parcela(cid, pid):
                     v = round(novo_saldo-vp*(len(rest)-1),2) if i==len(rest)-1 else vp
                     cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s",(v,p['id']))
             cur.execute("UPDATE crediarios SET saldo_devedor=%s WHERE id=%s",(novo_saldo,cid))
-        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,vendedora_nome) VALUES (%s,%s,'entrada','crediario',%s,%s)",
-            (f"Crediario - {cred['cliente_nome']}",valor_pago,cid,vendedora_nome))
+        # Gravar no caixa com a forma de pagamento real (para taxas serem aplicadas corretamente)
+        descr = f"Crediário - {cred['cliente_nome']} ({forma_pg.replace('_',' ')})"
+        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,vendedora_nome) VALUES (%s,%s,'entrada',%s,%s,%s)",
+            (descr,valor_pago,forma_pg,cid,vendedora_nome))
         conn.commit(); flash('Pagamento registrado!','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); conn.close()
@@ -1260,9 +1264,11 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v76 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v77 — 2026-06-05</b><br>
+    Crediários: forma de pagamento ao receber parcela (dinheiro/pix/débito/crédito) ✅<br>
+    Crediários: taxas aplicadas automaticamente no caixa (débito/crédito) ✅<br>
+    Crediários: preview de taxa no modal + opção parcelas p/ crédito parcelado ✅<br>
     Crediários: agrupado por cliente com accordion (expandir/recolher vendas) ✅<br>
-    Crediários: totais compilados por cliente (total compras, já pago, saldo devedor) ✅<br>
     Caixa: ordenação clicável em Data, Tipo, Forma, Vendedora e Líquido ✅<br>
     Vendas: layout invertido (topo → tabela → ranking embaixo) ✅<br>
     Vendas: filtros de período integrados — tabela + ranking + resumo sincronizados ✅<br>

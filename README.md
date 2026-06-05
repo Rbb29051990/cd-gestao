@@ -1,8 +1,12 @@
-# CD Gestão Empresarial — v76
+# CD Gestão Empresarial — v77
+
+## Novidades da v77 (2026-06-05)
+- **Crediários — forma de pagamento ao receber**: modal agora inclui seleção da forma de pagamento (Dinheiro, Pix, Débito, Crédito à vista, Crédito parcelado com seleção de parcelas até 10x).
+- **Crediários — taxas integradas ao caixa**: ao receber com débito ou crédito, a forma real é gravada no caixa, e as taxas (débito 1,59%, crédito à vista 2,06%, crédito parcelado 2,70%) são aplicadas automaticamente nos cálculos de bruto/líquido.
+- **Crediários — preview de taxa**: antes de confirmar, o modal mostra a taxa %, o desconto e o valor líquido que será registrado.
 
 ## Novidades da v76 (2026-06-05)
-- **Crediários — agrupado por cliente**: vendas do mesmo cliente unificadas em um único card. Cabeçalho mostra **Total compras**, **Já pago** e **Saldo devedor** compilados.
-- **Crediários — accordion**: clique na venda para expandir/recolher as parcelas. Seta ▼/▲ indica o estado.
+- Crediários agrupado por cliente + accordion expandir/recolher vendas + totais compilados.
 
 ## Novidades da v75 (2026-06-05)
 - **Caixa — ordenação clicável**: clique nos cabeçalhos **Data**, **Tipo**, **Forma**, **Vendedora** e **Líquido** para ordenar A→Z / Z→A ou maior→menor. Seta ↑↓ indica a direção.

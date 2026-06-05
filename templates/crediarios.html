@@ -120,8 +120,32 @@
         </select>
       </div>
       <div class="form-field">
+        <label class="form-label">Forma de pagamento</label>
+        <select name="forma_pagamento" id="formaPgCred" class="form-input" style="cursor:pointer" onchange="toggleParcelasCred(this.value)">
+          <option value="dinheiro">💵 Dinheiro</option>
+          <option value="pix">⚡ Pix</option>
+          <option value="debito">💳 Débito</option>
+          <option value="credito_vista">💳 Crédito à vista</option>
+          <option value="credito_parcelado">💳 Crédito parcelado</option>
+        </select>
+      </div>
+      <div class="form-field" id="secParcelasCred" style="display:none">
+        <label class="form-label">Parcelas do cartão</label>
+        <select name="parcelas_cartao" class="form-input" style="cursor:pointer;width:140px">
+          {% for i in range(2,11) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-field">
         <label class="form-label">Valor recebido (R$)</label>
         <input class="form-input" type="number" step="0.01" min="0" name="valor_pago" id="valorPago">
+      </div>
+      <div id="infoTaxaCred" style="display:none;background:#fff8e1;border:1.5px solid #ffe082;border-radius:8px;padding:12px 16px;margin-bottom:14px">
+        <div style="font-size:10px;font-weight:700;color:#f57f17;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚠️ Taxa será aplicada</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px">
+          <span style="color:#555">Taxa: <strong id="txPct">0%</strong></span>
+          <span style="color:#555">Desconto: <strong style="color:#f57f17" id="txDesc">R$ 0,00</strong></span>
+          <span style="color:#555">Líquido: <strong style="color:#2e7d32" id="txLiq">R$ 0,00</strong></span>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-cancelar" onclick="document.getElementById('modalPagamento').style.display='none'">Cancelar</button>
@@ -143,11 +167,50 @@ function toggleVenda(id) {
     if (arrow) arrow.style.transform = 'rotate(0deg)';
   }
 }
+// Taxas vigentes (injetadas do backend)
+const TAXAS_CRED = {
+  credito_vista: {{ taxa_vigente.credito_vista|default(2.06) }},
+  credito_parcelado: {{ taxa_vigente.credito_parcelado|default(2.70) }},
+  debito: {{ taxa_vigente.debito|default(1.59) }},
+  link: {{ taxa_vigente.link|default(0) }}
+};
+
+function toggleParcelasCred(fp) {
+  document.getElementById('secParcelasCred').style.display = fp==='credito_parcelado' ? 'block' : 'none';
+  atualizarPreviewTaxa();
+}
+
+function atualizarPreviewTaxa() {
+  const fp = document.getElementById('formaPgCred').value;
+  const valor = parseFloat(document.getElementById('valorPago').value) || 0;
+  const taxa = TAXAS_CRED[fp] || 0;
+  const info = document.getElementById('infoTaxaCred');
+  if (taxa > 0 && valor > 0) {
+    const desc = Math.round(valor * taxa / 100 * 100) / 100;
+    const liq = Math.round((valor - desc) * 100) / 100;
+    document.getElementById('txPct').textContent = taxa.toFixed(2).replace('.',',') + '%';
+    document.getElementById('txDesc').textContent = 'R$ ' + desc.toFixed(2).replace('.',',');
+    document.getElementById('txLiq').textContent = 'R$ ' + liq.toFixed(2).replace('.',',');
+    info.style.display = 'block';
+  } else {
+    info.style.display = 'none';
+  }
+}
+
 function abrirPagamento(cid, pid, data, valor){
   document.getElementById('subPagamento').textContent = 'Parcela com vencimento em '+data+' — valor original: R$ '+parseFloat(valor).toFixed(2).replace('.',',');
   document.getElementById('valorPago').value = parseFloat(valor).toFixed(2);
   document.getElementById('formPagamento').action = '/crediarios/'+cid+'/parcela/'+pid+'/pagar';
+  document.getElementById('formaPgCred').value = 'dinheiro';
+  document.getElementById('secParcelasCred').style.display = 'none';
+  document.getElementById('infoTaxaCred').style.display = 'none';
   document.getElementById('modalPagamento').style.display = 'flex';
 }
+
+// Atualizar preview quando valor muda
+document.addEventListener('DOMContentLoaded', function(){
+  const vp = document.getElementById('valorPago');
+  if(vp) vp.addEventListener('input', atualizarPreviewTaxa);
+});
 </script>
 {% endblock %}

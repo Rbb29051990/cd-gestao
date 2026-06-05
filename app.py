@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import os, json, random, math
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -173,6 +173,14 @@ def init_db():
         valor NUMERIC(10,2) DEFAULT 0, data_despesa DATE DEFAULT CURRENT_DATE,
         forma_pagamento VARCHAR(50), usuario_id INTEGER, usuario_nome VARCHAR(200),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS despesa_categorias (
+        id SERIAL PRIMARY KEY, nome VARCHAR(120) UNIQUE NOT NULL,
+        ativo BOOLEAN DEFAULT TRUE, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS despesa_parcelas (
+        id SERIAL PRIMARY KEY, despesa_id INTEGER, numero INTEGER,
+        valor NUMERIC(10,2) DEFAULT 0, data_vencimento DATE,
+        pago BOOLEAN DEFAULT FALSE, data_pagamento DATE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     conn.commit()
     # ── MIGRAÇÕES — adiciona colunas novas em tabelas existentes ──
     migracoes = [
@@ -183,6 +191,11 @@ def init_db():
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS margem_lucro NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'avulsa'",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS parcelado BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS num_parcelas INTEGER DEFAULT 1",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS local_retirada VARCHAR(20)",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS obs_retirada TEXT",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS status VARCHAR(12) DEFAULT 'pago'",
     ]
     for sql in migracoes:
         try:
@@ -190,6 +203,18 @@ def init_db():
         except Exception:
             conn.rollback()
     conn.commit()
+    # ── SEED de categorias de despesa (só insere o que faltar) ──
+    CATEGORIAS_PADRAO = ['Salário','Aluguel','IPTU','Água','Luz','Imposto','Contador','MEI',
+        'Internet','Empréstimo','Holerite','Modelo','Marketing','Publicidade',
+        'Vale para funcionário','Costureira','Motoboy','Compra de Sacolas',
+        'Produto de Limpeza','Degustação','Manutenção em geral','Aquisição de equipamentos',
+        'Assinaturas','Cartão de Crédito']
+    try:
+        for nome in CATEGORIAS_PADRAO:
+            cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING",(nome,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
     try:
         for cod, nome, senha in [('F1','Renan Barcellos','renan123'),('F2','Carol Duarte','carol123')]:
             cur.execute("SELECT id FROM usuarios WHERE nome=%s",(nome,))
@@ -324,10 +349,17 @@ def visao_geral():
         cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as v FROM crediarios WHERE status='aberto'")
         val_crediarios = round(float(cur.fetchone()['v']), 2)
     except: val_crediarios = 0.0
-    # Despesas filtradas pelo período selecionado
+    # Despesas do período = saída REAL de caixa:
+    #   • despesas à vista (não parceladas) pela data de lançamento
+    #   • parcelas de despesas parceladas somente quando pagas (pela data de pagamento)
     try:
-        cur.execute("SELECT COALESCE(SUM(valor),0) as v FROM despesas WHERE DATE(criado_em) BETWEEN %s AND %s",
-                    (data_inicio, data_fim))
+        cur.execute("""SELECT
+            COALESCE((SELECT SUM(valor) FROM despesas
+                      WHERE COALESCE(parcelado,FALSE)=FALSE
+                        AND DATE(criado_em) BETWEEN %s AND %s),0)
+          + COALESCE((SELECT SUM(valor) FROM despesa_parcelas
+                      WHERE pago=TRUE AND data_pagamento BETWEEN %s AND %s),0) as v""",
+            (data_inicio, data_fim, data_inicio, data_fim))
         val_despesas = round(float(cur.fetchone()['v']), 2)
     except: val_despesas = 0.0
     # Lucro líquido do período = entradas líquidas − despesas do período
@@ -1189,35 +1221,58 @@ def despesas():
     except: data_fim = hoje.strftime('%Y-%m-%d')
     cur.execute("SELECT * FROM despesas WHERE DATE(COALESCE(data_despesa,criado_em)) BETWEEN %s AND %s ORDER BY criado_em DESC",(data_inicio,data_fim))
     lista = [dict(d) for d in cur.fetchall()]
+    # Carregar parcelas de cada despesa parcelada
+    for d in lista:
+        if d.get('parcelado'):
+            cur.execute("SELECT * FROM despesa_parcelas WHERE despesa_id=%s ORDER BY numero",(d['id'],))
+            d['parcelas'] = [dict(p) for p in cur.fetchall()]
+            d['parc_pagas'] = sum(1 for p in d['parcelas'] if p['pago'])
+        else:
+            d['parcelas'] = []
+            d['parc_pagas'] = 0
     cur.execute("SELECT COALESCE(SUM(valor),0) as t FROM despesas WHERE DATE(COALESCE(data_despesa,criado_em)) BETWEEN %s AND %s",(data_inicio,data_fim))
     total = float(cur.fetchone()['t'])
     cur.execute("SELECT COUNT(*) as t FROM despesas"); n = cur.fetchone()['t']
+    # Categorias para o cadastro (ordenadas)
+    cur.execute("SELECT nome FROM despesa_categorias WHERE ativo=TRUE ORDER BY nome")
+    categorias = [r['nome'] for r in cur.fetchall()]
+    # Contas a pagar (parcelas pendentes — independe do filtro de data)
+    cur.execute("""SELECT p.id as parcela_id, p.numero, p.valor, p.data_vencimento,
+                          d.id as despesa_id, d.codigo, d.descricao, d.categoria,
+                          d.forma_pagamento, d.local_retirada, d.num_parcelas
+                   FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
+                   WHERE p.pago=FALSE ORDER BY p.data_vencimento""")
+    a_pagar = [dict(r) for r in cur.fetchall()]
+    for p in a_pagar:
+        p['atrasada'] = bool(p['data_vencimento'] and p['data_vencimento'] < hoje)
+    total_a_pagar = round(sum(float(p['valor'] or 0) for p in a_pagar), 2)
+    n_atrasadas = sum(1 for p in a_pagar if p['atrasada'])
     cur.close(); conn.close()
-    # ── Agregações para gráficos (fixa vs avulsa + descrições) ──
+    # ── Agregações para gráficos (fixa vs avulsa + descrições + categorias) ──
     def _norm_tipo(t):
         return 'fixa' if (t or '').strip().lower() in ('fixa', 'fixo') else 'avulsa'
     total_fixa = total_avulsa = 0.0
     qtd_fixa = qtd_avulsa = 0
-    desc_fixa, desc_avulsa = {}, {}
+    cat_fixa, cat_avulsa = {}, {}
     forma_dist = {}
     for d in lista:
         v = float(d['valor'] or 0)
         tp = _norm_tipo(d.get('tipo'))
         d['tipo'] = tp  # normaliza para o template
-        dsc = (d.get('descricao') or '—').strip() or '—'
+        chave = (d.get('categoria') or d.get('descricao') or '—').strip() or '—'
         fp = (d.get('forma_pagamento') or 'Não informado').strip() or 'Não informado'
         forma_dist[fp] = forma_dist.get(fp, 0.0) + v
         if tp == 'fixa':
             total_fixa += v; qtd_fixa += 1
-            desc_fixa[dsc] = desc_fixa.get(dsc, 0.0) + v
+            cat_fixa[chave] = cat_fixa.get(chave, 0.0) + v
         else:
             total_avulsa += v; qtd_avulsa += 1
-            desc_avulsa[dsc] = desc_avulsa.get(dsc, 0.0) + v
+            cat_avulsa[chave] = cat_avulsa.get(chave, 0.0) + v
     def _ranked(dic):
         itens = sorted(dic.items(), key=lambda kv: kv[1], reverse=True)
         return [{'descricao': k, 'valor': round(v, 2)} for k, v in itens]
-    desc_fixa_list = _ranked(desc_fixa)
-    desc_avulsa_list = _ranked(desc_avulsa)
+    desc_fixa_list = _ranked(cat_fixa)
+    desc_avulsa_list = _ranked(cat_avulsa)
     forma_list = sorted(
         [{'forma': k, 'valor': round(v, 2)} for k, v in forma_dist.items()],
         key=lambda x: x['valor'], reverse=True)
@@ -1225,7 +1280,9 @@ def despesas():
     ctx.update(lista=lista, total=total, data_inicio=data_inicio, data_fim=data_fim, next_cod=f"D{n+1}",
                total_fixa=round(total_fixa, 2), total_avulsa=round(total_avulsa, 2),
                qtd_fixa=qtd_fixa, qtd_avulsa=qtd_avulsa,
-               desc_fixa=desc_fixa_list, desc_avulsa=desc_avulsa_list, forma_list=forma_list)
+               desc_fixa=desc_fixa_list, desc_avulsa=desc_avulsa_list, forma_list=forma_list,
+               categorias=categorias, a_pagar=a_pagar, total_a_pagar=total_a_pagar,
+               n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas)
     return render_template('despesas.html', **ctx)
 
 @app.route('/despesas/nova', methods=['POST'])
@@ -1235,19 +1292,91 @@ def nova_despesa():
     cur.execute("SELECT COUNT(*) as t FROM despesas"); n = cur.fetchone()['t']
     valor = float(request.form.get('valor',0) or 0)
     descricao = request.form.get('descricao','').strip()
+    categoria = request.form.get('categoria','').strip()
     forma = request.form.get('forma_pagamento','').strip()
     tipo = request.form.get('tipo','avulsa').strip().lower()
     if tipo not in ('fixa','avulsa'): tipo = 'avulsa'
+    local_ret = request.form.get('local_retirada','').strip().lower()
+    if local_ret not in ('caixa','pix'): local_ret = None
+    obs_ret = request.form.get('obs_retirada','').strip() or None
+    parcelado = request.form.get('parcelado','nao').strip().lower() == 'sim'
     try:
-        cur.execute("""INSERT INTO despesas (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,usuario_id,usuario_nome)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-            (f"D{n+1}",descricao,request.form.get('categoria','').strip() or None,
-             valor,request.form.get('data_despesa') or date.today().isoformat(),
-             forma or None,tipo,session['uid'],session['nome']))
+        num_parc = int(request.form.get('num_parcelas','1') or 1)
+    except ValueError:
+        num_parc = 1
+    if not parcelado or num_parc < 2:
+        parcelado = False; num_parc = 1
+    num_parc = min(max(num_parc, 1), 24)
+    # Rótulo da despesa para histórico (categoria + descrição livre)
+    rotulo = categoria or descricao or 'Despesa'
+    if categoria and descricao:
+        rotulo = f"{categoria} — {descricao}"
+    try:
+        # Persistir categoria nova, se digitada
+        if categoria:
+            cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING",(categoria,))
+        status = 'pendente' if parcelado else 'pago'
+        cur.execute("""INSERT INTO despesas
+            (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,
+             parcelado,num_parcelas,local_retirada,obs_retirada,status,usuario_id,usuario_nome)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (f"D{n+1}",descricao or None,categoria or None,valor,
+             request.form.get('data_despesa') or date.today().isoformat(),
+             forma or None,tipo,parcelado,num_parc,local_ret,obs_ret,status,
+             session['uid'],session['nome']))
         desp_id = cur.fetchone()['id']
+        if parcelado:
+            # Gera as parcelas; só viram saída no Caixa quando pagas
+            soma = 0.0
+            for i in range(1, num_parc+1):
+                pv = request.form.get(f'parcela_valor_{i}')
+                pd = request.form.get(f'parcela_data_{i}')
+                pvf = float(pv) if pv else round(valor/num_parc, 2)
+                if not pd:
+                    pd = (date.today() + timedelta(days=30*i)).isoformat()
+                soma += pvf
+                cur.execute("""INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento)
+                    VALUES (%s,%s,%s,%s)""",(desp_id,i,pvf,pd))
+            flash(f'Despesa parcelada em {num_parc}x registrada! As parcelas entram no caixa conforme você as paga.','ok')
+        else:
+            # À vista: sai do caixa agora
+            descr_caixa = f"Despesa: {rotulo}" + (f" [{local_ret}]" if local_ret else "")
+            cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,despesa_id,usuario_id,vendedora_nome) VALUES (%s,%s,'saida',%s,%s,%s,%s)",
+                (descr_caixa,valor,forma or None,desp_id,session['uid'],session['nome']))
+            flash('Despesa registrada!','ok')
+        conn.commit()
+    except Exception as e: conn.rollback(); flash(str(e),'erro')
+    finally: cur.close(); conn.close()
+    return redirect(url_for('despesas'))
+
+@app.route('/despesas/<int:did>/parcela/<int:pid>/pagar', methods=['POST'])
+@login_required
+def pagar_parcela_despesa(did, pid):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM despesas WHERE id=%s",(did,))
+        d = cur.fetchone()
+        if not d:
+            flash('Despesa não encontrada.','erro'); return redirect(url_for('despesas'))
+        d = dict(d)
+        cur.execute("SELECT * FROM despesa_parcelas WHERE id=%s",(pid,))
+        p = cur.fetchone()
+        if not p:
+            flash('Parcela não encontrada.','erro'); return redirect(url_for('despesas'))
+        p = dict(p)
+        if p['pago']:
+            flash('Esta parcela já está paga.','erro'); return redirect(url_for('despesas'))
+        cur.execute("UPDATE despesa_parcelas SET pago=TRUE,data_pagamento=CURRENT_DATE WHERE id=%s",(pid,))
+        rotulo = d.get('categoria') or d.get('descricao') or 'Despesa'
+        loc = d.get('local_retirada')
+        descr_caixa = f"Despesa: {rotulo} (parc. {p['numero']}/{d.get('num_parcelas')})" + (f" [{loc}]" if loc else "")
         cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,despesa_id,usuario_id,vendedora_nome) VALUES (%s,%s,'saida',%s,%s,%s,%s)",
-            (f"Despesa: {descricao}",valor,forma or None,desp_id,session['uid'],session['nome']))
-        conn.commit(); flash('Despesa registrada!','ok')
+            (descr_caixa,float(p['valor']),d.get('forma_pagamento'),did,session['uid'],session['nome']))
+        # Se todas pagas, fecha a despesa
+        cur.execute("SELECT COUNT(*) as t FROM despesa_parcelas WHERE despesa_id=%s AND pago=FALSE",(did,))
+        if cur.fetchone()['t'] == 0:
+            cur.execute("UPDATE despesas SET status='pago' WHERE id=%s",(did,))
+        conn.commit(); flash(f"Parcela {p['numero']} paga e lançada no caixa!",'ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); conn.close()
     return redirect(url_for('despesas'))
@@ -1258,6 +1387,7 @@ def excluir_despesa(did):
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("DELETE FROM caixa WHERE despesa_id=%s",(did,))
+        cur.execute("DELETE FROM despesa_parcelas WHERE despesa_id=%s",(did,))
         cur.execute("DELETE FROM despesas WHERE id=%s",(did,))
         conn.commit(); flash('Despesa excluida.','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
@@ -1346,9 +1476,11 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v81 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v82 — 2026-06-05</b><br>
     Crediários: dashboard moderno — donut em dia × atraso, distribuição por faixa, top devedores, lista de clientes em atraso ✅<br>
-    Despesas: campo Fixa × Avulsa + gráficos (donut fixa/avulsa, % por descrição em cada tipo, por forma de pagamento) ✅<br>
+    Despesas: gráficos (donut fixa/avulsa, % por categoria em cada tipo, por forma de pagamento) ✅<br>
+    Despesas: novo lançamento passo a passo (tipo → categoria com lista/busca/cadastro → descrição → valor → parcelamento até 24x com vencimentos 30/60/90 editáveis → meio de pagamento → origem Caixa/PIX) ✅<br>
+    Despesas: parcelas viram contas a pagar e só entram no caixa quando pagas (Visão Geral conta saída real) ✅<br>
     Despesas: filtro De/Até + atalhos (Hoje/7dias/Mês) + busca rápida ✅<br>
     Crediários: busca + filtro De/Até + accordion duplo (cliente→vendas→parcelas) ✅<br>
     Scroll fixo: Crediários, Caixa, Estoque, Clientes, Despesas (tabela não cresce) ✅<br>

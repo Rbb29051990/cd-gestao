@@ -30,7 +30,27 @@
 .tipo-opt input{display:none}
 .tipo-opt.sel-fixa{border-color:#3949ab;background:#3949ab;color:#fff}
 .tipo-opt.sel-avulsa{border-color:#e65100;background:#e65100;color:#fff}
+.step-sep{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#aaa;margin:18px 0 10px;display:flex;align-items:center;gap:10px}
+.step-sep::after{content:'';flex:1;height:1px;background:#eee}
+.step-sep .stn{width:18px;height:18px;border-radius:50%;background:#e65100;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
+.seg{display:flex;gap:10px}
+.seg-opt{flex:1;padding:10px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;text-align:center;font-weight:700;font-size:13px;color:#888;cursor:pointer;transition:all .15s}
+.seg-opt.sel{border-color:#e65100;background:#e65100;color:#fff}
+.seg-opt input{display:none}
+.parc-head{display:grid;grid-template-columns:34px 1fr 1fr;gap:8px;padding:8px 10px;background:#f8f8fc;border-radius:8px 8px 0 0;font-size:9.5px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px}
+.parc-row{display:grid;grid-template-columns:34px 1fr 1fr;gap:8px;align-items:center;padding:7px 10px;border-bottom:1px solid #f4f4f6}
+.parc-row .pn{width:26px;height:26px;border-radius:50%;background:#fff3e0;color:#e65100;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+.parc-row input{padding:8px 10px;border:1.5px solid #e0e0e8;border-radius:7px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1a1a2e;outline:none;background:#fff;width:100%}
+.parc-box{border:1.5px solid #ffe0b2;border-radius:9px;overflow:hidden;margin-top:6px}
+.parc-conf{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f0;font-size:12px;font-weight:700}
+.apagar-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:18px}
+.apagar-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1.5px solid #eee;border-radius:9px;margin-bottom:8px}
+.apagar-item.atr{border-color:#f3c0c0;background:#fdf3f3}
+.apagar-pay{padding:7px 13px;background:#e65100;color:#fff;border:none;border-radius:7px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.sit-badge{display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;border-radius:20px}
+.sit-pago{background:#e8f5e9;color:#2e7d32}.sit-pend{background:#fff8e1;color:#f57f17}
 </style>
+<style>.modal-tall{max-height:90vh;overflow-y:auto}</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -109,7 +129,7 @@
 
         <!-- DESCRIÇÕES DENTRO DE FIXA -->
         <div class="chart-card">
-          <div class="chart-title">Descrições · Fixa</div>
+          <div class="chart-title">Categorias · Fixa</div>
           {% if desc_fixa %}
             {% set max_f = desc_fixa[0].valor or 1 %}
             {% for d in desc_fixa[:7] %}
@@ -126,7 +146,7 @@
 
         <!-- DESCRIÇÕES DENTRO DE AVULSA -->
         <div class="chart-card">
-          <div class="chart-title">Descrições · Avulsa</div>
+          <div class="chart-title">Categorias · Avulsa</div>
           {% if desc_avulsa %}
             {% set max_a = desc_avulsa[0].valor or 1 %}
             {% for d in desc_avulsa[:7] %}
@@ -160,31 +180,73 @@
         </div>
       </div>
 
+      <!-- CONTAS A PAGAR (parcelas pendentes) -->
+      {% if a_pagar %}
+      <div class="apagar-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div class="chart-title" style="margin:0">🗓️ Contas a pagar — parcelas pendentes</div>
+          <div style="display:flex;gap:10px">
+            <span style="font-size:12px;font-weight:700;color:#e65100">Total: {{ moeda(total_a_pagar) }}</span>
+            {% if n_atrasadas > 0 %}<span style="font-size:12px;font-weight:700;color:#c62828">{{ n_atrasadas }} atrasada(s)</span>{% endif %}
+          </div>
+        </div>
+        <div style="max-height:240px;overflow-y:auto;padding-right:4px">
+          {% for p in a_pagar %}
+          <div class="apagar-item {% if p.atrasada %}atr{% endif %}">
+            <div style="min-width:0">
+              <div style="font-size:13px;font-weight:700;color:#1a1a2e">{{ p.categoria or p.descricao or 'Despesa' }}
+                <span style="font-size:11px;font-weight:600;color:#888">· parc. {{ p.numero }}/{{ p.num_parcelas }}</span></div>
+              <div style="font-size:11px;color:{% if p.atrasada %}#c62828{% else %}#aaa{% endif %};font-weight:600;margin-top:1px">
+                {{ p.codigo }} · vence {{ p.data_vencimento.strftime('%d/%m/%Y') if p.data_vencimento else '—' }}
+                {% if p.atrasada %}· ⏰ vencida{% endif %}
+                {% if p.forma_pagamento %}· {{ p.forma_pagamento }}{% endif %}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:14px;font-weight:800;color:#c62828">{{ moeda(p.valor) }}</span>
+              <form method="POST" action="/despesas/{{ p.despesa_id }}/parcela/{{ p.parcela_id }}/pagar"
+                    onsubmit="return confirm('Confirmar pagamento desta parcela? Ela será lançada como saída no caixa.')">
+                <button type="submit" class="apagar-pay">✅ Pagar</button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       <div style="margin-bottom:12px">
         <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:300px;font-weight:500" type="text" placeholder="Buscar por descrição, categoria..." oninput="filtrarDesp(this.value)">
       </div>
 
       <div class="table-wrap" style="max-height:520px;overflow-y:auto">
         <table class="table">
-          <thead><tr><th>Cód</th><th>Data</th><th>Descrição</th><th>Tipo</th><th>Categoria</th><th>Forma</th><th>Valor</th><th></th></tr></thead>
+          <thead><tr><th>Cód</th><th>Data</th><th>Categoria</th><th>Descrição</th><th>Tipo</th><th>Situação</th><th>Forma</th><th>Origem</th><th>Valor</th><th></th></tr></thead>
           <tbody>
             {% for d in lista %}
             <tr>
               <td><span style="font-size:11px;font-weight:700;color:#e65100;background:#fff3e0;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ d.codigo }}</span></td>
               <td>{{ d.data_despesa.strftime('%d/%m/%Y') if d.data_despesa else '—' }}</td>
-              <td style="font-weight:600">{{ d.descricao }}</td>
+              <td style="font-weight:600">{{ d.categoria or '—' }}</td>
+              <td>{{ d.descricao or '—' }}</td>
               <td><span class="bdg-tipo {% if d.tipo == 'fixa' %}bdg-fixa{% else %}bdg-avulsa{% endif %}">{{ d.tipo }}</span></td>
-              <td>{{ d.categoria or '—' }}</td>
+              <td>
+                {% if d.parcelado %}
+                  <span class="sit-badge {% if d.parc_pagas == d.num_parcelas %}sit-pago{% else %}sit-pend{% endif %}">{{ d.parc_pagas }}/{{ d.num_parcelas }} pagas</span>
+                {% else %}
+                  <span class="sit-badge sit-pago">À vista</span>
+                {% endif %}
+              </td>
               <td>{{ d.forma_pagamento or '—' }}</td>
+              <td>{% if d.local_retirada == 'caixa' %}🏦 Caixa{% elif d.local_retirada == 'pix' %}⚡ PIX{% else %}—{% endif %}</td>
               <td style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
               <td>
-                <form method="POST" action="/despesas/{{ d.id }}/excluir" onsubmit="return confirm('Excluir esta despesa?')">
+                <form method="POST" action="/despesas/{{ d.id }}/excluir" onsubmit="return confirm('Excluir esta despesa? Parcelas e lançamentos no caixa também serão removidos.')">
                   <button type="submit" class="btn-sm btn-sm-danger">🗑️</button>
                 </form>
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="8" class="empty-row">Nenhuma despesa neste período.</td></tr>
+            <tr><td colspan="10" class="empty-row">Nenhuma despesa neste período.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -195,44 +257,97 @@
 
 <!-- MODAL NOVA DESPESA -->
 <div class="modal-overlay" id="modalDespesa" style="display:none">
-  <div class="modal" style="max-width:480px">
+  <div class="modal modal-tall" style="max-width:520px">
     <button class="modal-close" onclick="document.getElementById('modalDespesa').style.display='none'">✕</button>
     <div class="modal-title">Nova despesa</div>
-    <div class="modal-sub">Preencha os dados abaixo</div>
-    <form method="POST" action="/despesas/nova">
+    <div class="modal-sub">Lançamento passo a passo</div>
+    <form method="POST" action="/despesas/nova" id="formDespesa" onsubmit="return validarDespesa()">
+      <input type="hidden" name="parcelado" id="parceladoHidden" value="nao">
+
+      <!-- 1. TIPO -->
+      <div class="step-sep"><span class="stn">1</span> Tipo de despesa *</div>
+      <div class="tipo-opts">
+        <label class="tipo-opt sel-fixa" id="optFixa" onclick="selTipo('fixa')"><input type="radio" name="tipo" value="fixa" checked>🔒 Fixa</label>
+        <label class="tipo-opt" id="optAvulsa" onclick="selTipo('avulsa')"><input type="radio" name="tipo" value="avulsa">⚡ Avulsa</label>
+      </div>
+
+      <!-- 2. CATEGORIA -->
+      <div class="step-sep"><span class="stn">2</span> Categoria *</div>
+      <div class="form-field" style="margin:0">
+        <input class="form-input" type="text" name="categoria" id="catInput" list="catList" required autocomplete="off"
+               placeholder="Digite para buscar ou cadastrar nova...">
+        <datalist id="catList">
+          {% for c in categorias %}<option value="{{ c }}">{% endfor %}
+        </datalist>
+        <div style="font-size:11px;color:#aaa;margin-top:4px">Selecione na lista ou digite uma nova — ela fica salva para os próximos lançamentos.</div>
+      </div>
+
+      <!-- 3. DESCRIÇÃO -->
+      <div class="step-sep"><span class="stn">3</span> Descrição (opcional)</div>
+      <div class="form-field" style="margin:0">
+        <input class="form-input" type="text" name="descricao" placeholder="Detalhe livre. Ex: aluguel ref. junho, fornecedor X...">
+      </div>
+
+      <!-- 4. VALOR + DATA -->
+      <div class="step-sep"><span class="stn">4</span> Valor total</div>
       <div class="form-grid">
-        <div class="form-field span2">
-          <label class="form-label">Descrição *</label>
-          <input class="form-input" type="text" name="descricao" required placeholder="Ex: Aluguel, fornecedor...">
-        </div>
-        <div class="form-field span2">
-          <label class="form-label">Tipo de despesa *</label>
-          <div class="tipo-opts">
-            <label class="tipo-opt sel-fixa" id="optFixa" onclick="selTipo('fixa')"><input type="radio" name="tipo" value="fixa" checked>🔒 Fixa</label>
-            <label class="tipo-opt" id="optAvulsa" onclick="selTipo('avulsa')"><input type="radio" name="tipo" value="avulsa">⚡ Avulsa</label>
-          </div>
+        <div class="form-field">
+          <label class="form-label">Valor (R$) *</label>
+          <input class="form-input" type="number" step="0.01" min="0" name="valor" id="valorDesp" required placeholder="0,00" oninput="gerarParcelasDesp()">
         </div>
         <div class="form-field">
-          <label class="form-label">Categoria</label>
-          <input class="form-input" type="text" name="categoria" placeholder="Ex: Marketing, Insumos...">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Data</label>
-          <input class="form-input" type="date" name="data_despesa" value="{{ now_date if now_date else '' }}">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Valor (R$)</label>
-          <input class="form-input" type="number" step="0.01" min="0" name="valor" required placeholder="0,00">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Forma de pagamento</label>
-          <select class="form-input" name="forma_pagamento" style="cursor:pointer">
-            <option value="">Selecione...</option>
-            <option>Dinheiro</option><option>Pix</option><option>Débito</option>
-            <option>Crédito</option><option>Transferência</option><option>Boleto</option>
-          </select>
+          <label class="form-label">Data do lançamento</label>
+          <input class="form-input" type="date" name="data_despesa">
         </div>
       </div>
+
+      <!-- 5. PARCELAMENTO -->
+      <div class="step-sep"><span class="stn">5</span> Tem parcelamento?</div>
+      <div class="seg">
+        <label class="seg-opt" id="parcNao" onclick="selParc('nao')"><input type="radio" name="parc_opt" value="nao" checked>Não</label>
+        <label class="seg-opt sel" id="parcSim" onclick="selParc('sim')"><input type="radio" name="parc_opt" value="sim">Sim</label>
+      </div>
+      <div id="secParcelas" style="display:none;margin-top:12px">
+        <div class="form-field" style="margin:0 0 10px">
+          <label class="form-label">Quantidade de parcelas (máx. 24x)</label>
+          <select class="form-input" name="num_parcelas" id="numParc" style="cursor:pointer;width:160px" onchange="gerarParcelasDesp()">
+            <option value="">Selecione...</option>
+            {% for i in range(2,25) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
+          </select>
+        </div>
+        <div class="parc-box" id="parcBox" style="display:none">
+          <div class="parc-head"><span>#</span><span>Vencimento</span><span>Valor (R$)</span></div>
+          <div id="parcRows"></div>
+          <div class="parc-conf"><span style="color:#888">Soma das parcelas</span><span id="parcSoma" style="color:#e65100">R$ 0,00</span></div>
+        </div>
+        <div style="font-size:11px;color:#aaa;margin-top:6px">Vencimentos sugeridos a cada 30 dias (30/60/90…). Edite as datas e valores se precisar. As parcelas só entram no caixa quando você marcar como pagas.</div>
+      </div>
+
+      <!-- 6. MEIO DE PAGAMENTO -->
+      <div class="step-sep"><span class="stn">6</span> Meio de pagamento *</div>
+      <div class="form-field" style="margin:0">
+        <select class="form-input" name="forma_pagamento" required style="cursor:pointer">
+          <option value="">Selecione...</option>
+          <option value="Pix">⚡ Pix</option>
+          <option value="Dinheiro">💵 Dinheiro</option>
+          <option value="Boleto">🧾 Boleto</option>
+          <option value="Débito">💳 Débito</option>
+          <option value="Cartão à vista">💳 Cartão à vista</option>
+          <option value="Cartão parcelado">💳 Cartão parcelado</option>
+        </select>
+      </div>
+
+      <!-- 7. LOCAL DE RETIRADA -->
+      <div class="step-sep"><span class="stn">7</span> De onde saiu o pagamento? *</div>
+      <div class="seg">
+        <label class="seg-opt sel" id="locCaixa" onclick="selLocal('caixa')"><input type="radio" name="local_retirada" value="caixa" checked>🏦 Caixa</label>
+        <label class="seg-opt" id="locPix" onclick="selLocal('pix')"><input type="radio" name="local_retirada" value="pix">⚡ PIX / Banco</label>
+      </div>
+      <div class="form-field" style="margin:10px 0 0">
+        <label class="form-label">Observação da retirada (opcional)</label>
+        <input class="form-input" type="text" name="obs_retirada" placeholder="Ex: conta Nubank, caixa da loja, retirada Carol...">
+      </div>
+
       <div class="modal-footer">
         <button type="button" class="btn-cancelar" onclick="document.getElementById('modalDespesa').style.display='none'">Cancelar</button>
         <button type="submit" class="btn-salvar" style="background:#e65100">💸 Registrar despesa</button>
@@ -248,6 +363,74 @@ function selTipo(t){
   f.classList.remove('sel-fixa'); a.classList.remove('sel-avulsa');
   if(t==='fixa'){ f.classList.add('sel-fixa'); f.querySelector('input').checked=true; }
   else { a.classList.add('sel-avulsa'); a.querySelector('input').checked=true; }
+}
+
+function selParc(v){
+  const nao=document.getElementById('parcNao'), sim=document.getElementById('parcSim');
+  nao.classList.remove('sel'); sim.classList.remove('sel');
+  document.getElementById('parceladoHidden').value = v;
+  if(v==='sim'){ sim.classList.add('sel'); sim.querySelector('input').checked=true;
+    document.getElementById('secParcelas').style.display='block'; gerarParcelasDesp(); }
+  else { nao.classList.add('sel'); nao.querySelector('input').checked=true;
+    document.getElementById('secParcelas').style.display='none'; }
+}
+
+function selLocal(v){
+  const c=document.getElementById('locCaixa'), p=document.getElementById('locPix');
+  c.classList.remove('sel'); p.classList.remove('sel');
+  if(v==='caixa'){ c.classList.add('sel'); c.querySelector('input').checked=true; }
+  else { p.classList.add('sel'); p.querySelector('input').checked=true; }
+}
+
+function brl(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function gerarParcelasDesp(){
+  if(document.getElementById('parceladoHidden').value!=='sim') return;
+  const n = parseInt(document.getElementById('numParc').value)||0;
+  const box = document.getElementById('parcBox');
+  const rows = document.getElementById('parcRows');
+  if(!n){ box.style.display='none'; rows.innerHTML=''; return; }
+  const total = parseFloat(document.getElementById('valorDesp').value)||0;
+  const base = Math.floor((total/n)*100)/100;       // parcelas iguais, ajusta a última
+  rows.innerHTML='';
+  let soma=0;
+  for(let i=1;i<=n;i++){
+    const d=new Date(); d.setDate(d.getDate()+30*i);
+    const dataSug=d.toISOString().split('T')[0];
+    let val = (i===n) ? Math.round((total-base*(n-1))*100)/100 : base;
+    soma+=val;
+    const row=document.createElement('div');
+    row.className='parc-row';
+    row.innerHTML='<span class="pn">'+i+'</span>'+
+      '<input type="date" name="parcela_data_'+i+'" value="'+dataSug+'">'+
+      '<input type="number" step="0.01" min="0" name="parcela_valor_'+i+'" value="'+val.toFixed(2)+'" oninput="somarParcelas()">';
+    rows.appendChild(row);
+  }
+  box.style.display='block';
+  document.getElementById('parcSoma').textContent=brl(soma);
+}
+
+function somarParcelas(){
+  let soma=0;
+  document.querySelectorAll('[name^="parcela_valor_"]').forEach(el=>{ soma+=parseFloat(el.value)||0; });
+  document.getElementById('parcSoma').textContent=brl(soma);
+}
+
+function validarDespesa(){
+  const cat=document.getElementById('catInput').value.trim();
+  if(!cat){ alert('⚠️ Selecione ou cadastre a categoria.'); return false; }
+  const val=parseFloat(document.getElementById('valorDesp').value)||0;
+  if(val<=0){ alert('⚠️ Informe o valor total da despesa.'); return false; }
+  if(document.getElementById('parceladoHidden').value==='sim'){
+    const n=parseInt(document.getElementById('numParc').value)||0;
+    if(n<2){ alert('⚠️ Selecione a quantidade de parcelas (mínimo 2x).'); return false; }
+    let soma=0;
+    document.querySelectorAll('[name^="parcela_valor_"]').forEach(el=>{ soma+=parseFloat(el.value)||0; });
+    if(Math.abs(soma-val)>0.05){
+      if(!confirm('A soma das parcelas ('+brl(soma)+') é diferente do valor total ('+brl(val)+'). Deseja continuar mesmo assim?')) return false;
+    }
+  }
+  return true;
 }
 
 function atalhoDesp(tipo) {

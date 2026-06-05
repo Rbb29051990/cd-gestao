@@ -1,6 +1,6 @@
-# CD Gestão Empresarial — v81
+# CD Gestão Empresarial — v82
 
-## Novidades da v81 (2026-06-05)
+## Novidades da v82 (2026-06-05)
 - **Crediários — dashboard moderno** (estilo da aba Vendas): KPIs no topo (total em aberto, clientes devedores, clientes em atraso, valor de parcelas em atraso) e gráficos:
   - Donut **Em dia × Em atraso** com percentual e valores.
   - **Clientes por faixa de valor em aberto** (até R$200 / R$200–500 / R$500–1.000 / acima de R$1.000) — quantidade e valor por faixa.
@@ -8,9 +8,19 @@
   - **Lista de clientes em atraso**: nome, nº de parcelas vencidas, dias de atraso e valor.
 - **Despesas — Fixa × Avulsa**: novo campo **Tipo** no cadastro (Fixa/Avulsa) e coluna na tabela, com gráficos:
   - Donut **Fixa × Avulsa** (percentual, valores e quantidades).
-  - **% de cada descrição dentro de cada tipo** (barras para Fixa e para Avulsa).
+  - **% de cada categoria dentro de cada tipo** (barras para Fixa e para Avulsa).
   - **Despesas por forma de pagamento** (barras com percentual).
 - Despesas existentes sem tipo definido entram como **Avulsa** por padrão (migração automática).
+- **Despesas — novo lançamento passo a passo** (à prova de erro):
+  1. **Tipo** (Fixa/Avulsa).
+  2. **Categoria** com lista pronta (Salário, Aluguel, IPTU, Água, Luz, Imposto, Contador, MEI, Internet, Empréstimo, Holerite, Modelo, Marketing, Publicidade, Vale para funcionário, Costureira, Motoboy, Compra de Sacolas, Produto de Limpeza, Degustação, Manutenção em geral, Aquisição de equipamentos, Assinaturas, Cartão de Crédito) — dá para **rolar e escolher** ou **digitar para filtrar**; categoria nova fica **salva** para os próximos lançamentos.
+  3. **Descrição** livre (opcional).
+  4. **Valor total**.
+  5. **Parcelamento?** Não/Sim — se Sim, escolhe **até 24x**; o sistema **calcula o valor de cada parcela** e abre os **vencimentos sugeridos a cada 30 dias (30/60/90…)**, todos **editáveis**, com conferência da soma.
+  6. **Meio de pagamento**: Pix, Dinheiro, Boleto, Débito, Cartão à vista, Cartão parcelado.
+  7. **De onde saiu o pagamento**: Caixa ou PIX/Banco + observação opcional.
+- **Despesa parcelada vira "Contas a pagar"**: cada parcela é uma pendência com vencimento e só é **lançada como saída no caixa quando você clica em Pagar** (igual aos Crediários). A tabela mostra a situação (À vista / X de N pagas) e a origem (Caixa/PIX), e há um painel **Contas a pagar** com as parcelas pendentes/atrasadas.
+- **Visão Geral coerente**: despesas contam como **saída real** — à vista na data e parcelas só quando pagas (bate com o Caixa).
 
 ## Novidades da v77 (2026-06-05)
 - **Crediários — forma de pagamento ao receber**: modal agora inclui seleção da forma de pagamento (Dinheiro, Pix, Débito, Crédito à vista, Crédito parcelado com seleção de parcelas até 10x).

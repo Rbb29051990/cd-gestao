@@ -1248,7 +1248,8 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v74 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v75 — 2026-06-05</b><br>
+    Caixa: ordenação clicável em Data, Tipo, Forma, Vendedora e Líquido ✅<br>
     Vendas: layout invertido (topo → tabela → ranking embaixo) ✅<br>
     Vendas: filtros de período integrados — tabela + ranking + resumo sincronizados ✅<br>
     Vendas: tabela com scroll interno (altura fixa, barra de rolagem) ✅<br>

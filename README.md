@@ -1,4 +1,7 @@
-# CD Gestão Empresarial — v74
+# CD Gestão Empresarial — v75
+
+## Novidades da v75 (2026-06-05)
+- **Caixa — ordenação clicável**: clique nos cabeçalhos **Data**, **Tipo**, **Forma**, **Vendedora** e **Líquido** para ordenar A→Z / Z→A ou maior→menor. Seta ↑↓ indica a direção.
 
 ## Novidades da v74 (2026-06-05)
 - **Layout invertido**: topo (botão + filtros + resumo) → tabela de vendas → ranking embaixo.

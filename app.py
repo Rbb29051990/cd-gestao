@@ -1143,17 +1143,21 @@ def caixa():
 @login_required
 def despesas():
     conn = get_db(); cur = conn.cursor()
-    mes = request.args.get('mes', datetime.now().strftime('%Y-%m'))
-    cur.execute("SELECT * FROM despesas WHERE TO_CHAR(criado_em,'YYYY-MM')=%s ORDER BY criado_em DESC",(mes,))
+    hoje = date.today()
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except: data_inicio = hoje.strftime('%Y-%m-01')
+    try: date.fromisoformat(data_fim)
+    except: data_fim = hoje.strftime('%Y-%m-%d')
+    cur.execute("SELECT * FROM despesas WHERE DATE(COALESCE(data_despesa,criado_em)) BETWEEN %s AND %s ORDER BY criado_em DESC",(data_inicio,data_fim))
     lista = [dict(d) for d in cur.fetchall()]
-    cur.execute("SELECT COALESCE(SUM(valor),0) as t FROM despesas WHERE TO_CHAR(criado_em,'YYYY-MM')=%s",(mes,))
+    cur.execute("SELECT COALESCE(SUM(valor),0) as t FROM despesas WHERE DATE(COALESCE(data_despesa,criado_em)) BETWEEN %s AND %s",(data_inicio,data_fim))
     total = float(cur.fetchone()['t'])
-    cur.execute("SELECT DISTINCT TO_CHAR(criado_em,'YYYY-MM') as mes FROM despesas ORDER BY mes DESC")
-    meses = [r['mes'] for r in cur.fetchall()]
     cur.execute("SELECT COUNT(*) as t FROM despesas"); n = cur.fetchone()['t']
     cur.close(); conn.close()
     ctx = get_ctx()
-    ctx.update(lista=lista, total=total, mes_atual=mes, meses=meses, next_cod=f"D{n+1}")
+    ctx.update(lista=lista, total=total, data_inicio=data_inicio, data_fim=data_fim, next_cod=f"D{n+1}")
     return render_template('despesas.html', **ctx)
 
 @app.route('/despesas/nova', methods=['POST'])
@@ -1272,7 +1276,8 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v79 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v80 — 2026-06-05</b><br>
+    Despesas: filtro De/Até + atalhos (Hoje/7dias/Mês) + busca rápida ✅<br>
     Crediários: busca + filtro De/Até + accordion duplo (cliente→vendas→parcelas) ✅<br>
     Scroll fixo: Crediários, Caixa, Estoque, Clientes, Despesas (tabela não cresce) ✅<br>
     Sticky headers: Caixa, Estoque, Clientes, Despesas ✅<br>

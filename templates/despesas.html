@@ -32,20 +32,33 @@
     </nav>
     <main class="main-content">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div class="page-header">
+      <div class="page-header" style="flex-wrap:wrap;gap:16px">
         <div>
           <div class="page-title">Despesas</div>
-          <div class="page-date">Total no período: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong></div>
+          <div class="page-date">Total no período: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong> · {{ lista|length }} despesa(s)</div>
         </div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <form method="GET">
-            <select name="mes" class="form-input" style="width:auto;padding:10px 14px;cursor:pointer" onchange="this.form.submit()">
-              {% for m in meses %}<option value="{{ m }}" {% if m == mes_atual %}selected{% endif %}>{{ m }}</option>{% endfor %}
-              {% if not meses %}<option value="{{ mes_atual }}">{{ mes_atual }}</option>{% endif %}
-            </select>
-          </form>
-          <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
-        </div>
+        <form method="GET" id="formFiltroDespesas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
+            <input type="date" name="data_inicio" class="form-input" style="width:auto;padding:9px 14px"
+                   value="{{ data_inicio }}" onchange="this.form.submit()">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
+            <input type="date" name="data_fim" class="form-input" style="width:auto;padding:9px 14px"
+                   value="{{ data_fim }}" onchange="this.form.submit()">
+          </div>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="filtro-btn" onclick="atalhoDesp('hoje')">Hoje</button>
+            <button type="button" class="filtro-btn" onclick="atalhoDesp('semana')">7 dias</button>
+            <button type="button" class="filtro-btn" onclick="atalhoDesp('mes')">Mês</button>
+          </div>
+        </form>
+        <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:300px;font-weight:500" type="text" placeholder="Buscar por descrição, categoria..." oninput="filtrarDesp(this.value)">
       </div>
 
       <div class="table-wrap" style="max-height:520px;overflow-y:auto">
@@ -117,7 +130,27 @@
   </div>
 </div>
 <script>
-// Setar data padrão
 document.querySelector('[name="data_despesa"]').value = new Date().toISOString().split('T')[0];
+
+function atalhoDesp(tipo) {
+  const hoje = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  let ini, fim = fmt(hoje);
+  if (tipo === 'hoje') ini = fmt(hoje);
+  else if (tipo === 'semana') { const d=new Date(hoje); d.setDate(d.getDate()-6); ini=fmt(d); }
+  else if (tipo === 'mes') ini = fmt(hoje).slice(0,7)+'-01';
+  const form = document.getElementById('formFiltroDespesas');
+  form.querySelector('[name=data_inicio]').value = ini;
+  form.querySelector('[name=data_fim]').value = fim;
+  form.submit();
+}
+
+function filtrarDesp(q) {
+  const termo = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  document.querySelectorAll('.table tbody tr').forEach(tr => {
+    const txt = tr.textContent.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    tr.style.display = txt.includes(termo) ? '' : 'none';
+  });
+}
 </script>
 {% endblock %}

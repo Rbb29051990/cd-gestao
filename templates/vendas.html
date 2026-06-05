@@ -147,34 +147,10 @@
 
       <!-- ABA VENDAS -->
       <div class="vtela active" id="tVendas">
-        <!-- TOPO: BOTÃO + RESUMO -->
+        <!-- TOPO: BOTÃO + FILTROS + RESUMO -->
         <div class="top-action-bar">
           <button class="btn-acao" onclick="document.getElementById('modalVenda').style.display='flex'">+ Nova venda</button>
-          <div class="top-summary" id="topSummary">
-            <div class="top-chip"><b id="tsTotal">—</b><small>Total período</small></div>
-            <div class="top-chip"><b id="tsQtd">—</b><small>Vendas</small></div>
-            <div class="top-chip"><b id="tsTicket">—</b><small>Ticket médio</small></div>
-          </div>
-        </div>
-        <!-- RANKING -->
-        <div class="ranking-card">
-          <div class="ranking-header">
-            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#aaa">Ranking de vendedoras</span>
-            <select class="mes-sel" id="mesRanking" onchange="carregarRanking()">
-              {% if meses %}{% for m in meses %}<option value="{{ m.mes_val }}" {% if m.mes_val == now_mes %}selected{% endif %}>{{ m.mes_label }}</option>{% endfor %}
-              {% else %}<option value="{{ now_mes }}">{{ now_mes_label }}</option>{% endif %}
-            </select>
-          </div>
-          <div class="rank-grid" id="rankingBody"></div>
-        </div>
-
-        <!-- LISTAGEM -->
-        <div class="list-header" style="flex-wrap:wrap;gap:12px">
-          <div>
-            <div class="page-title">Vendas</div>
-            <div class="page-date">{{ lista_vendas|length }} venda(s) no período</div>
-          </div>
-          <form method="GET" id="formFiltroVendas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+          <form method="GET" id="formFiltroVendas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:0">
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
               <input type="date" name="data_inicio" class="form-input" style="width:auto;padding:9px 14px"
@@ -191,11 +167,22 @@
               <button type="button" class="filtro-btn" onclick="atalhoVendas('mes')">Mês</button>
             </div>
           </form>
+          <div class="top-summary" id="topSummary">
+            <div class="top-chip"><b id="tsTotal">—</b><small>Total período</small></div>
+            <div class="top-chip"><b id="tsQtd">—</b><small>Vendas</small></div>
+            <div class="top-chip"><b id="tsTicket">—</b><small>Ticket médio</small></div>
+          </div>
         </div>
-        <div class="search-bar">
+
+        <!-- TABELA DE VENDAS -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">
+          <div>
+            <span class="page-title" style="font-size:16px">Vendas</span>
+            <span class="page-date" style="font-size:12px;color:#aaa;margin-left:8px">{{ lista_vendas|length }} venda(s) no período</span>
+          </div>
           <input class="search-input" type="text" id="buscaTabela" placeholder="Buscar por cliente, código, vendedora..." oninput="filtrarTabela(this.value)">
         </div>
-        <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+        <div class="table-wrap" style="max-height:420px;overflow-y:auto;margin-bottom:20px">
           <table class="vtable" id="tabelaVendas">
             <thead><tr>
               <th class="sortable" onclick="ordenarV(0)">Data</th><th>Cód</th>
@@ -236,9 +223,17 @@
                   </form>
                 </td>
               </tr>
-              {% else %}<tr><td colspan="8" class="empty-row">Nenhuma venda registrada ainda.</td></tr>{% endfor %}
+              {% else %}<tr><td colspan="10" class="empty-row">Nenhuma venda registrada ainda.</td></tr>{% endfor %}
             </tbody>
           </table>
+        </div>
+
+        <!-- RANKING (embaixo, sem seletor de mês — usa o filtro de período da página) -->
+        <div class="ranking-card">
+          <div class="ranking-header">
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#aaa">Ranking de vendedoras</span>
+          </div>
+          <div class="rank-grid" id="rankingBody"></div>
         </div>
       </div>
 
@@ -727,9 +722,10 @@ const RK_CORES = ['#f9a825','#9aa0ab','#cd7f32','#5c6bc0','#26a69a'];
 const RK_POS = ['r1','r2','r3'];
 function rkMoeda(v,dec=2){return 'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});}
 async function carregarRanking() {
-  const mes = document.getElementById('mesRanking').value;
+  const di = document.querySelector('[name=data_inicio]').value;
+  const df = document.querySelector('[name=data_fim]').value;
   const body = document.getElementById('rankingBody');
-  const r = await fetch('/vendas/ranking?mes=' + mes);
+  const r = await fetch('/vendas/ranking?data_inicio=' + di + '&data_fim=' + df);
   const d = await r.json();
   if (!d.ranking || d.ranking.length === 0) {
     body.innerHTML = '<div class="rank-empty">Nenhuma venda neste mês.</div>';

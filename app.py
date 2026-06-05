@@ -931,12 +931,18 @@ def editar_venda(vid):
 @app.route('/vendas/ranking')
 @login_required
 def ranking_vendedoras():
-    mes = request.args.get('mes', datetime.now().strftime('%Y-%m'))
+    hoje = date.today()
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except: data_inicio = hoje.strftime('%Y-%m-01')
+    try: date.fromisoformat(data_fim)
+    except: data_fim = hoje.strftime('%Y-%m-%d')
     conn = get_db(); cur = conn.cursor()
     cur.execute("""SELECT vendedora_nome,COALESCE(SUM(valor_total),0) as total,
         COUNT(id) as num_vendas,COUNT(DISTINCT cliente_id) as clientes
-        FROM vendas WHERE TO_CHAR(criado_em,'YYYY-MM')=%s
-        GROUP BY vendedora_nome ORDER BY total DESC""",(mes,))
+        FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s
+        GROUP BY vendedora_nome ORDER BY total DESC""",(data_inicio, data_fim))
     ranking = [dict(r) for r in cur.fetchall()]
     cur.close(); conn.close()
     return jsonify({'ranking':ranking})
@@ -1242,12 +1248,12 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v73 — 2026-06-05</b><br>
-    Vendas: botão no topo + faixa de resumo do período (total, vendas, ticket médio) ✅<br>
-    Vendas: cabeçalho sticky (fixo ao rolar) ✅<br>
-    Vendas: busca rápida por cliente, código ou vendedora ✅<br>
-    Vendas: ordenação clicável em Data, Vendedora, Valor final e Pagamento ✅<br>
-    Vendas: ranking de vendedoras moderno (cards + donut de participação) ✅<br>
+    Versão: <b style='color:green'>v74 — 2026-06-05</b><br>
+    Vendas: layout invertido (topo → tabela → ranking embaixo) ✅<br>
+    Vendas: filtros de período integrados — tabela + ranking + resumo sincronizados ✅<br>
+    Vendas: tabela com scroll interno (altura fixa, barra de rolagem) ✅<br>
+    Vendas: ranking sem seletor de mês (usa filtro de período da página) ✅<br>
+    Vendas: botão no topo + resumo + busca + ordenação clicável + donut ✅<br>
     Visão Geral: layout corrigido (sidebar + conteúdo lado a lado) ✅<br>
     Visão Geral: tudo em uma página sem scroll ✅<br>
     Caixa: taxas descontadas detalhadas por forma de pagamento ✅<br>

@@ -1,14 +1,16 @@
-# CD Gestão Empresarial — v73
+# CD Gestão Empresarial — v74
+
+## Novidades da v74 (2026-06-05)
+- **Layout invertido**: topo (botão + filtros + resumo) → tabela de vendas → ranking embaixo.
+- **Página 100% integrada**: ao mudar o período (De/Até), tabela + ranking + chips de resumo atualizam juntos.
+- **Tabela com scroll interno**: altura fixa com barra de rolagem — a página não cresce conforme aumentam os registros.
+- **Ranking sem seletor de mês**: usa o mesmo filtro de período da página.
 
 ## Novidades da v73 (2026-06-05)
-- **Botão "+ Nova venda" no topo da página**: movido para acima do ranking, alinhado à esquerda (acesso mais rápido).
-- **Faixa de resumo do período**: 3 chips ao lado do botão mostrando **Total do período**, **Nº de vendas** e **Ticket médio** — calculados automaticamente a partir dos filtros de data.
-- **Cabeçalho sticky (fixo)**: ao rolar a lista de vendas, o cabeçalho da tabela fica preso no topo para referência fácil.
-- **Busca rápida**: campo de pesquisa que filtra a tabela em tempo real por cliente, código, vendedora ou qualquer texto.
-- **Ordenação clicável**: clique nos cabeçalhos **Data**, **Vendedora**, **Valor final** e **Pagamento** para ordenar A→Z / Z→A ou maior→menor. Seta indicando a direção da ordenação.
+- Botão "+ Nova venda" no topo, resumo do período, sticky header, busca rápida, ordenação clicável.
 
 ## Novidades da v71 (2026-06-05)
-- **Vendas — ranking de vendedoras moderno**: cards compactos com donut de participação, ticket médio, vendas e clientes por vendedora.
+- Ranking de vendedoras moderno: cards compactos com donut de participação, ticket médio, vendas e clientes.
 
 ## Novidades da v67 (2026-06-04)
 - **Visão Geral — design moderno**: a tabela "Controle de Entradas" ganhou visual de app de gestão: cabeçalho com os totais (bruto e líquido) em destaque, ícone por forma de pagamento, efeito de hover nas linhas, números alinhados e linha de total realçada. Mesmas informações da v66.

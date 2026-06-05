@@ -2,10 +2,16 @@
 {% block content %}
 {% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
 <style>
-/* ── FIT EM UMA PÁGINA SEM SCROLL ── */
-.vg-layout-fix { height:calc(100vh - 60px); overflow:hidden; display:flex; flex-direction:column; }
-.vg-main-fix   { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; padding:18px 26px 14px; }
-.vg-body       { flex:1; min-height:0; display:grid; grid-template-columns:1.15fr 1fr; gap:18px; }
+/*
+  ESTRATÉGIA: não toca no .dash-layout (grid 220px 1fr) nem no .sidebar.
+  Apenas faz o dash-wrap ocupar 100vh e propaga a altura para main-content.
+*/
+.vg-wrap                { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+.vg-wrap .dash-layout   { flex:1; min-height:0; overflow:hidden; }
+.vg-wrap .main-content  { height:100%; overflow:hidden; display:flex; flex-direction:column;
+                           padding:18px 26px 14px; box-sizing:border-box; }
+.vg-body                { flex:1; min-height:0; display:grid;
+                           grid-template-columns:1.15fr 1fr; gap:18px; }
 
 /* ── CONTROLE DE ENTRADAS ── */
 .ce-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:13px;
@@ -20,10 +26,10 @@
 .ce-h-sub   { font-size:10.5px; color:#a0a0ad; margin-top:1px; }
 .ce-chips   { display:flex; gap:8px; }
 .ce-chip    { border-radius:9px; padding:6px 12px; text-align:right; min-width:95px; background:#f5f5f9; }
-.ce-chip-liq { background:#e8f5e9; }
-.ce-chip-lbl { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#a0a0ad; }
+.ce-chip-liq{ background:#e8f5e9; }
+.ce-chip-lbl{ font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#a0a0ad; }
 .ce-chip-liq .ce-chip-lbl { color:#7cb342; }
-.ce-chip-val { font-family:'Outfit',sans-serif; font-size:15px; font-weight:700; color:var(--cor-texto); margin-top:1px; }
+.ce-chip-val{ font-family:'Outfit',sans-serif; font-size:15px; font-weight:700; color:var(--cor-texto); margin-top:1px; }
 .ce-chip-liq .ce-chip-val { color:var(--cor-verde); }
 .ce-table-wrap { flex:1; min-height:0; overflow-y:auto; }
 .ce-table { width:100%; border-collapse:collapse; font-size:12.5px; }
@@ -32,13 +38,13 @@
                      border-top:1px solid #f0f0f4; border-bottom:1px solid #eeeef3;
                      position:sticky; top:0; z-index:1; text-align:left; }
 .ce-table th.r { text-align:right; }
-.ce-table td { padding:8px 18px; border-bottom:1px solid #f5f5f8; color:#444; font-weight:600; vertical-align:middle; }
+.ce-table td   { padding:8px 18px; border-bottom:1px solid #f5f5f8; color:#444; font-weight:600; vertical-align:middle; }
 .ce-table tbody tr { transition:background .13s; }
 .ce-table tbody tr:hover td { background:#f6fbf7; }
 .ce-forma { display:flex; align-items:center; gap:9px; }
 .ce-ico   { width:24px; height:24px; border-radius:7px; display:flex; align-items:center;
             justify-content:center; font-size:12px; flex-shrink:0; }
-.r { text-align:right; font-family:'Outfit',sans-serif; font-variant-numeric:tabular-nums; }
+.r        { text-align:right; font-family:'Outfit',sans-serif; font-variant-numeric:tabular-nums; }
 .ce-bruto { color:var(--cor-texto); font-weight:700; }
 .ce-liq   { color:var(--cor-verde); font-weight:700; }
 .ce-table tfoot td { padding:10px 18px; border-top:2px solid #eaeaf2; background:#f2fbf4;
@@ -61,7 +67,7 @@
 .mg-card.c-ouro::before    { background:#f9a825; }
 .mg-top  { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
 .mg-icon { font-size:17px; }
-.mg-label { font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#a0a0ad; }
+.mg-label{ font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#a0a0ad; }
 .mg-val  { font-family:'Outfit',sans-serif; font-size:19px; font-weight:700; color:var(--cor-texto); line-height:1.1; }
 .mg-val.pos { color:#2e7d32; }
 .mg-val.neg { color:#c62828; }
@@ -69,7 +75,7 @@
 .mg-sub  { font-size:10px; color:#a0a0ad; margin-top:2px; }
 </style>
 
-<div class="dash-wrap">
+<div class="dash-wrap vg-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
@@ -79,7 +85,7 @@
       <a href="/logout" class="btn-logout">Sair</a>
     </div>
   </div>
-  <div class="dash-layout vg-layout-fix">
+  <div class="dash-layout">
     <nav class="sidebar">
       <div class="nav-section"><div class="nav-label">Principal</div>
         <a href="/visao-geral" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
@@ -99,7 +105,7 @@
       </div>
     </nav>
 
-    <main class="vg-main-fix">
+    <main class="main-content">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
 
       <!-- HEADER COM FILTRO -->

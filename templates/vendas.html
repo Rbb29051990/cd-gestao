@@ -72,6 +72,24 @@
 .btn-cancelar-m{padding:13px 20px;background:#f4f4f6;color:#888;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px}
 .btn-exc-venda{width:30px;height:30px;background:#fce4ec;border:none;border-radius:6px;color:#c62828;font-size:14px;cursor:pointer;font-weight:700}
 .mes-sel{padding:8px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:#1a1a2e;outline:none;border-radius:8px;cursor:pointer}
+/* --- Ranking moderno (cards + donut) --- */
+.rank-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px}
+.rank-card{border:1.5px solid #ececf3;border-radius:12px;padding:14px 16px;background:linear-gradient(180deg,#fff,#fbfbfe);transition:box-shadow .2s,transform .2s}
+.rank-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.07);transform:translateY(-2px)}
+.rc-top{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.rc-name{font-size:14px;font-weight:700;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-body{display:flex;align-items:center;gap:14px}
+.donut{position:relative;width:78px;height:78px;border-radius:50%;flex-shrink:0;background:conic-gradient(var(--c) calc(var(--p)*1%),#eef0f5 0)}
+.donut .hole{position:absolute;inset:9px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px #f4f4f8}
+.donut .hole b{font-size:17px;font-weight:800;color:#1a1a2e;line-height:1}
+.donut .hole small{font-size:8px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:2px}
+.rc-info{flex:1;min-width:0}
+.rc-total{font-size:18px;font-weight:800;color:#2e7d32;letter-spacing:-.3px;line-height:1;margin-bottom:9px}
+.rc-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.rc-mini>div{background:#f7f7fb;border-radius:7px;padding:6px 4px;text-align:center}
+.rc-mini span{display:block;font-size:13px;font-weight:800;color:#1a1a2e;line-height:1.1}
+.rc-mini label{font-size:8px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.3px}
+.rank-empty{padding:26px;text-align:center;color:#bbb;font-size:13px;font-style:italic;grid-column:1/-1}
 </style>
 <div class="dash-wrap">
   <div class="topbar">
@@ -119,19 +137,7 @@
               {% else %}<option value="{{ now_mes }}">{{ now_mes_label }}</option>{% endif %}
             </select>
           </div>
-          <table class="rtable">
-            <thead><tr><th>#</th><th>Vendedora</th><th>Total vendido</th><th>Vendas</th><th>Clientes</th></tr></thead>
-            <tbody id="rankingBody">
-              {% for r in ranking %}
-              <tr>
-                <td><span class="rank-pos {% if loop.index==1 %}r1{% elif loop.index==2 %}r2{% elif loop.index==3 %}r3{% else %}rn{% endif %}">{{ loop.index }}</span></td>
-                <td style="font-weight:600">{{ r.vendedora_nome }}</td>
-                <td style="color:#2e7d32;font-weight:700">R$ {{ "{:,.2f}".format(r.total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
-                <td>{{ r.num_vendas }}</td><td>{{ r.clientes }}</td>
-              </tr>
-              {% else %}<tr><td colspan="5" class="empty-row">Nenhuma venda neste mês.</td></tr>{% endfor %}
-            </tbody>
-          </table>
+          <div class="rank-grid" id="rankingBody"></div>
         </div>
 
         <!-- LISTAGEM -->
@@ -687,23 +693,46 @@ function prepararEnvio() {
   return true;
 }
 
+const RK_CORES = ['#f9a825','#9aa0ab','#cd7f32','#5c6bc0','#26a69a'];
+const RK_POS = ['r1','r2','r3'];
+function rkMoeda(v,dec=2){return 'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec});}
 async function carregarRanking() {
   const mes = document.getElementById('mesRanking').value;
+  const body = document.getElementById('rankingBody');
   const r = await fetch('/vendas/ranking?mes=' + mes);
   const d = await r.json();
-  const body = document.getElementById('rankingBody');
   if (!d.ranking || d.ranking.length === 0) {
-    body.innerHTML = '<tr><td colspan="5" class="empty-row">Nenhuma venda neste mês.</td></tr>';
+    body.innerHTML = '<div class="rank-empty">Nenhuma venda neste mês.</div>';
     return;
   }
-  const cores = ['r1','r2','r3'];
-  body.innerHTML = d.ranking.map((r,i) => `<tr>
-    <td><span class="rank-pos ${cores[i]||'rn'}">${i+1}</span></td>
-    <td style="font-weight:600">${r.vendedora_nome}</td>
-    <td style="color:#2e7d32;font-weight:700">R$ ${parseFloat(r.total).toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
-    <td>${r.num_vendas}</td><td>${r.clientes}</td>
-  </tr>`).join('');
+  const somaTotal = d.ranking.reduce((s,r)=>s+parseFloat(r.total||0),0) || 1;
+  body.innerHTML = d.ranking.map((r,i) => {
+    const total = parseFloat(r.total||0);
+    const part = Math.round(total/somaTotal*100);
+    const ticket = r.num_vendas>0 ? total/r.num_vendas : 0;
+    const cor = RK_CORES[i] || '#9aa0ab';
+    return `<div class="rank-card">
+      <div class="rc-top">
+        <span class="rank-pos ${RK_POS[i]||'rn'}">${i+1}</span>
+        <span class="rc-name" title="${r.vendedora_nome}">${r.vendedora_nome}</span>
+      </div>
+      <div class="rc-body">
+        <div class="donut" style="--c:${cor};--p:${part}">
+          <div class="hole"><b>${part}%</b><small>do total</small></div>
+        </div>
+        <div class="rc-info">
+          <div class="rc-total">${rkMoeda(total)}</div>
+          <div class="rc-mini">
+            <div><span>${r.num_vendas}</span><label>Vendas</label></div>
+            <div><span>${r.clientes}</span><label>Clientes</label></div>
+            <div><span>${rkMoeda(ticket,0)}</span><label>Ticket méd.</label></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
+document.addEventListener('DOMContentLoaded', carregarRanking);
 
 function ordenarV(col) {
   const tbody = document.getElementById('tbodyVendas');

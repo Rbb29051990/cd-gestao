@@ -1242,11 +1242,12 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v70 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v71 — 2026-06-05</b><br>
+    Vendas: ranking de vendedoras moderno (cards + donut de participação) ✅<br>
+    Vendas: ticket médio, % do volume, vendas e clientes por vendedora ✅<br>
     Visão Geral: layout corrigido (sidebar + conteúdo lado a lado) ✅<br>
     Visão Geral: tudo em uma página sem scroll ✅<br>
     Caixa: taxas descontadas detalhadas por forma de pagamento ✅<br>
-    Caixa: crediário detalhado em entradas (sinal) e parcelas pagas ✅<br>
     <br><span style='color:#888;font-size:14px'>Correções da v61 (estoque, taxas, rotas, fichas) incluídas.</span><br>
     <br><a href='/'>← Voltar</a>
     </div>"""

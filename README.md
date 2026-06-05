@@ -1,4 +1,11 @@
-# CD Gestão Empresarial — v67
+# CD Gestão Empresarial — v71
+
+## Novidades da v71 (2026-06-05)
+- **Vendas — ranking de vendedoras moderno**: a tabela do ranking foi substituída por **cards compactos**, um por vendedora, sem alongar a página. Cada card traz:
+  - **Donut (gráfico de rosquinha)** com o **% de participação** da vendedora no volume total de vendas do mês.
+  - **Total vendido** em destaque.
+  - Mini-indicadores: **Vendas**, **Clientes** atendidos e **Ticket médio** (total ÷ nº de vendas).
+  - Medalhas de posição (ouro/prata/bronze), cores por colocação e efeito de hover. Layout responsivo que acomoda 2, 3 ou mais vendedoras na mesma faixa horizontal.
 
 ## Novidades da v67 (2026-06-04)
 - **Visão Geral — design moderno**: a tabela "Controle de Entradas" ganhou visual de app de gestão: cabeçalho com os totais (bruto e líquido) em destaque, ícone por forma de pagamento, efeito de hover nas linhas, números alinhados e linha de total realçada. Mesmas informações da v66.

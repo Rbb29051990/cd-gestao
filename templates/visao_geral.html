@@ -2,66 +2,71 @@
 {% block content %}
 {% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
 <style>
-/* ── LAYOUT VISÃO GERAL ── */
-.vg-body{display:grid;grid-template-columns:1.15fr 1fr;gap:20px;margin-bottom:24px;align-items:start}
-@media(max-width:900px){.vg-body{grid-template-columns:1fr}}
+/* ── FIT EM UMA PÁGINA SEM SCROLL ── */
+.vg-layout-fix { height:calc(100vh - 60px); overflow:hidden; display:flex; flex-direction:column; }
+.vg-main-fix   { flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column; padding:18px 26px 14px; }
+.vg-body       { flex:1; min-height:0; display:grid; grid-template-columns:1.15fr 1fr; gap:18px; }
 
 /* ── CONTROLE DE ENTRADAS ── */
-.ce-card{background:#fff;border:1.5px solid var(--cor-borda);border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.06);overflow:hidden;position:relative}
-.ce-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--cor-azul),var(--cor-verde),var(--cor-amarelo));border-radius:14px 14px 0 0}
-.ce-header{padding:20px 22px 14px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px}
-.ce-h-title{font-size:15px;font-weight:700;color:var(--cor-texto)}
-.ce-h-sub{font-size:11px;color:#a0a0ad;margin-top:2px}
-.ce-chips{display:flex;gap:8px;flex-wrap:wrap}
-.ce-chip{border-radius:10px;padding:8px 14px;text-align:right;min-width:105px;background:#f5f5f9}
-.ce-chip-liq{background:#e8f5e9}
-.ce-chip-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a0a0ad}
-.ce-chip-liq .ce-chip-lbl{color:#7cb342}
-.ce-chip-val{font-family:'Outfit',sans-serif;font-size:16px;font-weight:700;color:var(--cor-texto);margin-top:2px}
-.ce-chip-liq .ce-chip-val{color:var(--cor-verde)}
-.ce-table{width:100%;border-collapse:collapse;font-size:13px}
-.ce-table thead tr{background:#fafafc}
-.ce-table th{padding:9px 22px;font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#a0a0ad;border-top:1px solid #f0f0f4;border-bottom:1px solid #eeeef3;text-align:left}
-.ce-table th.r{text-align:right}
-.ce-table td{padding:10px 22px;border-bottom:1px solid #f5f5f8;color:#444;font-weight:600;vertical-align:middle}
-.ce-table tbody tr{transition:background .13s}
-.ce-table tbody tr:hover td{background:#f6fbf7}
-.ce-forma{display:flex;align-items:center;gap:10px}
-.ce-ico{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
-.r{text-align:right;font-family:'Outfit',sans-serif;font-variant-numeric:tabular-nums}
-.ce-bruto{color:var(--cor-texto);font-weight:700}
-.ce-liq{color:var(--cor-verde);font-weight:700}
-.ce-table tfoot td{padding:13px 22px;border-top:2px solid #eaeaf2;background:#f2fbf4;font-weight:800;font-size:14px;color:var(--cor-texto);text-transform:uppercase;letter-spacing:.4px}
-.ce-table tfoot .r{font-size:15px}
-.ce-table tfoot .ce-liq{color:var(--cor-verde)}
+.ce-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:13px;
+           box-shadow:0 4px 18px rgba(0,0,0,.06); overflow:hidden; position:relative;
+           display:flex; flex-direction:column; min-height:0; }
+.ce-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px;
+                   background:linear-gradient(90deg,var(--cor-azul),var(--cor-verde),var(--cor-amarelo));
+                   border-radius:13px 13px 0 0; }
+.ce-header { padding:14px 20px 10px; display:flex; justify-content:space-between;
+             align-items:center; flex-wrap:wrap; gap:10px; flex-shrink:0; }
+.ce-h-title { font-size:14px; font-weight:700; color:var(--cor-texto); }
+.ce-h-sub   { font-size:10.5px; color:#a0a0ad; margin-top:1px; }
+.ce-chips   { display:flex; gap:8px; }
+.ce-chip    { border-radius:9px; padding:6px 12px; text-align:right; min-width:95px; background:#f5f5f9; }
+.ce-chip-liq { background:#e8f5e9; }
+.ce-chip-lbl { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#a0a0ad; }
+.ce-chip-liq .ce-chip-lbl { color:#7cb342; }
+.ce-chip-val { font-family:'Outfit',sans-serif; font-size:15px; font-weight:700; color:var(--cor-texto); margin-top:1px; }
+.ce-chip-liq .ce-chip-val { color:var(--cor-verde); }
+.ce-table-wrap { flex:1; min-height:0; overflow-y:auto; }
+.ce-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+.ce-table thead th { padding:7px 18px; font-size:9.5px; font-weight:700; letter-spacing:.6px;
+                     text-transform:uppercase; color:#a0a0ad; background:#fafafc;
+                     border-top:1px solid #f0f0f4; border-bottom:1px solid #eeeef3;
+                     position:sticky; top:0; z-index:1; text-align:left; }
+.ce-table th.r { text-align:right; }
+.ce-table td { padding:8px 18px; border-bottom:1px solid #f5f5f8; color:#444; font-weight:600; vertical-align:middle; }
+.ce-table tbody tr { transition:background .13s; }
+.ce-table tbody tr:hover td { background:#f6fbf7; }
+.ce-forma { display:flex; align-items:center; gap:9px; }
+.ce-ico   { width:24px; height:24px; border-radius:7px; display:flex; align-items:center;
+            justify-content:center; font-size:12px; flex-shrink:0; }
+.r { text-align:right; font-family:'Outfit',sans-serif; font-variant-numeric:tabular-nums; }
+.ce-bruto { color:var(--cor-texto); font-weight:700; }
+.ce-liq   { color:var(--cor-verde); font-weight:700; }
+.ce-table tfoot td { padding:10px 18px; border-top:2px solid #eaeaf2; background:#f2fbf4;
+                     font-weight:800; font-size:13px; color:var(--cor-texto);
+                     text-transform:uppercase; letter-spacing:.3px;
+                     position:sticky; bottom:0; z-index:1; }
 
-/* ── METRIC CARDS ── */
-.mg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.mg-card{background:#fff;border:1.5px solid var(--cor-borda);border-radius:13px;padding:18px 20px;box-shadow:0 3px 14px rgba(0,0,0,.05);position:relative;overflow:hidden;cursor:pointer;text-decoration:none;display:block;transition:box-shadow .18s,transform .18s}
-.mg-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.1);transform:translateY(-2px)}
-.mg-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:13px 13px 0 0}
-.mg-card.c-azul::before{background:#1565c0}
-.mg-card.c-verde::before{background:#2e7d32}
-.mg-card.c-rosa::before{background:#c0396b}
-.mg-card.c-laranja::before{background:#e65100}
-.mg-card.c-ouro::before{background:#f57f17}
-.mg-liq-card{background:linear-gradient(135deg,#1a1a2e 70%,#2e3a4a);border:none;grid-column:1/-1}
-.mg-liq-card::before{background:linear-gradient(90deg,var(--cor-verde),var(--cor-azul))}
-.mg-icon{font-size:22px;margin-bottom:8px;display:block}
-.mg-label{font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a0a0ad;margin-bottom:5px}
-.mg-liq-card .mg-label{color:rgba(255,255,255,.55)}
-.mg-val{font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;color:var(--cor-texto)}
-.mg-liq-card .mg-val{color:#fff;font-size:26px}
-.mg-val.pos{color:#2e7d32}
-.mg-val.neg{color:#c62828}
-.mg-link{font-size:10px;font-weight:700;letter-spacing:.5px;color:#a0a0ad;margin-top:6px;display:flex;align-items:center;gap:3px}
-.mg-liq-card .mg-link{color:rgba(255,255,255,.4)}
-.mg-sub{font-size:10.5px;color:rgba(255,255,255,.5);margin-top:4px}
-
-/* ── RECENTES ── */
-.badge-cv{background:#ede7f6;color:#6a1b9a}
-.badge-cp{background:#e3f2fd;color:#1565c0}
-.badge-lk{background:#fff3e0;color:#e65100}
+/* ── METRIC CARDS 3×2 ── */
+.mg-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(3,1fr); gap:14px; }
+.mg-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:13px;
+           padding:16px 18px; box-shadow:0 3px 12px rgba(0,0,0,.05); position:relative;
+           overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;
+           text-decoration:none; transition:box-shadow .18s, transform .18s; }
+.mg-card:hover { box-shadow:0 8px 26px rgba(0,0,0,.1); transform:translateY(-2px); }
+.mg-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:13px 13px 0 0; }
+.mg-card.c-azul::before    { background:#1565c0; }
+.mg-card.c-verde::before   { background:#2e7d32; }
+.mg-card.c-rosa::before    { background:#c0396b; }
+.mg-card.c-laranja::before { background:#e65100; }
+.mg-card.c-ouro::before    { background:#f9a825; }
+.mg-top  { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+.mg-icon { font-size:17px; }
+.mg-label { font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#a0a0ad; }
+.mg-val  { font-family:'Outfit',sans-serif; font-size:19px; font-weight:700; color:var(--cor-texto); line-height:1.1; }
+.mg-val.pos { color:#2e7d32; }
+.mg-val.neg { color:#c62828; }
+.mg-link { font-size:10px; font-weight:600; color:#c0c0cc; margin-top:5px; }
+.mg-sub  { font-size:10px; color:#a0a0ad; margin-top:2px; }
 </style>
 
 <div class="dash-wrap">
@@ -74,7 +79,7 @@
       <a href="/logout" class="btn-logout">Sair</a>
     </div>
   </div>
-  <div class="dash-layout">
+  <div class="dash-layout vg-layout-fix">
     <nav class="sidebar">
       <div class="nav-section"><div class="nav-label">Principal</div>
         <a href="/visao-geral" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
@@ -93,32 +98,35 @@
         {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
       </div>
     </nav>
-    <main class="main-content">
+
+    <main class="vg-main-fix">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
 
-      <!-- HEADER -->
-      <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:14px;margin-bottom:16px">
+      <!-- HEADER COM FILTRO -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:12px;flex-shrink:0">
         <div>
-          <div class="page-title">Visão Geral</div>
+          <div class="page-title" style="margin-bottom:1px">Visão Geral</div>
           <div class="page-date">{{ hoje }}</div>
         </div>
-        <form method="GET" id="formFiltro" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
-            <input type="date" name="data_inicio" id="dataInicio" class="form-input" style="width:auto;padding:9px 13px" value="{{ data_inicio }}" onchange="this.form.submit()">
-          </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
-            <input type="date" name="data_fim" id="dataFim" class="form-input" style="width:auto;padding:9px 13px" value="{{ data_fim }}" onchange="this.form.submit()">
-          </div>
-          <div style="display:flex;gap:6px">
-            <button type="button" class="filtro-btn" onclick="atalho('hoje')">Hoje</button>
-            <button type="button" class="filtro-btn" onclick="atalho('semana')">7 dias</button>
-            <button type="button" class="filtro-btn" onclick="atalho('mes')">Mês</button>
-          </div>
-        </form>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div class="page-mes" id="periodoLabel" style="margin:0">📅 <span id="periodoTxt">{{ mes_atual }}</span></div>
+          <form method="GET" id="formFiltro" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">De</div>
+              <input type="date" name="data_inicio" id="dataInicio" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_inicio }}" onchange="this.form.submit()">
+            </div>
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">Até</div>
+              <input type="date" name="data_fim" id="dataFim" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_fim }}" onchange="this.form.submit()">
+            </div>
+            <div style="display:flex;gap:5px">
+              <button type="button" class="filtro-btn" onclick="atalho('hoje')">Hoje</button>
+              <button type="button" class="filtro-btn" onclick="atalho('semana')">7 dias</button>
+              <button type="button" class="filtro-btn" onclick="atalho('mes')">Mês</button>
+            </div>
+          </form>
+        </div>
       </div>
-      <div class="page-mes" id="periodoLabel" style="margin-bottom:20px">📅 Período: {{ mes_atual }}</div>
 
       <!-- GRID PRINCIPAL -->
       <div class="vg-body">
@@ -141,127 +149,99 @@
               </div>
             </div>
           </div>
-          <table class="ce-table">
-            <thead>
-              <tr>
-                <th>Forma de pagamento</th>
-                <th class="r">Bruto</th>
-                <th class="r">Líquido</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% set linhas = [
-                ('Dinheiro',           fat.dinheiro,           fat_liq.dinheiro,           '💵','#e8f5e9'),
-                ('Pix',                fat.pix,                fat_liq.pix,                '⚡','#e3f2fd'),
-                ('Débito',             fat.debito,             fat_liq.debito,             '💳','#e8eaf6'),
-                ('Crédito à vista',    fat.credito_vista,      fat_liq.credito_vista,      '💳','#ede7f6'),
-                ('Crédito parcelado',  fat.credito_parcelado,  fat_liq.credito_parcelado,  '💳','#ede7f6'),
-                ('Link',               fat.link,               fat_liq.link,               '🔗','#fff3e0'),
-                ('Crediário (entrada)',cred_entrada,            cred_entrada,               '📋','#fce4ec'),
-                ('Crediário (parcelas)',cred_parcelas,          cred_parcelas,              '🗓️','#fce4ec')
-              ] %}
-              {% for nome, bruto, liquido, icon, bg in linhas %}
-              <tr>
-                <td class="ce-forma"><span class="ce-ico" style="background:{{ bg }}">{{ icon }}</span>{{ nome }}</td>
-                <td class="r ce-bruto">{{ brl(bruto) }}</td>
-                <td class="r ce-liq">{{ brl(liquido) }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td>Total do período</td>
-                <td class="r">{{ brl(fat_total) }}</td>
-                <td class="r ce-liq">{{ brl(fat_total_liq) }}</td>
-              </tr>
-            </tfoot>
-          </table>
+          <div class="ce-table-wrap">
+            <table class="ce-table">
+              <thead>
+                <tr>
+                  <th>Forma de pagamento</th>
+                  <th class="r">Bruto</th>
+                  <th class="r">Líquido</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% set linhas = [
+                  ('Dinheiro',            fat.dinheiro,          fat_liq.dinheiro,          '💵','#e8f5e9'),
+                  ('Pix',                 fat.pix,               fat_liq.pix,               '⚡','#e3f2fd'),
+                  ('Débito',              fat.debito,            fat_liq.debito,             '💳','#e8eaf6'),
+                  ('Crédito à vista',     fat.credito_vista,     fat_liq.credito_vista,      '💳','#ede7f6'),
+                  ('Crédito parcelado',   fat.credito_parcelado, fat_liq.credito_parcelado,  '💳','#ede7f6'),
+                  ('Link',                fat.link,              fat_liq.link,               '🔗','#fff3e0'),
+                  ('Crediário (entrada)', cred_entrada,          cred_entrada,               '📋','#fce4ec'),
+                  ('Crediário (parcelas)',cred_parcelas,         cred_parcelas,              '🗓️','#fce4ec')
+                ] %}
+                {% for nome, bruto, liquido, icon, bg in linhas %}
+                <tr>
+                  <td class="ce-forma"><span class="ce-ico" style="background:{{ bg }}">{{ icon }}</span>{{ nome }}</td>
+                  <td class="r ce-bruto">{{ brl(bruto) }}</td>
+                  <td class="r ce-liq">{{ brl(liquido) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total do período</td>
+                  <td class="r">{{ brl(fat_total) }}</td>
+                  <td class="r ce-liq">{{ brl(fat_total_liq) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
 
-        <!-- DIREITA: Metric Cards -->
+        <!-- DIREITA: 3 linhas × 2 cards -->
         <div class="mg-grid">
 
-          <!-- Valor em estoque -->
           <a href="/estoque" class="mg-card c-azul">
-            <span class="mg-icon">📦</span>
-            <div class="mg-label">Valor em estoque</div>
-            <div class="mg-val">{{ brl(val_estoque) }}</div>
+            <div>
+              <div class="mg-top"><span class="mg-icon">📦</span><span class="mg-label">Valor em estoque</span></div>
+              <div class="mg-val">{{ brl(val_estoque) }}</div>
+            </div>
             <div class="mg-link">Ver estoque →</div>
           </a>
 
-          <!-- Custo do estoque -->
           <a href="/estoque" class="mg-card c-azul">
-            <span class="mg-icon">🏷️</span>
-            <div class="mg-label">Custo do estoque</div>
-            <div class="mg-val">{{ brl(custo_estoque) }}</div>
+            <div>
+              <div class="mg-top"><span class="mg-icon">🏷️</span><span class="mg-label">Custo do estoque</span></div>
+              <div class="mg-val">{{ brl(custo_estoque) }}</div>
+            </div>
             <div class="mg-link">Ver estoque →</div>
           </a>
 
-          <!-- Lucro potencial do estoque -->
-          <a href="/estoque" class="mg-card c-verde" style="grid-column:1/-1">
-            <span class="mg-icon">📈</span>
-            <div class="mg-label">Lucro potencial do estoque</div>
-            <div class="mg-val pos">{{ brl(lucro_potencial) }}</div>
-            <div class="mg-link">Valor de venda − custo · Ver estoque →</div>
+          <a href="/estoque" class="mg-card c-verde">
+            <div>
+              <div class="mg-top"><span class="mg-icon">📈</span><span class="mg-label">Lucro potencial</span></div>
+              <div class="mg-val pos">{{ brl(lucro_potencial) }}</div>
+              <div class="mg-sub">Valor venda − custo do estoque</div>
+            </div>
+            <div class="mg-link">Ver estoque →</div>
           </a>
 
-          <!-- Crediários em aberto -->
           <a href="/crediarios" class="mg-card c-rosa">
-            <span class="mg-icon">💳</span>
-            <div class="mg-label">Crediários em aberto</div>
-            <div class="mg-val">{{ brl(val_crediarios) }}</div>
+            <div>
+              <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Crediários em aberto</span></div>
+              <div class="mg-val">{{ brl(val_crediarios) }}</div>
+            </div>
             <div class="mg-link">Ver crediários →</div>
           </a>
 
-          <!-- Despesas do período -->
           <a href="/despesas" class="mg-card c-laranja">
-            <span class="mg-icon">💸</span>
-            <div class="mg-label">Despesas do período</div>
-            <div class="mg-val">{{ brl(val_despesas) }}</div>
+            <div>
+              <div class="mg-top"><span class="mg-icon">💸</span><span class="mg-label">Despesas do período</span></div>
+              <div class="mg-val">{{ brl(val_despesas) }}</div>
+            </div>
             <div class="mg-link">Ver despesas →</div>
           </a>
 
-          <!-- Lucro líquido (card destaque, full width) -->
-          <div class="mg-card mg-liq-card">
-            <span class="mg-icon">🏆</span>
-            <div class="mg-label">Lucro líquido do período</div>
-            <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}" style="font-size:28px">{{ brl(lucro_liquido) }}</div>
-            <div class="mg-sub">Entradas líquidas − despesas do período</div>
+          <div class="mg-card c-ouro">
+            <div>
+              <div class="mg-top"><span class="mg-icon">🏆</span><span class="mg-label">Lucro líquido</span></div>
+              <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}">{{ brl(lucro_liquido) }}</div>
+              <div class="mg-sub">Entradas líquidas − despesas</div>
+            </div>
           </div>
 
         </div><!-- /mg-grid -->
       </div><!-- /vg-body -->
-
-      <!-- MOVIMENTAÇÕES RECENTES -->
-      <div class="section-title">Movimentações recentes</div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead><tr><th>Data</th><th>Vendedora</th><th>Cliente</th><th>Valor</th><th>Pagamento</th></tr></thead>
-          <tbody>
-            {% for m in movs %}
-            <tr onclick="window.location='/vendas/{{ m.id }}'" style="cursor:pointer">
-              <td style="color:#999;font-size:12px;white-space:nowrap">{{ m.criado_em.strftime("%d/%m/%Y %H:%M") }}</td>
-              <td>{{ m.vendedora_nome or "—" }}</td>
-              <td style="font-weight:600">{{ m.cliente_nome or "—" }}</td>
-              <td style="font-weight:700;color:#1a1a2e">{{ brl(m.valor_total|float) }}</td>
-              <td>
-                {% if m.forma_pagamento == "pix" %}<span class="badge badge-pix">⚡ Pix</span>
-                {% elif m.forma_pagamento == "dinheiro" %}<span class="badge badge-dinheiro">💵 Dinheiro</span>
-                {% elif m.forma_pagamento == "debito" %}<span class="badge badge-debito">💳 Débito</span>
-                {% elif m.forma_pagamento == "crediario" %}<span class="badge badge-fiado">📋 Crediário</span>
-                {% elif m.forma_pagamento == "credito_vista" %}<span class="badge badge-cv">💳 Créd. vista</span>
-                {% elif m.forma_pagamento == "credito_parcelado" %}<span class="badge badge-cp">💳 Créd. parc.</span>
-                {% elif m.forma_pagamento == "link" %}<span class="badge badge-lk">🔗 Link</span>
-                {% else %}<span class="badge badge-nao">{{ m.forma_pagamento }}</span>{% endif %}
-              </td>
-            </tr>
-            {% else %}
-            <tr><td colspan="5" class="empty-row">Nenhuma movimentação no período.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
     </main>
   </div>
 </div>
@@ -281,10 +261,10 @@ function atalho(tipo){
 document.addEventListener('DOMContentLoaded', function(){
   const ini = document.getElementById('dataInicio').value;
   const fim = document.getElementById('dataFim').value;
-  if (ini && fim){
+  if(ini && fim){
     const fmtBR = d => d.split('-').reverse().join('/');
-    const label = ini === fim ? 'Dia ' + fmtBR(ini) : fmtBR(ini) + ' até ' + fmtBR(fim);
-    document.getElementById('periodoLabel').textContent = '📅 Período: ' + label;
+    document.getElementById('periodoTxt').textContent =
+      ini === fim ? 'Dia ' + fmtBR(ini) : fmtBR(ini) + ' até ' + fmtBR(fim);
   }
 });
 </script>

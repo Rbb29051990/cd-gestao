@@ -90,6 +90,25 @@
 .rc-mini span{display:block;font-size:13px;font-weight:800;color:#1a1a2e;line-height:1.1}
 .rc-mini label{font-size:8px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.3px}
 .rank-empty{padding:26px;text-align:center;color:#bbb;font-size:13px;font-style:italic;grid-column:1/-1}
+/* --- Topo: botão + resumo --- */
+.top-action-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.top-summary{display:flex;gap:10px;flex-wrap:wrap}
+.top-chip{background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;padding:8px 16px;text-align:center;min-width:100px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.top-chip b{display:block;font-size:16px;font-weight:800;color:#1a1a2e;line-height:1.2}
+.top-chip small{font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px}
+/* --- Sticky header --- */
+.table-wrap{position:relative}
+.vtable thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+/* --- Sortable arrows --- */
+.sortable{cursor:pointer;position:relative;padding-right:18px!important}
+.sortable::after{content:'⇅';position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:10px;color:#ccc;transition:color .15s}
+.sortable.asc::after{content:'↑';color:#1a1a2e}
+.sortable.desc::after{content:'↓';color:#1a1a2e}
+/* --- Busca rápida --- */
+.search-bar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.search-input{padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E") 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:280px;font-weight:500;transition:border-color .2s}
+.search-input:focus{border-color:#1a1a2e;background-color:#fff}
+.search-input::placeholder{color:#bbb}
 </style>
 <div class="dash-wrap">
   <div class="topbar">
@@ -128,6 +147,15 @@
 
       <!-- ABA VENDAS -->
       <div class="vtela active" id="tVendas">
+        <!-- TOPO: BOTÃO + RESUMO -->
+        <div class="top-action-bar">
+          <button class="btn-acao" onclick="document.getElementById('modalVenda').style.display='flex'">+ Nova venda</button>
+          <div class="top-summary" id="topSummary">
+            <div class="top-chip"><b id="tsTotal">—</b><small>Total período</small></div>
+            <div class="top-chip"><b id="tsQtd">—</b><small>Vendas</small></div>
+            <div class="top-chip"><b id="tsTicket">—</b><small>Ticket médio</small></div>
+          </div>
+        </div>
         <!-- RANKING -->
         <div class="ranking-card">
           <div class="ranking-header">
@@ -163,15 +191,17 @@
               <button type="button" class="filtro-btn" onclick="atalhoVendas('mes')">Mês</button>
             </div>
           </form>
-          <button class="btn-acao" onclick="document.getElementById('modalVenda').style.display='flex'">+ Nova venda</button>
         </div>
-        <div class="table-wrap">
+        <div class="search-bar">
+          <input class="search-input" type="text" id="buscaTabela" placeholder="Buscar por cliente, código, vendedora..." oninput="filtrarTabela(this.value)">
+        </div>
+        <div class="table-wrap" style="max-height:520px;overflow-y:auto">
           <table class="vtable" id="tabelaVendas">
             <thead><tr>
-              <th onclick="ordenarV(0)">Data</th><th onclick="ordenarV(1)">Cód</th>
-              <th onclick="ordenarV(2)">Vendedora</th><th onclick="ordenarV(3)">Cliente</th>
-              <th onclick="ordenarV(4)">Itens</th><th onclick="ordenarV(5)">Valor venda</th>
-              <th>Desconto</th><th>Valor final</th><th>Pagamento</th><th></th>
+              <th class="sortable" onclick="ordenarV(0)">Data</th><th>Cód</th>
+              <th class="sortable" onclick="ordenarV(2)">Vendedora</th><th>Cliente</th>
+              <th>Itens</th><th>Valor venda</th>
+              <th>Desconto</th><th class="sortable" onclick="ordenarV(7)">Valor final</th><th class="sortable" onclick="ordenarV(8)">Pagamento</th><th></th>
             </tr></thead>
             <tbody id="tbodyVendas">
               {% for v in lista_vendas %}
@@ -732,21 +762,61 @@ async function carregarRanking() {
     </div>`;
   }).join('');
 }
-document.addEventListener('DOMContentLoaded', carregarRanking);
+document.addEventListener('DOMContentLoaded', function(){ carregarRanking(); calcResumo(); });
 
 function ordenarV(col) {
   const tbody = document.getElementById('tbodyVendas');
   const rows = Array.from(tbody.querySelectorAll('tr'));
   if (vSortCol===col) vSortAsc=!vSortAsc; else {vSortCol=col;vSortAsc=true;}
+  // Update arrow indicators
+  document.querySelectorAll('.vtable .sortable').forEach(th=>{th.classList.remove('asc','desc');});
+  const ths = document.querySelectorAll('.vtable thead th');
+  ths.forEach(th => {
+    const onclick = th.getAttribute('onclick');
+    if (onclick && onclick.includes('ordenarV('+col+')')) {
+      th.classList.add(vSortAsc?'asc':'desc');
+    }
+  });
   rows.sort((a,b) => {
-    const va = a.cells[col]?.textContent.trim()||'';
-    const vb = b.cells[col]?.textContent.trim()||'';
-    const na = parseFloat(va.replace(/[^0-9,]/g,'').replace(',','.'));
-    const nb = parseFloat(vb.replace(/[^0-9,]/g,'').replace(',','.'));
+    let va = a.cells[col]?.textContent.trim()||'';
+    let vb = b.cells[col]?.textContent.trim()||'';
+    // Data: dd/mm/yyyy → sortable
+    if (col===0) {
+      const pa=va.split('/'), pb=vb.split('/');
+      if(pa.length===3&&pb.length===3){va=pa[2]+pa[1]+pa[0];vb=pb[2]+pb[1]+pb[0];}
+    }
+    const na = parseFloat(va.replace(/[^0-9,\-]/g,'').replace(',','.'));
+    const nb = parseFloat(vb.replace(/[^0-9,\-]/g,'').replace(',','.'));
     if (!isNaN(na)&&!isNaN(nb)) return vSortAsc?na-nb:nb-na;
     return vSortAsc?va.localeCompare(vb,'pt-BR'):vb.localeCompare(va,'pt-BR');
   });
   rows.forEach(r=>tbody.appendChild(r));
+}
+
+/* ── BUSCA RÁPIDA NA TABELA ── */
+function filtrarTabela(q) {
+  const termo = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  document.querySelectorAll('#tbodyVendas tr').forEach(tr => {
+    const txt = tr.textContent.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    tr.style.display = txt.includes(termo) ? '' : 'none';
+  });
+}
+
+/* ── RESUMO DO PERÍODO (top chips) ── */
+function calcResumo() {
+  const rows = document.querySelectorAll('#tbodyVendas tr');
+  let total=0, count=0;
+  rows.forEach(tr => {
+    if(tr.style.display==='none' || !tr.cells || tr.cells.length<8) return;
+    const vf = tr.cells[7]?.textContent||'';
+    const n = parseFloat(vf.replace(/[^0-9,\-]/g,'').replace(',','.'));
+    if(!isNaN(n)){total+=n;count++;}
+  });
+  const ticket = count>0?total/count:0;
+  const fmt = v => 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('tsTotal').textContent = fmt(total);
+  document.getElementById('tsQtd').textContent = count;
+  document.getElementById('tsTicket').textContent = fmt(ticket);
 }
 
 // Inicializar máscara de moeda no campo entrada

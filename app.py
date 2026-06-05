@@ -975,16 +975,28 @@ def crediarios():
     conn = get_db(); cur = conn.cursor()
     cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda
         FROM crediarios c JOIN vendas v ON v.id=c.venda_id ORDER BY c.status,c.criado_em DESC""")
-    lista = [dict(c) for c in cur.fetchall()]
-    for c in lista:
+    raw = [dict(c) for c in cur.fetchall()]
+    for c in raw:
         cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela",(c['id'],))
         c['parcelas'] = [dict(p) for p in cur.fetchall()]
+    # Agrupar por cliente
+    from collections import OrderedDict
+    agrupado = OrderedDict()
+    for c in raw:
+        nome = c['cliente_nome']
+        if nome not in agrupado:
+            agrupado[nome] = {'cliente_nome':nome,'vendas':[],'total':0,'pago':0,'saldo':0}
+        agrupado[nome]['vendas'].append(c)
+        agrupado[nome]['total'] += float(c['valor_total'])
+        agrupado[nome]['pago']  += float(c['valor_total']) - float(c['saldo_devedor'])
+        agrupado[nome]['saldo'] += float(c['saldo_devedor'])
+    clientes = list(agrupado.values())
     cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as t FROM crediarios WHERE status='aberto'")
     total_aberto = float(cur.fetchone()['t'])
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u) for u in cur.fetchall()]
     cur.close(); conn.close()
-    ctx = get_ctx(); ctx.update(lista=lista, total_aberto=total_aberto, vendedoras=vendedoras)
+    ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras)
     return render_template('crediarios.html', **ctx)
 
 @app.route('/crediarios/<int:cid>/parcela/<int:pid>/pagar', methods=['POST'])
@@ -1248,7 +1260,9 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v75 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v76 — 2026-06-05</b><br>
+    Crediários: agrupado por cliente com accordion (expandir/recolher vendas) ✅<br>
+    Crediários: totais compilados por cliente (total compras, já pago, saldo devedor) ✅<br>
     Caixa: ordenação clicável em Data, Tipo, Forma, Vendedora e Líquido ✅<br>
     Vendas: layout invertido (topo → tabela → ranking embaixo) ✅<br>
     Vendas: filtros de período integrados — tabela + ranking + resumo sincronizados ✅<br>

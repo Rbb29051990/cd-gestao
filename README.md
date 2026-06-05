@@ -1,4 +1,8 @@
-# CD Gestão Empresarial — v75
+# CD Gestão Empresarial — v76
+
+## Novidades da v76 (2026-06-05)
+- **Crediários — agrupado por cliente**: vendas do mesmo cliente unificadas em um único card. Cabeçalho mostra **Total compras**, **Já pago** e **Saldo devedor** compilados.
+- **Crediários — accordion**: clique na venda para expandir/recolher as parcelas. Seta ▼/▲ indica o estado.
 
 ## Novidades da v75 (2026-06-05)
 - **Caixa — ordenação clicável**: clique nos cabeçalhos **Data**, **Tipo**, **Forma**, **Vendedora** e **Líquido** para ordenar A→Z / Z→A ou maior→menor. Seta ↑↓ indica a direção.

@@ -308,20 +308,34 @@ def visao_geral():
     cred_entrada = round(cred_entrada, 2); cred_parcelas = round(cred_parcelas, 2)
     fat_total     = round(sum(fat.values()) + cred_entrada + cred_parcelas, 2)
     fat_total_liq = round(sum(fat_liq.values()) + cred_entrada + cred_parcelas, 2)
+    # Estoque — custo, valor de venda, lucro potencial (sempre global, não filtra por período)
     try:
-        cur.execute("SELECT COALESCE(SUM(valor_venda*quantidade),0) as v FROM estoque WHERE ativo=TRUE")
-        val_estoque = float(cur.fetchone()['v'])
-    except: val_estoque = 0.0
+        cur.execute("""SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct,
+                              COALESCE(SUM(valor_venda*quantidade),0)   as vt
+                       FROM estoque WHERE ativo=TRUE""")
+        r = cur.fetchone()
+        custo_estoque   = round(float(r['ct']), 2)
+        val_estoque     = round(float(r['vt']), 2)
+        lucro_potencial = round(val_estoque - custo_estoque, 2)
+    except: custo_estoque = val_estoque = lucro_potencial = 0.0
+    # Crediários em aberto (global)
     try:
         cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as v FROM crediarios WHERE status='aberto'")
-        val_crediarios = float(cur.fetchone()['v'])
+        val_crediarios = round(float(cur.fetchone()['v']), 2)
     except: val_crediarios = 0.0
+    # Despesas filtradas pelo período selecionado
     try:
-        cur.execute("SELECT COALESCE(SUM(valor),0) as v FROM despesas WHERE DATE_TRUNC('month',criado_em)=DATE_TRUNC('month',NOW())")
-        val_despesas = float(cur.fetchone()['v'])
+        cur.execute("SELECT COALESCE(SUM(valor),0) as v FROM despesas WHERE DATE(criado_em) BETWEEN %s AND %s",
+                    (data_inicio, data_fim))
+        val_despesas = round(float(cur.fetchone()['v']), 2)
     except: val_despesas = 0.0
+    # Lucro líquido do período = entradas líquidas − despesas do período
+    lucro_liquido = round(fat_total_liq - val_despesas, 2)
+    # Movimentações recentes (filtradas pelo período)
     try:
-        cur.execute("SELECT id,criado_em,vendedora_nome,cliente_nome,valor_total,forma_pagamento FROM vendas ORDER BY criado_em DESC LIMIT 8")
+        cur.execute("""SELECT id,criado_em,vendedora_nome,cliente_nome,valor_total,forma_pagamento
+                       FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s
+                       ORDER BY criado_em DESC LIMIT 8""", (data_inicio, data_fim))
         movs = [dict(r) for r in cur.fetchall()]
     except: movs = []
     try:
@@ -332,8 +346,9 @@ def visao_geral():
     ctx = get_ctx()
     ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
                cred_entrada=cred_entrada, cred_parcelas=cred_parcelas,
-               val_estoque=val_estoque,
-               val_crediarios=val_crediarios, val_despesas=val_despesas,
+               custo_estoque=custo_estoque, val_estoque=val_estoque,
+               lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,
+               val_despesas=val_despesas, lucro_liquido=lucro_liquido,
                movs=movs, estoque_baixo=estoque_baixo,
                data_inicio=data_inicio, data_fim=data_fim,
                mes_atual=hoje.strftime('%B / %Y').capitalize(),
@@ -1227,10 +1242,11 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v67 — 2026-06-04</b><br>
-    Visão Geral: "Controle de Entradas" com design moderno (ícones, totais, hover) ✅<br>
-    Visão Geral: crediário detalhado em entrada e parcelas (igual Caixa) ✅<br>
-    Visão Geral: filtro de período (igual Caixa) ✅<br>
+    Versão: <b style='color:green'>v68 — 2026-06-05</b><br>
+    Menu: reordenado (Principal: VG/Clientes/Estoque · Financeiro: Vendas/Caixa/Crediários/Despesas/Taxas) ✅<br>
+    Visão Geral: design moderno com cards de métricas clicáveis ✅<br>
+    Visão Geral: Custo estoque, Lucro potencial, Lucro líquido do período ✅<br>
+    Visão Geral: movimentações recentes filtradas pelo período ✅<br>
     Caixa: taxas descontadas detalhadas por forma de pagamento ✅<br>
     Caixa: crediário detalhado em entradas (sinal) e parcelas pagas ✅<br>
     <br><span style='color:#888;font-size:14px'>Correções da v61 (estoque, taxas, rotas, fichas) incluídas.</span><br>

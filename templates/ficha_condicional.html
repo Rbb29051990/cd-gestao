@@ -164,6 +164,13 @@
           <div id="secCrediario" style="display:none">
             <div class="form-grid2" style="margin-bottom:12px">
               <div class="form-field"><label class="form-label">Entrada (R$)</label><input class="form-input" type="text" inputmode="numeric" name="entrada" id="entradaVal" placeholder="0,00"></div>
+              <div class="form-field"><label class="form-label">Forma da entrada *</label>
+                <select class="form-select" name="entrada_forma" id="entradaForma">
+                  <option value="">Selecione...</option>
+                  <option value="dinheiro">💵 Dinheiro</option><option value="pix">⚡ Pix</option>
+                  <option value="debito">💳 Débito</option><option value="credito_vista">💳 Crédito à vista</option>
+                  <option value="credito_parcelado">💳 Crédito parcelado</option><option value="link">🔗 Link</option>
+                </select></div>
               <div class="form-field"><label class="form-label">Qtd de parcelas</label><select class="form-select" id="nParcelas" name="num_parcelas" onchange="gerarParcelas()"><option value="">Selecione...</option>{% for i in range(1,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}</select></div>
               <div class="form-field"><label class="form-label">Saldo devedor</label><input class="form-input auto" type="text" id="saldoDevedor" readonly></div>
             </div>
@@ -347,6 +354,7 @@ function prepararVenda(){
   }
   if(forma==='crediario'){
     if(document.getElementById('entradaVal').value.trim()===''){ alert('⚠️ Informe a entrada do crediário (pode ser 0,00).'); return false; }
+    if(parseMoeda(document.getElementById('entradaVal').value)>0 && !document.getElementById('entradaForma').value){ alert('⚠️ Informe a forma de pagamento da entrada (para fechar o caixa corretamente).'); return false; }
     if(!document.getElementById('nParcelas').value){ alert('⚠️ Informe a quantidade de parcelas.'); return false; }
     const dif=document.getElementById('confDif');
     if(dif && dif.style.color==='rgb(198, 40, 40)'){ alert('⚠️ Corrija os valores das parcelas (a soma deve fechar com o saldo).'); return false; }

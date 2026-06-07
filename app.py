@@ -203,6 +203,7 @@ def init_db():
     # ── MIGRAÇÕES — adiciona colunas novas em tabelas existentes ──
     migracoes = [
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS reservado INTEGER DEFAULT 0",
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS foto TEXT",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS desconto NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS pct_desconto NUMERIC(6,2) DEFAULT 0",
         "ALTER TABLE vendas ALTER COLUMN pct_desconto TYPE NUMERIC(6,2)",
@@ -316,17 +317,20 @@ def visao_geral():
     except: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
     except: data_fim = hoje.strftime('%Y-%m-%d')
-    formas = ['dinheiro','pix','debito','credito_vista','credito_parcelado','link']  # crediário é detalhado via caixa
+    # Faturamento por forma = dinheiro REAL recebido (caixa entradas).
+    # Crediário não aparece como forma própria: a entrada e as parcelas já
+    # entram no caixa com a forma real (pix/dinheiro/cartão), então são contabilizadas aqui.
+    formas = ['dinheiro','pix','debito','credito_vista','credito_parcelado','link']
     formas_com_taxa = ['credito_vista','credito_parcelado','debito','link']
     fat     = {f:0.0 for f in formas}   # bruto por forma
     fat_liq = {f:0.0 for f in formas}   # líquido por forma (após taxas de cartão)
     try:
-        cur.execute("""SELECT forma_pagamento, valor_total, criado_em FROM vendas
-                       WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
+        cur.execute("""SELECT forma_pagamento, valor, criado_em FROM caixa
+                       WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
         for r in cur.fetchall():
             f = r['forma_pagamento'] or ''
-            if f not in fat: continue
-            bruto = float(r['valor_total'] or 0)
+            if f not in fat: continue   # ignora 'crediario' legado / nulos
+            bruto = float(r['valor'] or 0)
             fat[f] += bruto
             if f in formas_com_taxa:
                 taxa_data = get_taxa_vigente(r['criado_em'].date() if hasattr(r['criado_em'],'date') else date.today())
@@ -336,23 +340,10 @@ def visao_geral():
                 fat_liq[f] += bruto
     except Exception:
         pass
-    # Crediário detalhado igual ao Caixa: entradas (sinal da venda, venda_id) e parcelas recebidas (crediario_id)
-    cred_entrada = 0.0; cred_parcelas = 0.0
-    try:
-        cur.execute("""SELECT
-            COALESCE(SUM(CASE WHEN forma_pagamento='crediario' AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as ent,
-            COALESCE(SUM(CASE WHEN crediario_id IS NOT NULL THEN valor ELSE 0 END),0) as parc
-            FROM caixa WHERE tipo='entrada'
-            AND DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
-        cr = cur.fetchone()
-        cred_entrada = float(cr['ent']); cred_parcelas = float(cr['parc'])
-    except Exception:
-        pass
     fat     = {k: round(v,2) for k,v in fat.items()}
     fat_liq = {k: round(v,2) for k,v in fat_liq.items()}
-    cred_entrada = round(cred_entrada, 2); cred_parcelas = round(cred_parcelas, 2)
-    fat_total     = round(sum(fat.values()) + cred_entrada + cred_parcelas, 2)
-    fat_total_liq = round(sum(fat_liq.values()) + cred_entrada + cred_parcelas, 2)
+    fat_total     = round(sum(fat.values()), 2)
+    fat_total_liq = round(sum(fat_liq.values()), 2)
     # Estoque — custo, valor de venda, lucro potencial (sempre global, não filtra por período)
     try:
         cur.execute("""SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct,
@@ -403,7 +394,6 @@ def visao_geral():
     cur.close(); conn.close()
     ctx = get_ctx()
     ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
-               cred_entrada=cred_entrada, cred_parcelas=cred_parcelas,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,
                val_condicional=val_condicional, n_condicional=n_condicional,
@@ -658,16 +648,20 @@ def novo_estoque():
         flash('O valor de venda é obrigatório e deve ser maior que zero.','erro')
         cur.close(); conn.close()
         return redirect(url_for('estoque'))
+    foto = request.form.get('foto','').strip() or None
+    # Segurança: só aceita data URI de imagem e limita o tamanho (~1.5MB de base64)
+    if foto and (not foto.startswith('data:image/') or len(foto) > 1_500_000):
+        foto = None
     try:
         cur.execute("""INSERT INTO estoque (codigo,modelo,descricao,tamanho,quantidade,estoque_inicial,
-            custo_unitario,markup,valor_venda,margem_lucro) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            custo_unitario,markup,valor_venda,margem_lucro,foto) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (f"P{n+1}", request.form.get('modelo','').strip(),
              request.form.get('descricao','').strip() or None,
              request.form.get('tamanho','').strip(), qtd, qtd,
              parse_brl(request.form.get('custo_unitario','0')),
              parse_brl(request.form.get('markup','0')),
              parse_brl(request.form.get('valor_venda','0')),
-             parse_brl(request.form.get('margem_lucro','0'))))
+             parse_brl(request.form.get('margem_lucro','0')), foto))
         conn.commit(); flash('Produto cadastrado!','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); conn.close()
@@ -893,11 +887,13 @@ def nova_venda():
                 VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
                 (f"Venda {cod} - {cliente_nome}", valor_final, forma, venda_id, usuario_id or None, vendedora_nome))
         elif forma == 'crediario':
-            # Só registra a entrada paga (se houver)
+            # Só registra a entrada paga (se houver) — com a forma de pagamento REAL da entrada
             if entrada > 0:
-                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
-                    VALUES (%s,%s,'entrada','crediario',%s,%s,%s)""",
-                    (f"Entrada crediário - {cliente_nome}", entrada, venda_id, usuario_id or None, vendedora_nome))
+                entrada_forma = request.form.get('entrada_forma','dinheiro').strip() or 'dinheiro'
+                if entrada_forma not in formas_a_vista: entrada_forma = 'dinheiro'
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome)
+                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
+                    (f"Entrada crediário - {cliente_nome} ({entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome))
 
         conn.commit(); flash('Venda registrada!','ok')
     except Exception as e:
@@ -1046,10 +1042,11 @@ def condicionais():
     except: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
     except: data_fim = hoje.strftime('%Y-%m-%d')
-    # Abertas (sempre todas, independe do período)
+    # Abertas no período (o filtro do topo conecta a tela toda)
     cur.execute("""SELECT c.*,
         COALESCE((SELECT SUM(quantidade) FROM condicional_itens WHERE condicional_id=c.id AND status='pendente'),0) as qtd_pecas
-        FROM condicionais c WHERE c.status='aberta' ORDER BY c.criado_em""")
+        FROM condicionais c WHERE c.status='aberta' AND DATE(c.criado_em) BETWEEN %s AND %s
+        ORDER BY c.criado_em""", (data_inicio, data_fim))
     abertas = [dict(r) for r in cur.fetchall()]
     for c in abertas:
         c['dias'] = (hoje - c['criado_em'].date()).days
@@ -1228,9 +1225,11 @@ def gerar_venda_condicional(cid):
                 cur.execute("INSERT INTO crediario_parcelas (crediario_id,numero_parcela,data_vencimento,valor) VALUES (%s,%s,%s,%s)",
                     (cred_id, i + 1, p.get('data'), float(p.get('valor', 0))))
             if entrada > 0:
-                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
-                    VALUES (%s,%s,'entrada','crediario',%s,%s,%s)""",
-                    (f"Entrada crediário - {cliente_nome} (condicional {cond['codigo']})", entrada, venda_id, usuario_id or None, vendedora_nome))
+                entrada_forma = request.form.get('entrada_forma','dinheiro').strip() or 'dinheiro'
+                if entrada_forma not in formas_a_vista: entrada_forma = 'dinheiro'
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome)
+                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
+                    (f"Entrada crediário - {cliente_nome} (condicional {cond['codigo']}, {entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome))
         cur.execute("UPDATE condicionais SET status='finalizada', venda_id=%s, finalizado_em=CURRENT_TIMESTAMP WHERE id=%s", (venda_id, cid))
         conn.commit(); flash(f'Venda {vcod} gerada da condicional {cond["codigo"]}! Peças não retiradas voltaram ao estoque.', 'ok')
     except Exception as e:
@@ -1464,26 +1463,30 @@ def caixa():
     except: data_fim = hoje.strftime('%Y-%m-%d')
     cur.execute("SELECT * FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em DESC",(data_inicio, data_fim))
     movs = [dict(m) for m in cur.fetchall()]
+    # Categorias de entrada:
+    #   • Venda à vista:  venda_id NÃO nulo, crediario_id nulo, forma <> 'crediario'
+    #   • Crediário entrada: venda_id NÃO nulo E (crediario_id NÃO nulo OU forma='crediario' [legado])
+    #   • Crediário parcela: crediario_id NÃO nulo E venda_id nulo
     cur.execute("""SELECT
         COALESCE(SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END),0) as entradas,
         COALESCE(SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END),0) as saidas,
-        COALESCE(SUM(CASE WHEN tipo='entrada' AND (forma_pagamento NOT IN ('crediario') OR forma_pagamento IS NULL) AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_vendas,
-        COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' THEN valor ELSE 0 END),0) as entradas_crediarios,
-        COALESCE(SUM(CASE WHEN tipo='entrada' AND forma_pagamento='crediario' AND venda_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_cred_entrada,
-        COALESCE(SUM(CASE WHEN tipo='entrada' AND crediario_id IS NOT NULL THEN valor ELSE 0 END),0) as entradas_cred_parcelas
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND venda_id IS NOT NULL AND crediario_id IS NULL AND COALESCE(forma_pagamento,'')<>'crediario' THEN valor ELSE 0 END),0) as entradas_vendas,
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND venda_id IS NOT NULL AND (crediario_id IS NOT NULL OR forma_pagamento='crediario') THEN valor ELSE 0 END),0) as entradas_cred_entrada,
+        COALESCE(SUM(CASE WHEN tipo='entrada' AND crediario_id IS NOT NULL AND venda_id IS NULL THEN valor ELSE 0 END),0) as entradas_cred_parcelas
         FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s""",(data_inicio, data_fim))
     tots = cur.fetchone()
     entradas = float(tots['entradas']); saidas = float(tots['saidas'])
     entradas_vendas        = float(tots['entradas_vendas'])
-    entradas_crediarios    = float(tots['entradas_crediarios'])
     entradas_cred_entrada  = float(tots['entradas_cred_entrada'])
     entradas_cred_parcelas = float(tots['entradas_cred_parcelas'])
+    entradas_crediarios    = round(entradas_cred_entrada + entradas_cred_parcelas, 2)
     cur.close(); conn.close()
     taxa_vigente_hoje = get_taxa_vigente()
     ctx = get_ctx()
-    # Calcular líquido por movimento
+    # Calcular líquido por movimento + desconto por forma E por categoria de crediário
     total_desconto = 0
     desconto_formas = {'credito_vista':0.0,'credito_parcelado':0.0,'debito':0.0,'link':0.0}
+    desconto_vendas = 0.0; desconto_cred_entrada = 0.0; desconto_cred_parcela = 0.0
     for m in movs:
         if m['tipo'] == 'entrada' and m.get('forma_pagamento') in ['credito_vista','credito_parcelado','debito','link']:
             taxa_data = get_taxa_vigente(m['criado_em'].date() if hasattr(m.get('criado_em',''), 'date') else date.today())
@@ -1493,6 +1496,13 @@ def caixa():
             m['taxa_total_pct'] = ptc
             total_desconto += desc
             desconto_formas[m['forma_pagamento']] += desc
+            vid = m.get('venda_id'); crid = m.get('crediario_id')
+            if crid and not vid:
+                desconto_cred_parcela += desc
+            elif crid and vid:
+                desconto_cred_entrada += desc
+            else:
+                desconto_vendas += desc
         else:
             m['valor_liquido'] = float(m['valor'])
             m['desconto_taxa'] = 0
@@ -1507,6 +1517,9 @@ def caixa():
                saldo_bruto=saldo_bruto,
                total_desconto=round(total_desconto,2), saldo_liquido=saldo_liquido,
                desconto_formas={k: round(v,2) for k,v in desconto_formas.items()},
+               desconto_vendas=round(desconto_vendas,2),
+               desconto_cred_entrada=round(desconto_cred_entrada,2),
+               desconto_cred_parcela=round(desconto_cred_parcela,2),
                taxa_vigente=taxa_vigente_hoje,
                data_inicio=data_inicio, data_fim=data_fim)
     return render_template('caixa.html', **ctx)
@@ -1779,7 +1792,13 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v83 — 2026-06-07</b><br>
+    Versão: <b style='color:green'>v84 — 2026-06-07</b><br>
+    Visão Geral: faturamento por forma vem do caixa (crediário já distribuído na forma real recebida) — sem linha de crediário ✅<br>
+    Visão Geral: card Condicional trocou de posição com Crediários ✅<br>
+    Vendas: entrada do crediário pede a forma de pagamento (aplica taxa no caixa, se cartão) ✅<br>
+    Estoque: foto do produto no cadastro (câmera no celular ou arquivo) exibida na ficha ✅<br>
+    Caixa: quadrante de taxas detalha desconto por Vendas / Crediário entrada / Crediário parcelas ✅<br>
+    Condicional: filtro de período no topo, conectado a KPIs, gráficos, abertas e histórico ✅<br>
     Condicional: nova aba (condicional p/ cliente e transferência p/ CD By Carol Duarte) com reserva de estoque ✅<br>
     Condicional: gerar venda selecionando o que o cliente ficou (peças não retiradas voltam ao estoque); devolução total; baixa de transferência ✅<br>
     Condicional: integração total — estoque (reserva), vendas, caixa e crediário (ao gerar venda) e Visão Geral (valor em aberto) ✅<br>

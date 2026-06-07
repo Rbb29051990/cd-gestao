@@ -140,6 +140,25 @@
         <button class="btn-acao" style="background:#00838f" onclick="document.getElementById('modalCond').style.display='flex'">+ Nova condicional</button>
       </div>
 
+      <!-- FILTRO DE PERÍODO (conecta a tela toda: KPIs, gráficos, abertas e histórico) -->
+      <form method="GET" id="formFiltroCond" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:18px;background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:14px 18px;box-shadow:0 4px 14px rgba(0,0,0,.04)">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
+          <input type="date" name="data_inicio" class="form-input" style="width:auto;padding:9px 14px" value="{{ data_inicio }}" onchange="this.form.submit()">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
+          <input type="date" name="data_fim" class="form-input" style="width:auto;padding:9px 14px" value="{{ data_fim }}" onchange="this.form.submit()">
+        </div>
+        <div style="display:flex;gap:6px">
+          <button type="button" class="filtro-btn" onclick="atalhoCond('hoje')">Hoje</button>
+          <button type="button" class="filtro-btn" onclick="atalhoCond('semana')">7 dias</button>
+          <button type="button" class="filtro-btn" onclick="atalhoCond('mes')">Mês</button>
+          <button type="button" class="filtro-btn" onclick="atalhoCond('ano')">Ano</button>
+        </div>
+        <div style="font-size:11px;color:#aaa;align-self:center;margin-left:6px">📅 O período filtra <b>todos</b> os indicadores, gráficos e listas desta tela.</div>
+      </form>
+
       <!-- KPIs -->
       <div class="kpi-grid">
         <div class="kpi-card" style="--ac:#00838f">
@@ -257,16 +276,7 @@
       <!-- HISTÓRICO -->
       <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap;gap:10px">
         <span class="sec-title" style="font-size:15px">Histórico (finalizadas / devolvidas)</span>
-        <form method="GET" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:0">
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
-            <input type="date" name="data_inicio" class="form-input" style="width:auto;padding:9px 14px" value="{{ data_inicio }}" onchange="this.form.submit()">
-          </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
-            <input type="date" name="data_fim" class="form-input" style="width:auto;padding:9px 14px" value="{{ data_fim }}" onchange="this.form.submit()">
-          </div>
-        </form>
+        <span style="font-size:12px;color:#aaa">no período selecionado acima</span>
       </div>
       <div class="table-wrap">
         <table class="cd-table">
@@ -519,6 +529,20 @@ function filtrarTab(tbodyId,q){
     const txt=tr.textContent.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
     tr.style.display=txt.includes(termo)?'':'none';
   });
+}
+
+function atalhoCond(tipo){
+  const hoje=new Date();
+  const fmt=d=>d.toISOString().split('T')[0];
+  let ini, fim=fmt(hoje);
+  if(tipo==='hoje') ini=fmt(hoje);
+  else if(tipo==='semana'){ const d=new Date(hoje); d.setDate(d.getDate()-6); ini=fmt(d); }
+  else if(tipo==='mes') ini=fmt(hoje).slice(0,7)+'-01';
+  else if(tipo==='ano') ini=fmt(hoje).slice(0,4)+'-01-01';
+  const form=document.getElementById('formFiltroCond');
+  form.querySelector('[name=data_inicio]').value=ini;
+  form.querySelector('[name=data_fim]').value=fim;
+  form.submit();
 }
 </script>
 {% endblock %}

@@ -1,4 +1,12 @@
-# CD Gestão Empresarial — v83
+# CD Gestão Empresarial — v84
+
+## Novidades da v84 (2026-06-07)
+- **Visão Geral — crediário sai do faturamento por forma**: o faturamento por forma de pagamento passa a ser o **dinheiro realmente recebido (caixa)**. Como a entrada e as parcelas do crediário entram no caixa já com a forma real (pix/dinheiro/cartão), o crediário aparece distribuído nessas formas — não há mais linha "Crediário".
+- **Visão Geral — cards reposicionados**: o card **Condicional/Transferência** trocou de lugar com **Crediários em aberto**.
+- **Vendas — forma da entrada do crediário**: ao registrar uma venda no crediário com entrada, agora é obrigatório informar **a forma de pagamento da entrada** (Dinheiro/Pix/Débito/Crédito/Link). Isso aplica a taxa correta no caixa e fecha o caixa certinho.
+- **Estoque — foto do produto**: no cadastro de produto dá para **tirar a foto na hora (câmera do celular)** ou **escolher um arquivo**. A imagem é reduzida automaticamente e fica salva, aparecendo na ficha do produto (clique para ampliar).
+- **Caixa — detalhamento das taxas**: o quadrante de **Taxas descontadas** agora detalha o desconto por **Vendas**, **Crediário (entrada)** e **Crediário (parcelas)**, no mesmo estilo do quadrante de entradas, além do detalhe por forma de cartão.
+- **Condicional — período no topo**: o seletor de período foi para o **topo da tela** e agora **conecta tudo** (KPIs, gráficos, lista de abertas e histórico filtram pelo período escolhido), com atalhos Hoje/7 dias/Mês/Ano.
 
 ## Novidades da v83 (2026-06-07)
 - **Nova aba Condicional & Transferências** (estilo das demais abas do ERP):

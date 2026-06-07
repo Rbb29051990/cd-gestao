@@ -376,6 +376,19 @@
             <input class="form-input" type="text" inputmode="numeric" name="entrada" id="entradaVal" placeholder="0,00">
           </div>
           <div class="form-field">
+            <label class="form-label">Forma da entrada *</label>
+            <select class="form-select" name="entrada_forma" id="entradaForma">
+              <option value="">Selecione...</option>
+              <option value="dinheiro">💵 Dinheiro</option>
+              <option value="pix">⚡ Pix</option>
+              <option value="debito">💳 Débito</option>
+              <option value="credito_vista">💳 Crédito à vista</option>
+              <option value="credito_parcelado">💳 Crédito parcelado</option>
+              <option value="link">🔗 Link</option>
+            </select>
+            <div style="font-size:11px;color:#aaa;margin-top:2px">Aplica a taxa no caixa, se for cartão.</div>
+          </div>
+          <div class="form-field">
             <label class="form-label">Qtd de parcelas</label>
             <select class="form-select" id="nParcelas" name="num_parcelas" onchange="gerarParcelas()">
               <option value="">Selecione...</option>
@@ -691,6 +704,10 @@ function prepararEnvio() {
     const parcCrediario = document.getElementById('nParcelas')?.value;
     if (!parcCrediario || parcCrediario === '') {
       alert('⚠️ Informe o número de parcelas do crediário.'); return false;
+    }
+    const entradaValor = parseMoeda(entradaEl.value);
+    if (entradaValor > 0 && !document.getElementById('entradaForma').value) {
+      alert('⚠️ Informe a forma de pagamento da entrada do crediário (para fechar o caixa corretamente).'); return false;
     }
   }
 

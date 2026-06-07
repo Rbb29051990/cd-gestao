@@ -143,7 +143,7 @@
           <div class="ce-header">
             <div>
               <div class="ce-h-title">Controle de Entradas</div>
-              <div class="ce-h-sub">Bruto e líquido por forma de pagamento</div>
+              <div class="ce-h-sub">Bruto e líquido por forma de pagamento · crediário já contabilizado na forma recebida</div>
             </div>
             <div class="ce-chips">
               <div class="ce-chip">
@@ -172,9 +172,7 @@
                   ('Débito',              fat.debito,            fat_liq.debito,             '💳','#e8eaf6'),
                   ('Crédito à vista',     fat.credito_vista,     fat_liq.credito_vista,      '💳','#ede7f6'),
                   ('Crédito parcelado',   fat.credito_parcelado, fat_liq.credito_parcelado,  '💳','#ede7f6'),
-                  ('Link',                fat.link,              fat_liq.link,               '🔗','#fff3e0'),
-                  ('Crediário (entrada)', cred_entrada,          cred_entrada,               '📋','#fce4ec'),
-                  ('Crediário (parcelas)',cred_parcelas,         cred_parcelas,              '🗓️','#fce4ec')
+                  ('Link',                fat.link,              fat_liq.link,               '🔗','#fff3e0')
                 ] %}
                 {% for nome, bruto, liquido, icon, bg in linhas %}
                 <tr>
@@ -223,14 +221,6 @@
             <div class="mg-link">Ver estoque →</div>
           </a>
 
-          <a href="/crediarios" class="mg-card c-rosa">
-            <div>
-              <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Crediários em aberto</span></div>
-              <div class="mg-val">{{ brl(val_crediarios) }}</div>
-            </div>
-            <div class="mg-link">Ver crediários →</div>
-          </a>
-
           <a href="/condicionais" class="mg-card c-azul">
             <div>
               <div class="mg-top"><span class="mg-icon">🛍️</span><span class="mg-label">Em condicional / transferência</span></div>
@@ -238,6 +228,14 @@
               <div class="mg-sub">{{ n_condicional }} em aberto · peças reservadas</div>
             </div>
             <div class="mg-link">Ver condicional →</div>
+          </a>
+
+          <a href="/crediarios" class="mg-card c-rosa">
+            <div>
+              <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Crediários em aberto</span></div>
+              <div class="mg-val">{{ brl(val_crediarios) }}</div>
+            </div>
+            <div class="mg-link">Ver crediários →</div>
           </a>
 
           <a href="/despesas" class="mg-card c-laranja">

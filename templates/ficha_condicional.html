@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+{% block content %}
+<style>
+.fc-head{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:20px 24px;box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:18px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px}
+.fc-meta{display:flex;gap:26px;flex-wrap:wrap;margin-top:10px}
+.fc-meta div small{display:block;font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px}
+.fc-meta div b{font-size:14px;color:#1a1a2e}
+.cd-badge{display:inline-block;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px}
+.bg-cond{background:#e0f2f1;color:#00695c}.bg-transf{background:#fff3e0;color:#e65100}
+.bg-aberta{background:#e3f2fd;color:#1565c0}.bg-final{background:#e8f5e9;color:#2e7d32}.bg-dev{background:#f5f5f5;color:#888}
+.code-badge{font-size:13px;font-weight:700;color:#00838f;background:#e0f2f1;padding:4px 10px;border-radius:5px;letter-spacing:1px}
+.card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:22px 24px;box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:18px}
+.card-title{font-size:13px;font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.it-head{display:grid;grid-template-columns:70px 1fr 90px 90px 70px 110px;gap:10px;padding:9px 12px;background:#f8f8fc;border-radius:8px 8px 0 0;font-size:10px;font-weight:700;color:#888;text-transform:uppercase}
+.it-row{display:grid;grid-template-columns:70px 1fr 90px 90px 70px 110px;gap:10px;align-items:center;padding:11px 12px;border-bottom:1px solid #f4f4f6;font-size:13px}
+.it-row .ref-badge{font-size:11px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:3px 8px;border-radius:4px}
+.fica-input{width:64px;padding:7px 8px;border:1.5px solid #00838f;border-radius:7px;font-size:14px;font-weight:700;text-align:center;color:#00695c;outline:none}
+.st-pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.st-vend{background:#e8f5e9;color:#2e7d32}.st-dev{background:#f5f5f5;color:#888}.st-transf{background:#fff3e0;color:#e65100}.st-pend{background:#e3f2fd;color:#1565c0}.st-parc{background:#ede7f6;color:#4527a0}
+.form-label{font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px}
+.form-input{padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%}
+.form-input:focus{border-color:#00838f;background:#fff}
+.form-input.auto{background:#f0f8f2;border-color:#c8e6c9;color:#2e7d32;font-weight:700}
+.form-select{padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;cursor:pointer}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.pg-opts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.pg-opt{padding:11px 8px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;text-align:center;color:#555}
+.pg-opt.active{border-color:#00838f;background:#00838f;color:#fff}
+.parcela-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.total-bar{background:#e0f2f1;border:1.5px solid #b2dfdb;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+.total-label{font-size:12px;font-weight:700;color:#00695c;text-transform:uppercase;letter-spacing:1px}
+.total-valor{font-size:24px;font-weight:800;color:#00695c}
+.btn-finalizar{padding:13px 28px;background:#00838f;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer;border-radius:8px}
+.btn-sec{padding:12px 20px;background:#f4f4f6;color:#555;border:1.5px solid #e0e0e8;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px}
+.btn-dev{padding:12px 20px;background:#fff3e0;color:#e65100;border:1.5px solid #ffcc80;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px}
+.btn-voltar{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#00838f;text-decoration:none;margin-bottom:14px}
+.conf-box{background:#f8f8fc;border:1.5px solid #e0e0e8;border-radius:10px;padding:14px 18px;margin-top:12px;display:none}
+.step-sep{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:18px 0 12px;display:flex;align-items:center;gap:10px}
+.step-sep::after{content:'';flex:1;height:1px;background:#eee}
+</style>
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
+    <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout">Minha senha</a>
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/></svg> Estoque</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/condicionais" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M4 7h14M5 7l2-3h8l2 3M5 7v11a1 1 0 001 1h10a1 1 0 001-1V7" stroke="#00838f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 11a2 2 0 004 0" stroke="#00838f" stroke-width="1.5" stroke-linecap="round"/></svg> Condicional</a>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
+        <a href="/taxas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#f57f17" stroke-width="1.6" fill="none"/><path d="M8 14l6-6M9 9h.01M13 13h.01" stroke="#f57f17" stroke-width="1.6" stroke-linecap="round"/></svg> Taxas</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      </div>
+    </nav>
+    <main style="overflow-y:auto;background:#f4f4f6;padding:24px 28px">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}" style="margin-bottom:16px">{{ msg }}</div>{% endfor %}{% endwith %}
+      <a href="/condicionais" class="btn-voltar">← Voltar para condicional</a>
+
+      <!-- CABEÇALHO -->
+      <div class="fc-head">
+        <div>
+          <span class="code-badge">{{ cond.codigo }}</span>
+          {% if cond.tipo == 'transferencia' %}<span class="cd-badge bg-transf" style="margin-left:8px">🔄 Transferência</span>
+          {% else %}<span class="cd-badge bg-cond" style="margin-left:8px">🛍️ Condicional</span>{% endif %}
+          {% if cond.status == 'aberta' %}<span class="cd-badge bg-aberta" style="margin-left:6px">Em aberto · {{ cond.dias }} dia(s)</span>
+          {% elif cond.status == 'finalizada' %}<span class="cd-badge bg-final" style="margin-left:6px">✅ Finalizada</span>
+          {% else %}<span class="cd-badge bg-dev" style="margin-left:6px">↩️ Devolvida</span>{% endif %}
+          <div class="fc-meta">
+            <div><small>Cliente / Destino</small><b>{{ cond.cliente_nome or '—' }}</b></div>
+            <div><small>Vendedora</small><b>{{ cond.vendedora_nome or '—' }}</b></div>
+            <div><small>Aberto em</small><b>{{ cond.criado_em.strftime('%d/%m/%Y') }}</b></div>
+            <div><small>Valor reservado</small><b style="color:#00695c">{{ brl(cond.valor_total) }}</b></div>
+            {% if cond.observacao %}<div><small>Observação</small><b>{{ cond.observacao }}</b></div>{% endif %}
+          </div>
+        </div>
+        {% if venda %}<a href="/vendas/{{ cond.venda_id }}" class="btn-finalizar" style="text-decoration:none">Ver venda {{ venda.codigo }} →</a>{% endif %}
+      </div>
+
+      <!-- ITENS -->
+      <div class="card">
+        <div class="card-title">Peças desta {{ 'transferência' if cond.tipo=='transferencia' else 'condicional' }}</div>
+        <div class="it-head">
+          <span>Ref</span><span>Modelo / Descrição</span><span>Tam</span><span>Valor un.</span><span>Qtd</span>
+          {% if cond.status == 'aberta' and cond.tipo != 'transferencia' %}<span>Ficou (vende)</span>{% else %}<span>Situação</span>{% endif %}
+        </div>
+        {% if cond.status == 'aberta' and cond.tipo != 'transferencia' %}
+        <form method="POST" action="/condicionais/{{ cond.id }}/gerar-venda" id="formVenda" onsubmit="return prepararVenda()">
+          <input type="hidden" name="desconto_valor" id="descontoValorHidden" value="0">
+          <input type="hidden" name="pct_desconto" id="pctDescontoHidden" value="0">
+          <input type="hidden" name="parcelas_datas" id="parcelasDatasJson" value="[]">
+          <input type="hidden" name="forma_pagamento" id="formaPagamento">
+          {% for it in itens %}
+          <div class="it-row">
+            <span class="ref-badge">{{ it.codigo_produto }}</span>
+            <span>{{ it.modelo or '—' }} <span style="color:#aaa">· {{ it.descricao or '' }}</span></span>
+            <span>{{ it.tamanho or '—' }}</span>
+            <span style="font-weight:600">{{ brl(it.valor_unitario) }}</span>
+            <span>{{ it.quantidade }}</span>
+            <span><input class="fica-input" type="number" min="0" max="{{ it.quantidade }}" value="{{ it.quantidade }}"
+                         name="fica_{{ it.id }}" data-unit="{{ it.valor_unitario }}" data-qtd="{{ it.quantidade }}" oninput="recalcTotal()"></span>
+          </div>
+          {% endfor %}
+          <div style="font-size:12px;color:#aaa;margin-top:10px">💡 Ajuste "Ficou (vende)" para cada peça. O que não ficar com o cliente <b>volta automaticamente ao estoque</b> ao gerar a venda.</div>
+
+          <div class="total-bar">
+            <span class="total-label">Total da venda</span>
+            <span class="total-valor" id="totalVenda">{{ brl(cond.valor_total) }}</span>
+          </div>
+
+          <div class="step-sep">Forma de pagamento</div>
+          <div class="pg-opts">
+            <button type="button" class="pg-opt" onclick="selPg('dinheiro',this)">💵 Dinheiro</button>
+            <button type="button" class="pg-opt" onclick="selPg('pix',this)">⚡ Pix</button>
+            <button type="button" class="pg-opt" onclick="selPg('debito',this)">💳 Débito</button>
+            <button type="button" class="pg-opt" onclick="selPg('credito_vista',this)">💳 Créd. à vista</button>
+            <button type="button" class="pg-opt" onclick="selPg('credito_parcelado',this)">💳 Créd. parc.</button>
+            <button type="button" class="pg-opt" onclick="selPg('link',this)">🔗 Link</button>
+            {% if cliente_cred %}<button type="button" class="pg-opt" onclick="selPg('crediario',this)">📋 Crediário</button>{% endif %}
+          </div>
+
+          <!-- Desconto (pix/dinheiro) -->
+          <div id="secDesconto" style="display:none;margin-bottom:14px;background:#f0faf4;border:1.5px solid #c5e1a5;border-radius:10px;padding:16px 18px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;margin-bottom:10px">
+              <input type="checkbox" id="chkDesconto" onchange="toggleDesconto(this.checked)" style="width:16px;height:16px;accent-color:#2e7d32"> Conceder desconto?
+            </label>
+            <div id="camposDesconto" style="display:none">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div class="form-field" style="margin:0"><span class="form-label">Desconto (R$)</span><input class="form-input" type="text" id="descontoValor" inputmode="numeric" placeholder="0,00" oninput="calcDesconto()"></div>
+                <div class="form-field" style="margin:0"><span class="form-label">% Desconto</span><input class="form-input" type="text" id="descontoPct" placeholder="0,00" oninput="calcDescontoPct(this.value)"></div>
+              </div>
+              <div style="background:#fff;border:1.5px solid #c5e1a5;border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+                <span style="font-size:12px;color:#aaa;font-weight:600">VALOR FINAL</span>
+                <span style="font-size:18px;font-weight:700;color:#2e7d32" id="valorFinalDesc">R$ 0,00</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Crédito parcelado -->
+          <div id="secParcelado" style="display:none;margin-bottom:14px">
+            <div class="form-field"><label class="form-label">Parcelas (máx. 10x)</label>
+              <select class="form-select" name="parcelas" style="width:200px"><option value="1">Selecione...</option>{% for i in range(2,11) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}</select>
+            </div>
+          </div>
+
+          <!-- Crediário -->
+          <div id="secCrediario" style="display:none">
+            <div class="form-grid2" style="margin-bottom:12px">
+              <div class="form-field"><label class="form-label">Entrada (R$)</label><input class="form-input" type="text" inputmode="numeric" name="entrada" id="entradaVal" placeholder="0,00"></div>
+              <div class="form-field"><label class="form-label">Qtd de parcelas</label><select class="form-select" id="nParcelas" name="num_parcelas" onchange="gerarParcelas()"><option value="">Selecione...</option>{% for i in range(1,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}</select></div>
+              <div class="form-field"><label class="form-label">Saldo devedor</label><input class="form-input auto" type="text" id="saldoDevedor" readonly></div>
+            </div>
+            <div id="parcelasCrediario"></div>
+            <div class="conf-box" id="confBox">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:8px">Conferência</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:13px">
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase">Saldo</div><div style="font-weight:700" id="confSaldo">—</div></div>
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase">Soma parc.</div><div style="font-weight:700" id="confSoma">—</div></div>
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase">Diferença</div><div style="font-weight:700" id="confDif">—</div></div>
+                <div></div>
+              </div>
+              <div id="confAlerta" style="display:none;margin-top:8px;background:#fce4ec;padding:7px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ Valores não fecham.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap">
+            <button type="submit" class="btn-finalizar">✅ Gerar venda</button>
+          </div>
+        </form>
+
+        <!-- Ações secundárias (fora do form de venda) -->
+        <div style="display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;border-top:1.5px solid #f0f0f5;padding-top:16px">
+          <form method="POST" action="/condicionais/{{ cond.id }}/devolver" onsubmit="return confirm('Devolver TODAS as peças ao estoque? A condicional será encerrada como devolvida.')">
+            <button type="submit" class="btn-dev">↩️ Devolver tudo ao estoque</button>
+          </form>
+        </div>
+
+        {% else %}
+        <!-- Itens read-only (transferência aberta ou já finalizada) -->
+        {% for it in itens %}
+        <div class="it-row">
+          <span class="ref-badge">{{ it.codigo_produto }}</span>
+          <span>{{ it.modelo or '—' }} <span style="color:#aaa">· {{ it.descricao or '' }}</span></span>
+          <span>{{ it.tamanho or '—' }}</span>
+          <span style="font-weight:600">{{ brl(it.valor_unitario) }}</span>
+          <span>{{ it.quantidade }}</span>
+          <span>
+            {% if it.status == 'vendido' %}<span class="st-pill st-vend">Vendido</span>
+            {% elif it.status == 'parcial' %}<span class="st-pill st-parc">Parcial</span>
+            {% elif it.status == 'devolvido' %}<span class="st-pill st-dev">Devolvido</span>
+            {% elif it.status == 'transferido' %}<span class="st-pill st-transf">Transferido</span>
+            {% else %}<span class="st-pill st-pend">Reservado</span>{% endif %}
+          </span>
+        </div>
+        {% endfor %}
+
+        {% if cond.status == 'aberta' and cond.tipo == 'transferencia' %}
+        <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;border-top:1.5px solid #f0f0f5;padding-top:16px">
+          <form method="POST" action="/condicionais/{{ cond.id }}/confirmar-transferencia" onsubmit="return confirm('Confirmar a transferência? As peças serão baixadas definitivamente do estoque (enviadas para a outra loja).')">
+            <button type="submit" class="btn-finalizar" style="background:#e65100">🔄 Confirmar transferência (baixa)</button>
+          </form>
+          <form method="POST" action="/condicionais/{{ cond.id }}/devolver" onsubmit="return confirm('Devolver TODAS as peças ao estoque?')">
+            <button type="submit" class="btn-dev">↩️ Devolver ao estoque</button>
+          </form>
+        </div>
+        {% endif %}
+        {% endif %}
+      </div>
+
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px">
+        <form method="POST" action="/condicionais/{{ cond.id }}/excluir" onsubmit="return confirm('Excluir este registro? Se estiver em aberto, as peças reservadas voltam ao estoque.')">
+          <button type="submit" class="btn-sec" style="color:#c62828;border-color:#f3c0c0">🗑️ Excluir registro</button>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+function parseMoeda(s){ if(!s) return 0; return parseFloat(String(s).replace(/\./g,'').replace(',','.'))||0; }
+function fmt(v){ return 'R$ '+(Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function totalVendaCalc(){
+  let t=0;
+  document.querySelectorAll('.fica-input').forEach(el=>{
+    const u=parseFloat(el.dataset.unit)||0;
+    let q=parseInt(el.value)||0; const max=parseInt(el.dataset.qtd)||0;
+    if(q<0)q=0; if(q>max){q=max; el.value=max;}
+    t+=u*q;
+  });
+  return Math.round(t*100)/100;
+}
+function recalcTotal(){
+  const t=totalVendaCalc();
+  document.getElementById('totalVenda').textContent=fmt(t);
+  calcDesconto();
+  if(document.getElementById('secCrediario').style.display!=='none') calcSaldo();
+}
+
+function selPg(tipo,btn){
+  document.querySelectorAll('.pg-opt').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('formaPagamento').value=tipo;
+  document.getElementById('secParcelado').style.display=tipo==='credito_parcelado'?'block':'none';
+  document.getElementById('secCrediario').style.display=tipo==='crediario'?'block':'none';
+  const temDesc=(tipo==='pix'||tipo==='dinheiro');
+  document.getElementById('secDesconto').style.display=temDesc?'block':'none';
+  if(!temDesc){
+    document.getElementById('chkDesconto').checked=false;
+    document.getElementById('camposDesconto').style.display='none';
+    document.getElementById('descontoValorHidden').value='0';
+    document.getElementById('pctDescontoHidden').value='0';
+  }
+  if(tipo==='crediario') calcSaldo();
+}
+function toggleDesconto(on){ document.getElementById('camposDesconto').style.display=on?'block':'none'; if(!on){ document.getElementById('descontoValor').value=''; document.getElementById('descontoPct').value=''; document.getElementById('descontoValorHidden').value='0'; document.getElementById('pctDescontoHidden').value='0'; } calcDesconto(); }
+function calcDescontoPct(v){
+  const total=totalVendaCalc();
+  const pct=parseMoeda(v);
+  const val=Math.round(total*pct)/100;
+  document.getElementById('descontoValor').value=val.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  calcDesconto();
+}
+function calcDesconto(){
+  const total=totalVendaCalc();
+  let val=parseMoeda(document.getElementById('descontoValor') ? document.getElementById('descontoValor').value : '0');
+  if(val>total)val=total;
+  const pct= total>0 ? Math.round(val/total*10000)/100 : 0;
+  const final=Math.max(0,Math.round((total-val)*100)/100);
+  const fd=document.getElementById('valorFinalDesc'); if(fd) fd.textContent=fmt(final);
+  const dp=document.getElementById('descontoPct'); if(dp && document.activeElement!==dp) dp.value=pct.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('descontoValorHidden').value=val.toFixed(2);
+  document.getElementById('pctDescontoHidden').value=pct.toFixed(2);
+}
+
+function valorFinal(){ const total=totalVendaCalc(); const val=parseFloat(document.getElementById('descontoValorHidden').value||0); return Math.max(0,Math.round((total-val)*100)/100); }
+
+function calcSaldo(){
+  const saldoBase=valorFinal();
+  const entrada=parseMoeda(document.getElementById('entradaVal').value);
+  const saldo=Math.max(0,Math.round((saldoBase-entrada)*100)/100);
+  document.getElementById('saldoDevedor').value=fmt(saldo);
+  gerarParcelas();
+}
+function gerarParcelas(){
+  const n=parseInt(document.getElementById('nParcelas').value)||0;
+  if(!n){ return; }
+  const saldoBase=valorFinal();
+  const entrada=parseMoeda(document.getElementById('entradaVal').value);
+  const saldo=Math.max(0,Math.round((saldoBase-entrada)*100)/100);
+  const cont=document.getElementById('parcelasCrediario'); cont.innerHTML='';
+  let acc=0;
+  for(let i=1;i<=n;i++){
+    const d=new Date(); d.setDate(d.getDate()+i*30);
+    const ds=d.toISOString().split('T')[0];
+    let val=i===n?Math.round((saldo-acc)*100)/100:Math.ceil((saldo/n)*100)/100;
+    if(i<n)acc+=val;
+    const row=document.createElement('div'); row.className='parcela-row';
+    row.innerHTML='<div class="form-field"><div class="form-label">Parcela '+i+' — venc.</div><input class="form-input" type="date" name="parcela_data_'+i+'" value="'+ds+'"></div><div class="form-field"><div class="form-label">Valor (R$)</div><input class="form-input" type="number" step="0.01" name="parcela_valor_'+i+'" value="'+val.toFixed(2)+'" oninput="confCrediario()"></div>';
+    cont.appendChild(row);
+  }
+  document.getElementById('confBox').style.display='block';
+  confCrediario();
+}
+function confCrediario(){
+  const saldoBase=valorFinal();
+  const entrada=parseMoeda(document.getElementById('entradaVal').value);
+  const n=parseInt(document.getElementById('nParcelas').value)||0;
+  let soma=0;
+  for(let i=1;i<=n;i++){ const el=document.querySelector('[name="parcela_valor_'+i+'"]'); if(el) soma+=parseFloat(el.value||0); }
+  soma=Math.round(soma*100)/100;
+  const saldo=Math.max(0,Math.round((saldoBase-entrada)*100)/100);
+  const dif=Math.round((saldo-soma)*100)/100;
+  document.getElementById('confSaldo').textContent=fmt(saldo);
+  document.getElementById('confSoma').textContent=fmt(soma);
+  const dEl=document.getElementById('confDif'); dEl.textContent=fmt(dif);
+  dEl.style.color=Math.abs(dif)<=0.01?'#2e7d32':'#c62828';
+  document.getElementById('confAlerta').style.display=Math.abs(dif)>0.01?'block':'none';
+}
+document.querySelectorAll('#entradaVal').forEach(el=>el.addEventListener('input',calcSaldo));
+
+function prepararVenda(){
+  const total=totalVendaCalc();
+  if(total<=0){ alert('⚠️ Selecione ao menos uma peça que ficou com o cliente (qtd maior que zero).'); return false; }
+  const forma=document.getElementById('formaPagamento').value;
+  if(!forma){ alert('⚠️ Selecione a forma de pagamento.'); return false; }
+  if(forma==='credito_parcelado'){
+    const p=document.querySelector('[name=parcelas]').value;
+    if(!p||p==='1'){ alert('⚠️ Informe o número de parcelas (mín. 2x).'); return false; }
+  }
+  if(forma==='crediario'){
+    if(document.getElementById('entradaVal').value.trim()===''){ alert('⚠️ Informe a entrada do crediário (pode ser 0,00).'); return false; }
+    if(!document.getElementById('nParcelas').value){ alert('⚠️ Informe a quantidade de parcelas.'); return false; }
+    const dif=document.getElementById('confDif');
+    if(dif && dif.style.color==='rgb(198, 40, 40)'){ alert('⚠️ Corrija os valores das parcelas (a soma deve fechar com o saldo).'); return false; }
+    const parc=[];
+    const n=parseInt(document.getElementById('nParcelas').value)||0;
+    for(let i=1;i<=n;i++){ const dt=document.querySelector('[name="parcela_data_'+i+'"]').value; const vl=parseFloat(document.querySelector('[name="parcela_valor_'+i+'"]').value||0); if(dt&&vl) parc.push({data:dt,valor:vl}); }
+    document.getElementById('parcelasDatasJson').value=JSON.stringify(parc);
+  }
+  return true;
+}
+</script>
+{% endblock %}

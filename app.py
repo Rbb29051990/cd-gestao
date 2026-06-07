@@ -181,9 +181,28 @@ def init_db():
         valor NUMERIC(10,2) DEFAULT 0, data_vencimento DATE,
         pago BOOLEAN DEFAULT FALSE, data_pagamento DATE,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS condicionais (
+        id SERIAL PRIMARY KEY, codigo VARCHAR(12) UNIQUE,
+        tipo VARCHAR(14) DEFAULT 'condicional',
+        cliente_id INTEGER, cliente_nome VARCHAR(200),
+        usuario_id INTEGER, vendedora_nome VARCHAR(200),
+        valor_total NUMERIC(10,2) DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'aberta',
+        venda_id INTEGER, observacao TEXT,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finalizado_em TIMESTAMP)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS condicional_itens (
+        id SERIAL PRIMARY KEY,
+        condicional_id INTEGER REFERENCES condicionais(id) ON DELETE CASCADE,
+        produto_id INTEGER, codigo_produto VARCHAR(10),
+        modelo VARCHAR(100), descricao TEXT, tamanho VARCHAR(20),
+        valor_unitario NUMERIC(10,2) DEFAULT 0,
+        quantidade INTEGER DEFAULT 1,
+        status VARCHAR(20) DEFAULT 'pendente')""")
     conn.commit()
     # ── MIGRAÇÕES — adiciona colunas novas em tabelas existentes ──
     migracoes = [
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS reservado INTEGER DEFAULT 0",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS desconto NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS pct_desconto NUMERIC(6,2) DEFAULT 0",
         "ALTER TABLE vendas ALTER COLUMN pct_desconto TYPE NUMERIC(6,2)",
@@ -349,6 +368,12 @@ def visao_geral():
         cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as v FROM crediarios WHERE status='aberto'")
         val_crediarios = round(float(cur.fetchone()['v']), 2)
     except: val_crediarios = 0.0
+    # Condicional / transferência em aberto (global)
+    try:
+        cur.execute("SELECT COALESCE(SUM(valor_total),0) as v, COUNT(*) as n FROM condicionais WHERE status='aberta'")
+        rc = cur.fetchone()
+        val_condicional = round(float(rc['v']), 2); n_condicional = int(rc['n'])
+    except: val_condicional = 0.0; n_condicional = 0
     # Despesas do período = saída REAL de caixa:
     #   • despesas à vista (não parceladas) pela data de lançamento
     #   • parcelas de despesas parceladas somente quando pagas (pela data de pagamento)
@@ -381,6 +406,7 @@ def visao_geral():
                cred_entrada=cred_entrada, cred_parcelas=cred_parcelas,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,
+               val_condicional=val_condicional, n_condicional=n_condicional,
                val_despesas=val_despesas, lucro_liquido=lucro_liquido,
                movs=movs, estoque_baixo=estoque_baixo,
                data_inicio=data_inicio, data_fim=data_fim,
@@ -1002,6 +1028,283 @@ def buscar_cliente():
     cur.close(); conn.close()
     return jsonify({'clientes':lista})
 
+# ══════════════ CONDICIONAL / TRANSFERÊNCIA ══════════════
+LOJA_TRANSFERENCIA = 'CD By Carol Duarte'
+
+@app.route('/condicionais')
+@login_required
+def condicionais():
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT * FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+    vendedoras = [dict(u) for u in cur.fetchall()]
+    cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE ORDER BY nome")
+    clientes_lista = [dict(c) for c in cur.fetchall()]
+    hoje = date.today()
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except: data_inicio = hoje.strftime('%Y-%m-01')
+    try: date.fromisoformat(data_fim)
+    except: data_fim = hoje.strftime('%Y-%m-%d')
+    # Abertas (sempre todas, independe do período)
+    cur.execute("""SELECT c.*,
+        COALESCE((SELECT SUM(quantidade) FROM condicional_itens WHERE condicional_id=c.id AND status='pendente'),0) as qtd_pecas
+        FROM condicionais c WHERE c.status='aberta' ORDER BY c.criado_em""")
+    abertas = [dict(r) for r in cur.fetchall()]
+    for c in abertas:
+        c['dias'] = (hoje - c['criado_em'].date()).days
+    # Histórico (filtrado pelo período)
+    cur.execute("""SELECT c.*,
+        COALESCE((SELECT SUM(quantidade) FROM condicional_itens WHERE condicional_id=c.id),0) as qtd_pecas
+        FROM condicionais c WHERE c.status<>'aberta' AND DATE(c.criado_em) BETWEEN %s AND %s
+        ORDER BY c.criado_em DESC""", (data_inicio, data_fim))
+    historico = [dict(r) for r in cur.fetchall()]
+    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM condicionais WHERE codigo ~ '^C[0-9]+$'")
+    next_n = cur.fetchone()['n'] + 1
+    cur.close(); conn.close()
+    # ── KPIs / agregações ──
+    total_aberto = round(sum(float(c['valor_total'] or 0) for c in abertas), 2)
+    n_abertas = len(abertas)
+    n_pecas = sum(int(c['qtd_pecas'] or 0) for c in abertas)
+    cond_aberto  = round(sum(float(c['valor_total'] or 0) for c in abertas if c['tipo'] == 'condicional'), 2)
+    transf_aberto = round(sum(float(c['valor_total'] or 0) for c in abertas if c['tipo'] == 'transferencia'), 2)
+    n_cond  = sum(1 for c in abertas if c['tipo'] == 'condicional')
+    n_transf = sum(1 for c in abertas if c['tipo'] == 'transferencia')
+    # Aging — mais tempo em aberto
+    aging = sorted(abertas, key=lambda c: c['dias'], reverse=True)[:8]
+    # Maiores valores por cliente/destino
+    por_cliente = {}
+    for c in abertas:
+        k = c['cliente_nome'] or '—'
+        por_cliente[k] = por_cliente.get(k, 0.0) + float(c['valor_total'] or 0)
+    maiores = sorted([{'nome': k, 'valor': round(v, 2)} for k, v in por_cliente.items()],
+                     key=lambda x: x['valor'], reverse=True)[:8]
+    ctx = get_ctx()
+    ctx.update(vendedoras=vendedoras, clientes=clientes_lista, abertas=abertas, historico=historico,
+               data_inicio=data_inicio, data_fim=data_fim, next_cod=f"C{next_n}",
+               total_aberto=total_aberto, n_abertas=n_abertas, n_pecas=n_pecas,
+               cond_aberto=cond_aberto, transf_aberto=transf_aberto, n_cond=n_cond, n_transf=n_transf,
+               aging=aging, maiores=maiores, loja_transf=LOJA_TRANSFERENCIA)
+    return render_template('condicionais.html', **ctx)
+
+@app.route('/condicionais/nova', methods=['POST'])
+@login_required
+def nova_condicional():
+    conn = get_db(); cur = conn.cursor()
+    try:
+        tipo = request.form.get('tipo', 'condicional').strip().lower()
+        if tipo not in ('condicional', 'transferencia'): tipo = 'condicional'
+        usuario_id = request.form.get('usuario_id')
+        vendedora_nome = request.form.get('vendedora_nome', '').strip()
+        if tipo == 'transferencia':
+            cliente_id = None; cliente_nome = LOJA_TRANSFERENCIA
+        else:
+            cliente_id = request.form.get('cliente_id') or None
+            cliente_nome = request.form.get('cliente_nome', '').strip()
+        obs = request.form.get('observacao', '').strip() or None
+        itens = json.loads(request.form.get('itens', '[]'))
+        if not itens:
+            raise Exception('Adicione pelo menos um item.')
+        if tipo == 'condicional' and not cliente_nome:
+            raise Exception('Informe o cliente da condicional.')
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM condicionais WHERE codigo ~ '^C[0-9]+$'")
+        n = cur.fetchone()['n']; cod = f"C{n+1}"
+        total = sum(float(i.get('valor_unitario', 0)) * int(i.get('quantidade', 1)) for i in itens)
+        cur.execute("""INSERT INTO condicionais (codigo,tipo,cliente_id,cliente_nome,usuario_id,vendedora_nome,valor_total,observacao)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (cod, tipo, cliente_id, cliente_nome, usuario_id or None, vendedora_nome, total, obs))
+        cid = cur.fetchone()['id']
+        for it in itens:
+            pid = it.get('produto_id'); qtd = int(it.get('quantidade', 1)); vu = float(it.get('valor_unitario', 0))
+            if pid:
+                cur.execute("SELECT quantidade FROM estoque WHERE id=%s", (pid,))
+                row = cur.fetchone(); disp = int(row['quantidade']) if row else 0
+                if qtd > disp:
+                    raise Exception(f"Saldo insuficiente para {it.get('codigo')} (disponível: {disp}).")
+                cur.execute("UPDATE estoque SET quantidade=quantidade-%s, reservado=COALESCE(reservado,0)+%s WHERE id=%s", (qtd, qtd, pid))
+            cur.execute("""INSERT INTO condicional_itens (condicional_id,produto_id,codigo_produto,modelo,descricao,tamanho,valor_unitario,quantidade)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (cid, pid or None, it.get('codigo'), it.get('modelo'), it.get('descricao'), it.get('tamanho'), vu, qtd))
+        rotulo = 'Transferência' if tipo == 'transferencia' else 'Condicional'
+        conn.commit(); flash(f'{rotulo} {cod} registrada! Itens reservados no estoque.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); conn.close()
+    return redirect(url_for('condicionais'))
+
+@app.route('/condicionais/<int:cid>')
+@login_required
+def ficha_condicional(cid):
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT * FROM condicionais WHERE id=%s", (cid,))
+    row = cur.fetchone()
+    if not row:
+        flash('Condicional não encontrada.', 'erro'); cur.close(); conn.close()
+        return redirect(url_for('condicionais'))
+    cond = dict(row)
+    cur.execute("SELECT * FROM condicional_itens WHERE condicional_id=%s ORDER BY id", (cid,))
+    itens = [dict(i) for i in cur.fetchall()]
+    cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+    vendedoras = [dict(u) for u in cur.fetchall()]
+    cliente_cred = False
+    if cond.get('cliente_id'):
+        cur.execute("SELECT crediario FROM clientes WHERE id=%s", (cond['cliente_id'],))
+        cc = cur.fetchone(); cliente_cred = bool(cc and cc['crediario'])
+    venda = None
+    if cond.get('venda_id'):
+        cur.execute("SELECT codigo FROM vendas WHERE id=%s", (cond['venda_id'],))
+        vv = cur.fetchone(); venda = dict(vv) if vv else None
+    cur.close(); conn.close()
+    cond['dias'] = (date.today() - cond['criado_em'].date()).days
+    ctx = get_ctx(); ctx.update(cond=cond, itens=itens, vendedoras=vendedoras,
+                                cliente_cred=cliente_cred, venda=venda)
+    return render_template('ficha_condicional.html', **ctx)
+
+@app.route('/condicionais/<int:cid>/gerar-venda', methods=['POST'])
+@login_required
+def gerar_venda_condicional(cid):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM condicionais WHERE id=%s", (cid,))
+        cond = cur.fetchone()
+        if not cond: raise Exception('Condicional não encontrada.')
+        cond = dict(cond)
+        if cond['status'] != 'aberta': raise Exception('Esta condicional já foi finalizada.')
+        cur.execute("SELECT * FROM condicional_itens WHERE condicional_id=%s", (cid,))
+        citens = [dict(i) for i in cur.fetchall()]
+        usuario_id = request.form.get('usuario_id') or cond.get('usuario_id')
+        vendedora_nome = request.form.get('vendedora_nome', '').strip() or cond.get('vendedora_nome')
+        forma = request.form.get('forma_pagamento', '').strip()
+        cliente_id = cond.get('cliente_id'); cliente_nome = cond.get('cliente_nome')
+        # Quantas peças o cliente ficou (por item)
+        kept_total = 0
+        for it in citens:
+            k = int(request.form.get(f'fica_{it["id"]}', 0) or 0)
+            it['_kept'] = max(0, min(k, int(it['quantidade'])))
+            kept_total += it['_kept']
+        if kept_total == 0:
+            raise Exception('Selecione ao menos uma peça que ficou com o cliente. Para devolver tudo, use "Devolver tudo".')
+        if not forma:
+            raise Exception('Selecione a forma de pagamento.')
+        valor_total = round(sum(float(it['valor_unitario']) * it['_kept'] for it in citens if it['_kept'] > 0), 2)
+        desconto = min(parse_brl(request.form.get('desconto_valor', '0')), valor_total)
+        pct_desconto = min(100.0, max(0.0, parse_brl(request.form.get('pct_desconto', '0'))))
+        valor_final = round(valor_total - desconto, 2)
+        parcelas = int(request.form.get('parcelas', 1) or 1)
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM vendas WHERE codigo ~ '^V[0-9]+$'")
+        vn = cur.fetchone()['n']; vcod = f"V{vn+1}"
+        cur.execute("""INSERT INTO vendas (codigo,usuario_id,vendedora_nome,cliente_id,cliente_nome,valor_total,desconto,pct_desconto,forma_pagamento,parcelas)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (vcod, usuario_id or None, vendedora_nome, cliente_id or None, cliente_nome,
+             valor_total, desconto, pct_desconto, forma, parcelas))
+        venda_id = cur.fetchone()['id']
+        for it in citens:
+            k = it['_kept']; q = int(it['quantidade']); devolver = q - k; pid = it['produto_id']
+            if k > 0:
+                vu = float(it['valor_unitario'])
+                cur.execute("""INSERT INTO venda_itens (venda_id,produto_id,codigo_produto,modelo,descricao,tamanho,valor_unitario,quantidade,valor_total)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (venda_id, pid or None, it['codigo_produto'], it['modelo'], it['descricao'], it['tamanho'], vu, k, vu * k))
+                if pid:
+                    cur.execute("UPDATE estoque SET reservado=GREATEST(0,COALESCE(reservado,0)-%s), ultima_venda=CURRENT_DATE WHERE id=%s", (k, pid))
+            if devolver > 0 and pid:
+                cur.execute("UPDATE estoque SET quantidade=quantidade+%s, reservado=GREATEST(0,COALESCE(reservado,0)-%s) WHERE id=%s", (devolver, devolver, pid))
+            novo = 'vendido' if (k > 0 and devolver == 0) else ('parcial' if k > 0 else 'devolvido')
+            cur.execute("UPDATE condicional_itens SET status=%s WHERE id=%s", (novo, it['id']))
+        # Caixa / crediário
+        formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
+        if forma in formas_a_vista:
+            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
+                VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
+                (f"Venda {vcod} - {cliente_nome} (condicional {cond['codigo']})", valor_final, forma, venda_id, usuario_id or None, vendedora_nome))
+        elif forma == 'crediario':
+            entrada = parse_brl(request.form.get('entrada', '0'))
+            saldo = round(valor_final - entrada, 2)
+            cur.execute("""INSERT INTO crediarios (venda_id,cliente_id,cliente_nome,valor_total,entrada,saldo_devedor)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
+                (venda_id, cliente_id or None, cliente_nome, valor_final, entrada, saldo))
+            cred_id = cur.fetchone()['id']
+            for i, p in enumerate(json.loads(request.form.get('parcelas_datas', '[]'))):
+                cur.execute("INSERT INTO crediario_parcelas (crediario_id,numero_parcela,data_vencimento,valor) VALUES (%s,%s,%s,%s)",
+                    (cred_id, i + 1, p.get('data'), float(p.get('valor', 0))))
+            if entrada > 0:
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
+                    VALUES (%s,%s,'entrada','crediario',%s,%s,%s)""",
+                    (f"Entrada crediário - {cliente_nome} (condicional {cond['codigo']})", entrada, venda_id, usuario_id or None, vendedora_nome))
+        cur.execute("UPDATE condicionais SET status='finalizada', venda_id=%s, finalizado_em=CURRENT_TIMESTAMP WHERE id=%s", (venda_id, cid))
+        conn.commit(); flash(f'Venda {vcod} gerada da condicional {cond["codigo"]}! Peças não retiradas voltaram ao estoque.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+        cur.close(); conn.close()
+        return redirect(url_for('ficha_condicional', cid=cid))
+    cur.close(); conn.close()
+    return redirect(url_for('ficha_venda', vid=venda_id))
+
+@app.route('/condicionais/<int:cid>/devolver', methods=['POST'])
+@login_required
+def devolver_condicional(cid):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM condicionais WHERE id=%s", (cid,))
+        cond = cur.fetchone()
+        if not cond: raise Exception('Condicional não encontrada.')
+        cond = dict(cond)
+        if cond['status'] != 'aberta': raise Exception('Esta condicional já foi finalizada.')
+        cur.execute("SELECT * FROM condicional_itens WHERE condicional_id=%s AND status='pendente'", (cid,))
+        for it in cur.fetchall():
+            if it['produto_id']:
+                cur.execute("UPDATE estoque SET quantidade=quantidade+%s, reservado=GREATEST(0,COALESCE(reservado,0)-%s) WHERE id=%s",
+                    (it['quantidade'], it['quantidade'], it['produto_id']))
+        cur.execute("UPDATE condicional_itens SET status='devolvido' WHERE condicional_id=%s", (cid,))
+        cur.execute("UPDATE condicionais SET status='devolvida', finalizado_em=CURRENT_TIMESTAMP WHERE id=%s", (cid,))
+        conn.commit(); flash(f'Condicional {cond["codigo"]} devolvida. Peças retornaram ao estoque.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); conn.close()
+    return redirect(url_for('condicionais'))
+
+@app.route('/condicionais/<int:cid>/confirmar-transferencia', methods=['POST'])
+@login_required
+def confirmar_transferencia(cid):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM condicionais WHERE id=%s", (cid,))
+        cond = cur.fetchone()
+        if not cond: raise Exception('Registro não encontrado.')
+        cond = dict(cond)
+        if cond['status'] != 'aberta': raise Exception('Já finalizada.')
+        cur.execute("SELECT * FROM condicional_itens WHERE condicional_id=%s AND status='pendente'", (cid,))
+        for it in cur.fetchall():
+            if it['produto_id']:
+                cur.execute("UPDATE estoque SET reservado=GREATEST(0,COALESCE(reservado,0)-%s) WHERE id=%s", (it['quantidade'], it['produto_id']))
+        cur.execute("UPDATE condicional_itens SET status='transferido' WHERE condicional_id=%s", (cid,))
+        cur.execute("UPDATE condicionais SET status='finalizada', finalizado_em=CURRENT_TIMESTAMP WHERE id=%s", (cid,))
+        conn.commit(); flash(f'Transferência {cond["codigo"]} confirmada. Peças baixadas (enviadas à {LOJA_TRANSFERENCIA}).', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); conn.close()
+    return redirect(url_for('condicionais'))
+
+@app.route('/condicionais/<int:cid>/excluir', methods=['POST'])
+@login_required
+def excluir_condicional(cid):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT status FROM condicionais WHERE id=%s", (cid,))
+        r = cur.fetchone()
+        if r and r['status'] == 'aberta':
+            cur.execute("SELECT * FROM condicional_itens WHERE condicional_id=%s AND status='pendente'", (cid,))
+            for it in cur.fetchall():
+                if it['produto_id']:
+                    cur.execute("UPDATE estoque SET quantidade=quantidade+%s, reservado=GREATEST(0,COALESCE(reservado,0)-%s) WHERE id=%s",
+                        (it['quantidade'], it['quantidade'], it['produto_id']))
+        cur.execute("DELETE FROM condicionais WHERE id=%s", (cid,))
+        conn.commit(); flash('Condicional excluída.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); conn.close()
+    return redirect(url_for('condicionais'))
+
 @app.route('/crediarios')
 @login_required
 def crediarios():
@@ -1476,7 +1779,11 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v82 — 2026-06-05</b><br>
+    Versão: <b style='color:green'>v83 — 2026-06-07</b><br>
+    Condicional: nova aba (condicional p/ cliente e transferência p/ CD By Carol Duarte) com reserva de estoque ✅<br>
+    Condicional: gerar venda selecionando o que o cliente ficou (peças não retiradas voltam ao estoque); devolução total; baixa de transferência ✅<br>
+    Condicional: integração total — estoque (reserva), vendas, caixa e crediário (ao gerar venda) e Visão Geral (valor em aberto) ✅<br>
+    Condicional: dashboard com KPIs, donut condicional×transferência, aging (mais tempo) e maiores valores ✅<br>
     Crediários: dashboard moderno — donut em dia × atraso, distribuição por faixa, top devedores, lista de clientes em atraso ✅<br>
     Despesas: gráficos (donut fixa/avulsa, % por categoria em cada tipo, por forma de pagamento) ✅<br>
     Despesas: novo lançamento passo a passo (tipo → categoria com lista/busca/cadastro → descrição → valor → parcelamento até 24x com vencimentos 30/60/90 editáveis → meio de pagamento → origem Caixa/PIX) ✅<br>

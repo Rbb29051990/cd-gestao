@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+{% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+{% block content %}
+<style>
+.cd-teal{color:#00838f}
+.top-action-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+.top-summary{display:flex;gap:10px;flex-wrap:wrap}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:20px}
+.kpi-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05);position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ac,#00838f)}
+.kpi-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.kpi-ico{font-size:18px}
+.kpi-label{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.6px}
+.kpi-val{font-size:24px;font-weight:800;color:#1a1a2e;letter-spacing:-.5px;line-height:1}
+.kpi-sub{font-size:11px;color:#aaa;font-weight:600;margin-top:5px}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:22px}
+.chart-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.chart-title{font-size:12px;font-weight:700;color:#1a1a2e;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.chart-empty{padding:24px;text-align:center;color:#bbb;font-size:13px;font-style:italic}
+.bar-row{margin-bottom:11px}
+.bar-top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.bar-name{font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62%}
+.bar-val{font-weight:700;color:#1a1a2e}
+.bar-track{height:8px;background:#f0f0f5;border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px}
+.donut-wrap{display:flex;align-items:center;gap:20px}
+.donut{position:relative;width:118px;height:118px;border-radius:50%;flex-shrink:0;background:conic-gradient(#00838f calc(var(--p)*1%),#ff8f00 0)}
+.donut .hole{position:absolute;inset:14px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donut .hole b{font-size:22px;font-weight:800;color:#1a1a2e;line-height:1}
+.donut .hole small{font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.dleg{display:flex;flex-direction:column;gap:10px}
+.dleg-item{display:flex;align-items:center;gap:8px;font-size:13px}
+.dleg-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.dleg-name{font-weight:600;color:#555}.dleg-val{font-weight:800;color:#1a1a2e;margin-left:auto}
+.top-chip{background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;padding:8px 16px;text-align:center;min-width:100px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.top-chip b{display:block;font-size:16px;font-weight:800;color:#1a1a2e;line-height:1.2}
+.top-chip small{font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.5px}
+.cd-table{width:100%;border-collapse:collapse;font-size:13px}
+.cd-table th{text-align:left;padding:12px 16px;font-size:10px;font-weight:700;color:#1a1a2e;border-bottom:2px solid #eeeef5;background:#f8f8fc;white-space:nowrap;text-transform:uppercase}
+.cd-table td{padding:13px 16px;color:#333;border-bottom:1px solid #f4f4f6;font-weight:500;vertical-align:middle}
+.cd-table tr:hover td{background:#f8f8fc}
+.table-wrap{background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:22px}
+.cd-badge{display:inline-block;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px}
+.bg-cond{background:#e0f2f1;color:#00695c}.bg-transf{background:#fff3e0;color:#e65100}
+.bg-aberta{background:#e3f2fd;color:#1565c0}.bg-final{background:#e8f5e9;color:#2e7d32}.bg-dev{background:#f5f5f5;color:#888}
+.dias-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:800}
+.code-badge{font-size:11px;font-weight:700;color:#00838f;background:#e0f2f1;padding:3px 8px;border-radius:4px;letter-spacing:1px}
+.btn-exc{width:30px;height:30px;background:#fce4ec;border:none;border-radius:6px;color:#c62828;font-size:14px;cursor:pointer;font-weight:700}
+.empty-row{padding:26px;text-align:center;color:#bbb;font-style:italic}
+.sec-title{font-size:16px;font-weight:700;color:#1a1a2e}
+/* Modal (reaproveita padrão de Vendas) */
+.modal-overlay{position:fixed;inset:0;background:rgba(26,26,46,0.6);display:flex;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow-y:auto;backdrop-filter:blur(3px)}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:700px;padding:32px;box-shadow:0 20px 60px rgba(0,0,0,0.2);margin-top:20px}
+.modal-title{font-size:20px;font-weight:700;color:#1a1a2e;margin-bottom:4px}
+.modal-sub{font-size:11px;color:#aaa;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:24px}
+.modal-close{float:right;background:#f4f4f6;border:none;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;font-weight:700;color:#555;margin-top:-4px}
+.step-sep{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:20px 0 14px;display:flex;align-items:center;gap:10px}
+.step-sep::after{content:'';flex:1;height:1px;background:#eee}
+.form-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-label{font-size:11px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px}
+.form-input{padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%}
+.form-input:focus{border-color:#00838f;background:#fff}
+.form-select{padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;font-family:'Outfit',sans-serif;font-size:14px;color:#1a1a2e;outline:none;font-weight:500;border-radius:8px;width:100%;cursor:pointer}
+.tipo-opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:6px}
+.tipo-opt{padding:16px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:10px;cursor:pointer;text-align:center;font-weight:700;font-size:14px;color:#777;transition:all .15s}
+.tipo-opt small{display:block;font-size:10px;font-weight:600;color:#aaa;margin-top:4px;text-transform:none;letter-spacing:0}
+.tipo-opt.sel-cond{border-color:#00838f;background:#00838f;color:#fff}
+.tipo-opt.sel-cond small{color:#cdece9}
+.tipo-opt.sel-transf{border-color:#e65100;background:#e65100;color:#fff}
+.tipo-opt.sel-transf small{color:#ffe0c2}
+.pos-rel{position:relative}
+.cliente-sugest{position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e0e0e8;border-top:none;border-radius:0 0 8px 8px;z-index:50;max-height:200px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,0.1)}
+.cliente-item{padding:10px 14px;font-size:14px;font-weight:500;color:#333;cursor:pointer;border-bottom:1px solid #f4f4f6}
+.cliente-item:hover{background:#e0f2f1;color:#00695c;font-weight:600}
+.add-item-bar{display:flex;gap:8px;margin-bottom:14px;align-items:flex-end}
+.btn-add-item{padding:11px 16px;background:#e0f2f1;color:#00695c;border:1.5px solid #b2dfdb;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.ref-prefix{padding:11px 12px;background:#e8eaf6;border:1.5px solid #c5cae9;border-right:none;border-radius:8px 0 0 8px;font-size:13px;font-weight:700;color:#3949ab}
+.ref-input{border-radius:0 8px 8px 0!important;border-left:none!important;width:80px;text-align:center;font-weight:700;letter-spacing:2px}
+.ref-info{background:#e0f2f1;border:1.5px solid #b2dfdb;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;display:none}
+.ref-info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ri-label{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.ri-val{font-weight:600;color:#1a1a2e}.ri-preco{font-weight:700;color:#00695c;font-size:16px}
+.carrinho-wrap{border:1.5px solid #e8e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px}
+.carrinho-head{display:grid;grid-template-columns:80px 1fr 1fr 60px 80px 36px;gap:8px;padding:10px 14px;background:#f8f8fc;border-bottom:2px solid #eeeef5;font-size:10px;font-weight:700;color:#1a1a2e;text-transform:uppercase}
+.carrinho-row{display:grid;grid-template-columns:80px 1fr 1fr 60px 80px 36px;gap:8px;padding:11px 14px;border-bottom:1px solid #f4f4f6;align-items:center;font-size:13px;font-weight:500;color:#333}
+.carrinho-row:last-child{border-bottom:none}
+.ref-badge{font-size:11px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:3px 8px;border-radius:4px;letter-spacing:1px}
+.qtd-input{width:52px;padding:6px 8px;border:1.5px solid #e0e0e8;border-radius:6px;font-size:14px;font-weight:600;text-align:center;background:#f8f8fc;color:#1a1a2e;outline:none}
+.btn-rm{width:30px;height:30px;background:#fce4ec;border:none;border-radius:6px;color:#c62828;font-size:16px;cursor:pointer;font-weight:700}
+.empty-carrinho{padding:20px;text-align:center;color:#ccc;font-size:13px;font-style:italic}
+.total-bar{background:#e0f2f1;border:1.5px solid #b2dfdb;border-radius:10px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.total-label{font-size:12px;font-weight:700;color:#00695c;text-transform:uppercase;letter-spacing:1px}
+.total-valor{font-size:26px;font-weight:700;color:#00695c}
+.modal-footer{display:flex;gap:12px;padding-top:20px;border-top:1.5px solid #eee;margin-top:8px}
+.btn-finalizar{padding:13px 28px;background:#00838f;color:#fff;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;flex:1}
+.btn-cancelar-m{padding:13px 20px;background:#f4f4f6;color:#888;border:none;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:8px}
+.search-input{padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E") 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:280px;font-weight:500}
+.search-input:focus{border-color:#00838f;background-color:#fff}
+</style>
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
+    <div class="topbar-right">
+      <a href="/minha-senha" class="btn-logout">Minha senha</a>
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar">{{ nome[:2].upper() }}</div>
+      <a href="/logout" class="btn-logout">Sair</a>
+    </div>
+  </div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#2e7d32" stroke-width="1.6" fill="none"/><circle cx="11" cy="11" r="3" fill="#2e7d32" opacity="0.4"/></svg> Visão Geral</a>
+        <a href="/clientes" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="9" cy="8" r="3.5" stroke="#6a1b9a" stroke-width="1.6"/><path d="M3 18c0-3 2.5-5 6-5s6 2 6 5" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/></svg> Clientes</a>
+        <a href="/estoque" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="8" width="16" height="11" rx="1.5" fill="none" stroke="#f9a825" stroke-width="1.6"/><path d="M7 8V6a4 4 0 018 0v2" stroke="#f9a825" stroke-width="1.6" stroke-linecap="round"/></svg> Estoque</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/vendas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M3 4h1.5l2.5 9h9l2-6H7" stroke="#2e7d32" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="17.5" r="1.5" fill="#2e7d32"/><circle cx="15" cy="17.5" r="1.5" fill="#2e7d32"/></svg> Vendas</a>
+        <a href="/condicionais" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M4 7h14M5 7l2-3h8l2 3M5 7v11a1 1 0 001 1h10a1 1 0 001-1V7" stroke="#00838f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 11a2 2 0 004 0" stroke="#00838f" stroke-width="1.5" stroke-linecap="round"/></svg> Condicional</a>
+        <a href="/caixa" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="5" width="18" height="13" rx="2" fill="none" stroke="#2e7d32" stroke-width="1.6"/><circle cx="11" cy="11.5" r="3" fill="none" stroke="#2e7d32" stroke-width="1.5"/></svg> Caixa</a>
+        <a href="/crediarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M11 3C7 3 4 6 4 10s3 7 7 7 7-3 7-7" stroke="#c0396b" stroke-width="1.6" stroke-linecap="round"/><path d="M8 10h6M11 7v6" stroke="#c0396b" stroke-width="1.4" stroke-linecap="round"/></svg> Crediários</a>
+        <a href="/despesas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="16" height="16" rx="2" fill="none" stroke="#e65100" stroke-width="1.6"/><path d="M7 8h8M7 11h6M7 14h4" stroke="#e65100" stroke-width="1.5" stroke-linecap="round"/></svg> Despesas</a>
+        <a href="/taxas" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="#f57f17" stroke-width="1.6" fill="none"/><path d="M8 14l6-6M9 9h.01M13 13h.01" stroke="#f57f17" stroke-width="1.6" stroke-linecap="round"/></svg> Taxas</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Gestão</div>
+        <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
+        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+      </div>
+    </nav>
+    <main style="overflow-y:auto;background:#f4f4f6;padding:24px 28px">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}" style="margin-bottom:16px">{{ msg }}</div>{% endfor %}{% endwith %}
+
+      <!-- TOPO -->
+      <div class="top-action-bar">
+        <div>
+          <span class="sec-title">🛍️ Condicional & Transferências</span>
+          <div style="font-size:12px;color:#aaa;margin-top:2px">Controle de peças que saíram em condicional ou foram transferidas</div>
+        </div>
+        <button class="btn-acao" style="background:#00838f" onclick="document.getElementById('modalCond').style.display='flex'">+ Nova condicional</button>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--ac:#00838f">
+          <div class="kpi-top"><span class="kpi-ico">📦</span><span class="kpi-label">Valor total em aberto</span></div>
+          <div class="kpi-val">{{ brl(total_aberto) }}</div>
+          <div class="kpi-sub">{{ n_abertas }} registro(s) · {{ n_pecas }} peça(s) reservada(s)</div>
+        </div>
+        <div class="kpi-card" style="--ac:#00838f">
+          <div class="kpi-top"><span class="kpi-ico">🛍️</span><span class="kpi-label">Em condicional (clientes)</span></div>
+          <div class="kpi-val">{{ brl(cond_aberto) }}</div>
+          <div class="kpi-sub">{{ n_cond }} condicional(is) aberta(s)</div>
+        </div>
+        <div class="kpi-card" style="--ac:#e65100">
+          <div class="kpi-top"><span class="kpi-ico">🔄</span><span class="kpi-label">Em transferência</span></div>
+          <div class="kpi-val">{{ brl(transf_aberto) }}</div>
+          <div class="kpi-sub">{{ n_transf }} para {{ loja_transf }}</div>
+        </div>
+        <div class="kpi-card" style="--ac:#3949ab">
+          <div class="kpi-top"><span class="kpi-ico">👕</span><span class="kpi-label">Peças reservadas</span></div>
+          <div class="kpi-val">{{ n_pecas }}</div>
+          <div class="kpi-sub">Fora do estoque disponível</div>
+        </div>
+      </div>
+
+      <!-- GRÁFICOS -->
+      <div class="charts-grid">
+        <!-- Donut tipo -->
+        <div class="chart-card">
+          <div class="chart-title">Condicional × Transferência</div>
+          {% set base = (cond_aberto + transf_aberto) or 1 %}
+          {% set pc = (cond_aberto / base * 100)|round(0,'common')|int %}
+          {% if total_aberto > 0 %}
+          <div class="donut-wrap">
+            <div class="donut" style="--p:{{ pc }}">
+              <div class="hole"><b>{{ pc }}%</b><small>condicional</small></div>
+            </div>
+            <div class="dleg">
+              <div class="dleg-item"><span class="dleg-dot" style="background:#00838f"></span><span class="dleg-name">Condicional</span><span class="dleg-val">{{ brl(cond_aberto) }}</span></div>
+              <div class="dleg-item"><span class="dleg-dot" style="background:#ff8f00"></span><span class="dleg-name">Transferência</span><span class="dleg-val">{{ brl(transf_aberto) }}</span></div>
+            </div>
+          </div>
+          {% else %}<div class="chart-empty">Nada em aberto no momento.</div>{% endif %}
+        </div>
+
+        <!-- Aging: mais tempo em aberto -->
+        <div class="chart-card">
+          <div class="chart-title">⏱️ Há mais tempo em aberto</div>
+          {% if aging %}
+            {% set maxd = (aging[0].dias) or 1 %}
+            {% for c in aging %}
+            <div class="bar-row">
+              <div class="bar-top">
+                <span class="bar-name">{{ c.cliente_nome or '—' }} <span style="color:#bbb">· {{ c.codigo }}</span></span>
+                <span class="bar-val">{{ c.dias }}d</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:{{ (c.dias / maxd * 100)|round(0,'common')|int if maxd else 0 }}%;background:{{ '#e65100' if c.tipo=='transferencia' else '#00838f' }}"></div></div>
+            </div>
+            {% endfor %}
+          {% else %}<div class="chart-empty">Nenhuma condicional aberta.</div>{% endif %}
+        </div>
+
+        <!-- Maiores valores -->
+        <div class="chart-card">
+          <div class="chart-title">💰 Maiores valores em aberto</div>
+          {% if maiores %}
+            {% set maxv = (maiores[0].valor) or 1 %}
+            {% for m in maiores %}
+            <div class="bar-row">
+              <div class="bar-top">
+                <span class="bar-name">{{ m.nome }}</span>
+                <span class="bar-val">{{ brl(m.valor) }}</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill" style="width:{{ (m.valor / maxv * 100)|round(0,'common')|int if maxv else 0 }}%;background:#3949ab"></div></div>
+            </div>
+            {% endfor %}
+          {% else %}<div class="chart-empty">Sem dados.</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- ABERTAS -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:10px">
+        <span class="sec-title" style="font-size:15px">Em aberto</span>
+        <input class="search-input" type="text" id="buscaAbertas" placeholder="Buscar por cliente, código..." oninput="filtrarTab('tbodyAbertas',this.value)">
+      </div>
+      <div class="table-wrap">
+        <table class="cd-table">
+          <thead><tr><th>Aberto em</th><th>Cód</th><th>Tipo</th><th>Cliente / Destino</th><th>Vendedora</th><th>Peças</th><th>Valor</th><th>Tempo</th><th></th></tr></thead>
+          <tbody id="tbodyAbertas">
+            {% for c in abertas %}
+            <tr style="cursor:pointer">
+              <td onclick="location='/condicionais/{{ c.id }}'">{{ c.criado_em.strftime('%d/%m/%Y') }}</td>
+              <td onclick="location='/condicionais/{{ c.id }}'"><span class="code-badge">{{ c.codigo }}</span></td>
+              <td onclick="location='/condicionais/{{ c.id }}'">
+                {% if c.tipo == 'transferencia' %}<span class="cd-badge bg-transf">🔄 Transferência</span>
+                {% else %}<span class="cd-badge bg-cond">🛍️ Condicional</span>{% endif %}
+              </td>
+              <td onclick="location='/condicionais/{{ c.id }}'" style="font-weight:600">{{ c.cliente_nome or '—' }}</td>
+              <td onclick="location='/condicionais/{{ c.id }}'">{{ c.vendedora_nome or '—' }}</td>
+              <td onclick="location='/condicionais/{{ c.id }}'">{{ c.qtd_pecas }}</td>
+              <td onclick="location='/condicionais/{{ c.id }}'" style="font-weight:700;color:#00695c">{{ brl(c.valor_total) }}</td>
+              <td onclick="location='/condicionais/{{ c.id }}'">
+                <span class="dias-pill" style="background:{% if c.dias >= 15 %}#fdecea;color:#c62828{% elif c.dias >= 7 %}#fff8e1;color:#f57f17{% else %}#e8f5e9;color:#2e7d32{% endif %}">{{ c.dias }} dia(s)</span>
+              </td>
+              <td>
+                <form method="POST" action="/condicionais/{{ c.id }}/excluir" onsubmit="return confirm('Excluir {{ c.codigo }}? As peças reservadas voltam ao estoque.')">
+                  <button type="submit" class="btn-exc">🗑️</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}<tr><td colspan="9" class="empty-row">Nenhuma condicional ou transferência em aberto. 🎉</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- HISTÓRICO -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap;gap:10px">
+        <span class="sec-title" style="font-size:15px">Histórico (finalizadas / devolvidas)</span>
+        <form method="GET" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:0">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
+            <input type="date" name="data_inicio" class="form-input" style="width:auto;padding:9px 14px" value="{{ data_inicio }}" onchange="this.form.submit()">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
+            <input type="date" name="data_fim" class="form-input" style="width:auto;padding:9px 14px" value="{{ data_fim }}" onchange="this.form.submit()">
+          </div>
+        </form>
+      </div>
+      <div class="table-wrap">
+        <table class="cd-table">
+          <thead><tr><th>Aberto em</th><th>Cód</th><th>Tipo</th><th>Cliente / Destino</th><th>Peças</th><th>Valor</th><th>Situação</th><th>Finalizado</th></tr></thead>
+          <tbody>
+            {% for c in historico %}
+            <tr style="cursor:pointer" onclick="location='/condicionais/{{ c.id }}'">
+              <td>{{ c.criado_em.strftime('%d/%m/%Y') }}</td>
+              <td><span class="code-badge">{{ c.codigo }}</span></td>
+              <td>{% if c.tipo == 'transferencia' %}<span class="cd-badge bg-transf">🔄 Transf.</span>{% else %}<span class="cd-badge bg-cond">🛍️ Cond.</span>{% endif %}</td>
+              <td style="font-weight:600">{{ c.cliente_nome or '—' }}</td>
+              <td>{{ c.qtd_pecas }}</td>
+              <td style="font-weight:700">{{ brl(c.valor_total) }}</td>
+              <td>
+                {% if c.status == 'finalizada' %}<span class="cd-badge bg-final">✅ Finalizada</span>
+                {% elif c.status == 'devolvida' %}<span class="cd-badge bg-dev">↩️ Devolvida</span>
+                {% else %}<span class="cd-badge bg-aberta">{{ c.status }}</span>{% endif %}
+              </td>
+              <td>{{ c.finalizado_em.strftime('%d/%m/%Y') if c.finalizado_em else '—' }}</td>
+            </tr>
+            {% else %}<tr><td colspan="8" class="empty-row">Nenhum histórico no período selecionado.</td></tr>{% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MODAL NOVA CONDICIONAL -->
+<div class="modal-overlay" id="modalCond" style="display:none">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('modalCond').style.display='none'">✕</button>
+    <div class="modal-title">Nova condicional / transferência</div>
+    <div class="modal-sub">As peças ficam reservadas no estoque</div>
+    <form method="POST" action="/condicionais/nova" id="formCond">
+      <input type="hidden" name="tipo" id="tipoCond" value="condicional">
+      <input type="hidden" name="itens" id="itensJson" value="[]">
+      <input type="hidden" name="valor_total" id="valorTotalHidden" value="0">
+      <input type="hidden" name="vendedora_nome" id="vendedoraNome">
+      <input type="hidden" name="cliente_id" id="clienteId">
+      <input type="hidden" name="cliente_nome" id="clienteNome">
+
+      <div class="step-sep">1. Tipo</div>
+      <div class="tipo-opts">
+        <label class="tipo-opt sel-cond" id="optCond" onclick="selTipo('condicional')">🛍️ Condicional<small>Cliente leva para provar em casa</small></label>
+        <label class="tipo-opt" id="optTransf" onclick="selTipo('transferencia')">🔄 Transferência<small>Envio para {{ loja_transf }}</small></label>
+      </div>
+
+      <div class="step-sep">2. Vendedora e destino</div>
+      <div class="form-grid2">
+        <div class="form-field">
+          <label class="form-label">Vendedora *</label>
+          <select class="form-select" id="selVendedora" onchange="setVendedora()">
+            <option value="">Selecione...</option>
+            {% for v in vendedoras %}<option value="{{ v.id }}" data-nome="{{ v.nome }}">{{ v.nome }}</option>{% endfor %}
+          </select>
+          <input type="hidden" name="usuario_id" id="usuarioId">
+        </div>
+        <div class="form-field" id="campoCliente">
+          <label class="form-label">Cliente *</label>
+          <div class="pos-rel">
+            <input class="form-input" type="text" id="buscaCliente" placeholder="Digite o nome..." autocomplete="off" oninput="buscarCliente(this.value)">
+            <div class="cliente-sugest" id="clienteSugest" style="display:none"></div>
+          </div>
+          <div id="clienteInfo" style="font-size:12px;color:#aaa;margin-top:3px"></div>
+        </div>
+        <div class="form-field" id="campoDestino" style="display:none">
+          <label class="form-label">Destino</label>
+          <div class="form-input" style="background:#fff3e0;border-color:#ffcc80;color:#e65100;font-weight:700">🔄 {{ loja_transf }}</div>
+        </div>
+      </div>
+
+      <div class="step-sep">3. Peças</div>
+      <div class="add-item-bar">
+        <div class="form-field" style="flex:1">
+          <label class="form-label">Código do produto (só números)</label>
+          <div style="display:flex;align-items:center">
+            <span class="ref-prefix">P</span>
+            <input class="form-input ref-input" type="number" id="refInput" placeholder="1" min="1" oninput="buscarRef(this.value)">
+          </div>
+        </div>
+        <div class="form-field" style="width:80px">
+          <label class="form-label">Qtd</label>
+          <input class="form-input" type="number" id="refQtd" value="1" min="1" style="text-align:center">
+        </div>
+        <button type="button" class="btn-add-item" onclick="addItemCarrinho()">+ Adicionar</button>
+      </div>
+      <div class="ref-info" id="refInfo">
+        <div class="ref-info-grid">
+          <div><div class="ri-label">Modelo</div><div class="ri-val" id="rModelo">—</div></div>
+          <div><div class="ri-label">Descrição</div><div class="ri-val" id="rDesc">—</div></div>
+          <div><div class="ri-label">Tamanho</div><div class="ri-val" id="rTam">—</div></div>
+          <div><div class="ri-label">Valor</div><div class="ri-preco" id="rVal">—</div></div>
+          <div id="rSaldoWrap"><div class="ri-label">Saldo disponível</div><div class="ri-val" id="rSaldo" style="font-weight:700">—</div></div>
+        </div>
+      </div>
+      <div class="carrinho-wrap">
+        <div class="carrinho-head"><span>Ref</span><span>Modelo</span><span>Desc/TAM</span><span>Qtd</span><span>Valor</span><span></span></div>
+        <div id="carrinhoBody"><div class="empty-carrinho">Nenhuma peça adicionada ainda</div></div>
+      </div>
+      <div class="total-bar">
+        <span class="total-label">Valor total reservado</span>
+        <span class="total-valor" id="totalCond">R$ 0,00</span>
+      </div>
+
+      <div class="step-sep">4. Observação (opcional)</div>
+      <div class="form-field" style="margin-bottom:6px">
+        <input class="form-input" type="text" name="observacao" placeholder="Ex: levou para provar, devolve sexta...">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-m" onclick="document.getElementById('modalCond').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-finalizar" onclick="return prepararEnvio()">📦 Registrar e reservar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let carrinhoItens = [], refAtual = null, tipoSel = 'condicional';
+
+function selTipo(t){
+  tipoSel = t;
+  document.getElementById('tipoCond').value = t;
+  const oc=document.getElementById('optCond'), ot=document.getElementById('optTransf');
+  oc.classList.remove('sel-cond'); ot.classList.remove('sel-transf');
+  if(t==='condicional'){
+    oc.classList.add('sel-cond');
+    document.getElementById('campoCliente').style.display='flex';
+    document.getElementById('campoDestino').style.display='none';
+  } else {
+    ot.classList.add('sel-transf');
+    document.getElementById('campoCliente').style.display='none';
+    document.getElementById('campoDestino').style.display='flex';
+    document.getElementById('clienteId').value='';
+    document.getElementById('clienteNome').value='{{ loja_transf }}';
+  }
+}
+
+function setVendedora(){
+  const sel=document.getElementById('selVendedora');
+  document.getElementById('usuarioId').value = sel.value;
+  document.getElementById('vendedoraNome').value = sel.options[sel.selectedIndex].dataset.nome || '';
+}
+
+let clienteTimer;
+function buscarCliente(q){
+  clearTimeout(clienteTimer);
+  const el=document.getElementById('clienteSugest');
+  if(q.length<2){ el.style.display='none'; return; }
+  clienteTimer=setTimeout(async()=>{
+    const r=await fetch('/vendas/buscar-cliente?q='+encodeURIComponent(q));
+    const d=await r.json();
+    el.innerHTML='';
+    if(!d.clientes || d.clientes.length===0){
+      el.innerHTML='<div class="cliente-item" style="color:#c62828">Não encontrado — <a href="/clientes" style="color:#1565c0">cadastrar</a></div>';
+    } else {
+      d.clientes.forEach(c=>{
+        const div=document.createElement('div');
+        div.className='cliente-item';
+        div.textContent=c.codigo+' — '+c.nome+(c.crediario?' ✅':'');
+        div.onclick=()=>selecionarCliente(c);
+        el.appendChild(div);
+      });
+    }
+    el.style.display='block';
+  },300);
+}
+function selecionarCliente(c){
+  document.getElementById('buscaCliente').value=c.codigo+' — '+c.nome;
+  document.getElementById('clienteId').value=c.id;
+  document.getElementById('clienteNome').value=c.nome;
+  document.getElementById('clienteSugest').style.display='none';
+  document.getElementById('clienteInfo').innerHTML = c.crediario
+    ? '<span style="color:#2e7d32;font-weight:600">✅ Cliente com crediário</span>'
+    : '<span style="color:#888">Cliente sem crediário</span>';
+}
+document.addEventListener('click', e=>{ if(!e.target.closest('.pos-rel')) document.getElementById('clienteSugest').style.display='none'; });
+
+async function buscarRef(v){
+  if(!v || v<1){ document.getElementById('refInfo').style.display='none'; refAtual=null; return; }
+  const r=await fetch('/vendas/buscar-ref?ref='+encodeURIComponent(v));
+  const d=await r.json();
+  if(d.ok){
+    refAtual=d.item;
+    document.getElementById('rModelo').textContent=d.item.modelo||'—';
+    document.getElementById('rDesc').textContent=(d.item.descricao||'—')+' / '+(d.item.tamanho||'—');
+    document.getElementById('rTam').textContent=d.item.tamanho||'—';
+    document.getElementById('rVal').textContent='R$ '+parseFloat(d.item.valor_venda).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    document.getElementById('rSaldo').textContent=d.item.quantidade+' disponível(is)';
+    document.getElementById('rSaldoWrap').style.color=d.item.quantidade<=0?'#c62828':d.item.quantidade<=2?'#f57f17':'#2e7d32';
+    document.getElementById('refInfo').style.display='block';
+  } else { refAtual=null; document.getElementById('refInfo').style.display='none'; }
+}
+
+function addItemCarrinho(){
+  if(!refAtual){ alert('Digite um código de produto válido.'); return; }
+  const qtd=parseInt(document.getElementById('refQtd').value)||1;
+  const saldoDisp=parseInt(refAtual.quantidade)||0;
+  const jaNoCarrinho=carrinhoItens.filter(i=>i.produto_id===refAtual.produto_id).reduce((s,i)=>s+i.quantidade,0);
+  const saldoReal=saldoDisp-jaNoCarrinho;
+  if(qtd>saldoReal){
+    alert(saldoReal<=0?'⚠️ Sem saldo disponível para reservar.':'⚠️ Disponível: '+saldoReal+' unidade(s).');
+    return;
+  }
+  carrinhoItens.push({produto_id:refAtual.produto_id,codigo:refAtual.codigo,modelo:refAtual.modelo,descricao:refAtual.descricao,tamanho:refAtual.tamanho,valor_unitario:parseFloat(refAtual.valor_venda),quantidade:qtd});
+  renderCarrinho();
+  document.getElementById('refInput').value='';
+  document.getElementById('refInfo').style.display='none';
+  document.getElementById('refQtd').value=1;
+  refAtual=null;
+}
+function renderCarrinho(){
+  const body=document.getElementById('carrinhoBody');
+  if(carrinhoItens.length===0){
+    body.innerHTML='<div class="empty-carrinho">Nenhuma peça adicionada ainda</div>';
+    document.getElementById('totalCond').textContent='R$ 0,00';
+    document.getElementById('valorTotalHidden').value='0';
+    return;
+  }
+  let total=0;
+  body.innerHTML=carrinhoItens.map((item,i)=>{
+    const sub=item.valor_unitario*item.quantidade; total+=sub;
+    return `<div class="carrinho-row">
+      <span class="ref-badge">${item.codigo}</span>
+      <span>${item.modelo||'—'}</span>
+      <span>${(item.descricao||'—')} / ${item.tamanho||'—'}</span>
+      <input class="qtd-input" type="number" value="${item.quantidade}" min="1" onchange="updateQtd(${i},this.value)">
+      <span style="font-weight:700;color:#00695c">R$ ${sub.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      <button type="button" class="btn-rm" onclick="removerItem(${i})">✕</button>
+    </div>`;
+  }).join('');
+  document.getElementById('totalCond').textContent='R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  document.getElementById('valorTotalHidden').value=total.toFixed(2);
+}
+function updateQtd(idx,val){ carrinhoItens[idx].quantidade=parseInt(val)||1; renderCarrinho(); }
+function removerItem(idx){ carrinhoItens.splice(idx,1); renderCarrinho(); }
+
+function prepararEnvio(){
+  if(!document.getElementById('selVendedora').value){ alert('⚠️ Selecione a vendedora.'); return false; }
+  if(tipoSel==='condicional' && !document.getElementById('clienteNome').value.trim()){ alert('⚠️ Informe o cliente da condicional.'); return false; }
+  if(carrinhoItens.length===0){ alert('⚠️ Adicione pelo menos uma peça.'); return false; }
+  document.getElementById('itensJson').value=JSON.stringify(carrinhoItens);
+  return true;
+}
+
+function filtrarTab(tbodyId,q){
+  const termo=q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  document.querySelectorAll('#'+tbodyId+' tr').forEach(tr=>{
+    const txt=tr.textContent.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    tr.style.display=txt.includes(termo)?'':'none';
+  });
+}
+</script>
+{% endblock %}

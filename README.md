@@ -1,4 +1,15 @@
-# CD Gestão Empresarial — v82
+# CD Gestão Empresarial — v83
+
+## Novidades da v83 (2026-06-07)
+- **Nova aba Condicional & Transferências** (estilo das demais abas do ERP):
+  - **Dois tipos**: **Condicional** (cliente cadastrado leva peças para provar em casa) e **Transferência** (sempre para a **CD By Carol Duarte**).
+  - **Reserva de estoque automática**: ao registrar, as peças saem do *saldo disponível* e ficam marcadas como **reservadas** (aparece um selo "reserv." na tela de Estoque). Não podem ser vendidas em duplicidade.
+  - **Modal de nova condicional** parecido com o de Vendas (vendedora, cliente, carrinho de peças por código), **sem forma de pagamento** nesse momento.
+  - **Gerar venda em 1 clique**: na ficha da condicional você informa **quanto o cliente ficou** de cada peça; ao gerar a venda, **as peças não retiradas voltam automaticamente ao estoque** e a condicional sai da lista de abertas. A venda entra normalmente em **Vendas** e no **Caixa** (com forma de pagamento, desconto e até crediário).
+  - **Devolver tudo**: encerra a condicional e devolve todas as peças ao estoque.
+  - **Transferência**: botão **Confirmar transferência** (baixa definitiva do estoque, sem caixa — é movimentação interna entre lojas) ou **Devolver**.
+  - **Dashboard moderno**: KPIs (valor total em aberto, em condicional, em transferência, peças reservadas), **donut Condicional × Transferência**, **ranking de quem está há mais tempo** em aberto (aging) e **maiores valores em aberto**, além de tabela de abertas e histórico filtrável por período.
+  - **Integração total**: Estoque (reserva/retorno), Vendas, Caixa, Crediário (ao gerar a venda) e **Visão Geral** (novo card "Em condicional / transferência").
 
 ## Novidades da v82 (2026-06-05)
 - **Crediários — dashboard moderno** (estilo da aba Vendas): KPIs no topo (total em aberto, clientes devedores, clientes em atraso, valor de parcelas em atraso) e gráficos:

@@ -27,7 +27,7 @@
       </div>
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+        <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
       </div>
     </nav>
     <main class="main-content">
@@ -60,10 +60,12 @@
               <svg width="15" height="15" viewBox="0 0 22 22" fill="none"><path d="M4 18h3l9-9-3-3-9 9v3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 5l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
               Editar cadastro
             </a>
+            {% if pode_excluir %}
             <button class="btn-sm btn-sm-danger" onclick="document.getElementById('confirmExc').style.display='flex'" style="display:inline-flex;align-items:center;gap:8px">
               <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><polyline points="3 6 5 6 19 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 6V4h6v2M19 6l-1 13H4L3 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Excluir
             </button>
+            {% endif %}
           </div>
         </div>
 

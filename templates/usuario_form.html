@@ -27,7 +27,7 @@
       </div>
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+        <a href="/usuarios" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
       </div>
     </nav>
     <main class="main-content">
@@ -48,15 +48,19 @@
             </div>
             <div class="form-field">
               <span class="form-label">Perfil</span>
-              <select name="perfil" style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;width:100%;cursor:pointer">
-                <option value="vendedor">Vendedor</option>
-                <option value="admin">Administrador</option>
+              <select name="perfil" id="selPerfil" onchange="togglePerms()" style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;width:100%;cursor:pointer">
+                <option value="vendedor">Vendedor (a)</option>
+                <option value="admin_n2">Administrador (a) N2</option>
+                <option value="admin_n1">Administrador (a) N1</option>
               </select>
             </div>
           </div>
 
-          <div style="margin-bottom:20px">
-            <div class="form-label" style="margin-bottom:12px">Permissões de acesso — abas visíveis</div>
+          <div id="resumoPerfil" style="background:#f8f8fc;border:1.5px solid #e8e8f0;border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:12.5px;color:#555;line-height:1.6"></div>
+
+          <div id="boxPerms" style="margin-bottom:20px">
+            <div class="form-label" style="margin-bottom:6px">Abas que o vendedor poderá acessar</div>
+            <div style="font-size:11px;color:#aaa;margin-bottom:12px">Marque as abas liberadas. As demais continuam no menu, mas mostram aviso de acesso restrito ao clicar.</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
               {% for aba_id, aba_nome in abas %}
               <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1.5px solid #e0e0e8;border-radius:8px;cursor:pointer;background:#f8f8fc">
@@ -78,4 +82,17 @@
     </main>
   </div>
 </div>
+<script>
+var RESUMOS = {
+  'admin_n1':'<b>Administrador (a) N1</b> — acesso total a todas as abas, podendo <b>editar e excluir</b> dados e <b>gerenciar usuários</b> (cadastrar, definir perfis e liberar abas).',
+  'admin_n2':'<b>Administrador (a) N2</b> — acesso a todas as abas e pode editar, mas <b>não exclui</b> dados de nenhuma aba, <b>não cadastra usuários</b> e <b>não define permissões</b> de vendedor.',
+  'vendedor':'<b>Vendedor (a)</b> — acessa apenas as abas marcadas abaixo e <b>não pode excluir</b> dados. Na aba Usuários só consegue alterar a própria senha.'
+};
+function togglePerms(){
+  var p = document.getElementById('selPerfil').value;
+  document.getElementById('boxPerms').style.display = (p === 'vendedor') ? 'block' : 'none';
+  document.getElementById('resumoPerfil').innerHTML = RESUMOS[p] || '';
+}
+togglePerms();
+</script>
 {% endblock %}

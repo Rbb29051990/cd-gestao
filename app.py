@@ -204,6 +204,7 @@ def init_db():
     migracoes = [
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS reservado INTEGER DEFAULT 0",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS foto TEXT",
+        "UPDATE usuarios SET perfil='admin_n1' WHERE perfil='admin'",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS desconto NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS pct_desconto NUMERIC(6,2) DEFAULT 0",
         "ALTER TABLE vendas ALTER COLUMN pct_desconto TYPE NUMERIC(6,2)",
@@ -239,8 +240,8 @@ def init_db():
         for cod, nome, senha in [('F1','Renan Barcellos','renan123'),('F2','Carol Duarte','carol123')]:
             cur.execute("SELECT id FROM usuarios WHERE nome=%s",(nome,))
             if not cur.fetchone():
-                perms = 'visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios,dashboards'
-                cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,'admin',%s)",
+                perms = 'visao_geral,clientes,vendas,estoque,condicionais,caixa,crediarios,despesas,taxas,dashboards'
+                cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,'admin_n1',%s)",
                     (cod,nome,generate_password_hash(senha),perms))
         conn.commit()
     except Exception as e:
@@ -254,8 +255,83 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+# ══════════════ PERFIS E PERMISSÕES ══════════════
+# Abas controláveis (id, rótulo). 'usuarios' é sempre acessível (troca de senha).
+ABAS = [
+    ('visao_geral', 'Visão Geral'),
+    ('clientes',    'Clientes'),
+    ('estoque',     'Estoque'),
+    ('vendas',      'Vendas'),
+    ('condicionais','Condicional'),
+    ('caixa',       'Caixa'),
+    ('crediarios',  'Crediários'),
+    ('despesas',    'Despesas'),
+    ('taxas',       'Taxas'),
+    ('dashboards',  'Dashboards'),
+]
+ABAS_DICT = dict(ABAS)
+# Primeiro segmento da URL -> aba
+SEG_ABA = {
+    'visao-geral':'visao_geral', 'clientes':'clientes', 'estoque':'estoque',
+    'vendas':'vendas', 'condicionais':'condicionais', 'caixa':'caixa',
+    'crediarios':'crediarios', 'despesas':'despesas', 'taxas':'taxas',
+    'dashboard':'dashboards', 'usuarios':'usuarios',
+}
+# aba -> endpoint (para montar a home dinâmica)
+ABA_ROUTE = {
+    'visao_geral':'visao_geral', 'clientes':'clientes', 'estoque':'estoque',
+    'vendas':'vendas', 'condicionais':'condicionais', 'caixa':'caixa',
+    'crediarios':'crediarios', 'despesas':'despesas', 'taxas':'taxas',
+    'dashboards':'dashboard_view',
+}
+# Endpoints liberados para qualquer logado (helpers e utilitários compartilhados)
+ALLOW_ENDPOINTS = {'index','login','logout','setup','reset_usuarios','minha_senha',
+    'versao','buscar_ref','buscar_cliente','usuarios_trocar_senha','limpar_caixa_orfaos'}
+PERFIL_LABELS = {'admin_n1':'Administrador (a) N1','admin_n2':'Administrador (a) N2','vendedor':'Vendedor (a)'}
+
+def perfil_label(p): return PERFIL_LABELS.get(p, p or '—')
+def is_admin(p=None): return (p if p is not None else session.get('perfil')) in ('admin_n1','admin_n2')
+def pode_excluir(p=None): return (p if p is not None else session.get('perfil')) == 'admin_n1'
+def pode_gerenciar_usuarios(p=None): return (p if p is not None else session.get('perfil')) == 'admin_n1'
+
+def tem_acesso_aba(aba, perfil=None, permissoes=None):
+    perfil = perfil if perfil is not None else session.get('perfil','vendedor')
+    if perfil in ('admin_n1','admin_n2'): return True
+    if aba == 'usuarios': return True   # todos podem entrar p/ trocar a própria senha
+    perms = permissoes if permissoes is not None else (session.get('permissoes') or '')
+    return aba in [x.strip() for x in perms.split(',') if x.strip()]
+
+def home_url():
+    """Primeira aba que o usuário pode acessar (evita cair numa aba bloqueada no login)."""
+    perfil = session.get('perfil')
+    if perfil in ('admin_n1','admin_n2'): return url_for('visao_geral')
+    perms = [x.strip() for x in (session.get('permissoes') or '').split(',') if x.strip()]
+    for aba in [a for a,_ in ABAS]:
+        if aba in perms and aba in ABA_ROUTE:
+            return url_for(ABA_ROUTE[aba])
+    return url_for('usuarios')   # nada liberado: só troca de senha
+
 def get_ctx():
-    return dict(nome=session.get('nome'), perfil=session.get('perfil'), cliente=CLIENTE)
+    p = session.get('perfil')
+    return dict(nome=session.get('nome'), perfil=p, cliente=CLIENTE,
+                permissoes=session.get('permissoes',''),
+                pode_excluir=(p == 'admin_n1'),
+                pode_gerenciar_usuarios=(p == 'admin_n1'),
+                is_admin_user=(p in ('admin_n1','admin_n2')),
+                perfil_nome=perfil_label(p))
+
+@app.before_request
+def _controle_acesso_abas():
+    if 'uid' not in session:
+        return  # rotas públicas / login_required cuida do redirect
+    ep = request.endpoint
+    if ep is None or ep in ALLOW_ENDPOINTS or ep.startswith('static'):
+        return
+    seg = request.path.strip('/').split('/')[0] if request.path.strip('/') else ''
+    aba = SEG_ABA.get(seg)
+    if aba and not tem_acesso_aba(aba):
+        ctx = get_ctx(); ctx['aba_negada'] = ABAS_DICT.get(aba, aba)
+        return render_template('acesso_negado.html', **ctx), 403
 
 @app.route('/setup')
 def setup():
@@ -274,8 +350,8 @@ def reset_usuarios():
             perms = 'visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios,dashboards'
             cur.execute("SELECT id FROM usuarios WHERE nome=%s OR codigo=%s",(nome,cod))
             u = cur.fetchone()
-            if u: cur.execute("UPDATE usuarios SET codigo=%s,senha_hash=%s,perfil='admin',permissoes=%s,ativo=TRUE WHERE id=%s",(cod,h,perms,u['id']))
-            else: cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,'admin',%s)",(cod,nome,h,perms))
+            if u: cur.execute("UPDATE usuarios SET codigo=%s,senha_hash=%s,perfil='admin_n1',permissoes=%s,ativo=TRUE WHERE id=%s",(cod,h,perms,u['id']))
+            else: cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,'admin_n1',%s)",(cod,nome,h,perms))
         conn.commit()
         return "<h2 style='font-family:sans-serif;padding:40px'>Usuarios resetados! Renan Barcellos/renan123 Carol Duarte/carol123 <a href='/'>Login</a></h2>"
     except Exception as e:
@@ -284,7 +360,7 @@ def reset_usuarios():
 
 @app.route('/')
 def index():
-    if 'uid' in session: return redirect(url_for('visao_geral'))
+    if 'uid' in session: return redirect(home_url())
     return render_template('login.html', cliente=CLIENTE, erro=None)
 
 @app.route('/login', methods=['POST'])
@@ -298,7 +374,7 @@ def login():
         session.update(uid=u['id'], nome=u['nome'], perfil=u['perfil'],
                        codigo=u.get('codigo',''),
                        permissoes=u.get('permissoes','visao_geral,clientes,vendas,estoque'))
-        return redirect(url_for('visao_geral'))
+        return redirect(home_url())
     return render_template('login.html', cliente=CLIENTE, erro='Usuario ou senha incorretos.')
 
 @app.route('/logout')
@@ -404,31 +480,71 @@ def visao_geral():
                hoje=hoje.strftime('%A, %d de %B de %Y').capitalize())
     return render_template('visao_geral.html', **ctx)
 
+def _perms_do_form(perfil):
+    """Vendedor: usa as abas marcadas. Admins: acesso total (todas as abas)."""
+    if perfil == 'vendedor':
+        sel = [a for a in request.form.getlist('permissoes') if a in ABAS_DICT]
+        return ','.join(sel)
+    return ','.join([a for a,_ in ABAS])
+
 @app.route('/usuarios')
 @login_required
 def usuarios():
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT * FROM usuarios ORDER BY id")
-    lista = [dict(u) for u in cur.fetchall()]
-    cur.close(); conn.close()
-    ctx = get_ctx(); ctx['usuarios'] = lista
+    ctx = get_ctx()
+    if pode_gerenciar_usuarios():
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT * FROM usuarios ORDER BY id")
+        lista = [dict(u) for u in cur.fetchall()]
+        cur.close(); conn.close()
+        for u in lista:
+            u['perfil_nome'] = perfil_label(u.get('perfil'))
+        ctx['usuarios'] = lista
+    # não-N1 caem no modo "somente minha senha" (tratado no template)
     return render_template('usuarios.html', **ctx)
+
+@app.route('/usuarios/senha', methods=['POST'])
+@login_required
+def usuarios_trocar_senha():
+    atual = request.form.get('senha_atual','')
+    nova = request.form.get('nova_senha','')
+    conf = request.form.get('confirma_senha','')
+    if not nova or len(nova) < 4:
+        flash('A nova senha deve ter ao menos 4 caracteres.','erro'); return redirect(url_for('usuarios'))
+    if nova != conf:
+        flash('A confirmação não confere com a nova senha.','erro'); return redirect(url_for('usuarios'))
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT senha_hash FROM usuarios WHERE id=%s",(session['uid'],))
+    u = cur.fetchone()
+    if u and check_password_hash(u['senha_hash'], atual):
+        cur.execute("UPDATE usuarios SET senha_hash=%s WHERE id=%s",(generate_password_hash(nova),session['uid']))
+        conn.commit(); flash('Senha alterada com sucesso!','ok')
+    else:
+        flash('Senha atual incorreta.','erro')
+    cur.close(); conn.close()
+    return redirect(url_for('usuarios'))
 
 @app.route('/usuarios/novo', methods=['GET','POST'])
 @login_required
 def usuario_novo():
-    ctx = get_ctx()
+    if not pode_gerenciar_usuarios():
+        flash('Apenas o Administrador N1 pode cadastrar usuários.','erro')
+        return redirect(url_for('usuarios'))
+    ctx = get_ctx(); ctx['abas'] = ABAS
     if request.method == 'POST':
         nome = request.form.get('nome','').strip()
         senha = request.form.get('senha','').strip()
         perfil = request.form.get('perfil','vendedor')
-        perms = ','.join(request.form.getlist('permissoes') or ['visao_geral','clientes','vendas','estoque'])
+        if perfil not in ('admin_n1','admin_n2','vendedor'): perfil = 'vendedor'
+        if not nome or len(senha) < 4:
+            flash('Informe o nome e uma senha de ao menos 4 caracteres.','erro')
+            return render_template('usuario_form.html', **ctx)
+        perms = _perms_do_form(perfil)
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT COUNT(*) as t FROM usuarios"); n = cur.fetchone()['t']
         try:
             cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,%s,%s)",
                         (f"F{n+1}",nome,generate_password_hash(senha),perfil,perms))
-            conn.commit(); flash('Usuario cadastrado!','ok')
+            conn.commit(); flash('Usuário cadastrado!','ok')
         except Exception as e: conn.rollback(); flash(str(e),'erro')
         finally: cur.close(); conn.close()
         return redirect(url_for('usuarios'))
@@ -437,11 +553,19 @@ def usuario_novo():
 @app.route('/usuarios/<int:uid>/editar', methods=['GET','POST'])
 @login_required
 def usuario_editar(uid):
+    if not pode_gerenciar_usuarios():
+        flash('Apenas o Administrador N1 pode editar usuários.','erro')
+        return redirect(url_for('usuarios'))
     conn = get_db(); cur = conn.cursor()
     if request.method == 'POST':
         nome = request.form.get('nome','').strip()
         perfil = request.form.get('perfil','vendedor')
-        perms = ','.join(request.form.getlist('permissoes') or ['visao_geral','clientes','vendas','estoque'])
+        if perfil not in ('admin_n1','admin_n2','vendedor'): perfil = 'vendedor'
+        # Trava anti-bloqueio: N1 não pode rebaixar o próprio perfil
+        if uid == session.get('uid') and perfil != 'admin_n1':
+            flash('Você não pode alterar o seu próprio perfil de Administrador N1.','erro')
+            cur.close(); conn.close(); return redirect(url_for('usuarios'))
+        perms = _perms_do_form(perfil)
         nova_senha = request.form.get('nova_senha','').strip()
         if nova_senha:
             cur.execute("UPDATE usuarios SET nome=%s,perfil=%s,permissoes=%s,senha_hash=%s WHERE id=%s",
@@ -457,17 +581,40 @@ def usuario_editar(uid):
         cur.close(); conn.close()
         flash('Usuario nao encontrado.','erro'); return redirect(url_for('usuarios'))
     user = dict(row)
-    user['perms_lista'] = user.get('permissoes','').split(',')
+    user['perms_lista'] = [x.strip() for x in (user.get('permissoes') or '').split(',') if x.strip()]
     cur.close(); conn.close()
-    ctx = get_ctx(); ctx['user'] = user
+    ctx = get_ctx(); ctx['user'] = user; ctx['abas'] = ABAS
     return render_template('usuario_editar.html', **ctx)
 
 @app.route('/usuarios/<int:uid>/toggle', methods=['POST'])
 @login_required
 def usuario_toggle(uid):
+    if not pode_gerenciar_usuarios():
+        flash('Apenas o Administrador N1 pode ativar/desativar usuários.','erro')
+        return redirect(url_for('usuarios'))
+    if uid == session.get('uid'):
+        flash('Você não pode desativar a si mesmo.','erro')
+        return redirect(url_for('usuarios'))
     conn = get_db(); cur = conn.cursor()
     cur.execute("UPDATE usuarios SET ativo=NOT ativo WHERE id=%s",(uid,))
     conn.commit(); cur.close(); conn.close()
+    return redirect(url_for('usuarios'))
+
+@app.route('/usuarios/<int:uid>/excluir', methods=['POST'])
+@login_required
+def usuario_excluir(uid):
+    if not pode_gerenciar_usuarios():
+        flash('Apenas o Administrador N1 pode excluir usuários.','erro')
+        return redirect(url_for('usuarios'))
+    if uid == session.get('uid'):
+        flash('Você não pode excluir a si mesmo.','erro')
+        return redirect(url_for('usuarios'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("DELETE FROM usuarios WHERE id=%s",(uid,))
+        conn.commit(); flash('Usuário excluído.','ok')
+    except Exception as e: conn.rollback(); flash(str(e),'erro')
+    finally: cur.close(); conn.close()
     return redirect(url_for('usuarios'))
 
 @app.route('/minha-senha', methods=['GET','POST'])
@@ -597,6 +744,8 @@ def editar_cliente(cid):
 @app.route('/clientes/<int:cid>/excluir', methods=['POST'])
 @login_required
 def excluir_cliente(cid):
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode excluir dados.','erro'); return redirect(url_for('clientes'))
     conn = get_db(); cur = conn.cursor()
     cur.execute("DELETE FROM clientes WHERE id=%s",(cid,))
     conn.commit(); cur.close(); conn.close()
@@ -729,10 +878,21 @@ def novo_tamanho():
 def etiquetas():
     data = request.args.get('data', date.today().isoformat())
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT codigo,modelo,tamanho,valor_venda,quantidade FROM estoque WHERE DATE(criado_em)=%s AND ativo=TRUE ORDER BY id",(data,))
+    cur.execute("SELECT codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE DATE(criado_em)=%s AND ativo=TRUE ORDER BY id",(data,))
     itens = [dict(i) for i in cur.fetchall()]
     cur.close(); conn.close()
     return jsonify({'itens':itens,'data':data})
+
+@app.route('/estoque/etiqueta-busca')
+@login_required
+def etiqueta_busca():
+    cod = request.args.get('codigo','').strip().upper()
+    if cod and not cod.startswith('P'): cod = 'P' + cod
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id,codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE codigo=%s AND ativo=TRUE",(cod,))
+    item = cur.fetchone(); cur.close(); conn.close()
+    if item: return jsonify({'ok':True,'item':dict(item)})
+    return jsonify({'ok':False})
 
 @app.route('/estoque/<int:eid>')
 @login_required
@@ -782,6 +942,8 @@ def editar_estoque(eid):
 @app.route('/estoque/<int:eid>/excluir', methods=['POST'])
 @login_required
 def excluir_estoque(eid):
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode excluir dados.','erro'); return redirect(url_for('estoque'))
     conn = get_db(); cur = conn.cursor()
     cur.execute("DELETE FROM estoque WHERE id=%s",(eid,))
     conn.commit(); cur.close(); conn.close()
@@ -928,8 +1090,8 @@ def ficha_venda(vid):
 @app.route('/vendas/<int:vid>/excluir', methods=['POST'])
 @login_required
 def excluir_venda(vid):
-    if session.get('perfil') != 'admin':
-        flash('Apenas administradores podem excluir vendas.','erro')
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode excluir dados.','erro')
         return redirect(url_for('ficha_venda', vid=vid))
     conn = get_db(); cur = conn.cursor()
     try:
@@ -951,9 +1113,7 @@ def excluir_venda(vid):
 @app.route('/vendas/<int:vid>/editar', methods=['GET','POST'])
 @login_required
 def editar_venda(vid):
-    if session.get('perfil') != 'admin':
-        flash('Apenas administradores podem editar vendas.','erro')
-        return redirect(url_for('ficha_venda', vid=vid))
+    # Edição liberada para quem tem acesso à aba Vendas (vendedor só não pode excluir).
     conn = get_db(); cur = conn.cursor()
     if request.method == 'POST':
         try:
@@ -1287,6 +1447,8 @@ def confirmar_transferencia(cid):
 @app.route('/condicionais/<int:cid>/excluir', methods=['POST'])
 @login_required
 def excluir_condicional(cid):
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode excluir dados.','erro'); return redirect(url_for('condicionais'))
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT status FROM condicionais WHERE id=%s", (cid,))
@@ -1415,7 +1577,7 @@ def pagar_parcela(cid, pid):
 @app.route('/taxas', methods=['GET','POST'])
 @login_required
 def taxas():
-    if session.get('perfil') != 'admin':
+    if not is_admin():
         flash('Apenas administradores podem gerenciar taxas.','erro')
         return redirect(url_for('caixa'))
     conn = get_db(); cur = conn.cursor()
@@ -1700,6 +1862,8 @@ def pagar_parcela_despesa(did, pid):
 @app.route('/despesas/<int:did>/excluir', methods=['POST'])
 @login_required
 def excluir_despesa(did):
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode excluir dados.','erro'); return redirect(url_for('despesas'))
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("DELETE FROM caixa WHERE despesa_id=%s",(did,))
@@ -1761,7 +1925,7 @@ with app.app_context():
 @app.route('/admin/limpar-caixa-orfaos')
 @login_required
 def limpar_caixa_orfaos():
-    if session.get('perfil') != 'admin':
+    if not pode_excluir():
         return 'Acesso negado', 403
     conn = get_db(); cur = conn.cursor()
     try:
@@ -1792,7 +1956,14 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v84 — 2026-06-07</b><br>
+    Versão: <b style='color:green'>v86 — 2026-06-07</b><br>
+    Estoque: "Cadastrar produto" e "Imprimir etiquetas" viraram botões dentro da tela (com voltar) ✅<br>
+    Etiquetas: busca por código do produto + quantidade de etiquetas, montando uma fila ✅<br>
+    Etiquetas: folha A4 retrato configurada — 7 col × 18 lin = 126 (2,5 × 1,5 cm); escolha em qual posição começar para aproveitar 100% de meia folha ✅<br>
+    Usuários: 3 perfis — Administrador N1 (acesso total + exclusão + gestão de usuários), N2 (tudo, edita, mas não exclui/nem gerencia usuários) e Vendedor (abas que o N1 liberar, sem exclusão) ✅<br>
+    Acesso: menu sempre visível; clicar em aba sem permissão mostra aviso de acesso restrito ✅<br>
+    Usuários: vendedor/N2 só trocam a própria senha na aba; só o N1 cadastra/edita perfis e libera abas ✅<br>
+    Exclusão de dados (vendas, despesas, clientes, estoque, condicional...): apenas Administrador N1 ✅<br>
     Visão Geral: faturamento por forma vem do caixa (crediário já distribuído na forma real recebida) — sem linha de crediário ✅<br>
     Visão Geral: card Condicional trocou de posição com Crediários ✅<br>
     Vendas: entrada do crediário pede a forma de pagamento (aplica taxa no caixa, se cartão) ✅<br>

@@ -1,4 +1,23 @@
-# CD Gestão Empresarial — v84
+# CD Gestão Empresarial — v86
+
+## Novidades da v86 (2026-06-07) — Estoque e etiquetas
+- **Cadastro de produto como botão**: na tela de Estoque, "**➕ Cadastrar produto**" e "**🏷️ Imprimir etiquetas**" agora são **botões** no topo da lista (não mais abas). Ao clicar, abre a tela correspondente com um "**← Voltar ao estoque**".
+- **Etiquetas — busca por código**: digite o **código do produto** (P...) e o sistema mostra modelo, tamanho, preço e saldo. Informe **quantas etiquetas** quer daquele item e clique em **+ Adicionar** — montando uma **fila de etiquetas** (dá para juntar vários produtos; também há "carregar todos de uma data").
+- **Folha A4 configurada para a sua folha adesiva**: retrato, **7 colunas × 18 linhas = 126 etiquetas**, cada uma **2,5 cm (largura) × 1,5 cm (altura)**. A impressão sai exatamente nessas medidas (margens centralizadas: 1,75 cm nas laterais, 1,35 cm em cima/baixo).
+- **Aproveitamento 100% de meia folha**: uma **prévia da folha** mostra as 126 posições numeradas. Você escolhe **em qual posição começar** (clicando na célula ou digitando o número) — então, numa folha já usada pela metade, é só começar na primeira etiqueta livre e não desperdiçar nenhuma. Um aviso avisa se as etiquetas não couberem a partir da posição escolhida.
+
+## Novidades da v85 (2026-06-07) — Perfis e permissões
+- **Três perfis de usuário** (definidos pelo Administrador N1 no cadastro):
+  - **Administrador (a) N1** — acesso total a todas as abas, pode **editar e excluir** dados e **gerenciar usuários** (cadastrar, mudar perfil, liberar abas).
+  - **Administrador (a) N2** — acesso a todas as abas e pode editar, mas **não exclui** dados de nenhuma aba, **não cadastra usuários** e **não libera abas** de vendedor.
+  - **Vendedor (a)** — acessa **apenas as abas que o N1 liberar** e **não pode excluir** dados.
+- **Menu sempre visível**: todas as abas aparecem no menu para todos. Ao clicar numa aba sem permissão, aparece uma tela de **acesso restrito** orientando a falar com o Administrador N1.
+- **Aba Usuários por perfil**:
+  - **N1** vê a gestão completa (lista, cadastrar, editar, ativar/desativar, excluir) — e o perfil de N2/Vendedor **só o N1 pode alterar**.
+  - **N2 e Vendedor** veem apenas o cartão **"Alterar minha senha"** (senha atual + nova + confirmação).
+- **Exclusão de dados restrita ao N1** em todas as abas (vendas, despesas, clientes, estoque, condicional, usuários...). Os botões de excluir ficam ocultos para N2 e Vendedor, e o servidor também bloqueia.
+- **Login inteligente**: cada usuário cai automaticamente na primeira aba que tem acesso (evita cair numa aba bloqueada).
+- Usuários antigos com perfil "admin" viram **Administrador N1** automaticamente na atualização.
 
 ## Novidades da v84 (2026-06-07)
 - **Visão Geral — crediário sai do faturamento por forma**: o faturamento por forma de pagamento passa a ser o **dinheiro realmente recebido (caixa)**. Como a entrada e as parcelas do crediário entram no caixa já com a forma real (pix/dinheiro/cartão), o crediário aparece distribuído nessas formas — não há mais linha "Crediário".

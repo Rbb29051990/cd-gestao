@@ -1,6 +1,53 @@
 {% extends "base.html" %}
 {% block content %}
-<style>.etable thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}</style>
+<style>
+.etable thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+/* ── ETIQUETAS ── */
+.etq-cols{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:20px;align-items:start}
+@media (max-width:1100px){.etq-cols{grid-template-columns:1fr}}
+.etq-painel{display:flex;flex-direction:column;gap:16px;min-width:0}
+.etq-box{background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.etq-box-tit{font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:12px}
+.etq-prefix{padding:11px 12px;background:#e8eaf6;border:1.5px solid #c5cae9;border-right:none;border-radius:8px 0 0 8px;font-size:13px;font-weight:700;color:#3949ab}
+.etq-cod-input{border-radius:0 8px 8px 0!important;border-left:none!important;text-align:center;font-weight:700;letter-spacing:2px}
+.etq-achado{margin-top:12px;background:#e0f2f1;border:1.5px solid #b2dfdb;border-radius:8px;padding:10px 14px;font-size:13px;color:#00695c}
+.etq-achado.erro{background:#fdecea;border-color:#f3c0c0;color:#c62828}
+.etq-fila{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.etq-vazio{color:#bbb;font-style:italic;font-size:13px;padding:10px 0}
+.etq-fila-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1.5px solid #eee;border-radius:8px;font-size:12.5px}
+.etq-fila-item b{color:#3949ab}
+.etq-fila-x{width:24px;height:24px;border:none;background:#fce4ec;color:#c62828;border-radius:6px;font-weight:700;cursor:pointer;flex-shrink:0}
+.btn-limpar-fila{margin-top:10px;background:#fff;border:1.5px solid #f3c0c0;color:#c62828;border-radius:8px;padding:8px 14px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer}
+.etq-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.etq-mini-btn{background:#f4f4f6;border:1.5px solid #e0e0e8;border-radius:6px;padding:6px 12px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;color:#555;cursor:pointer}
+.etq-status{font-size:12px;font-weight:700;color:#00838f}
+.etq-status.alerta{color:#c62828}
+.etq-folha-wrap{overflow:auto;max-height:70vh;background:#e9e9ef;border-radius:12px;padding:14px;display:flex;justify-content:center}
+.btn-print-final{margin-top:14px;width:100%;background:#00838f;color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer}
+/* A folha em tamanho real (A4 retrato útil = 17,5 × 27 cm) */
+.folha{width:17.5cm;display:grid;grid-template-columns:repeat(7,2.5cm);grid-auto-rows:1.5cm;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.12)}
+.etq-cell{width:2.5cm;height:1.5cm;border:1px dashed #d8d8e0;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1px;position:relative;cursor:pointer}
+.etq-cell:hover{background:#f0fbfb}
+.etq-num{font-size:8px;color:#cfcfda;font-weight:700;user-select:none}
+.etq-cell.ativa{background:#fff;border:1px solid #9ad}
+.etq-cell.ativa:hover{background:#f0fbfb}
+.etq-cell.inicio{outline:2px solid #00838f;outline-offset:-2px;z-index:1}
+.c-cod{font-size:6.5pt;font-weight:700;letter-spacing:.4px;color:#1a1a2e;line-height:1.05}
+.c-mod{font-size:5.5pt;color:#333;line-height:1.05;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-tam{font-size:5.5pt;color:#555;font-weight:600;line-height:1.05}
+.c-preco{font-size:8.5pt;font-weight:800;color:#000;line-height:1.1;margin-top:1px}
+/* Contêiner exclusivo de impressão (fora do fluxo na tela) */
+#printRoot{display:none}
+@media print{
+  @page{size:A4 portrait;margin:1.35cm 1.75cm}
+  body>*:not(#printRoot){display:none!important}
+  #printRoot{display:block!important}
+  #printRoot .folha{box-shadow:none;width:17.5cm;height:27cm;overflow:hidden}
+  #printRoot .etq-num{display:none!important}
+  #printRoot .etq-cell{border:0!important}
+  #printRoot .etq-cell.inicio{outline:0!important}
+}
+</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -28,19 +75,20 @@
       </div>
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+        <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
       </div>
     </nav>
     <main class="main-content">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div class="tabs-wrap">
-        <button class="etab active" onclick="trocarEtab('eEstoque',this)">📦 Estoque</button>
-        <button class="etab" onclick="trocarEtab('eCadastro',this)">➕ Cadastrar produto</button>
-        <button class="etab" onclick="trocarEtab('eEtiquetas',this)">🏷️ Impressão de etiquetas</button>
-      </div>
-
-      <!-- ABA ESTOQUE -->
+      <!-- TELA ESTOQUE -->
       <div class="etela active" id="eEstoque">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
+          <div><div class="page-title" style="font-size:20px">Estoque</div><div class="page-date" style="font-size:12px;color:#aaa">Gerencie seus produtos</div></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button type="button" class="btn-acao" onclick="mostrarPainel('eCadastro')">➕ Cadastrar produto</button>
+            <button type="button" class="btn-acao" style="background:#00838f" onclick="mostrarPainel('eEtiquetas')">🏷️ Imprimir etiquetas</button>
+          </div>
+        </div>
         <div class="resumo-grid">
           <div class="resumo-card laranja">
             <div class="resumo-label">Custo total em estoque</div>
@@ -121,8 +169,10 @@
         </div>
       </div>
 
-      <!-- ABA CADASTRO -->
+      <!-- TELA CADASTRO -->
       <div class="etela" id="eCadastro">
+        <button type="button" class="voltar-btn" onclick="mostrarPainel('eEstoque')" style="background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif">← Voltar ao estoque</button>
+        <div class="page-title" style="font-size:20px;margin-bottom:18px">Cadastrar produto</div>
         <div class="form-card">
           <form method="POST" action="/estoque/novo">
             <div class="section-sep">Identificação</div>
@@ -218,18 +268,68 @@
         </div>
       </div>
 
-      <!-- ABA ETIQUETAS -->
+      <!-- TELA ETIQUETAS -->
       <div class="etela" id="eEtiquetas">
-        <div class="etiq-filtro">
-          <div class="form-field">
-            <span class="form-label">Data de cadastro</span>
-            <input class="form-input" type="date" id="dataEtiq" style="width:200px">
+        <button type="button" class="voltar-btn no-print" onclick="mostrarPainel('eEstoque')" style="background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif">← Voltar ao estoque</button>
+        <div class="page-title no-print" style="font-size:20px;margin-bottom:4px">Impressão de etiquetas</div>
+        <div class="page-date no-print" style="font-size:12px;color:#aaa;margin-bottom:18px">Folha adesiva A4 retrato · 7 colunas × 18 linhas = 126 etiquetas (2,5 × 1,5 cm)</div>
+
+        <div class="etq-cols no-print">
+          <!-- COLUNA ESQUERDA: montar a fila -->
+          <div class="etq-painel">
+            <div class="etq-box">
+              <div class="etq-box-tit">1. Buscar produto pelo código</div>
+              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+                <div class="form-field" style="flex:1;min-width:120px">
+                  <span class="form-label">Código</span>
+                  <div style="display:flex;align-items:center">
+                    <span class="etq-prefix">P</span>
+                    <input class="form-input etq-cod-input" type="number" id="etqCodigo" placeholder="1" min="1" oninput="etqBuscar(this.value)">
+                  </div>
+                </div>
+                <div class="form-field" style="width:90px">
+                  <span class="form-label">Qtd etiq.</span>
+                  <input class="form-input" type="number" id="etqQtd" value="1" min="1" style="text-align:center">
+                </div>
+                <button class="btn-buscar" type="button" onclick="etqAdicionar()">+ Adicionar</button>
+              </div>
+              <div class="etq-achado" id="etqInfo" style="display:none"></div>
+            </div>
+
+            <div class="etq-box">
+              <div class="etq-box-tit">Ou carregar todos de uma data</div>
+              <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+                <div class="form-field" style="flex:1;min-width:140px"><span class="form-label">Data de cadastro</span><input class="form-input" type="date" id="dataEtiq"></div>
+                <button class="btn-imprimir" type="button" onclick="etqCarregarData()">📅 Carregar</button>
+              </div>
+            </div>
+
+            <div class="etq-box">
+              <div class="etq-box-tit">2. Fila de etiquetas — <b id="etqTotal" style="color:#00838f">0</b></div>
+              <div id="etqFila" class="etq-fila"><div class="etq-vazio">Nenhuma etiqueta na fila ainda.</div></div>
+              <button class="btn-limpar-fila" type="button" onclick="etqLimparFila()">🗑️ Limpar fila</button>
+            </div>
           </div>
-          <button class="btn-buscar" onclick="buscarEtiquetas()">🔍 Buscar itens</button>
-          <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir todas</button>
+
+          <!-- COLUNA DIREITA: folha -->
+          <div class="etq-painel">
+            <div class="etq-box">
+              <div class="etq-box-tit">3. Onde imprimir na folha</div>
+              <div class="etq-controls">
+                <label style="font-size:12px;font-weight:600;color:#555">Começar na posição
+                  <input type="number" id="etqInicio" min="1" max="126" value="1" oninput="etqAplicarInicio()" style="width:64px;padding:6px 8px;border:1.5px solid #e0e0e8;border-radius:6px;margin-left:6px;font-family:'Outfit',sans-serif">
+                </label>
+                <button type="button" class="etq-mini-btn" onclick="etqInicioReset()">↺ Início (pos. 1)</button>
+                <span class="etq-status" id="etqStatus"></span>
+              </div>
+              <div style="font-size:11px;color:#888;margin:6px 0 12px">💡 Clique numa célula para escolher onde a impressão começa. As etiquetas preenchem a partir dali — assim você aproveita 100% de uma folha já usada pela metade.</div>
+            </div>
+            <div class="etq-folha-wrap">
+              <div class="folha" id="folha"></div>
+            </div>
+            <button class="btn-print-final no-print" type="button" onclick="etqImprimir()">🖨️ Imprimir folha</button>
+          </div>
         </div>
-        <div class="etiq-resultado" id="etiqResultado"></div>
-        <div class="etiq-grid" id="etiqGrid"></div>
       </div>
     </main>
   </div>
@@ -272,6 +372,9 @@
     </form>
   </div>
 </div>
+
+<!-- Contêiner exclusivo de impressão das etiquetas -->
+<div id="printRoot"></div>
 
 <script>
 /* ── FOTO DO PRODUTO (redimensiona no navegador antes de enviar) ── */
@@ -353,12 +456,12 @@ function initMoeda(el, onChangeFn) {
   }
 }
 
-/* ── TABS ── */
-function trocarEtab(id, btn) {
+/* ── TROCA DE PAINEL (estoque / cadastro / etiquetas) ── */
+function mostrarPainel(id) {
   document.querySelectorAll('.etela').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.etab').forEach(b => b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  btn.classList.add('active');
+  if (id === 'eEtiquetas') etqRenderFolha();
+  window.scrollTo(0, 0);
 }
 
 /* ── MODAL MODELO/TAMANHO ── */
@@ -471,54 +574,138 @@ function filtrarSaldo(btn, tipo) {
   });
 }
 
-/* ── ETIQUETAS ── */
-function buscarEtiquetas() {
-  const data = document.getElementById('dataEtiq').value;
-  if (!data) {
-    document.getElementById('etiqResultado').textContent = '⚠️ Selecione uma data.';
-    return;
-  }
-  document.getElementById('etiqResultado').textContent = 'Buscando...';
-  document.getElementById('etiqGrid').innerHTML = '';
-  fetch('/estoque/etiquetas?data=' + data)
-    .then(r => r.json())
-    .then(d => {
-      const itens = d.itens || [];
-      if (!itens.length) {
-        document.getElementById('etiqResultado').textContent = 'Nenhum item cadastrado nesta data.';
-        return;
-      }
-      document.getElementById('etiqResultado').textContent =
-        itens.length + ' item(s) encontrado(s) — ' + data.split('-').reverse().join('/');
-      const grid = document.getElementById('etiqGrid');
-      itens.forEach(item => {
-        const totalEtiq = item.quantidade || 1;
-        for (let i = 0; i < totalEtiq; i++) {
-          const card = document.createElement('div');
-          card.className = 'etiq-card';
-          card.innerHTML = `
-            <div class="etiq-cod">${item.codigo}</div>
-            <div class="etiq-modelo">${item.modelo || '—'}</div>
-            <div class="etiq-tam">TAM: ${item.tamanho || 'ÚNICO'}</div>
-            <div class="etiq-preco">${'R$ ' + parseFloat(item.valor_venda).toFixed(2).replace('.',',')}</div>
-            <div class="etiq-qtd">Etiqueta ${i+1} de ${totalEtiq}</div>
-          `;
-          grid.appendChild(card);
+/* ════ ETIQUETAS — fila + folha A4 (7 col × 18 lin = 126) ════ */
+const ETQ_TOTAL = 126;
+let etqGrupos = [];        // [{codigo,modelo,descricao,tamanho,valor_venda,qtd}]
+let etqItemAtual = null;   // produto buscado
+let etqInicioIdx = 0;      // posição inicial (0-based)
+let etqDebounce;
+
+function etqMoeda(v){ return 'R$ ' + (parseFloat(v)||0).toFixed(2).replace('.',','); }
+
+function etqBuscar(v){
+  clearTimeout(etqDebounce);
+  const info = document.getElementById('etqInfo');
+  if(!v){ info.style.display='none'; etqItemAtual=null; return; }
+  etqDebounce = setTimeout(()=>{
+    fetch('/estoque/etiqueta-busca?codigo=' + encodeURIComponent(v))
+      .then(r=>r.json()).then(d=>{
+        if(d.ok){
+          etqItemAtual = d.item;
+          info.className = 'etq-achado';
+          info.innerHTML = '<b>'+d.item.codigo+'</b> · '+(d.item.modelo||'—')+' · TAM '+(d.item.tamanho||'ÚNICO')+' · '+etqMoeda(d.item.valor_venda)+' · saldo '+d.item.quantidade;
+          info.style.display='block';
+        } else {
+          etqItemAtual = null;
+          info.className = 'etq-achado erro';
+          info.textContent = 'Produto não encontrado.';
+          info.style.display='block';
         }
-      });
-    })
-    .catch(() => {
-      document.getElementById('etiqResultado').textContent = 'Erro ao buscar itens.';
-    });
+      }).catch(()=>{ info.style.display='none'; });
+  }, 250);
 }
 
-/* ── DATA PADRÃO ETIQUETAS (hoje) ── */
+function etqAddGrupo(it, qtd){
+  const ex = etqGrupos.find(g=>g.codigo===it.codigo);
+  if(ex) ex.qtd += qtd;
+  else etqGrupos.push({codigo:it.codigo,modelo:it.modelo,descricao:it.descricao,tamanho:it.tamanho,valor_venda:it.valor_venda,qtd:qtd});
+}
+
+function etqAdicionar(){
+  if(!etqItemAtual){ alert('Busque um produto pelo código primeiro.'); return; }
+  const qtd = parseInt(document.getElementById('etqQtd').value)||1;
+  etqAddGrupo(etqItemAtual, Math.max(1,qtd));
+  document.getElementById('etqCodigo').value='';
+  document.getElementById('etqQtd').value=1;
+  document.getElementById('etqInfo').style.display='none';
+  etqItemAtual=null;
+  etqRenderFila(); etqRenderFolha();
+}
+
+function etqCarregarData(){
+  const data = document.getElementById('dataEtiq').value;
+  if(!data){ alert('Selecione uma data.'); return; }
+  fetch('/estoque/etiquetas?data=' + data).then(r=>r.json()).then(d=>{
+    const itens = d.itens||[];
+    if(!itens.length){ alert('Nenhum item cadastrado nesta data.'); return; }
+    itens.forEach(it=> etqAddGrupo(it, it.quantidade||1));
+    etqRenderFila(); etqRenderFolha();
+  }).catch(()=>alert('Erro ao carregar itens.'));
+}
+
+function etqRemover(idx){ etqGrupos.splice(idx,1); etqRenderFila(); etqRenderFolha(); }
+function etqMudarQtd(idx,val){ etqGrupos[idx].qtd = Math.max(1, parseInt(val)||1); etqRenderFila(); etqRenderFolha(); }
+function etqLimparFila(){ etqGrupos=[]; etqRenderFila(); etqRenderFolha(); }
+
+function etqTotalLabels(){ return etqGrupos.reduce((s,g)=>s+g.qtd,0); }
+function etqLabels(){ const a=[]; etqGrupos.forEach(g=>{ for(let i=0;i<g.qtd;i++) a.push(g); }); return a; }
+
+function etqRenderFila(){
+  const box=document.getElementById('etqFila');
+  document.getElementById('etqTotal').textContent = etqTotalLabels()+' etiqueta(s)';
+  if(!etqGrupos.length){ box.innerHTML='<div class="etq-vazio">Nenhuma etiqueta na fila ainda.</div>'; return; }
+  box.innerHTML = etqGrupos.map((g,i)=>(
+    '<div class="etq-fila-item"><div><b>'+g.codigo+'</b> · '+(g.modelo||'—')+' · '+(g.tamanho||'ÚNICO')+'</div>'+
+    '<div style="display:flex;align-items:center;gap:6px">'+
+    '<input type="number" min="1" value="'+g.qtd+'" onchange="etqMudarQtd('+i+',this.value)" style="width:52px;text-align:center;padding:4px;border:1.5px solid #e0e0e8;border-radius:6px;font-family:Outfit,sans-serif">'+
+    '<button class="etq-fila-x" onclick="etqRemover('+i+')">✕</button></div></div>'
+  )).join('');
+}
+
+function etqAplicarInicio(){
+  let v=parseInt(document.getElementById('etqInicio').value)||1;
+  v=Math.min(ETQ_TOTAL, Math.max(1, v));
+  etqInicioIdx=v-1; etqRenderFolha();
+}
+function etqInicioReset(){ etqInicioIdx=0; etqRenderFolha(); }
+function etqSetInicio(idx){ etqInicioIdx=idx; etqRenderFolha(); }
+
+function etqRenderFolha(){
+  const folha=document.getElementById('folha');
+  if(!folha) return;
+  const labels=etqLabels();
+  const n=labels.length;
+  document.getElementById('etqInicio').value = etqInicioIdx+1;
+  let html='';
+  for(let idx=0; idx<ETQ_TOTAL; idx++){
+    const pos = idx - etqInicioIdx;
+    const inicioCls = (idx===etqInicioIdx ? ' inicio' : '');
+    if(pos>=0 && pos<n){
+      const L=labels[pos];
+      html += '<div class="etq-cell ativa'+inicioCls+'" onclick="etqSetInicio('+idx+')">'+
+        '<div class="c-cod">'+L.codigo+'</div>'+
+        '<div class="c-mod">'+(L.modelo||'')+'</div>'+
+        '<div class="c-tam">'+(L.tamanho||'ÚNICO')+'</div>'+
+        '<div class="c-preco">'+etqMoeda(L.valor_venda)+'</div></div>';
+    } else {
+      html += '<div class="etq-cell'+inicioCls+'" onclick="etqSetInicio('+idx+')"><span class="etq-num">'+(idx+1)+'</span></div>';
+    }
+  }
+  folha.innerHTML=html;
+  const st=document.getElementById('etqStatus');
+  const fim=etqInicioIdx+n;
+  if(n===0){ st.className='etq-status'; st.textContent='Fila vazia — adicione etiquetas.'; }
+  else if(fim>ETQ_TOTAL){ st.className='etq-status alerta'; st.textContent='⚠️ '+(fim-ETQ_TOTAL)+' etiqueta(s) não cabem a partir da posição '+(etqInicioIdx+1)+'. Comece antes ou imprima outra folha.'; }
+  else { st.className='etq-status'; st.textContent=n+' etiqueta(s) · posições '+(etqInicioIdx+1)+' a '+fim; }
+}
+
+function etqImprimir(){
+  if(etqTotalLabels()===0){ alert('Adicione etiquetas à fila antes de imprimir.'); return; }
+  const fim = etqInicioIdx + etqTotalLabels();
+  if(fim > ETQ_TOTAL && !confirm('Atenção: '+(fim-ETQ_TOTAL)+' etiqueta(s) não cabem nesta folha a partir da posição '+(etqInicioIdx+1)+' e não serão impressas. Deseja continuar?')) return;
+  // Clona a folha (somente as posições visíveis) para o contêiner de impressão
+  document.getElementById('printRoot').innerHTML = '<div class="folha">' + document.getElementById('folha').innerHTML + '</div>';
+  window.print();
+}
+
+/* ── INICIALIZAÇÃO ── */
 document.addEventListener('DOMContentLoaded', () => {
   initMoeda(document.getElementById('eCusto'), eCalcDoCusto);
   initMoeda(document.getElementById('eVenda'), eCalcDaVenda);
-  const hoje = new Date();
-  const iso = hoje.toISOString().split('T')[0];
-  document.getElementById('dataEtiq').value = iso;
+  const iso = new Date().toISOString().split('T')[0];
+  const dEtiq = document.getElementById('dataEtiq');
+  if(dEtiq) dEtiq.value = iso;
+  etqRenderFolha();
 });
 </script>
 {% endblock %}

@@ -27,26 +27,75 @@
       </div>
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+        <a href="/usuarios" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
       </div>
     </nav>
     <main class="main-content">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:36px">
-        <div><div class="page-title">Usuários</div><div class="page-date">Gerencie os acessos ao sistema</div></div>
+
+      {% if pode_gerenciar_usuarios %}
+      <!-- ════ GESTÃO DE USUÁRIOS (Administrador N1) ════ -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px">
+        <div><div class="page-title">Usuários</div><div class="page-date">Cadastre acessos e defina o perfil de cada pessoa</div></div>
         <a href="/usuarios/novo" class="btn-acao">+ Novo usuário</a>
       </div>
-      
-      <div class="table-wrap"><table class="table">
+
+      <div class="table-wrap" style="margin-bottom:30px"><table class="table">
         <thead><tr><th>Nome</th><th>Usuário</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>
         <tbody>{% for u in usuarios %}<tr>
-          <td>{{ u.nome }}</td><td>{{ u.codigo }}</td>
-          <td><span class="cd-badge {% if u.perfil == 'admin' %}ok{% else %}mid{% endif %}">{{ u.perfil }}</span></td>
+          <td style="font-weight:600">{{ u.nome }}{% if u.id == session['uid'] %} <span style="font-size:10px;color:#aaa">(você)</span>{% endif %}</td>
+          <td>{{ u.codigo }}</td>
+          <td><span style="display:inline-block;padding:3px 10px;font-size:11px;font-weight:700;border-radius:20px;
+              {% if u.perfil == 'admin_n1' %}background:#e8f5e9;color:#2e7d32
+              {% elif u.perfil == 'admin_n2' %}background:#e3f2fd;color:#1565c0
+              {% else %}background:#fff3e0;color:#e65100{% endif %}">{{ u.perfil_nome }}</span></td>
           <td><span class="cd-badge {% if u.ativo %}ok{% else %}low{% endif %}">{% if u.ativo %}Ativo{% else %}Inativo{% endif %}</span></td>
-          <td style="display:flex;gap:8px;flex-wrap:wrap"><a href="/usuarios/{{ u.id }}/editar" class="btn-sm">✏️ Editar</a><a href="/usuarios/{{ u.id }}/toggle" class="btn-sm btn-sm-danger">{% if u.ativo %}⛔ Desativar{% else %}✅ Ativar{% endif %}</a></td>
+          <td style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="/usuarios/{{ u.id }}/editar" class="btn-sm">✏️ Editar</a>
+            {% if u.id != session['uid'] %}
+            <form method="POST" action="/usuarios/{{ u.id }}/toggle" style="display:inline"><button type="submit" class="btn-sm">{% if u.ativo %}⛔ Desativar{% else %}✅ Ativar{% endif %}</button></form>
+            <form method="POST" action="/usuarios/{{ u.id }}/excluir" style="display:inline" onsubmit="return confirm('Excluir o usuário {{ u.nome }}? Esta ação não pode ser desfeita.')"><button type="submit" class="btn-sm btn-sm-danger">🗑️ Excluir</button></form>
+            {% endif %}
+          </td>
         </tr>{% endfor %}</tbody>
       </table></div>
+      {% else %}
+      <!-- ════ MODO SOMENTE SENHA (N2 e Vendedor) ════ -->
+      <div class="page-title">Minha conta</div>
+      <div class="page-date" style="margin-bottom:24px">Seu perfil é <b>{{ perfil_nome }}</b>. Aqui você pode alterar a sua senha de acesso.</div>
+      {% endif %}
+
+      <!-- ════ ALTERAR MINHA SENHA (todos) ════ -->
+      <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:26px 28px;box-shadow:0 4px 14px rgba(0,0,0,.05);max-width:460px">
+        <div style="font-size:15px;font-weight:700;color:#1a1a2e;margin-bottom:4px">🔑 Alterar minha senha</div>
+        <div style="font-size:12px;color:#aaa;margin-bottom:20px">Informe a senha atual e a nova senha</div>
+        <form method="POST" action="/usuarios/senha" onsubmit="return validarSenha()">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="form-field">
+              <span class="form-label">Senha atual</span>
+              <input type="password" name="senha_atual" id="senhaAtual" required placeholder="••••••" style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;width:100%">
+            </div>
+            <div class="form-field">
+              <span class="form-label">Nova senha</span>
+              <input type="password" name="nova_senha" id="novaSenha" required placeholder="mín. 4 caracteres" style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;width:100%">
+            </div>
+            <div class="form-field">
+              <span class="form-label">Confirmar nova senha</span>
+              <input type="password" name="confirma_senha" id="confirmaSenha" required placeholder="repita a nova senha" style="padding:11px 14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:8px;font-family:Outfit,sans-serif;font-size:14px;width:100%">
+            </div>
+            <button type="submit" style="padding:13px 28px;background:#1a1a2e;color:#fff;border:none;font-family:Outfit,sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;margin-top:4px">💾 Salvar nova senha</button>
+          </div>
+        </form>
+      </div>
     </main>
   </div>
 </div>
+<script>
+function validarSenha(){
+  var n=document.getElementById('novaSenha').value, c=document.getElementById('confirmaSenha').value;
+  if(n.length<4){ alert('⚠️ A nova senha deve ter ao menos 4 caracteres.'); return false; }
+  if(n!==c){ alert('⚠️ A confirmação não confere com a nova senha.'); return false; }
+  return true;
+}
+</script>
 {% endblock %}

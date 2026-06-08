@@ -137,7 +137,7 @@
       </div>
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
-        {% if perfil == "admin" %}<a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>{% endif %}
+        <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
       </div>
     </nav>
     <main style="overflow-y:auto;background:#f4f4f6">
@@ -219,9 +219,11 @@
                   {% else %}<span class="badge">{{ v.forma_pagamento }}</span>{% endif %}
                 </td>
                 <td>
+                  {% if pode_excluir %}
                   <form method="POST" action="/vendas/{{ v.id }}/excluir" onsubmit="return confirm('Excluir venda {{ v.codigo }}? O estoque será restaurado.')">
                     <button type="submit" class="btn-exc-venda">🗑️</button>
                   </form>
+                  {% endif %}
                 </td>
               </tr>
               {% else %}<tr><td colspan="10" class="empty-row">Nenhuma venda registrada ainda.</td></tr>{% endfor %}

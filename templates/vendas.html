@@ -114,10 +114,8 @@
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
-      <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
-      <div class="avatar">{{ nome[:2].upper() }}</div>
-      <a href="/logout" class="btn-logout">Sair</a>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
     </div>
   </div>
   <div class="dash-layout">
@@ -138,6 +136,7 @@
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
         <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
+        <a href="/logout" class="nav-item nav-sair"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M9 4H6a2 2 0 00-2 2v10a2 2 0 002 2h3" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8l4 3-4 3M17 11H9" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Sair</a>
       </div>
     </nav>
     <main style="overflow-y:auto;background:#f4f4f6">
@@ -187,7 +186,7 @@
           <table class="vtable" id="tabelaVendas">
             <thead><tr>
               <th class="sortable" onclick="ordenarV(0)">Data</th><th>Cód</th>
-              <th class="sortable" onclick="ordenarV(2)">Vendedora</th><th>Cliente</th>
+              <th class="sortable" onclick="ordenarV(2)">Vendedor (a)</th><th>Cliente</th>
               <th>Itens</th><th>Valor venda</th>
               <th>Desconto</th><th class="sortable" onclick="ordenarV(7)">Valor final</th><th class="sortable" onclick="ordenarV(8)">Pagamento</th><th></th>
             </tr></thead>
@@ -234,7 +233,7 @@
         <!-- RANKING (embaixo, sem seletor de mês — usa o filtro de período da página) -->
         <div class="ranking-card">
           <div class="ranking-header">
-            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#aaa">Ranking de vendedoras</span>
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#aaa">Ranking de Vendedores (as)</span>
           </div>
           <div class="rank-grid" id="rankingBody"></div>
         </div>
@@ -259,10 +258,10 @@
       <input type="hidden" name="pct_desconto" id="pctDescontoHidden" value="0">
       <input type="hidden" name="valor_final" id="valorFinalHidden" value="0">
 
-      <div class="step-sep">1. Vendedora e cliente</div>
+      <div class="step-sep">1. Vendedor (a) e cliente</div>
       <div class="form-grid2">
         <div class="form-field">
-          <label class="form-label">Vendedora *</label>
+          <label class="form-label">Vendedor (a) *</label>
           <select class="form-select" name="usuario_id" id="selVendedora" onchange="setVendedora()">
             <option value="">Selecione...</option>
             {% for v in vendedoras %}<option value="{{ v.id }}" data-nome="{{ v.nome }}">{{ v.nome }}</option>{% endfor %}
@@ -681,7 +680,7 @@ function atualizarConferencia() {
 function prepararEnvio() {
   // ── Validações obrigatórias ──
   const vendedora = document.getElementById('selVendedora')?.value;
-  if (!vendedora) { alert('⚠️ Selecione a vendedora antes de finalizar.'); return false; }
+  if (!vendedora) { alert('⚠️ Selecione o(a) Vendedor (a) antes de finalizar.'); return false; }
 
   const cliente = document.getElementById('clienteNome')?.value?.trim();
   if (!cliente) { alert('⚠️ Informe o nome do cliente antes de finalizar.'); return false; }

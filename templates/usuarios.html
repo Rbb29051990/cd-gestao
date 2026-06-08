@@ -1,13 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+.uact{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:32px;padding:0 12px;font-size:12px;font-weight:700;border-radius:8px;border:1.5px solid #e0e0e8;background:#fff;color:#555;cursor:pointer;font-family:'Outfit',sans-serif;text-decoration:none;line-height:1;white-space:nowrap;box-sizing:border-box}
+.uact:hover{background:#f8f8fc}
+.uact.edit{border-color:#c5cae9;color:#3949ab}
+.uact.edit:hover{background:#eef0fb}
+.uact.danger{border-color:#f3c0c0;color:#c62828}
+.uact.danger:hover{background:#fdecec}
+.uact-cell{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.uact-cell form{display:inline-flex;margin:0}
+</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
-      <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
-      <div class="avatar">{{ nome[:2].upper() }}</div>
-      <a href="/logout" class="btn-logout">Sair</a>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
     </div>
   </div>
   <div class="dash-layout">
@@ -28,6 +36,7 @@
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
         <a href="/usuarios" class="nav-item active"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
+        <a href="/logout" class="nav-item nav-sair"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M9 4H6a2 2 0 00-2 2v10a2 2 0 002 2h3" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8l4 3-4 3M17 11H9" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Sair</a>
       </div>
     </nav>
     <main class="main-content">
@@ -50,12 +59,14 @@
               {% elif u.perfil == 'admin_n2' %}background:#e3f2fd;color:#1565c0
               {% else %}background:#fff3e0;color:#e65100{% endif %}">{{ u.perfil_nome }}</span></td>
           <td><span class="cd-badge {% if u.ativo %}ok{% else %}low{% endif %}">{% if u.ativo %}Ativo{% else %}Inativo{% endif %}</span></td>
-          <td style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="/usuarios/{{ u.id }}/editar" class="btn-sm">✏️ Editar</a>
-            {% if u.id != session['uid'] %}
-            <form method="POST" action="/usuarios/{{ u.id }}/toggle" style="display:inline"><button type="submit" class="btn-sm">{% if u.ativo %}⛔ Desativar{% else %}✅ Ativar{% endif %}</button></form>
-            <form method="POST" action="/usuarios/{{ u.id }}/excluir" style="display:inline" onsubmit="return confirm('Excluir o usuário {{ u.nome }}? Esta ação não pode ser desfeita.')"><button type="submit" class="btn-sm btn-sm-danger">🗑️ Excluir</button></form>
-            {% endif %}
+          <td>
+            <div class="uact-cell">
+              <a href="/usuarios/{{ u.id }}/editar" class="uact edit">✏️ Editar</a>
+              {% if u.id != session['uid'] %}
+              <form method="POST" action="/usuarios/{{ u.id }}/toggle"><button type="submit" class="uact">{% if u.ativo %}⛔ Desativar{% else %}✅ Ativar{% endif %}</button></form>
+              <form method="POST" action="/usuarios/{{ u.id }}/excluir" onsubmit="return confirm('Excluir o usuário {{ u.nome }}? Esta ação não pode ser desfeita.')"><button type="submit" class="uact danger">🗑️ Excluir</button></form>
+              {% endif %}
+            </div>
           </td>
         </tr>{% endfor %}</tbody>
       </table></div>

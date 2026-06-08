@@ -55,10 +55,8 @@
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
-      <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
-      <div class="avatar">{{ nome[:2].upper() }}</div>
-      <a href="/logout" class="btn-logout">Sair</a>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
     </div>
   </div>
   <div class="dash-layout">
@@ -79,6 +77,7 @@
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
         <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/></svg> Usuários</a>
+        <a href="/logout" class="nav-item nav-sair"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M9 4H6a2 2 0 00-2 2v10a2 2 0 002 2h3" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8l4 3-4 3M17 11H9" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Sair</a>
       </div>
     </nav>
     <main class="main-content">
@@ -296,7 +295,7 @@
       <div class="form-grid">
         <div class="form-field">
           <label class="form-label">Valor (R$) *</label>
-          <input class="form-input" type="number" step="0.01" min="0" name="valor" id="valorDesp" required placeholder="0,00" oninput="gerarParcelasDesp()">
+          <input class="form-input" type="text" inputmode="numeric" name="valor" id="valorDesp" required placeholder="0,00">
         </div>
         <div class="form-field">
           <label class="form-label">Data do lançamento</label>
@@ -386,6 +385,26 @@ function selLocal(v){
 }
 
 function brl(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function parseMoedaD(s){ if(!s) return 0; return parseFloat(String(s).replace(/\./g,'').replace(',','.'))||0; }
+/* Máscara de moeda estilo caixa registradora (padrão do ERP) */
+function initMoedaD(el, cb){
+  if(!el) return; let digits='';
+  function render(){
+    if(!digits){ el.value=''; } else {
+      let v=(parseInt(digits,10)/100).toFixed(2).split('.');
+      v[0]=v[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+      el.value=v[0]+','+v[1];
+    }
+    if(cb) cb();
+  }
+  el.addEventListener('keydown', function(e){
+    if(/^[0-9]$/.test(e.key)){ e.preventDefault(); if(digits.length<10){ digits+=e.key; render(); } }
+    else if(e.key==='Backspace'){ e.preventDefault(); digits=digits.slice(0,-1); render(); }
+    else if(e.key==='Delete'){ e.preventDefault(); digits=''; render(); }
+  });
+  el.addEventListener('blur', function(){ if(!digits) el.value=''; });
+}
+document.addEventListener('DOMContentLoaded', function(){ initMoedaD(document.getElementById('valorDesp'), gerarParcelasDesp); });
 
 function gerarParcelasDesp(){
   if(document.getElementById('parceladoHidden').value!=='sim') return;
@@ -393,7 +412,7 @@ function gerarParcelasDesp(){
   const box = document.getElementById('parcBox');
   const rows = document.getElementById('parcRows');
   if(!n){ box.style.display='none'; rows.innerHTML=''; return; }
-  const total = parseFloat(document.getElementById('valorDesp').value)||0;
+  const total = parseMoedaD(document.getElementById('valorDesp').value);
   const base = Math.floor((total/n)*100)/100;       // parcelas iguais, ajusta a última
   rows.innerHTML='';
   let soma=0;
@@ -422,7 +441,7 @@ function somarParcelas(){
 function validarDespesa(){
   const cat=document.getElementById('catInput').value.trim();
   if(!cat){ alert('⚠️ Selecione ou cadastre a categoria.'); return false; }
-  const val=parseFloat(document.getElementById('valorDesp').value)||0;
+  const val=parseMoedaD(document.getElementById('valorDesp').value);
   if(val<=0){ alert('⚠️ Informe o valor total da despesa.'); return false; }
   if(document.getElementById('parceladoHidden').value==='sim'){
     const n=parseInt(document.getElementById('numParc').value)||0;

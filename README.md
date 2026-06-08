@@ -1,4 +1,19 @@
-# CD Gestão Empresarial — v86
+# CD Gestão Empresarial — v88
+
+## Novidades da v88 (2026-06-08)
+- **Menu lateral**: o botão **Sair** saiu do topo e agora fica no **final do menu**, logo abaixo de Usuários, com o mesmo visual moderno do menu (em vermelho).
+- **Topo limpo**: removido o botão **"Minha senha"** do topo do ERP.
+- **Foto de perfil no avatar**: clique na **bolinha** (avatar) no topo para **carregar ou tirar uma foto** da pessoa. Sem foto, continua mostrando as **iniciais do nome**. Também dá para definir a foto **no cadastro de um novo usuário**.
+- **Acesso restrito**: ao clicar numa aba sem permissão, a caixa de aviso **não mostra mais** a opção de trocar senha.
+- **Aba Usuários (N1)**: os botões **Editar / Desativar / Excluir** foram **padronizados** (mesmo tamanho e alinhamento).
+- **Ortografia**: corrigido **"vendedora" → "Vendedor (a)"** em todo o ERP (telas, tabelas, ranking, etc.).
+- **Condicional / Transferência**: ao **finalizar uma transferência**, agora também é possível escolher a **forma de pagamento** (mesmo fluxo da condicional — gerar venda).
+- **Despesas**: corrigida a **máscara do valor** ao lançar uma nova despesa (agora usa o padrão de caixa registradora do ERP e não dá mais erro ao digitar, inclusive em despesa fixa).
+
+## Novidades da v87 (2026-06-07) — Correção de perfil Administrador
+- **Correção do acesso de Administrador**: contas com o perfil antigo **"admin"** (de antes da reformulação de perfis) agora são reconhecidas automaticamente como **Administrador (a) N1** — com acesso total, exclusão de dados e gestão de usuários.
+- Duas camadas de segurança: (1) o banco é corrigido automaticamente no start (admin → admin_n1, em bloco isolado e à prova de falhas) e (2) o sistema trata "admin" como N1 em tempo de execução, então funciona mesmo sem precisar sair e entrar de novo.
+- Se ainda aparecer "Administrador" no seu nome, basta **sair e entrar novamente** para atualizar a sessão.
 
 ## Novidades da v86 (2026-06-07) — Estoque e etiquetas
 - **Cadastro de produto como botão**: na tela de Estoque, "**➕ Cadastrar produto**" e "**🏷️ Imprimir etiquetas**" agora são **botões** no topo da lista (não mais abas). Ao clicar, abre a tela correspondente com um "**← Voltar ao estoque**".

@@ -4,10 +4,8 @@
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
-      <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
-      <div class="avatar">{{ nome[:2].upper() }}</div>
-      <a href="/logout" class="btn-logout">Sair</a>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
     </div>
   </div>
   <div class="dash-layout">
@@ -28,6 +26,7 @@
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
         <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
+        <a href="/logout" class="nav-item nav-sair"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M9 4H6a2 2 0 00-2 2v10a2 2 0 002 2h3" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8l4 3-4 3M17 11H9" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Sair</a>
       </div>
     </nav>
     <main class="main-content">
@@ -43,7 +42,7 @@
           <div class="section-sep">Informações da venda</div>
           <div class="form-grid">
             <div class="form-field">
-              <span class="form-label">Vendedora</span>
+              <span class="form-label">Vendedor (a)</span>
               <select class="form-input" name="vendedora_nome" style="cursor:pointer">
                 {% for v in vendedoras %}
                 <option {% if v == venda.vendedora_nome %}selected{% endif %}>{{ v }}</option>

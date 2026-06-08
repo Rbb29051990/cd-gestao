@@ -102,10 +102,8 @@
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
-      <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
-      <div class="avatar">{{ nome[:2].upper() }}</div>
-      <a href="/logout" class="btn-logout">Sair</a>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
     </div>
   </div>
   <div class="dash-layout">
@@ -126,6 +124,7 @@
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
         <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
+        <a href="/logout" class="nav-item nav-sair"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M9 4H6a2 2 0 00-2 2v10a2 2 0 002 2h3" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8l4 3-4 3M17 11H9" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Sair</a>
       </div>
     </nav>
     <main style="overflow-y:auto;background:#f4f4f6;padding:24px 28px">
@@ -245,7 +244,7 @@
       </div>
       <div class="table-wrap">
         <table class="cd-table">
-          <thead><tr><th>Aberto em</th><th>Cód</th><th>Tipo</th><th>Cliente / Destino</th><th>Vendedora</th><th>Peças</th><th>Valor</th><th>Tempo</th><th></th></tr></thead>
+          <thead><tr><th>Aberto em</th><th>Cód</th><th>Tipo</th><th>Cliente / Destino</th><th>Vendedor (a)</th><th>Peças</th><th>Valor</th><th>Tempo</th><th></th></tr></thead>
           <tbody id="tbodyAbertas">
             {% for c in abertas %}
             <tr style="cursor:pointer">
@@ -327,10 +326,10 @@
         <label class="tipo-opt" id="optTransf" onclick="selTipo('transferencia')">🔄 Transferência<small>Envio para {{ loja_transf }}</small></label>
       </div>
 
-      <div class="step-sep">2. Vendedora e destino</div>
+      <div class="step-sep">2. Vendedor (a) e destino</div>
       <div class="form-grid2">
         <div class="form-field">
-          <label class="form-label">Vendedora *</label>
+          <label class="form-label">Vendedor (a) *</label>
           <select class="form-select" id="selVendedora" onchange="setVendedora()">
             <option value="">Selecione...</option>
             {% for v in vendedoras %}<option value="{{ v.id }}" data-nome="{{ v.nome }}">{{ v.nome }}</option>{% endfor %}
@@ -518,7 +517,7 @@ function updateQtd(idx,val){ carrinhoItens[idx].quantidade=parseInt(val)||1; ren
 function removerItem(idx){ carrinhoItens.splice(idx,1); renderCarrinho(); }
 
 function prepararEnvio(){
-  if(!document.getElementById('selVendedora').value){ alert('⚠️ Selecione a vendedora.'); return false; }
+  if(!document.getElementById('selVendedora').value){ alert('⚠️ Selecione o(a) Vendedor (a).'); return false; }
   if(tipoSel==='condicional' && !document.getElementById('clienteNome').value.trim()){ alert('⚠️ Informe o cliente da condicional.'); return false; }
   if(carrinhoItens.length===0){ alert('⚠️ Adicione pelo menos uma peça.'); return false; }
   document.getElementById('itensJson').value=JSON.stringify(carrinhoItens);

@@ -20,5 +20,57 @@
 </head>
 <body>
   {% block content %}{% endblock %}
+
+  {% if session.get('uid') %}
+  <!-- MODAL FOTO DE PERFIL (compartilhado) -->
+  <div id="modalFotoPerfil" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,.6);z-index:9999;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:#fff;border-radius:18px;max-width:360px;width:100%;padding:28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="font-size:18px;font-weight:800;color:#1a1a2e;margin-bottom:4px">Foto de perfil</div>
+      <div style="font-size:12px;color:#aaa;margin-bottom:18px">Carregue uma imagem ou tire uma foto</div>
+      <div id="fpPreview" style="width:120px;height:120px;border-radius:50%;margin:0 auto 18px;background:linear-gradient(135deg,var(--cor-primaria,#3949ab),#6a1b9a);display:flex;align-items:center;justify-content:center;color:#fff;font-size:38px;font-weight:700;overflow:hidden">
+        {% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ (nome or '?')[:2]|upper }}{% endif %}
+      </div>
+      <form method="POST" action="/usuarios/foto" id="fpForm">
+        <input type="hidden" name="foto" id="fpFoto">
+        <label style="display:inline-flex;align-items:center;gap:8px;justify-content:center;width:100%;padding:12px;background:#eef0fb;color:#3949ab;border-radius:10px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-sizing:border-box">
+          📷 Carregar / tirar foto
+          <input type="file" accept="image/*" capture="user" style="display:none" onchange="fpCarregar(this)">
+        </label>
+        <button type="submit" id="fpSalvar" disabled style="width:100%;margin-top:10px;padding:12px;background:#1a1a2e;color:#fff;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;opacity:.5">💾 Salvar foto</button>
+      </form>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        {% if usuario_foto %}
+        <form method="POST" action="/usuarios/foto/remover" style="flex:1"><button type="submit" style="width:100%;padding:11px;background:#fff;border:1.5px solid #f3c0c0;color:#c62828;border-radius:10px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer">🗑️ Remover</button></form>
+        {% endif %}
+        <button type="button" onclick="document.getElementById('modalFotoPerfil').style.display='none'" style="flex:1;padding:11px;background:#f4f4f6;border:none;color:#888;border-radius:10px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer">Cancelar</button>
+      </div>
+    </div>
+  </div>
+  <script>
+  function abrirFotoPerfil(){ document.getElementById('modalFotoPerfil').style.display='flex'; }
+  function fpCarregar(input){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')){ alert('Selecione um arquivo de imagem.'); return; }
+    const reader = new FileReader();
+    reader.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        const MAX = 512; let w = img.width, h = img.height;
+        if(w > h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
+        else if(h >= w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        const url = c.toDataURL('image/jpeg', 0.85);
+        document.getElementById('fpFoto').value = url;
+        document.getElementById('fpPreview').innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover">';
+        const b = document.getElementById('fpSalvar'); b.disabled = false; b.style.opacity = 1;
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  </script>
+  {% endif %}
 </body>
 </html>

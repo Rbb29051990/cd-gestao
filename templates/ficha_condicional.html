@@ -44,10 +44,8 @@
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
-      <a href="/minha-senha" class="btn-logout">Minha senha</a>
       <span class="topbar-user">{{ nome }}</span>
-      <div class="avatar">{{ nome[:2].upper() }}</div>
-      <a href="/logout" class="btn-logout">Sair</a>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
     </div>
   </div>
   <div class="dash-layout">
@@ -68,6 +66,7 @@
       <div class="nav-section"><div class="nav-label">Gestão</div>
         <a href="/dashboard" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="2" y="12" width="5" height="8" rx="1" fill="#1565c0"/><rect x="8.5" y="7" width="5" height="13" rx="1" fill="#e53935"/><rect x="15" y="3" width="5" height="17" rx="1" fill="#2e7d32"/></svg> Dashboards</a>
         <a href="/usuarios" class="nav-item"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><rect x="3" y="11" width="16" height="8" rx="1.5" fill="none" stroke="#6a1b9a" stroke-width="1.6"/><path d="M7 11V8a4 4 0 018 0v3" stroke="#6a1b9a" stroke-width="1.6" stroke-linecap="round"/><circle cx="11" cy="15" r="1.5" fill="#6a1b9a"/></svg> Usuários</a>
+        <a href="/logout" class="nav-item nav-sair"><svg class="nav-icon" viewBox="0 0 22 22" fill="none"><path d="M9 4H6a2 2 0 00-2 2v10a2 2 0 002 2h3" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M13 8l4 3-4 3M17 11H9" stroke="#c62828" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg> Sair</a>
       </div>
     </nav>
     <main style="overflow-y:auto;background:#f4f4f6;padding:24px 28px">
@@ -85,7 +84,7 @@
           {% else %}<span class="cd-badge bg-dev" style="margin-left:6px">↩️ Devolvida</span>{% endif %}
           <div class="fc-meta">
             <div><small>Cliente / Destino</small><b>{{ cond.cliente_nome or '—' }}</b></div>
-            <div><small>Vendedora</small><b>{{ cond.vendedora_nome or '—' }}</b></div>
+            <div><small>Vendedor (a)</small><b>{{ cond.vendedora_nome or '—' }}</b></div>
             <div><small>Aberto em</small><b>{{ cond.criado_em.strftime('%d/%m/%Y') }}</b></div>
             <div><small>Valor reservado</small><b style="color:#00695c">{{ brl(cond.valor_total) }}</b></div>
             {% if cond.observacao %}<div><small>Observação</small><b>{{ cond.observacao }}</b></div>{% endif %}
@@ -99,9 +98,9 @@
         <div class="card-title">Peças desta {{ 'transferência' if cond.tipo=='transferencia' else 'condicional' }}</div>
         <div class="it-head">
           <span>Ref</span><span>Modelo / Descrição</span><span>Tam</span><span>Valor un.</span><span>Qtd</span>
-          {% if cond.status == 'aberta' and cond.tipo != 'transferencia' %}<span>Ficou (vende)</span>{% else %}<span>Situação</span>{% endif %}
+          {% if cond.status == 'aberta' %}<span>Vai vender</span>{% else %}<span>Situação</span>{% endif %}
         </div>
-        {% if cond.status == 'aberta' and cond.tipo != 'transferencia' %}
+        {% if cond.status == 'aberta' %}
         <form method="POST" action="/condicionais/{{ cond.id }}/gerar-venda" id="formVenda" onsubmit="return prepararVenda()">
           <input type="hidden" name="desconto_valor" id="descontoValorHidden" value="0">
           <input type="hidden" name="pct_desconto" id="pctDescontoHidden" value="0">
@@ -118,7 +117,7 @@
                          name="fica_{{ it.id }}" data-unit="{{ it.valor_unitario }}" data-qtd="{{ it.quantidade }}" oninput="recalcTotal()"></span>
           </div>
           {% endfor %}
-          <div style="font-size:12px;color:#aaa;margin-top:10px">💡 Ajuste "Ficou (vende)" para cada peça. O que não ficar com o cliente <b>volta automaticamente ao estoque</b> ao gerar a venda.</div>
+          <div style="font-size:12px;color:#aaa;margin-top:10px">💡 Ajuste a quantidade que vai vender de cada peça. O que não for vendido <b>volta automaticamente ao estoque</b> ao gerar a venda.</div>
 
           <div class="total-bar">
             <span class="total-label">Total da venda</span>
@@ -217,17 +216,6 @@
           </span>
         </div>
         {% endfor %}
-
-        {% if cond.status == 'aberta' and cond.tipo == 'transferencia' %}
-        <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;border-top:1.5px solid #f0f0f5;padding-top:16px">
-          <form method="POST" action="/condicionais/{{ cond.id }}/confirmar-transferencia" onsubmit="return confirm('Confirmar a transferência? As peças serão baixadas definitivamente do estoque (enviadas para a outra loja).')">
-            <button type="submit" class="btn-finalizar" style="background:#e65100">🔄 Confirmar transferência (baixa)</button>
-          </form>
-          <form method="POST" action="/condicionais/{{ cond.id }}/devolver" onsubmit="return confirm('Devolver TODAS as peças ao estoque?')">
-            <button type="submit" class="btn-dev">↩️ Devolver ao estoque</button>
-          </form>
-        </div>
-        {% endif %}
         {% endif %}
       </div>
 

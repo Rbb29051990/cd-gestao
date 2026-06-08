@@ -1,6 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from datetime import datetime, date, timedelta
-import os, json, random, math
+import os, json, random, math, base64
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -204,7 +204,7 @@ def init_db():
     migracoes = [
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS reservado INTEGER DEFAULT 0",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS foto TEXT",
-        "UPDATE usuarios SET perfil='admin_n1' WHERE perfil='admin'",
+        "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto TEXT",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS desconto NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS pct_desconto NUMERIC(6,2) DEFAULT 0",
         "ALTER TABLE vendas ALTER COLUMN pct_desconto TYPE NUMERIC(6,2)",
@@ -224,6 +224,12 @@ def init_db():
         except Exception:
             conn.rollback()
     conn.commit()
+    # ── PERFIS: converte 'admin' legado em 'admin_n1' (bloco isolado e commitado à parte) ──
+    try:
+        cur.execute("UPDATE usuarios SET perfil='admin_n1' WHERE perfil IN ('admin','administrador','Administrador')")
+        conn.commit()
+    except Exception:
+        conn.rollback()
     # ── SEED de categorias de despesa (só insere o que faltar) ──
     CATEGORIAS_PADRAO = ['Salário','Aluguel','IPTU','Água','Luz','Imposto','Contador','MEI',
         'Internet','Empréstimo','Holerite','Modelo','Marketing','Publicidade',
@@ -289,13 +295,18 @@ ALLOW_ENDPOINTS = {'index','login','logout','setup','reset_usuarios','minha_senh
     'versao','buscar_ref','buscar_cliente','usuarios_trocar_senha','limpar_caixa_orfaos'}
 PERFIL_LABELS = {'admin_n1':'Administrador (a) N1','admin_n2':'Administrador (a) N2','vendedor':'Vendedor (a)'}
 
-def perfil_label(p): return PERFIL_LABELS.get(p, p or '—')
-def is_admin(p=None): return (p if p is not None else session.get('perfil')) in ('admin_n1','admin_n2')
-def pode_excluir(p=None): return (p if p is not None else session.get('perfil')) == 'admin_n1'
-def pode_gerenciar_usuarios(p=None): return (p if p is not None else session.get('perfil')) == 'admin_n1'
+def norm_perfil(p):
+    """Compatibilidade: o perfil legado 'admin' (antes da v85) equivale a Administrador N1."""
+    if p == 'admin' or p == 'administrador': return 'admin_n1'
+    return p or 'vendedor'
+
+def perfil_label(p): p = norm_perfil(p); return PERFIL_LABELS.get(p, p or '—')
+def is_admin(p=None): return norm_perfil(p if p is not None else session.get('perfil')) in ('admin_n1','admin_n2')
+def pode_excluir(p=None): return norm_perfil(p if p is not None else session.get('perfil')) == 'admin_n1'
+def pode_gerenciar_usuarios(p=None): return norm_perfil(p if p is not None else session.get('perfil')) == 'admin_n1'
 
 def tem_acesso_aba(aba, perfil=None, permissoes=None):
-    perfil = perfil if perfil is not None else session.get('perfil','vendedor')
+    perfil = norm_perfil(perfil if perfil is not None else session.get('perfil','vendedor'))
     if perfil in ('admin_n1','admin_n2'): return True
     if aba == 'usuarios': return True   # todos podem entrar p/ trocar a própria senha
     perms = permissoes if permissoes is not None else (session.get('permissoes') or '')
@@ -303,7 +314,7 @@ def tem_acesso_aba(aba, perfil=None, permissoes=None):
 
 def home_url():
     """Primeira aba que o usuário pode acessar (evita cair numa aba bloqueada no login)."""
-    perfil = session.get('perfil')
+    perfil = norm_perfil(session.get('perfil'))
     if perfil in ('admin_n1','admin_n2'): return url_for('visao_geral')
     perms = [x.strip() for x in (session.get('permissoes') or '').split(',') if x.strip()]
     for aba in [a for a,_ in ABAS]:
@@ -312,13 +323,15 @@ def home_url():
     return url_for('usuarios')   # nada liberado: só troca de senha
 
 def get_ctx():
-    p = session.get('perfil')
+    p = norm_perfil(session.get('perfil'))
     return dict(nome=session.get('nome'), perfil=p, cliente=CLIENTE,
                 permissoes=session.get('permissoes',''),
                 pode_excluir=(p == 'admin_n1'),
                 pode_gerenciar_usuarios=(p == 'admin_n1'),
                 is_admin_user=(p in ('admin_n1','admin_n2')),
-                perfil_nome=perfil_label(p))
+                perfil_nome=perfil_label(p),
+                usuario_foto=session.get('usuario_foto', False),
+                avatar_v=session.get('foto_v', 0))
 
 @app.before_request
 def _controle_acesso_abas():
@@ -371,9 +384,10 @@ def login():
     cur.execute("SELECT * FROM usuarios WHERE nome=%s AND ativo=TRUE",(nome,))
     u = cur.fetchone(); cur.close(); conn.close()
     if u and check_password_hash(u['senha_hash'], senha):
-        session.update(uid=u['id'], nome=u['nome'], perfil=u['perfil'],
+        session.update(uid=u['id'], nome=u['nome'], perfil=norm_perfil(u['perfil']),
                        codigo=u.get('codigo',''),
-                       permissoes=u.get('permissoes','visao_geral,clientes,vendas,estoque'))
+                       permissoes=u.get('permissoes','visao_geral,clientes,vendas,estoque'),
+                       usuario_foto=bool(u.get('foto')), foto_v=1)
         return redirect(home_url())
     return render_template('login.html', cliente=CLIENTE, erro='Usuario ou senha incorretos.')
 
@@ -523,6 +537,64 @@ def usuarios_trocar_senha():
     cur.close(); conn.close()
     return redirect(url_for('usuarios'))
 
+def _foto_valida(foto):
+    """Valida data URI de imagem e limita o tamanho (~1.5MB de base64)."""
+    if foto and foto.startswith('data:image/') and len(foto) <= 1_500_000:
+        return foto
+    return None
+
+@app.route('/usuarios/avatar')
+@login_required
+def usuario_avatar():
+    uid = request.args.get('uid') or session.get('uid')
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT foto FROM usuarios WHERE id=%s", (uid,))
+    row = cur.fetchone(); cur.close(); conn.close()
+    foto = row['foto'] if row else None
+    if foto and foto.startswith('data:'):
+        try:
+            header, b64 = foto.split(',', 1)
+            mime = header.split(';')[0].replace('data:', '') or 'image/jpeg'
+            resp = Response(base64.b64decode(b64), mimetype=mime)
+            resp.headers['Cache-Control'] = 'no-cache'
+            return resp
+        except Exception:
+            pass
+    return ('', 404)
+
+@app.route('/usuarios/foto', methods=['POST'])
+@login_required
+def usuario_foto():
+    foto = _foto_valida(request.form.get('foto','').strip())
+    if not foto:
+        flash('Imagem inválida ou muito grande.','erro'); return redirect(request.referrer or url_for('usuarios'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE usuarios SET foto=%s WHERE id=%s", (foto, session['uid']))
+        conn.commit()
+        session['usuario_foto'] = True
+        session['foto_v'] = session.get('foto_v', 0) + 1
+        flash('Foto de perfil atualizada!','ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e),'erro')
+    finally: cur.close(); conn.close()
+    return redirect(request.referrer or url_for('usuarios'))
+
+@app.route('/usuarios/foto/remover', methods=['POST'])
+@login_required
+def usuario_foto_remover():
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE usuarios SET foto=NULL WHERE id=%s", (session['uid'],))
+        conn.commit()
+        session['usuario_foto'] = False
+        session['foto_v'] = session.get('foto_v', 0) + 1
+        flash('Foto de perfil removida.','ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e),'erro')
+    finally: cur.close(); conn.close()
+    return redirect(request.referrer or url_for('usuarios'))
+
 @app.route('/usuarios/novo', methods=['GET','POST'])
 @login_required
 def usuario_novo():
@@ -539,11 +611,12 @@ def usuario_novo():
             flash('Informe o nome e uma senha de ao menos 4 caracteres.','erro')
             return render_template('usuario_form.html', **ctx)
         perms = _perms_do_form(perfil)
+        foto = _foto_valida(request.form.get('foto','').strip())
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT COUNT(*) as t FROM usuarios"); n = cur.fetchone()['t']
         try:
-            cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,%s,%s)",
-                        (f"F{n+1}",nome,generate_password_hash(senha),perfil,perms))
+            cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes,foto) VALUES (%s,%s,%s,%s,%s,%s)",
+                        (f"F{n+1}",nome,generate_password_hash(senha),perfil,perms,foto))
             conn.commit(); flash('Usuário cadastrado!','ok')
         except Exception as e: conn.rollback(); flash(str(e),'erro')
         finally: cur.close(); conn.close()
@@ -1768,7 +1841,7 @@ def despesas():
 def nova_despesa():
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT COUNT(*) as t FROM despesas"); n = cur.fetchone()['t']
-    valor = float(request.form.get('valor',0) or 0)
+    valor = parse_brl(request.form.get('valor','0'))
     descricao = request.form.get('descricao','').strip()
     categoria = request.form.get('categoria','').strip()
     forma = request.form.get('forma_pagamento','').strip()
@@ -1809,7 +1882,7 @@ def nova_despesa():
             for i in range(1, num_parc+1):
                 pv = request.form.get(f'parcela_valor_{i}')
                 pd = request.form.get(f'parcela_data_{i}')
-                pvf = float(pv) if pv else round(valor/num_parc, 2)
+                pvf = parse_brl(pv) if pv else round(valor/num_parc, 2)
                 if not pd:
                     pd = (date.today() + timedelta(days=30*i)).isoformat()
                 soma += pvf
@@ -1956,7 +2029,15 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v86 — 2026-06-07</b><br>
+    Versão: <b style='color:green'>v88 — 2026-06-08</b><br>
+    Menu: botão "Sair" movido para o final do menu lateral (abaixo de Usuários); removido "Minha senha" do topo ✅<br>
+    Avatar: clique para carregar/tirar foto de perfil (ou iniciais do nome); foto também no cadastro de novo usuário ✅<br>
+    Acesso negado: removida a opção de trocar senha da caixa de aviso ✅<br>
+    Usuários (N1): botões de ação padronizados (tamanho uniforme) ✅<br>
+    Ortografia: "vendedora" → "Vendedor (a)" em todo o ERP ✅<br>
+    Condicional: ao finalizar uma transferência também há forma de pagamento (igual condicional) ✅<br>
+    Despesas: máscara do valor corrigida (caixa registradora), sem erro ao digitar ✅<br>
+    Correção: perfil legado "admin" agora é reconhecido como Administrador N1 (acesso total + gestão de usuários) ✅<br>
     Estoque: "Cadastrar produto" e "Imprimir etiquetas" viraram botões dentro da tela (com voltar) ✅<br>
     Etiquetas: busca por código do produto + quantidade de etiquetas, montando uma fila ✅<br>
     Etiquetas: folha A4 retrato configurada — 7 col × 18 lin = 126 (2,5 × 1,5 cm); escolha em qual posição começar para aproveitar 100% de meia folha ✅<br>

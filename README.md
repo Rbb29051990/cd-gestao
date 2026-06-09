@@ -31,6 +31,12 @@
 - **Headers de segurança**: adicionados `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e `Permissions-Policy`.
 - **Cache do CSS atualizado**: `base.html` aponta para a versão visual `v91`, evitando que o navegador mantenha CSS antigo após o deploy.
 
+
+## Novidades da v95 (2026-06-08) — Login
+- **Login — mostrar/ocultar senha simplificado**: removido o ícone do macaquinho. Agora o botão usa apenas o ícone de olho.
+- Ao clicar no olho, a senha fica visível; ao clicar novamente, a senha volta a ficar oculta.
+- Ajuste aplicado mantendo compatibilidade com celular, tablet e notebook.
+
 ## Novidades da v90 (2026-06-09) — Responsivo (celular, tablet e notebook)
 - **Layout corrigido para todos os dispositivos**: o mesmo design funciona em **notebook, tablet e celular**, ajustando-se automaticamente ao tamanho da tela.
 - **Visão Geral (e demais abas) deixaram de cortar o conteúdo**: havia uma trava de altura (`100vh`) que impedia a página de rolar no celular. Agora a página **rola normalmente** e os cards empilham em coluna única quando a tela é estreita.

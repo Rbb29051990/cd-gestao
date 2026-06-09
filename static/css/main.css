@@ -941,3 +941,131 @@ input, select, textarea, button { font-size: 16px; }
   .cred-venda-label{color:#888!important;}
   .cred-venda-valor{font-size:13px!important;}
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   CD Gestão Empresarial — v96
+   Acabamento profissional de interface, mobile e usabilidade
+   ═══════════════════════════════════════════════════════════════ */
+:root{
+  --radius-sm:10px;
+  --radius-md:14px;
+  --radius-lg:18px;
+  --shadow-soft:0 8px 24px rgba(26,26,46,.07);
+  --shadow-hover:0 12px 32px rgba(26,26,46,.10);
+  --tap:44px;
+}
+
+html{scroll-behavior:smooth;}
+body{background:#f6f7fb;}
+button,a,input,select,textarea{-webkit-tap-highlight-color:transparent;}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(46,125,50,.22)!important;
+  outline-offset:2px;
+}
+
+/* Cards mais consistentes e com aparência SaaS */
+.card-fat,.card-sm,.table-wrap,.box,.panel,.modal,.modal-card,.modal-box{
+  border-radius:var(--radius-md)!important;
+  box-shadow:var(--shadow-soft)!important;
+}
+.card-fat,.card-sm,.box,.panel{transition:transform .18s ease, box-shadow .18s ease;}
+@media (hover:hover){
+  .card-fat:hover,.card-sm:hover,.box:hover,.panel:hover{transform:translateY(-1px);box-shadow:var(--shadow-hover)!important;}
+}
+
+/* Tabelas profissionais: rolagem suave, cabeçalho fixo e largura mínima segura */
+.table-wrap,.table-scroll,.scroll-table,.cd-table-wrap,.vtable-wrap,.etable-wrap,.rtable-wrap{
+  position:relative;
+  max-width:100%;
+  overflow:auto!important;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+  border-radius:var(--radius-md)!important;
+}
+.table-wrap::after,.table-scroll::after,.scroll-table::after,.cd-table-wrap::after{
+  content:"";
+  position:sticky;
+  right:0;
+  top:0;
+  float:right;
+  width:22px;
+  height:1px;
+  pointer-events:none;
+  background:linear-gradient(90deg,rgba(246,247,251,0),rgba(246,247,251,.85));
+}
+.table,.vtable,.cd-table,.etable,.rtable{border-collapse:separate!important;border-spacing:0;}
+.table th,.vtable th,.cd-table th,.etable th,.rtable th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  white-space:nowrap;
+}
+.table td,.vtable td,.cd-table td,.etable td,.rtable td{white-space:nowrap;}
+.table td:nth-child(2),.vtable td:nth-child(2),.cd-table td:nth-child(2),.etable td:nth-child(2){white-space:normal;min-width:150px;}
+
+/* Barras de rolagem discretas */
+.table-wrap::-webkit-scrollbar,.table-scroll::-webkit-scrollbar,.scroll-table::-webkit-scrollbar,.cd-table-wrap::-webkit-scrollbar,.sidebar::-webkit-scrollbar{height:8px;width:8px;}
+.table-wrap::-webkit-scrollbar-thumb,.table-scroll::-webkit-scrollbar-thumb,.scroll-table::-webkit-scrollbar-thumb,.cd-table-wrap::-webkit-scrollbar-thumb,.sidebar::-webkit-scrollbar-thumb{background:#d9dbe8;border-radius:999px;}
+.table-wrap::-webkit-scrollbar-track,.table-scroll::-webkit-scrollbar-track,.scroll-table::-webkit-scrollbar-track,.cd-table-wrap::-webkit-scrollbar-track,.sidebar::-webkit-scrollbar-track{background:transparent;}
+
+/* Botões e campos com área de toque profissional */
+.btn,.btn-primary,.btn-secondary,.btn-danger,.btn-sm,.btn-sm-danger,.btn-entrar,button,input[type="submit"]{
+  min-height:var(--tap);
+  touch-action:manipulation;
+}
+input,select,textarea{
+  max-width:100%;
+  border-radius:10px;
+}
+
+/* Login: olho limpo, alinhado e sem deslocar o campo */
+.password-wrap{position:relative;}
+.password-toggle{
+  width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
+  color:#5b6175;background:#f4f5fa!important;border:1px solid #e6e8f2!important;
+}
+.password-toggle:hover{background:#eceef7!important;color:#1a1a2e;}
+
+/* Modais mais seguros no celular */
+.modal-overlay{padding:18px!important;overflow:auto!important;align-items:center;}
+.modal{width:min(720px,100%)!important;}
+.modal-footer{flex-wrap:wrap;}
+.modal-footer>*{flex:1 1 160px;}
+
+/* Ajustes finos para mobile/tablet */
+@media (max-width:900px){
+  body{background:#fff;}
+  .dash-wrap{min-height:100dvh;}
+  .topbar{position:sticky;top:0;z-index:60;background:var(--cor-primaria);box-shadow:0 2px 14px rgba(0,0,0,.12);}
+  .sidebar{scrollbar-width:none;}
+  .sidebar::-webkit-scrollbar{display:none;}
+  .nav-item{min-height:42px;display:inline-flex;align-items:center;}
+  .main-content{padding-bottom:calc(20px + env(safe-area-inset-bottom));}
+  .page-head,.section-head,.card-head{gap:10px;flex-wrap:wrap;}
+  .filters-row,.filtros,.periodo-wrap{gap:10px!important;}
+  .table,.vtable,.cd-table,.etable,.rtable{min-width:860px;}
+}
+
+@media (max-width:560px){
+  .login-right{min-height:100dvh;display:flex;align-items:center;justify-content:center;}
+  .form-wrap{width:100%;max-width:390px;}
+  .topbar-logo-main{font-size:15px;letter-spacing:3px;}
+  .avatar{width:34px;height:34px;flex:0 0 34px;}
+  .card-fat,.card-sm,.box,.panel{border-radius:14px!important;}
+  .card-fat,.card-sm{padding:14px!important;}
+  .fat-total-value,.card-sm-value{font-size:18px!important;line-height:1.15;word-break:break-word;}
+  .table,.vtable,.cd-table,.etable,.rtable{min-width:780px;}
+  .table th,.table td,.vtable th,.vtable td,.cd-table th,.cd-table td,.etable th,.etable td,.rtable th,.rtable td{padding:10px!important;font-size:12px!important;}
+  .modal-overlay{padding:8px!important;align-items:flex-start!important;}
+  .modal{border-radius:16px!important;padding:18px!important;max-height:none!important;margin:8px 0!important;}
+  .modal-title{font-size:20px!important;line-height:1.15;}
+  .modal-footer{display:grid!important;grid-template-columns:1fr!important;}
+}
+
+/* Impressão preservada */
+@media print{
+  .topbar,.sidebar,.btn,.btn-primary,.btn-secondary,.modal-overlay{display:none!important;}
+  body{background:#fff!important;overflow:visible!important;}
+  .main-content{padding:0!important;overflow:visible!important;}
+  .table-wrap{box-shadow:none!important;border:1px solid #ddd!important;overflow:visible!important;}
+}

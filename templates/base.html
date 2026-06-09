@@ -9,7 +9,7 @@
   <title>{{ cliente.nome }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260609-v91">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260609-v96">
 
   <script>
     // Formata datas no horário local do navegador, evitando o bug do UTC/toISOString
@@ -28,6 +28,19 @@
       --cor-botao: {{ cliente.cor_botao }};
     }
   </style>
+
+  <script>
+    // v96: melhora a experiência em tabelas largas sem exigir alteração manual em todos os templates.
+    document.addEventListener('DOMContentLoaded', function(){
+      document.querySelectorAll('table').forEach(function(tbl){
+        if(tbl.closest('.table-wrap,.table-scroll,.scroll-table,.cd-table-wrap,.vtable-wrap,.etable-wrap,.rtable-wrap')) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'table-wrap auto-table-wrap';
+        tbl.parentNode.insertBefore(wrap, tbl);
+        wrap.appendChild(tbl);
+      });
+    });
+  </script>
 </head>
 <body>
   {% block content %}{% endblock %}

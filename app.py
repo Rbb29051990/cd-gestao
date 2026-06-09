@@ -457,7 +457,7 @@ def erro_interno(e):
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status':'ok','version':'v91'})
+        return jsonify({'status':'ok','version':'v96'})
     except Exception as exc:
         logger.exception('Healthcheck falhou')
         return jsonify({'status':'erro','detail':str(exc)}), 500
@@ -2155,8 +2155,8 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v91 — 2026-06-09</b><br>
-    v91: arquitetura endurecida, segurança de deploy, pool de banco, healthcheck e responsividade reforçada ✅<br>
+    Versão: <b style='color:green'>v96 — 2026-06-09</b><br>
+    v96: acabamento profissional de interface, mobile/tablet/notebook, tabelas, modais e usabilidade ✅<br>
     Despesas: corrigido erro ao salvar sem descrição (campo agora opcional) ✅<br>
     Despesas: sem parcelamento agora pede data de vencimento e vira conta a pagar ✅<br>
     Condicional: transferência também aceita crediário como forma de pagamento ✅<br>

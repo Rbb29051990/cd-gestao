@@ -1,3 +1,13 @@
+# CD Gestão Empresarial — v96
+
+## Novidades da v96 (2026-06-09) — Acabamento profissional e responsividade
+- **Interface mais profissional**: cards, tabelas, modais, botões e campos receberam ajustes de acabamento, sombra, espaçamento e área de toque.
+- **Mobile/tablet/notebook reforçados**: melhorias para uso em celular, tablet e notebook, com foco em navegação, leitura e interação com uma mão.
+- **Tabelas largas mais seguras**: rolagem horizontal reforçada, cabeçalhos fixos e larguras mínimas para evitar cortes em vendas, caixa, crediário, despesas, estoque e condicionais.
+- **Modais melhores no celular**: janelas passam a respeitar melhor a altura da tela, com botões empilhados quando necessário.
+- **Login mantido limpo**: campo de senha continua com apenas o ícone de olho para mostrar/ocultar.
+- **Versão técnica atualizada**: cache do CSS, `/healthz` e `/versao` atualizados para v96.
+
 # CD Gestão Empresarial — v91.3
 
 ## Novidades da v91.3 (2026-06-09) — Ajustes mobile e login

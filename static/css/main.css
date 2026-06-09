@@ -911,3 +911,33 @@ input, select, textarea, button { font-size: 16px; }
 @media (max-width: 860px) {
   .vtable, .cd-table { min-width: 920px; }
 }
+
+
+/* ─── V91.3 — Crediários mobile e senha do login ─── */
+.password-wrap{position:relative;display:flex;align-items:center;width:100%;}
+.password-wrap input{width:100%;padding-right:48px!important;}
+.password-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;font-size:18px;line-height:1;padding:6px;border-radius:8px;}
+.password-toggle:active{transform:translateY(-50%) scale(.96);}
+
+@media (max-width: 768px){
+  .cred-cli-head{align-items:flex-start!important;gap:12px;}
+  .cred-cli-totais{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px!important;width:100%;max-width:360px;}
+  .cred-total-item{text-align:left!important;background:#f8f8fc;border-radius:10px;padding:8px 10px;}
+  .cred-cli-totais .badge{grid-column:1 / -1;justify-self:start;}
+  .cred-venda-head{display:grid!important;grid-template-columns:1fr;gap:10px;align-items:stretch!important;}
+  .cred-venda-info{min-width:0;flex-wrap:wrap!important;}
+  .cred-venda-valores{display:grid!important;grid-template-columns:auto 1fr auto 1fr;gap:4px 8px!important;align-items:center!important;width:100%;background:#fff;border-radius:9px;padding:8px 10px;}
+  .cred-venda-label{font-size:9px!important;white-space:nowrap;}
+  .cred-venda-valor{font-size:14px!important;white-space:nowrap;text-align:left;}
+}
+
+@media (max-width: 480px){
+  .cred-cli-head{display:grid!important;grid-template-columns:1fr;}
+  .cred-cli-head > div:first-child{min-width:0;}
+  .cred-cli-head > div:first-child div div:first-child{font-size:15px!important;line-height:1.25;word-break:break-word;}
+  .cred-cli-totais{grid-template-columns:1fr 1fr!important;max-width:none;}
+  .cred-total-item div:last-child{font-size:14px!important;line-height:1.15;word-break:keep-all;}
+  .cred-venda-valores{grid-template-columns:1fr 1fr;}
+  .cred-venda-label{color:#888!important;}
+  .cred-venda-valor{font-size:13px!important;}
+}

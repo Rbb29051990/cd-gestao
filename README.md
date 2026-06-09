@@ -1,3 +1,10 @@
+# CD Gestão Empresarial — v91.3
+
+## Novidades da v91.3 (2026-06-09) — Ajustes mobile e login
+- **Crediários no celular**: corrigido o layout dos cards de vendas dentro da ficha do cliente, evitando corte/desalinhamento dos campos **Total** e **Saldo**.
+- **Login**: adicionada opção de **mostrar/ocultar senha** antes de entrar no ERP.
+- Mantidas as correções de fuso horário da v91.2 e rolagem lateral da v91.1.
+
 # CD Gestão Empresarial — v91.2
 
 ## Novidades da v91.2 (2026-06-08) — Correção de fuso horário

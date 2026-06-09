@@ -192,7 +192,7 @@
       {% for cli in clientes %}
       <div class="cred-cli-card" data-nome="{{ cli.cliente_nome|lower }}" style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;margin-bottom:14px;box-shadow:0 4px 14px rgba(0,0,0,0.05);overflow:hidden">
         <!-- CABEÇALHO DO CLIENTE (clicável — accordion nível 1) -->
-        <div onclick="toggleAcc('cli_{{ loop.index }}')" style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;cursor:pointer;transition:background .15s;user-select:none" onmouseover="this.style.background='#f8f8fc'" onmouseout="this.style.background='#fff'">
+        <div onclick="toggleAcc('cli_{{ loop.index }}')" class="cred-cli-head" style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;cursor:pointer;transition:background .15s;user-select:none" onmouseover="this.style.background='#f8f8fc'" onmouseout="this.style.background='#fff'">
           <div style="display:flex;align-items:center;gap:10px">
             <span id="arrow_cli_{{ loop.index }}" style="font-size:14px;color:#aaa;transition:transform .2s;display:inline-block">▶</span>
             <div>
@@ -200,10 +200,10 @@
               <div style="font-size:11px;color:#aaa;margin-top:2px">{{ cli.vendas|length }} compra(s)</div>
             </div>
           </div>
-          <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-            <div style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Total</div><div style="font-size:15px;font-weight:700;color:#1a1a2e">R$ {{ "{:,.2f}".format(cli.total)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
-            <div style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Pago</div><div style="font-size:15px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(cli.pago)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
-            <div style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Devedor</div><div style="font-size:16px;font-weight:800;color:{% if cli.saldo > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "{:,.2f}".format(cli.saldo)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+          <div class="cred-cli-totais" style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+            <div class="cred-total-item" style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Total</div><div style="font-size:15px;font-weight:700;color:#1a1a2e">R$ {{ "{:,.2f}".format(cli.total)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+            <div class="cred-total-item" style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Pago</div><div style="font-size:15px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(cli.pago)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
+            <div class="cred-total-item" style="text-align:right"><div style="font-size:9px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px">Devedor</div><div style="font-size:16px;font-weight:800;color:{% if cli.saldo > 0 %}#c62828{% else %}#2e7d32{% endif %}">R$ {{ "{:,.2f}".format(cli.saldo)|replace(",","X")|replace(".",",")|replace("X",".") }}</div></div>
             <span class="badge {% if cli.saldo <= 0 %}badge-hab{% else %}badge-fiado{% endif %}" style="font-size:10px">{% if cli.saldo <= 0 %}✅ Quitado{% else %}⏳ Em aberto{% endif %}</span>
           </div>
         </div>
@@ -211,16 +211,16 @@
         <div id="cli_{{ loop.index }}" style="display:none;padding:0 20px 16px;flex-direction:column;gap:10px">
           {% for c in cli.vendas %}
           <div style="border:1.5px solid #ececf3;border-radius:10px;overflow:hidden">
-            <div onclick="event.stopPropagation();toggleAcc('vd_{{ c.id }}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;background:#f8f8fc;transition:background .15s;user-select:none" onmouseover="this.style.background='#f0f0f8'" onmouseout="this.style.background='#f8f8fc'">
-              <div style="display:flex;align-items:center;gap:8px">
+            <div onclick="event.stopPropagation();toggleAcc('vd_{{ c.id }}')" class="cred-venda-head" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;background:#f8f8fc;transition:background .15s;user-select:none" onmouseover="this.style.background='#f0f0f8'" onmouseout="this.style.background='#f8f8fc'">
+              <div class="cred-venda-info" style="display:flex;align-items:center;gap:8px">
                 <span id="arrow_vd_{{ c.id }}" style="font-size:12px;color:#aaa;transition:transform .2s;display:inline-block">▶</span>
                 <span style="font-size:12px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:2px 8px;border-radius:5px">{{ c.codigo_venda }}</span>
                 <span style="font-size:12px;font-weight:600;color:#1a1a2e">{{ c.data_venda.strftime('%d/%m/%Y') }}</span>
                 <span class="badge {% if c.status == 'quitado' %}badge-hab{% else %}badge-fiado{% endif %}" style="font-size:9px;padding:2px 6px">{% if c.status == 'quitado' %}✅ Quitado{% else %}⏳ Aberto{% endif %}</span>
               </div>
-              <div style="display:flex;align-items:center;gap:14px">
-                <span style="font-size:10px;color:#aaa;font-weight:700">TOTAL</span><span style="font-weight:700;color:#1a1a2e;font-size:13px">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
-                <span style="font-size:10px;color:#aaa;font-weight:700">SALDO</span><span style="font-weight:700;color:{% if c.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:13px">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+              <div class="cred-venda-valores" style="display:flex;align-items:center;gap:14px">
+                <span class="cred-venda-label" style="font-size:10px;color:#aaa;font-weight:700">TOTAL</span><span class="cred-venda-valor" style="font-weight:700;color:#1a1a2e;font-size:13px">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+                <span class="cred-venda-label" style="font-size:10px;color:#aaa;font-weight:700">SALDO</span><span class="cred-venda-valor" style="font-weight:700;color:{% if c.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:13px">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
               </div>
             </div>
             <div id="vd_{{ c.id }}" style="display:none;padding:10px 14px 12px;flex-direction:column;gap:8px">

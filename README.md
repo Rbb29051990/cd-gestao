@@ -1,4 +1,14 @@
-# CD Gestão Empresarial — v90
+# CD Gestão Empresarial — v91
+
+## Novidades da v91 (2026-06-09) — Estabilidade, segurança e crescimento
+- **Arquitetura preparada para crescimento**: adicionada base técnica para evolução modular, com documentação de arquitetura e separação conceitual por rotas, serviços, banco e utilitários.
+- **Segurança de deploy reforçada**: `SECRET_KEY` e `DATABASE_URL` passam a ser obrigatórios em produção; endpoints sensíveis de setup/reset ficam bloqueados por padrão.
+- **Banco mais estável**: conexão com PostgreSQL passa a usar pool configurável (`DB_POOL_MAX`) e índices foram adicionados para acelerar dashboards, filtros por período, estoque, vendas, caixa, despesas, crediários e condicionais.
+- **Healthcheck para deploy**: nova rota `/healthz` para validar se o app e o banco estão respondendo.
+- **Responsividade reforçada**: CSS extra para reduzir quebras em celular, tablet e notebook, com tabelas rolando horizontalmente, menu superior no mobile e modais mais seguros em telas pequenas.
+- **Uploads mais protegidos**: limite global de requisição adicionado para evitar imagens ou formulários grandes demais.
+- **Headers de segurança**: adicionados `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` e `Permissions-Policy`.
+- **Cache do CSS atualizado**: `base.html` aponta para a versão visual `v91`, evitando que o navegador mantenha CSS antigo após o deploy.
 
 ## Novidades da v90 (2026-06-09) — Responsivo (celular, tablet e notebook)
 - **Layout corrigido para todos os dispositivos**: o mesmo design funciona em **notebook, tablet e celular**, ajustando-se automaticamente ao tamanho da tela.

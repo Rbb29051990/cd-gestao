@@ -1,15 +1,40 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from datetime import datetime, date, timedelta
-import os, json, random, math, base64
+import os, json, random, math, base64, logging
+from contextlib import contextmanager
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
 app = Flask(__name__, static_folder='static')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-app.secret_key = os.environ.get('SECRET_KEY', 'cd-gestao-2026-secret')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
+
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true':
+        raise RuntimeError('Configure a variável de ambiente SECRET_KEY antes do deploy.')
+    SECRET_KEY = 'cd-gestao-dev-local-only'
+app.secret_key = SECRET_KEY
+
 DATABASE_URL = os.environ.get('DATABASE_URL')
+if not DATABASE_URL:
+    raise RuntimeError('Configure a variável de ambiente DATABASE_URL.')
+
+logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO'))
+logger = logging.getLogger('cd-gestao')
+
+DB_POOL = None
+def get_pool():
+    global DB_POOL
+    if DB_POOL is None:
+        DB_POOL = SimpleConnectionPool(1, int(os.environ.get('DB_POOL_MAX', '5')), DATABASE_URL, cursor_factory=RealDictCursor)
+    return DB_POOL
 
 def get_taxa_vigente(data=None):
     """Retorna a taxa vigente para uma data específica (ou hoje)."""
@@ -20,7 +45,7 @@ def get_taxa_vigente(data=None):
                    WHERE vigencia_em <= %s
                    ORDER BY vigencia_em DESC LIMIT 1""", (data,))
     row = cur.fetchone()
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     if row:
         return dict(row)
     return {'credito_vista':2.06,'credito_parcelado':2.70,'debito':1.59,'link':0.0,'antecipacao':0.0}
@@ -72,7 +97,26 @@ CLIENTE = {
 CORES = ['#2e7d32','#1565c0','#6a1b9a','#c62828','#e65100','#00695c','#283593']
 
 def get_db():
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    # Mantém compatibilidade com o código legado, mas usa pool de conexões.
+    return get_pool().getconn()
+
+def close_db(conn):
+    if conn:
+        get_pool().putconn(conn)
+
+@contextmanager
+def db_cursor(commit=False):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        yield cur
+        if commit:
+            conn.commit()
+    except Exception:
+        conn.rollback()
+        logger.exception('Erro em operação de banco')
+        raise
+    finally:
+        cur.close(); close_db(conn)
 
 def init_db():
     conn = get_db(); cur = conn.cursor()
@@ -244,17 +288,39 @@ def init_db():
         conn.commit()
     except Exception:
         conn.rollback()
+    # Segurança v91: usuários padrão só são criados quando explicitamente permitido.
+
+    # Índices v91: aceleram dashboards, filtros por período e buscas frequentes.
+    indices_v91 = [
+        "CREATE INDEX IF NOT EXISTS idx_caixa_tipo_criado ON caixa (tipo, criado_em)",
+        "CREATE INDEX IF NOT EXISTS idx_vendas_criado ON vendas (criado_em)",
+        "CREATE INDEX IF NOT EXISTS idx_vendas_cliente ON vendas (cliente_id)",
+        "CREATE INDEX IF NOT EXISTS idx_estoque_codigo ON estoque (codigo)",
+        "CREATE INDEX IF NOT EXISTS idx_estoque_ativo_qtd ON estoque (ativo, quantidade)",
+        "CREATE INDEX IF NOT EXISTS idx_clientes_nome ON clientes (LOWER(nome))",
+        "CREATE INDEX IF NOT EXISTS idx_crediarios_status ON crediarios (status)",
+        "CREATE INDEX IF NOT EXISTS idx_condicionais_status_criado ON condicionais (status, criado_em)",
+        "CREATE INDEX IF NOT EXISTS idx_despesas_criado ON despesas (criado_em)",
+        "CREATE INDEX IF NOT EXISTS idx_despesa_parcelas_pago_data ON despesa_parcelas (pago, data_pagamento, data_vencimento)",
+    ]
     try:
-        for cod, nome, senha in [('F1','Renan Barcellos','renan123'),('F2','Carol Duarte','carol123')]:
-            cur.execute("SELECT id FROM usuarios WHERE nome=%s",(nome,))
-            if not cur.fetchone():
-                perms = 'visao_geral,clientes,vendas,estoque,condicionais,caixa,crediarios,despesas,taxas,dashboards'
-                cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,'admin_n1',%s)",
-                    (cod,nome,generate_password_hash(senha),perms))
+        for sql in indices_v91:
+            cur.execute(sql)
         conn.commit()
-    except Exception as e:
-        print(f"usuarios padrao: {e}"); conn.rollback()
-    cur.close(); conn.close()
+    except Exception:
+        conn.rollback()
+    if os.environ.get('SEED_DEFAULT_USERS') == 'true':
+        try:
+            for cod, nome, senha in [('F1','Renan Barcellos','renan123'),('F2','Carol Duarte','carol123')]:
+                cur.execute("SELECT id FROM usuarios WHERE nome=%s",(nome,))
+                if not cur.fetchone():
+                    perms = 'visao_geral,clientes,vendas,estoque,condicionais,caixa,crediarios,despesas,taxas,dashboards'
+                    cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,'admin_n1',%s)",
+                        (cod,nome,generate_password_hash(senha),perms))
+            conn.commit()
+        except Exception as e:
+            logger.exception(f"usuarios padrao: {e}"); conn.rollback()
+    cur.close(); close_db(conn)
 
 def login_required(f):
     @wraps(f)
@@ -348,8 +414,40 @@ def _controle_acesso_abas():
         ctx = get_ctx(); ctx['aba_negada'] = ABAS_DICT.get(aba, aba)
         return render_template('acesso_negado.html', **ctx), 403
 
+
+@app.after_request
+def _security_headers(response):
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault('Permissions-Policy', 'camera=(self), geolocation=()')
+    return response
+
+@app.errorhandler(404)
+def pagina_nao_encontrada(e):
+    if 'uid' in session:
+        ctx = get_ctx(); ctx['aba_negada'] = 'Página não encontrada'
+        return render_template('acesso_negado.html', **ctx), 404
+    return redirect(url_for('index'))
+
+@app.errorhandler(500)
+def erro_interno(e):
+    logger.exception('Erro interno na aplicação')
+    return '<h2 style="font-family:sans-serif;padding:40px">Erro interno. Tente novamente em instantes.</h2>', 500
+
+@app.route('/healthz')
+def healthz():
+    try:
+        conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
+        return jsonify({'status':'ok','version':'v91'})
+    except Exception as exc:
+        logger.exception('Healthcheck falhou')
+        return jsonify({'status':'erro','detail':str(exc)}), 500
+
 @app.route('/setup')
 def setup():
+    if os.environ.get('ALLOW_SETUP') != 'true' and (os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'):
+        return 'Setup bloqueado em produção. Defina ALLOW_SETUP=true apenas temporariamente.', 403
     try:
         init_db()
         return "<h2 style='font-family:sans-serif;padding:40px'>SETUP OK! <a href='/'>Login</a></h2>"
@@ -358,6 +456,8 @@ def setup():
 
 @app.route('/reset-usuarios')
 def reset_usuarios():
+    if os.environ.get('ALLOW_RESET_USUARIOS') != 'true':
+        return 'Reset de usuários bloqueado. Defina ALLOW_RESET_USUARIOS=true apenas temporariamente.', 403
     conn = get_db(); cur = conn.cursor()
     try:
         for cod, nome, senha in [('F1','Renan Barcellos','renan123'),('F2','Carol Duarte','carol123')]:
@@ -371,7 +471,7 @@ def reset_usuarios():
         return "<h2 style='font-family:sans-serif;padding:40px'>Usuarios resetados! Renan Barcellos/renan123 Carol Duarte/carol123 <a href='/'>Login</a></h2>"
     except Exception as e:
         conn.rollback(); return "<pre>ERRO: " + str(e) + "</pre>"
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
 
 @app.route('/')
 def index():
@@ -384,7 +484,7 @@ def login():
     senha = request.form.get('senha','').strip()
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM usuarios WHERE nome=%s AND ativo=TRUE",(nome,))
-    u = cur.fetchone(); cur.close(); conn.close()
+    u = cur.fetchone(); cur.close(); close_db(conn)
     if u and check_password_hash(u['senha_hash'], senha):
         session.update(uid=u['id'], nome=u['nome'], perfil=norm_perfil(u['perfil']),
                        codigo=u.get('codigo',''),
@@ -484,7 +584,7 @@ def visao_geral():
         cur.execute("SELECT codigo,modelo,tamanho,quantidade FROM estoque WHERE ativo=TRUE AND quantidade<=2 ORDER BY quantidade")
         estoque_baixo = [dict(r) for r in cur.fetchall()]
     except: estoque_baixo = []
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     ctx = get_ctx()
     ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
@@ -512,7 +612,7 @@ def usuarios():
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT * FROM usuarios ORDER BY id")
         lista = [dict(u) for u in cur.fetchall()]
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
         for u in lista:
             u['perfil_nome'] = perfil_label(u.get('perfil'))
         ctx['usuarios'] = lista
@@ -537,7 +637,7 @@ def usuarios_trocar_senha():
         conn.commit(); flash('Senha alterada com sucesso!','ok')
     else:
         flash('Senha atual incorreta.','erro')
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     return redirect(url_for('usuarios'))
 
 def _foto_valida(foto):
@@ -552,7 +652,7 @@ def usuario_avatar():
     uid = request.args.get('uid') or session.get('uid')
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT foto FROM usuarios WHERE id=%s", (uid,))
-    row = cur.fetchone(); cur.close(); conn.close()
+    row = cur.fetchone(); cur.close(); close_db(conn)
     foto = row['foto'] if row else None
     if foto and foto.startswith('data:'):
         try:
@@ -580,7 +680,7 @@ def usuario_foto():
         flash('Foto de perfil atualizada!','ok')
     except Exception as e:
         conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(request.referrer or url_for('usuarios'))
 
 @app.route('/usuarios/foto/remover', methods=['POST'])
@@ -595,7 +695,7 @@ def usuario_foto_remover():
         flash('Foto de perfil removida.','ok')
     except Exception as e:
         conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(request.referrer or url_for('usuarios'))
 
 @app.route('/usuarios/novo', methods=['GET','POST'])
@@ -622,7 +722,7 @@ def usuario_novo():
                         (f"F{n+1}",nome,generate_password_hash(senha),perfil,perms,foto))
             conn.commit(); flash('Usuário cadastrado!','ok')
         except Exception as e: conn.rollback(); flash(str(e),'erro')
-        finally: cur.close(); conn.close()
+        finally: cur.close(); close_db(conn)
         return redirect(url_for('usuarios'))
     return render_template('usuario_form.html', **ctx)
 
@@ -640,7 +740,7 @@ def usuario_editar(uid):
         # Trava anti-bloqueio: N1 não pode rebaixar o próprio perfil
         if uid == session.get('uid') and perfil != 'admin_n1':
             flash('Você não pode alterar o seu próprio perfil de Administrador N1.','erro')
-            cur.close(); conn.close(); return redirect(url_for('usuarios'))
+            cur.close(); close_db(conn); return redirect(url_for('usuarios'))
         perms = _perms_do_form(perfil)
         nova_senha = request.form.get('nova_senha','').strip()
         if nova_senha:
@@ -648,17 +748,17 @@ def usuario_editar(uid):
                         (nome,perfil,perms,generate_password_hash(nova_senha),uid))
         else:
             cur.execute("UPDATE usuarios SET nome=%s,perfil=%s,permissoes=%s WHERE id=%s",(nome,perfil,perms,uid))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit(); cur.close(); close_db(conn)
         flash('Usuario atualizado!','ok')
         return redirect(url_for('usuarios'))
     cur.execute("SELECT * FROM usuarios WHERE id=%s",(uid,))
     row = cur.fetchone()
     if not row:
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
         flash('Usuario nao encontrado.','erro'); return redirect(url_for('usuarios'))
     user = dict(row)
     user['perms_lista'] = [x.strip() for x in (user.get('permissoes') or '').split(',') if x.strip()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     ctx = get_ctx(); ctx['user'] = user; ctx['abas'] = ABAS
     return render_template('usuario_editar.html', **ctx)
 
@@ -673,7 +773,7 @@ def usuario_toggle(uid):
         return redirect(url_for('usuarios'))
     conn = get_db(); cur = conn.cursor()
     cur.execute("UPDATE usuarios SET ativo=NOT ativo WHERE id=%s",(uid,))
-    conn.commit(); cur.close(); conn.close()
+    conn.commit(); cur.close(); close_db(conn)
     return redirect(url_for('usuarios'))
 
 @app.route('/usuarios/<int:uid>/excluir', methods=['POST'])
@@ -690,7 +790,7 @@ def usuario_excluir(uid):
         cur.execute("DELETE FROM usuarios WHERE id=%s",(uid,))
         conn.commit(); flash('Usuário excluído.','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('usuarios'))
 
 @app.route('/minha-senha', methods=['GET','POST'])
@@ -707,7 +807,7 @@ def minha_senha():
             cur.execute("UPDATE usuarios SET senha_hash=%s WHERE id=%s",(generate_password_hash(nova),session['uid']))
             conn.commit(); flash('Senha alterada!','ok')
         else: flash('Senha atual incorreta.','erro')
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
     return render_template('minha_senha.html', **ctx)
 
 @app.route('/clientes')
@@ -717,7 +817,7 @@ def clientes():
     cur.execute("SELECT * FROM clientes WHERE ativo=TRUE ORDER BY nome")
     lista = [dict(c) for c in cur.fetchall()]
     cur.execute("SELECT COUNT(*) as t FROM clientes"); n = cur.fetchone()['t']
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     for c in lista:
         p = c['nome'].split()
         c['iniciais'] = (p[0][0]+(p[1][0] if len(p)>1 else p[0][-1])).upper()
@@ -732,7 +832,7 @@ def novo_cliente():
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT id FROM clientes WHERE LOWER(TRIM(nome))=LOWER(TRIM(%s))",(nome,))
     if cur.fetchone():
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
         flash('DUPLICADO_NOME||'+nome,'erro'); return redirect(url_for('clientes'))
     cur.execute("SELECT COUNT(*) as t FROM clientes"); n = cur.fetchone()['t']
     try:
@@ -756,7 +856,7 @@ def novo_cliente():
              random.choice(CORES)))
         conn.commit(); flash('SUCESSO||Cliente cadastrado!','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('clientes'))
 
 @app.route('/clientes/verificar')
@@ -768,7 +868,7 @@ def verificar_cliente():
     if campo=='nome': cur.execute("SELECT id FROM clientes WHERE LOWER(nome)=LOWER(%s)",(valor,))
     elif campo=='cpf': cur.execute("SELECT id FROM clientes WHERE cpf=%s",(valor,))
     elif campo=='telefone': cur.execute("SELECT id FROM clientes WHERE telefone=%s OR telefone2=%s",(valor,valor))
-    row = cur.fetchone(); cur.close(); conn.close()
+    row = cur.fetchone(); cur.close(); close_db(conn)
     return jsonify({'ok': not bool(row)})
 
 @app.route('/clientes/<int:cid>')
@@ -776,7 +876,7 @@ def verificar_cliente():
 def ficha_cliente(cid):
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM clientes WHERE id=%s",(cid,))
-    row = cur.fetchone(); cur.close(); conn.close()
+    row = cur.fetchone(); cur.close(); close_db(conn)
     if not row:
         flash('Cliente nao encontrado.','erro'); return redirect(url_for('clientes'))
     c = dict(row)
@@ -807,11 +907,11 @@ def editar_cliente(cid):
              request.form.get('uf','').strip() or None,
              request.form.get('promocoes','0')=='1',
              request.form.get('crediario','0')=='1', cid))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit(); cur.close(); close_db(conn)
         flash('Cliente atualizado!','ok')
         return redirect(url_for('ficha_cliente',cid=cid))
     cur.execute("SELECT * FROM clientes WHERE id=%s",(cid,))
-    c = cur.fetchone(); cur.close(); conn.close()
+    c = cur.fetchone(); cur.close(); close_db(conn)
     if not c:
         flash('Cliente nao encontrado.','erro'); return redirect(url_for('clientes'))
     ctx = get_ctx(); ctx['c'] = c
@@ -824,7 +924,7 @@ def excluir_cliente(cid):
         flash('Apenas o Administrador N1 pode excluir dados.','erro'); return redirect(url_for('clientes'))
     conn = get_db(); cur = conn.cursor()
     cur.execute("DELETE FROM clientes WHERE id=%s",(cid,))
-    conn.commit(); cur.close(); conn.close()
+    conn.commit(); cur.close(); close_db(conn)
     flash('Cliente excluido.','ok')
     return redirect(url_for('clientes'))
 
@@ -844,7 +944,7 @@ def estoque():
     # Buscar total de entradas adicionais por item (mesma conexão, antes de fechar)
     cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
     entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     hoje = date.today()
     for i in itens:
         i['dias_estoque'] = (hoje - i['criado_em'].date()).days
@@ -867,11 +967,11 @@ def novo_estoque():
     venda_raw = request.form.get('valor_venda','').strip()
     if not custo_raw or parse_brl(custo_raw) <= 0:
         flash('O custo unitário é obrigatório e deve ser maior que zero.','erro')
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
         return redirect(url_for('estoque'))
     if not venda_raw or parse_brl(venda_raw) <= 0:
         flash('O valor de venda é obrigatório e deve ser maior que zero.','erro')
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
         return redirect(url_for('estoque'))
     foto = request.form.get('foto','').strip() or None
     # Segurança: só aceita data URI de imagem e limita o tamanho (~1.5MB de base64)
@@ -889,7 +989,7 @@ def novo_estoque():
              parse_brl(request.form.get('margem_lucro','0')), foto))
         conn.commit(); flash('Produto cadastrado!','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('estoque'))
 
 @app.route('/estoque/<int:eid>/nova-entrada', methods=['POST'])
@@ -926,7 +1026,7 @@ def nova_entrada_estoque(eid):
         flash(f'Nova entrada de {qtd} unidade(s) registrada com sucesso!', 'ok')
     except Exception as e:
         conn.rollback(); flash(str(e), 'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('ficha_estoque', eid=eid))
 
 @app.route('/estoque/modelo/novo', methods=['POST'])
@@ -936,7 +1036,7 @@ def novo_modelo():
     if nome:
         conn = get_db(); cur = conn.cursor()
         cur.execute("INSERT INTO modelos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING",(nome,))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit(); cur.close(); close_db(conn)
     return redirect(url_for('estoque'))
 
 @app.route('/estoque/tamanho/novo', methods=['POST'])
@@ -946,7 +1046,7 @@ def novo_tamanho():
     if nome:
         conn = get_db(); cur = conn.cursor()
         cur.execute("INSERT INTO tamanhos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING",(nome,))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit(); cur.close(); close_db(conn)
     return redirect(url_for('estoque'))
 
 @app.route('/estoque/etiquetas')
@@ -956,7 +1056,7 @@ def etiquetas():
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE DATE(criado_em)=%s AND ativo=TRUE ORDER BY id",(data,))
     itens = [dict(i) for i in cur.fetchall()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     return jsonify({'itens':itens,'data':data})
 
 @app.route('/estoque/etiqueta-busca')
@@ -966,7 +1066,7 @@ def etiqueta_busca():
     if cod and not cod.startswith('P'): cod = 'P' + cod
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT id,codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE codigo=%s AND ativo=TRUE",(cod,))
-    item = cur.fetchone(); cur.close(); conn.close()
+    item = cur.fetchone(); cur.close(); close_db(conn)
     if item: return jsonify({'ok':True,'item':dict(item)})
     return jsonify({'ok':False})
 
@@ -975,7 +1075,7 @@ def etiqueta_busca():
 def ficha_estoque(eid):
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM estoque WHERE id=%s",(eid,))
-    row = cur.fetchone(); cur.close(); conn.close()
+    row = cur.fetchone(); cur.close(); close_db(conn)
     if not row:
         flash('Produto nao encontrado.','erro'); return redirect(url_for('estoque'))
     item = dict(row)
@@ -999,19 +1099,19 @@ def editar_estoque(eid):
              parse_brl(request.form.get('markup','0')),
              parse_brl(request.form.get('valor_venda','0')),
              parse_brl(request.form.get('margem_lucro','0')), eid))
-        conn.commit(); cur.close(); conn.close()
+        conn.commit(); cur.close(); close_db(conn)
         flash('Produto atualizado!','ok')
         return redirect(url_for('ficha_estoque',eid=eid))
     cur.execute("SELECT * FROM estoque WHERE id=%s",(eid,))
     item = cur.fetchone()
     if not item:
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
         flash('Produto nao encontrado.','erro'); return redirect(url_for('estoque'))
     cur.execute("SELECT nome FROM modelos_estoque ORDER BY nome")
     modelos = [r['nome'] for r in cur.fetchall()]
     cur.execute("SELECT nome FROM tamanhos_estoque ORDER BY id")
     tamanhos = [r['nome'] for r in cur.fetchall()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     ctx = get_ctx(); ctx.update(item=item, modelos=modelos, tamanhos=tamanhos)
     return render_template('editar_estoque.html', **ctx)
 
@@ -1022,7 +1122,7 @@ def excluir_estoque(eid):
         flash('Apenas o Administrador N1 pode excluir dados.','erro'); return redirect(url_for('estoque'))
     conn = get_db(); cur = conn.cursor()
     cur.execute("DELETE FROM estoque WHERE id=%s",(eid,))
-    conn.commit(); cur.close(); conn.close()
+    conn.commit(); cur.close(); close_db(conn)
     flash('Produto excluido.','ok')
     return redirect(url_for('estoque'))
 
@@ -1057,7 +1157,7 @@ def vendas():
         ranking = [dict(r) for r in cur.fetchall()]
         cur.execute("SELECT DISTINCT DATE_TRUNC('month',criado_em) as mes FROM vendas ORDER BY mes DESC")
         meses = [{'mes_val':m['mes'].strftime('%Y-%m'),'mes_label':m['mes'].strftime('%B / %Y').capitalize()} for m in cur.fetchall()]
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
         now_mes = datetime.now().strftime('%Y-%m')
         now_mes_label = datetime.now().strftime('%B / %Y').capitalize()
         ctx = get_ctx()
@@ -1136,7 +1236,7 @@ def nova_venda():
         conn.commit(); flash('Venda registrada!','ok')
     except Exception as e:
         conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('vendas'))
 
 @app.route('/vendas/<int:vid>')
@@ -1159,7 +1259,7 @@ def ficha_venda(vid):
             crediario['parcelas'] = [dict(p) for p in cur.fetchall()]
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u) for u in cur.fetchall()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     ctx = get_ctx(); ctx.update(venda=venda, itens=itens, crediario=crediario, vendedoras=vendedoras)
     return render_template('ficha_venda.html', **ctx)
 
@@ -1182,7 +1282,7 @@ def excluir_venda(vid):
         cur.execute("DELETE FROM vendas WHERE id=%s",(vid,))
         conn.commit(); flash('Venda excluída. Estoque e caixa restaurados.','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('vendas'))
 
 
@@ -1205,7 +1305,7 @@ def editar_venda(vid):
             return redirect(url_for('ficha_venda', vid=vid))
         except Exception as e:
             conn.rollback(); flash(str(e),'erro')
-        finally: cur.close(); conn.close()
+        finally: cur.close(); close_db(conn)
         return redirect(url_for('ficha_venda', vid=vid))
     cur.execute("SELECT * FROM vendas WHERE id=%s",(vid,))
     row = cur.fetchone()
@@ -1215,7 +1315,7 @@ def editar_venda(vid):
     venda = dict(row)
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u)['nome'] for u in cur.fetchall()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     ctx = get_ctx(); ctx.update(venda=venda, vendedoras=vendedoras)
     return render_template('editar_venda.html', **ctx)
 
@@ -1235,7 +1335,7 @@ def ranking_vendedoras():
         FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s
         GROUP BY vendedora_nome ORDER BY total DESC""",(data_inicio, data_fim))
     ranking = [dict(r) for r in cur.fetchall()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     return jsonify({'ranking':ranking})
 
 @app.route('/vendas/buscar-ref')
@@ -1245,7 +1345,7 @@ def buscar_ref():
     busca = ref if ref.startswith('P') else f"P{ref}"
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT id as produto_id,codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE codigo=%s AND ativo=TRUE AND quantidade>0",(busca,))
-    item = cur.fetchone(); cur.close(); conn.close()
+    item = cur.fetchone(); cur.close(); close_db(conn)
     if item: return jsonify({'ok':True,'item':dict(item)})
     return jsonify({'ok':False})
 
@@ -1257,7 +1357,7 @@ def buscar_cliente():
     cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE AND (LOWER(nome) LIKE %s OR codigo ILIKE %s) ORDER BY nome LIMIT 8",
         (f'%{q.lower()}%',f'%{q}%'))
     lista = [dict(c) for c in cur.fetchall()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     return jsonify({'clientes':lista})
 
 # ══════════════ CONDICIONAL / TRANSFERÊNCIA ══════════════
@@ -1294,7 +1394,7 @@ def condicionais():
     historico = [dict(r) for r in cur.fetchall()]
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM condicionais WHERE codigo ~ '^C[0-9]+$'")
     next_n = cur.fetchone()['n'] + 1
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     # ── KPIs / agregações ──
     total_aberto = round(sum(float(c['valor_total'] or 0) for c in abertas), 2)
     n_abertas = len(abertas)
@@ -1362,7 +1462,7 @@ def nova_condicional():
         conn.commit(); flash(f'{rotulo} {cod} registrada! Itens reservados no estoque.', 'ok')
     except Exception as e:
         conn.rollback(); flash(str(e), 'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('condicionais'))
 
 @app.route('/condicionais/<int:cid>')
@@ -1372,7 +1472,7 @@ def ficha_condicional(cid):
     cur.execute("SELECT * FROM condicionais WHERE id=%s", (cid,))
     row = cur.fetchone()
     if not row:
-        flash('Condicional não encontrada.', 'erro'); cur.close(); conn.close()
+        flash('Condicional não encontrada.', 'erro'); cur.close(); close_db(conn)
         return redirect(url_for('condicionais'))
     cond = dict(row)
     cur.execute("SELECT * FROM condicional_itens WHERE condicional_id=%s ORDER BY id", (cid,))
@@ -1387,7 +1487,7 @@ def ficha_condicional(cid):
     if cond.get('venda_id'):
         cur.execute("SELECT codigo FROM vendas WHERE id=%s", (cond['venda_id'],))
         vv = cur.fetchone(); venda = dict(vv) if vv else None
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     cond['dias'] = (date.today() - cond['criado_em'].date()).days
     ctx = get_ctx(); ctx.update(cond=cond, itens=itens, vendedoras=vendedoras,
                                 cliente_cred=cliente_cred, venda=venda)
@@ -1470,9 +1570,9 @@ def gerar_venda_condicional(cid):
         conn.commit(); flash(f'Venda {vcod} gerada da condicional {cond["codigo"]}! Peças não retiradas voltaram ao estoque.', 'ok')
     except Exception as e:
         conn.rollback(); flash(str(e), 'erro')
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
         return redirect(url_for('ficha_condicional', cid=cid))
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     return redirect(url_for('ficha_venda', vid=venda_id))
 
 @app.route('/condicionais/<int:cid>/devolver', methods=['POST'])
@@ -1495,7 +1595,7 @@ def devolver_condicional(cid):
         conn.commit(); flash(f'Condicional {cond["codigo"]} devolvida. Peças retornaram ao estoque.', 'ok')
     except Exception as e:
         conn.rollback(); flash(str(e), 'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('condicionais'))
 
 @app.route('/condicionais/<int:cid>/confirmar-transferencia', methods=['POST'])
@@ -1517,7 +1617,7 @@ def confirmar_transferencia(cid):
         conn.commit(); flash(f'Transferência {cond["codigo"]} confirmada. Peças baixadas (enviadas à {LOJA_TRANSFERENCIA}).', 'ok')
     except Exception as e:
         conn.rollback(); flash(str(e), 'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('condicionais'))
 
 @app.route('/condicionais/<int:cid>/excluir', methods=['POST'])
@@ -1539,7 +1639,7 @@ def excluir_condicional(cid):
         conn.commit(); flash('Condicional excluída.', 'ok')
     except Exception as e:
         conn.rollback(); flash(str(e), 'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('condicionais'))
 
 @app.route('/crediarios')
@@ -1608,7 +1708,7 @@ def crediarios():
     total_aberto = float(cur.fetchone()['t'])
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u) for u in cur.fetchall()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     taxa_vigente = get_taxa_vigente()
     ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras,
         taxa_vigente=taxa_vigente, data_inicio=data_inicio, data_fim=data_fim,
@@ -1647,7 +1747,7 @@ def pagar_parcela(cid, pid):
             (descr,valor_pago,forma_pg,cid,vendedora_nome))
         conn.commit(); flash('Pagamento registrado!','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('crediarios'))
 
 @app.route('/taxas', methods=['GET','POST'])
@@ -1673,7 +1773,7 @@ def taxas():
             flash('Taxas atualizadas com sucesso!','ok')
         except Exception as e:
             conn.rollback(); flash(str(e),'erro')
-        finally: cur.close(); conn.close()
+        finally: cur.close(); close_db(conn)
         return redirect(url_for('taxas'))
     # GET
     taxa_atual = get_taxa_vigente()
@@ -1681,7 +1781,7 @@ def taxas():
                    LEFT JOIN usuarios u ON t.usuario_id=u.id
                    ORDER BY t.vigencia_em DESC LIMIT 20""")
     historico = [dict(r) for r in cur.fetchall()]
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     ctx = get_ctx()
     ctx.update(taxa_atual=taxa_atual, historico=historico, today=str(date.today()))
     return render_template('taxas.html', **ctx)
@@ -1718,7 +1818,7 @@ def caixa():
     entradas_cred_entrada  = float(tots['entradas_cred_entrada'])
     entradas_cred_parcelas = float(tots['entradas_cred_parcelas'])
     entradas_crediarios    = round(entradas_cred_entrada + entradas_cred_parcelas, 2)
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     taxa_vigente_hoje = get_taxa_vigente()
     ctx = get_ctx()
     # Calcular líquido por movimento + desconto por forma E por categoria de crediário
@@ -1801,7 +1901,7 @@ def despesas():
         p['atrasada'] = bool(p['data_vencimento'] and p['data_vencimento'] < hoje)
     total_a_pagar = round(sum(float(p['valor'] or 0) for p in a_pagar), 2)
     n_atrasadas = sum(1 for p in a_pagar if p['atrasada'])
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     # ── Agregações para gráficos (fixa vs avulsa + descrições + categorias) ──
     def _norm_tipo(t):
         return 'fixa' if (t or '').strip().lower() in ('fixa', 'fixo') else 'avulsa'
@@ -1905,7 +2005,7 @@ def nova_despesa():
             flash(f'Despesa registrada como conta a pagar (vence em {venc_fmt}). Marque como paga quando quitar.','ok')
         conn.commit()
     except Exception as e: conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('despesas'))
 
 @app.route('/despesas/<int:did>/parcela/<int:pid>/pagar', methods=['POST'])
@@ -1937,7 +2037,7 @@ def pagar_parcela_despesa(did, pid):
             cur.execute("UPDATE despesas SET status='pago' WHERE id=%s",(did,))
         conn.commit(); flash(f"Parcela {p['numero']} paga e lançada no caixa!",'ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('despesas'))
 
 @app.route('/despesas/<int:did>/excluir', methods=['POST'])
@@ -1952,7 +2052,7 @@ def excluir_despesa(did):
         cur.execute("DELETE FROM despesas WHERE id=%s",(did,))
         conn.commit(); flash('Despesa excluida.','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
-    finally: cur.close(); conn.close()
+    finally: cur.close(); close_db(conn)
     return redirect(url_for('despesas'))
 
 @app.route('/dashboard')
@@ -1991,7 +2091,7 @@ def dashboard_view():
         cur.execute("SELECT COALESCE(AVG(valor_total),0) as t FROM vendas WHERE criado_em>=%s",(mes_ini,))
         ticket_medio = float(cur.fetchone()['t'])
     except: ticket_medio = 0.0
-    cur.close(); conn.close()
+    cur.close(); close_db(conn)
     ctx = get_ctx()
     ctx.update(vendas_dia=vendas_dia, top_produtos=top_produtos, formas_pag=formas_pag,
                vendedoras_rank=vendedoras_rank, fluxo=fluxo,
@@ -2031,14 +2131,14 @@ def limpar_caixa_orfaos():
         conn.rollback()
         return f'Erro: {e}', 500
     finally:
-        cur.close(); conn.close()
+        cur.close(); close_db(conn)
 
 @app.route('/versao')
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v90 — 2026-06-09</b><br>
-    Responsivo: layout corrigido para celular/tablet/notebook — páginas rolam e empilham automaticamente (Visão Geral, Caixa e todas as abas) ✅<br>
+    Versão: <b style='color:green'>v91 — 2026-06-09</b><br>
+    v91: arquitetura endurecida, segurança de deploy, pool de banco, healthcheck e responsividade reforçada ✅<br>
     Despesas: corrigido erro ao salvar sem descrição (campo agora opcional) ✅<br>
     Despesas: sem parcelamento agora pede data de vencimento e vira conta a pagar ✅<br>
     Condicional: transferência também aceita crediário como forma de pagamento ✅<br>

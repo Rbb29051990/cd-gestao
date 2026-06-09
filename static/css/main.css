@@ -264,10 +264,30 @@ body { font-family: 'Outfit', sans-serif; background: var(--cor-secundaria); col
 
   /* Tabelas largas rolam na horizontal dentro do contêiner */
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .table, .vtable, .cd-table, .etable, .rtable, .ce-table { min-width: 560px; }
+  .table, .vtable, .cd-table, .etable, .rtable { min-width: 560px; }
 
   /* Modais ocupam a largura da tela */
   .modal { max-width: 100% !important; padding: 22px 18px !important; }
+
+  /* ── LIBERAR ROLAGEM DA PÁGINA (remove travas de altura/overflow do desktop) ── */
+  .dash-wrap { height: auto !important; min-height: 100vh; }
+  .dash-layout { height: auto !important; }
+  main, .main-content { height: auto !important; overflow: visible !important; }
+  .vg-wrap { height: auto !important; overflow: visible !important; display: block !important; }
+  .vg-wrap .dash-layout { height: auto !important; overflow: visible !important; }
+  .vg-wrap .main-content { height: auto !important; overflow: visible !important; display: block !important; }
+  .ce-card, .ce-table-wrap { overflow: visible !important; }
+  .ce-table-wrap { overflow-x: auto !important; }
+
+  /* ── EMPILHAR OS LAYOUTS FIXOS DE CADA PÁGINA ── */
+  .vg-body { grid-template-columns: 1fr !important; }
+  .mg-grid { grid-template-columns: 1fr 1fr !important; grid-template-rows: auto !important; }
+  .cx-grid { grid-template-columns: 1fr 1fr !important; }
+  .form-grid2, .parcela-row { grid-template-columns: 1fr !important; }
+  .kpi-grid, .charts-grid, .charts-row, .desp-charts, .cred-kpis,
+  .resumo-grid, .rank-grid, .donut-legend { grid-template-columns: 1fr !important; }
+  /* limitar tabelas estreitas internas (não forçar scroll desnecessário) */
+  .ce-table { min-width: 0 !important; }
 }
 @media (max-width: 480px) {
   .card-sm-value { font-size: 24px; }
@@ -277,6 +297,9 @@ body { font-family: 'Outfit', sans-serif; background: var(--cor-secundaria); col
   [style*="repeat(5,1fr)"], [style*="repeat(5, 1fr)"],
   [style*="repeat(4,1fr)"], [style*="repeat(4, 1fr)"],
   [style*="repeat(3,1fr)"], [style*="repeat(3, 1fr)"] { grid-template-columns: 1fr 1fr !important; }
+  /* cards em coluna única no celular para não cortar valores */
+  .mg-grid, .cx-grid { grid-template-columns: 1fr !important; }
+  .pg-opts { grid-template-columns: 1fr 1fr !important; }
 }
 
 /* ─── ALERTAS DE DUPLICIDADE ─── */

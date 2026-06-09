@@ -2037,7 +2037,8 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v89 — 2026-06-08</b><br>
+    Versão: <b style='color:green'>v90 — 2026-06-09</b><br>
+    Responsivo: layout corrigido para celular/tablet/notebook — páginas rolam e empilham automaticamente (Visão Geral, Caixa e todas as abas) ✅<br>
     Despesas: corrigido erro ao salvar sem descrição (campo agora opcional) ✅<br>
     Despesas: sem parcelamento agora pede data de vencimento e vira conta a pagar ✅<br>
     Condicional: transferência também aceita crediário como forma de pagamento ✅<br>

@@ -1,4 +1,9 @@
-# CD Gestão Empresarial — v89
+# CD Gestão Empresarial — v90
+
+## Novidades da v90 (2026-06-09) — Responsivo (celular, tablet e notebook)
+- **Layout corrigido para todos os dispositivos**: o mesmo design funciona em **notebook, tablet e celular**, ajustando-se automaticamente ao tamanho da tela.
+- **Visão Geral (e demais abas) deixaram de cortar o conteúdo**: havia uma trava de altura (`100vh`) que impedia a página de rolar no celular. Agora a página **rola normalmente** e os cards empilham em coluna única quando a tela é estreita.
+- Celular/tablet: menu vira **barra superior rolável**, grids/formulários em **1 coluna**, tabelas largas **rolam na horizontal**, modais ocupam a tela. Notebook: layout completo, como antes.
 
 ## Novidades da v89 (2026-06-08)
 - **Despesas — erro corrigido**: ao marcar despesa (fixa ou avulsa) **sem preencher a descrição**, dava erro de banco. A descrição agora é realmente opcional.

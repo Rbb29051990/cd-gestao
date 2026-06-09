@@ -25,18 +25,28 @@
         <label>Senha</label>
         <div class="password-wrap">
           <input id="senhaLogin" type="password" name="senha" placeholder="••••••••" autocomplete="current-password" required>
-          <button type="button" class="password-toggle" onclick="toggleSenhaLogin()" aria-label="Mostrar ou ocultar senha" title="Mostrar senha">👁️</button>
+          <button type="button" class="password-toggle" onclick="toggleSenhaLogin()" aria-label="Mostrar senha" title="Mostrar senha">
+            <!-- Estado inicial: senha oculta → olho com traço -->
+            <svg id="iconOlho" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"></path>
+              <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path>
+              <line id="iconTraco" x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
         </div>
       </div>
       <script>
         function toggleSenhaLogin(){
           const input = document.getElementById('senhaLogin');
           const btn = document.querySelector('.password-toggle');
-          const showing = input.type === 'text';
-          input.type = showing ? 'password' : 'text';
-          btn.textContent = '👁️';
-          btn.title = showing ? 'Mostrar senha' : 'Ocultar senha';
-          btn.setAttribute('aria-label', showing ? 'Mostrar senha' : 'Ocultar senha');
+          const traco = document.getElementById('iconTraco');
+          const mostrar = input.type === 'password';   // vai passar a mostrar?
+          input.type = mostrar ? 'text' : 'password';
+          // Senha visível → sem traço; senha oculta → com traço
+          traco.style.display = mostrar ? 'none' : '';
+          const label = mostrar ? 'Ocultar senha' : 'Mostrar senha';
+          btn.title = label;
+          btn.setAttribute('aria-label', label);
         }
       </script>
       <button type="submit" class="btn-entrar">Entrar</button>

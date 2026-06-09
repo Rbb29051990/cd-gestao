@@ -1,0 +1,257 @@
+"""Rotas de Vendas: listagem com período, nova venda (com baixa de estoque e
+crediário), ficha, exclusão (restaura estoque/caixa), edição, ranking e buscas."""
+import json
+from datetime import date
+from flask import render_template, request, redirect, url_for, flash, jsonify
+from db import get_db, close_db
+from config import agora_app, hoje_app
+from auth import login_required, get_ctx, pode_excluir
+from utils import parse_brl, bloquear_estoque_negativo, audit_log
+
+
+@login_required
+def vendas():
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT * FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+        vendedoras = [dict(u) for u in cur.fetchall()]
+        cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE ORDER BY nome")
+        clientes_lista = [dict(c) for c in cur.fetchall()]
+        hoje = hoje_app()
+        data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+        data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+        try: date.fromisoformat(data_inicio)
+        except: data_inicio = hoje.strftime('%Y-%m-01')
+        try: date.fromisoformat(data_fim)
+        except: data_fim = hoje.strftime('%Y-%m-%d')
+        cur.execute("""SELECT v.*, COUNT(vi.id) as qtd_itens FROM vendas v
+            LEFT JOIN venda_itens vi ON vi.venda_id=v.id
+            WHERE DATE(v.criado_em) BETWEEN %s AND %s
+            GROUP BY v.id ORDER BY v.criado_em DESC""", (data_inicio, data_fim))
+        lista_vendas = [dict(v) for v in cur.fetchall()]
+        cur.execute("""SELECT c.*,v.criado_em as data_venda FROM crediarios c
+            JOIN vendas v ON v.id=c.venda_id ORDER BY c.criado_em DESC""")
+        lista_crediarios = [dict(c) for c in cur.fetchall()]
+        mes_ini = agora_app().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        cur.execute("""SELECT vendedora_nome,COALESCE(SUM(valor_total),0) as total,
+            COUNT(id) as num_vendas,COUNT(DISTINCT cliente_id) as clientes
+            FROM vendas WHERE criado_em>=%s GROUP BY vendedora_nome ORDER BY total DESC""", (mes_ini,))
+        ranking = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT DISTINCT DATE_TRUNC('month',criado_em) as mes FROM vendas ORDER BY mes DESC")
+        meses = [{'mes_val': m['mes'].strftime('%Y-%m'), 'mes_label': m['mes'].strftime('%B / %Y').capitalize()} for m in cur.fetchall()]
+        cur.close(); close_db(conn)
+        now_mes = agora_app().strftime('%Y-%m')
+        now_mes_label = agora_app().strftime('%B / %Y').capitalize()
+        ctx = get_ctx()
+        ctx.update(vendedoras=vendedoras, clientes=clientes_lista,
+                   lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
+                   ranking=ranking, meses=meses, now_mes=now_mes, now_mes_label=now_mes_label,
+                   data_inicio=data_inicio, data_fim=data_fim)
+        return render_template('vendas.html', **ctx)
+    except Exception as e:
+        return "<pre style='padding:20px'>ERRO VENDAS: " + str(e) + "</pre>", 500
+
+
+@login_required
+def nova_venda():
+    conn = get_db(); cur = conn.cursor()
+    try:
+        usuario_id = request.form.get('usuario_id')
+        vendedora_nome = request.form.get('vendedora_nome', '').strip()
+        cliente_id = request.form.get('cliente_id')
+        cliente_nome = request.form.get('cliente_nome', '').strip()
+        forma = request.form.get('forma_pagamento', '').strip()
+        parcelas = int(request.form.get('parcelas', 1) or 1)
+        valor_total  = parse_brl(request.form.get('valor_total', '0'))
+        desconto     = parse_brl(request.form.get('desconto_valor', '0'))
+        pct_desconto = min(100.0, max(0.0, parse_brl(request.form.get('pct_desconto', '0'))))
+        desconto     = min(desconto, valor_total)  # desconto nunca maior que o total
+        itens = json.loads(request.form.get('itens', '[]'))
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM vendas WHERE codigo ~ '^V[0-9]+$'")
+        n = cur.fetchone()['n']
+        cod = f"V{n+1}"
+        cur.execute("""INSERT INTO vendas (codigo,usuario_id,vendedora_nome,cliente_id,cliente_nome,
+            valor_total,desconto,pct_desconto,forma_pagamento,parcelas) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (cod, usuario_id or None, vendedora_nome, cliente_id or None, cliente_nome, valor_total, desconto, pct_desconto, forma, parcelas))
+        venda_id = cur.fetchone()['id']
+        for item in itens:
+            pid = item.get('produto_id')
+            qtd = int(item.get('quantidade', 1))
+            vunit = float(item.get('valor_unitario', 0))
+            cur.execute("""INSERT INTO venda_itens (venda_id,produto_id,codigo_produto,modelo,
+                descricao,tamanho,valor_unitario,quantidade,valor_total)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (venda_id, pid or None, item.get('codigo'), item.get('modelo'),
+                 item.get('descricao'), item.get('tamanho'), vunit, qtd, vunit * qtd))
+            if pid:
+                bloquear_estoque_negativo(cur, pid, qtd)
+        if forma == 'crediario':
+            entrada = parse_brl(request.form.get('entrada', '0'))
+            saldo = valor_total - entrada
+            cur.execute("""INSERT INTO crediarios (venda_id,cliente_id,cliente_nome,valor_total,entrada,saldo_devedor)
+                VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
+                (venda_id, cliente_id or None, cliente_nome, valor_total, entrada, saldo))
+            cred_id = cur.fetchone()['id']
+            for i, p in enumerate(json.loads(request.form.get('parcelas_datas', '[]'))):
+                cur.execute("INSERT INTO crediario_parcelas (crediario_id,numero_parcela,data_vencimento,valor) VALUES (%s,%s,%s,%s)",
+                    (cred_id, i + 1, p.get('data'), float(p.get('valor', 0))))
+        # Valor final = total - desconto (enviado já calculado pelo JS)
+        valor_final_form = parse_brl(request.form.get('valor_final', '0'))
+        valor_final = valor_final_form if valor_final_form > 0 else round(valor_total - desconto, 2)
+
+        # Registrar no caixa conforme forma de pagamento
+        formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
+        if forma in formas_a_vista:
+            # Entra tudo no caixa no dia
+            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
+                VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
+                (f"Venda {cod} - {cliente_nome}", valor_final, forma, venda_id, usuario_id or None, vendedora_nome))
+        elif forma == 'crediario':
+            # Só registra a entrada paga (se houver) — com a forma de pagamento REAL da entrada
+            if entrada > 0:
+                entrada_forma = request.form.get('entrada_forma', 'dinheiro').strip() or 'dinheiro'
+                if entrada_forma not in formas_a_vista: entrada_forma = 'dinheiro'
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome)
+                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
+                    (f"Entrada crediário - {cliente_nome} ({entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome))
+
+        audit_log(cur, 'CRIAR_VENDA', 'vendas', venda_id, {'codigo': cod, 'cliente': cliente_nome, 'valor_final': valor_final, 'forma_pagamento': forma, 'qtd_itens': len(itens)})
+        conn.commit(); flash('Venda registrada!', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); close_db(conn)
+    return redirect(url_for('vendas'))
+
+
+@login_required
+def ficha_venda(vid):
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT * FROM vendas WHERE id=%s", (vid,))
+    row = cur.fetchone()
+    if not row: flash('Venda nao encontrada.', 'erro'); return redirect(url_for('vendas'))
+    venda = dict(row)
+    cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s", (vid,))
+    itens = [dict(i) for i in cur.fetchall()]
+    crediario = None
+    if venda.get('forma_pagamento') == 'crediario':
+        cur.execute("SELECT * FROM crediarios WHERE venda_id=%s", (vid,))
+        c = cur.fetchone()
+        if c:
+            crediario = dict(c)
+            cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela", (crediario['id'],))
+            crediario['parcelas'] = [dict(p) for p in cur.fetchall()]
+    cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+    vendedoras = [dict(u) for u in cur.fetchall()]
+    cur.close(); close_db(conn)
+    ctx = get_ctx(); ctx.update(venda=venda, itens=itens, crediario=crediario, vendedoras=vendedoras)
+    return render_template('ficha_venda.html', **ctx)
+
+
+@login_required
+def excluir_venda(vid):
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode excluir dados.', 'erro')
+        return redirect(url_for('ficha_venda', vid=vid))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s", (vid,))
+        for item in cur.fetchall():
+            if item['produto_id']:
+                cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s", (item['quantidade'], item['produto_id']))
+        # Remover registros do caixa vinculados a esta venda
+        cur.execute("DELETE FROM caixa WHERE venda_id=%s", (vid,))
+        # Remover crediário vinculado (e suas parcelas)
+        cur.execute("DELETE FROM crediarios WHERE venda_id=%s", (vid,))
+        cur.execute("SELECT codigo,cliente_nome,valor_total,forma_pagamento FROM vendas WHERE id=%s", (vid,))
+        _old_venda = cur.fetchone()
+        cur.execute("DELETE FROM vendas WHERE id=%s", (vid,))
+        audit_log(cur, 'EXCLUIR_VENDA', 'vendas', vid, dict(_old_venda) if _old_venda else None)
+        conn.commit(); flash('Venda excluída. Estoque e caixa restaurados.', 'ok')
+    except Exception as e: conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); close_db(conn)
+    return redirect(url_for('vendas'))
+
+
+@login_required
+def editar_venda(vid):
+    # Edição liberada para quem tem acesso à aba Vendas (vendedor só não pode excluir).
+    conn = get_db(); cur = conn.cursor()
+    if request.method == 'POST':
+        try:
+            cliente_nome = request.form.get('cliente_nome', '').strip()
+            vendedora_nome = request.form.get('vendedora_nome', '').strip()
+            forma_pagamento = request.form.get('forma_pagamento', '')
+            parcelas = int(request.form.get('parcelas', 1) or 1)
+            cur.execute("""UPDATE vendas SET cliente_nome=%s, vendedora_nome=%s,
+                          forma_pagamento=%s, parcelas=%s WHERE id=%s""",
+                       (cliente_nome, vendedora_nome, forma_pagamento, parcelas, vid))
+            conn.commit()
+            flash('Venda atualizada com sucesso!', 'ok')
+            return redirect(url_for('ficha_venda', vid=vid))
+        except Exception as e:
+            conn.rollback(); flash(str(e), 'erro')
+        finally: cur.close(); close_db(conn)
+        return redirect(url_for('ficha_venda', vid=vid))
+    cur.execute("SELECT * FROM vendas WHERE id=%s", (vid,))
+    row = cur.fetchone()
+    if not row:
+        flash('Venda não encontrada.', 'erro')
+        return redirect(url_for('vendas'))
+    venda = dict(row)
+    cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+    vendedoras = [dict(u)['nome'] for u in cur.fetchall()]
+    cur.close(); close_db(conn)
+    ctx = get_ctx(); ctx.update(venda=venda, vendedoras=vendedoras)
+    return render_template('editar_venda.html', **ctx)
+
+
+@login_required
+def ranking_vendedoras():
+    hoje = hoje_app()
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except: data_inicio = hoje.strftime('%Y-%m-01')
+    try: date.fromisoformat(data_fim)
+    except: data_fim = hoje.strftime('%Y-%m-%d')
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("""SELECT vendedora_nome,COALESCE(SUM(valor_total),0) as total,
+        COUNT(id) as num_vendas,COUNT(DISTINCT cliente_id) as clientes
+        FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s
+        GROUP BY vendedora_nome ORDER BY total DESC""", (data_inicio, data_fim))
+    ranking = [dict(r) for r in cur.fetchall()]
+    cur.close(); close_db(conn)
+    return jsonify({'ranking': ranking})
+
+
+@login_required
+def buscar_ref():
+    ref = request.args.get('ref', '').strip().upper()
+    busca = ref if ref.startswith('P') else f"P{ref}"
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id as produto_id,codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE codigo=%s AND ativo=TRUE AND quantidade>0", (busca,))
+    item = cur.fetchone(); cur.close(); close_db(conn)
+    if item: return jsonify({'ok': True, 'item': dict(item)})
+    return jsonify({'ok': False})
+
+
+@login_required
+def buscar_cliente():
+    q = request.args.get('q', '').strip()
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE AND (LOWER(nome) LIKE %s OR codigo ILIKE %s) ORDER BY nome LIMIT 8",
+        (f'%{q.lower()}%', f'%{q}%'))
+    lista = [dict(c) for c in cur.fetchall()]
+    cur.close(); close_db(conn)
+    return jsonify({'clientes': lista})
+
+
+def register(app):
+    app.add_url_rule('/vendas', 'vendas', vendas)
+    app.add_url_rule('/vendas/nova', 'nova_venda', nova_venda, methods=['POST'])
+    app.add_url_rule('/vendas/<int:vid>', 'ficha_venda', ficha_venda)
+    app.add_url_rule('/vendas/<int:vid>/excluir', 'excluir_venda', excluir_venda, methods=['POST'])
+    app.add_url_rule('/vendas/<int:vid>/editar', 'editar_venda', editar_venda, methods=['GET', 'POST'])
+    app.add_url_rule('/vendas/ranking', 'ranking_vendedoras', ranking_vendedoras)
+    app.add_url_rule('/vendas/buscar-ref', 'buscar_ref', buscar_ref)
+    app.add_url_rule('/vendas/buscar-cliente', 'buscar_cliente', buscar_cliente)

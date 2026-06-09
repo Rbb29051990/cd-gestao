@@ -1,0 +1,149 @@
+"""Rotas administrativas/utilitárias: setup (criação de tabelas), reset de
+usuários, healthcheck, página de versão e limpeza de registros órfãos do caixa.
+setup/reset ficam bloqueados em produção, salvo liberação por variável de ambiente."""
+import os
+from flask import jsonify
+from werkzeug.security import generate_password_hash
+from db import get_db, close_db
+from config import is_production
+from auth import login_required, pode_excluir
+from db_init import init_db
+
+
+def healthz():
+    try:
+        conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
+        return jsonify({'status': 'ok', 'version': 'v98'})
+    except Exception as exc:
+        from db import logger
+        logger.exception('Healthcheck falhou')
+        return jsonify({'status': 'erro', 'detail': str(exc)}), 500
+
+
+def setup():
+    if os.environ.get('ALLOW_SETUP') != 'true' and is_production():
+        return 'Setup bloqueado em produção. Defina ALLOW_SETUP=true apenas temporariamente.', 403
+    try:
+        init_db()
+        return "<h2 style='font-family:sans-serif;padding:40px'>SETUP OK! <a href='/'>Login</a></h2>"
+    except Exception as e:
+        return "<pre style='padding:20px'>ERRO: " + str(e) + "</pre>", 500
+
+
+def reset_usuarios():
+    if os.environ.get('ALLOW_RESET_USUARIOS') != 'true':
+        return 'Reset de usuários bloqueado. Defina ALLOW_RESET_USUARIOS=true apenas temporariamente.', 403
+    conn = get_db(); cur = conn.cursor()
+    try:
+        for cod, nome, senha in [('F1', 'Renan Barcellos', 'renan123'), ('F2', 'Carol Duarte', 'carol123')]:
+            h = generate_password_hash(senha)
+            perms = 'visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios,dashboards'
+            cur.execute("SELECT id FROM usuarios WHERE nome=%s OR codigo=%s", (nome, cod))
+            u = cur.fetchone()
+            if u: cur.execute("UPDATE usuarios SET codigo=%s,senha_hash=%s,perfil='admin_n1',permissoes=%s,ativo=TRUE WHERE id=%s", (cod, h, perms, u['id']))
+            else: cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,'admin_n1',%s)", (cod, nome, h, perms))
+        conn.commit()
+        return "<h2 style='font-family:sans-serif;padding:40px'>Usuarios resetados! Renan Barcellos/renan123 Carol Duarte/carol123 <a href='/'>Login</a></h2>"
+    except Exception as e:
+        conn.rollback(); return "<pre>ERRO: " + str(e) + "</pre>"
+    finally: cur.close(); close_db(conn)
+
+
+@login_required
+def limpar_caixa_orfaos():
+    if not pode_excluir():
+        return 'Acesso negado', 403
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Remover registros do caixa cujas vendas não existem mais
+        cur.execute("""DELETE FROM caixa
+                       WHERE venda_id IS NOT NULL
+                       AND venda_id NOT IN (SELECT id FROM vendas)""")
+        removidos = cur.rowcount
+        # Remover crediários órfãos
+        cur.execute("""DELETE FROM crediarios
+                       WHERE venda_id IS NOT NULL
+                       AND venda_id NOT IN (SELECT id FROM vendas)""")
+        cred_removidos = cur.rowcount
+        conn.commit()
+        return f"""<div style='font-family:monospace;padding:40px'>
+        <b>✅ Limpeza concluída!</b><br><br>
+        Registros de caixa removidos: <b>{removidos}</b><br>
+        Crediários órfãos removidos: <b>{cred_removidos}</b><br><br>
+        <a href='/caixa'>← Voltar ao Caixa</a>
+        </div>"""
+    except Exception as e:
+        conn.rollback()
+        return f'Erro: {e}', 500
+    finally:
+        cur.close(); close_db(conn)
+
+
+def versao():
+    return """<div style='font-family:monospace;padding:40px;font-size:18px'>
+    <b>CD Gestão</b><br>
+    Versão: <b style='color:green'>v98 — 2026-06-09</b><br>
+    v98: reorganização interna do código (app.py dividido em módulos: config, db, utils, auth e rotas por área) — mesmo comportamento da v97, manutenção mais fácil ✅<br>
+    v97: segurança, auditoria, bloqueio de rotas de desenvolvimento e estoque protegido contra venda duplicada ✅<br>
+    v96: acabamento profissional de interface, mobile/tablet/notebook, tabelas, modais e usabilidade ✅<br>
+    Despesas: corrigido erro ao salvar sem descrição (campo agora opcional) ✅<br>
+    Despesas: sem parcelamento agora pede data de vencimento e vira conta a pagar ✅<br>
+    Condicional: transferência também aceita crediário como forma de pagamento ✅<br>
+    Responsivo: ERP adaptado para celular e tablet (menu vira barra superior rolável) ✅<br>
+    Caixa: quadrantes de totais mais compactos na altura ✅<br>
+    Menu: botão "Sair" movido para o final do menu lateral (abaixo de Usuários); removido "Minha senha" do topo ✅<br>
+    Avatar: clique para carregar/tirar foto de perfil (ou iniciais do nome); foto também no cadastro de novo usuário ✅<br>
+    Acesso negado: removida a opção de trocar senha da caixa de aviso ✅<br>
+    Usuários (N1): botões de ação padronizados (tamanho uniforme) ✅<br>
+    Ortografia: "vendedora" → "Vendedor (a)" em todo o ERP ✅<br>
+    Condicional: ao finalizar uma transferência também há forma de pagamento (igual condicional) ✅<br>
+    Despesas: máscara do valor corrigida (caixa registradora), sem erro ao digitar ✅<br>
+    Correção: perfil legado "admin" agora é reconhecido como Administrador N1 (acesso total + gestão de usuários) ✅<br>
+    Estoque: "Cadastrar produto" e "Imprimir etiquetas" viraram botões dentro da tela (com voltar) ✅<br>
+    Etiquetas: busca por código do produto + quantidade de etiquetas, montando uma fila ✅<br>
+    Etiquetas: folha A4 retrato configurada — 7 col × 18 lin = 126 (2,5 × 1,5 cm); escolha em qual posição começar para aproveitar 100% de meia folha ✅<br>
+    Usuários: 3 perfis — Administrador N1 (acesso total + exclusão + gestão de usuários), N2 (tudo, edita, mas não exclui/nem gerencia usuários) e Vendedor (abas que o N1 liberar, sem exclusão) ✅<br>
+    Acesso: menu sempre visível; clicar em aba sem permissão mostra aviso de acesso restrito ✅<br>
+    Usuários: vendedor/N2 só trocam a própria senha na aba; só o N1 cadastra/edita perfis e libera abas ✅<br>
+    Exclusão de dados (vendas, despesas, clientes, estoque, condicional...): apenas Administrador N1 ✅<br>
+    Visão Geral: faturamento por forma vem do caixa (crediário já distribuído na forma real recebida) — sem linha de crediário ✅<br>
+    Visão Geral: card Condicional trocou de posição com Crediários ✅<br>
+    Vendas: entrada do crediário pede a forma de pagamento (aplica taxa no caixa, se cartão) ✅<br>
+    Estoque: foto do produto no cadastro (câmera no celular ou arquivo) exibida na ficha ✅<br>
+    Caixa: quadrante de taxas detalha desconto por Vendas / Crediário entrada / Crediário parcelas ✅<br>
+    Condicional: filtro de período no topo, conectado a KPIs, gráficos, abertas e histórico ✅<br>
+    Condicional: nova aba (condicional p/ cliente e transferência p/ CD By Carol Duarte) com reserva de estoque ✅<br>
+    Condicional: gerar venda selecionando o que o cliente ficou (peças não retiradas voltam ao estoque); devolução total; baixa de transferência ✅<br>
+    Condicional: integração total — estoque (reserva), vendas, caixa e crediário (ao gerar venda) e Visão Geral (valor em aberto) ✅<br>
+    Condicional: dashboard com KPIs, donut condicional×transferência, aging (mais tempo) e maiores valores ✅<br>
+    Crediários: dashboard moderno — donut em dia × atraso, distribuição por faixa, top devedores, lista de clientes em atraso ✅<br>
+    Despesas: gráficos (donut fixa/avulsa, % por categoria em cada tipo, por forma de pagamento) ✅<br>
+    Despesas: novo lançamento passo a passo (tipo → categoria com lista/busca/cadastro → descrição → valor → parcelamento até 24x com vencimentos 30/60/90 editáveis → meio de pagamento → origem Caixa/PIX) ✅<br>
+    Despesas: parcelas viram contas a pagar e só entram no caixa quando pagas (Visão Geral conta saída real) ✅<br>
+    Despesas: filtro De/Até + atalhos (Hoje/7dias/Mês) + busca rápida ✅<br>
+    Crediários: busca + filtro De/Até + accordion duplo (cliente→vendas→parcelas) ✅<br>
+    Scroll fixo: Crediários, Caixa, Estoque, Clientes, Despesas (tabela não cresce) ✅<br>
+    Sticky headers: Caixa, Estoque, Clientes, Despesas ✅<br>
+    Crediários: forma de pagamento ao receber parcela (dinheiro/pix/débito/crédito) ✅<br>
+    Crediários: taxas aplicadas automaticamente no caixa (débito/crédito) ✅<br>
+    Crediários: agrupado por cliente com accordion (expandir/recolher vendas) ✅<br>
+    Caixa: ordenação clicável em Data, Tipo, Forma, Vendedora e Líquido ✅<br>
+    Vendas: layout invertido (topo → tabela → ranking embaixo) ✅<br>
+    Vendas: filtros de período integrados — tabela + ranking + resumo sincronizados ✅<br>
+    Vendas: tabela com scroll interno (altura fixa, barra de rolagem) ✅<br>
+    Vendas: ranking sem seletor de mês (usa filtro de período da página) ✅<br>
+    Vendas: botão no topo + resumo + busca + ordenação clicável + donut ✅<br>
+    Visão Geral: layout corrigido (sidebar + conteúdo lado a lado) ✅<br>
+    Visão Geral: tudo em uma página sem scroll ✅<br>
+    Caixa: taxas descontadas detalhadas por forma de pagamento ✅<br>
+    <br><span style='color:#888;font-size:14px'>Correções da v61 (estoque, taxas, rotas, fichas) incluídas.</span><br>
+    <br><a href='/'>← Voltar</a>
+    </div>"""
+
+
+def register(app):
+    app.add_url_rule('/healthz', 'healthz', healthz)
+    app.add_url_rule('/setup', 'setup', setup)
+    app.add_url_rule('/reset-usuarios', 'reset_usuarios', reset_usuarios)
+    app.add_url_rule('/admin/limpar-caixa-orfaos', 'limpar_caixa_orfaos', limpar_caixa_orfaos)
+    app.add_url_rule('/versao', 'versao', versao)

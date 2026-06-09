@@ -1,3 +1,18 @@
+# CD Gestão Empresarial — v98
+
+## Novidades da v98 (2026-06-09) — Reorganização interna do código (sem mudança de comportamento)
+- **`app.py` dividido em módulos** para manutenção mais fácil e rápida. O comportamento é **idêntico ao da v97** — nenhuma tela, rota ou regra mudou.
+- **Nova estrutura:**
+  - `config.py` — variáveis de ambiente, fuso horário e identidade visual.
+  - `db.py` — pool de conexões PostgreSQL e helpers de conexão/cursor.
+  - `utils.py` — funções compartilhadas (valores BRL, taxas/líquido, auditoria, baixa de estoque).
+  - `auth.py` — perfis, permissões, controle de acesso por aba e contexto de template.
+  - `db_init.py` — criação de tabelas, migrações, índices e seeds.
+  - `routes/` — uma área de negócio por arquivo (vendas, caixa, estoque, crediários, despesas, condicionais, clientes, usuários, dashboards, taxas, visão geral, admin).
+  - `app.py` — só monta o app, registra os handlers e as rotas, e inicializa o banco.
+- **Endpoints e URLs preservados**: todos os links e formulários continuam funcionando sem alteração nos templates.
+- **Por que isso ajuda**: a partir de agora, uma correção em uma área (ex: Vendas) mexe só no arquivo daquela área, sem precisar abrir o arquivo gigante inteiro.
+
 # CD Gestão Empresarial — v97
 
 ## Novidades da v97 (2026-06-08) — Segurança, Auditoria e Estoque Seguro

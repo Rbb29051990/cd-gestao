@@ -1,0 +1,121 @@
+"""Rotas de Crediários: dashboard agrupado por cliente (em dia × atraso, faixas,
+top devedores) e pagamento de parcela com forma de pagamento real no caixa."""
+import math
+from collections import OrderedDict
+from flask import render_template, request, redirect, url_for, flash
+from db import get_db, close_db
+from config import hoje_app
+from auth import login_required, get_ctx
+from utils import get_taxa_vigente
+
+
+@login_required
+def crediarios():
+    data_inicio = request.args.get('data_inicio', '')
+    data_fim = request.args.get('data_fim', '')
+    conn = get_db(); cur = conn.cursor()
+    if data_inicio and data_fim:
+        cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda
+            FROM crediarios c JOIN vendas v ON v.id=c.venda_id
+            WHERE DATE(v.criado_em) BETWEEN %s AND %s
+            ORDER BY c.status,c.criado_em DESC""", (data_inicio, data_fim))
+    else:
+        cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda
+            FROM crediarios c JOIN vendas v ON v.id=c.venda_id ORDER BY c.status,c.criado_em DESC""")
+    raw = [dict(c) for c in cur.fetchall()]
+    for c in raw:
+        cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela", (c['id'],))
+        c['parcelas'] = [dict(p) for p in cur.fetchall()]
+    # Agrupar por cliente
+    agrupado = OrderedDict()
+    for c in raw:
+        nome = c['cliente_nome']
+        if nome not in agrupado:
+            agrupado[nome] = {'cliente_nome': nome, 'vendas': [], 'total': 0, 'pago': 0, 'saldo': 0}
+        agrupado[nome]['vendas'].append(c)
+        agrupado[nome]['total'] += float(c['valor_total'])
+        agrupado[nome]['pago']  += float(c['valor_total']) - float(c['saldo_devedor'])
+        agrupado[nome]['saldo'] += float(c['saldo_devedor'])
+    clientes = list(agrupado.values())
+    # ── Análise de atraso e distribuição por cliente (para os gráficos) ──
+    hoje = hoje_app()
+    for cli in clientes:
+        atraso_val = 0.0; atraso_qtd = 0; dias_max = 0; prox_venc = None
+        for c in cli['vendas']:
+            for p in c['parcelas']:
+                if not p.get('pago'):
+                    venc = p.get('data_vencimento')
+                    if venc and venc < hoje:
+                        atraso_val += float(p['valor'] or 0); atraso_qtd += 1
+                        dias_max = max(dias_max, (hoje - venc).days)
+                    elif venc and (prox_venc is None or venc < prox_venc):
+                        prox_venc = venc
+        cli['atraso_valor'] = round(atraso_val, 2)
+        cli['atraso_qtd'] = atraso_qtd
+        cli['dias_atraso'] = dias_max
+        cli['em_atraso'] = atraso_val > 0
+        cli['prox_venc'] = prox_venc
+    clientes_abertos = [c for c in clientes if c['saldo'] > 0.01]
+    clientes_atraso = sorted([c for c in clientes_abertos if c['em_atraso']],
+                             key=lambda c: c['atraso_valor'], reverse=True)
+    top_devedores = sorted(clientes_abertos, key=lambda c: c['saldo'], reverse=True)[:8]
+    valor_atraso = round(sum(c['atraso_valor'] for c in clientes_atraso), 2)
+    valor_em_dia = round(sum(c['saldo'] for c in clientes_abertos) - valor_atraso, 2)
+    # Faixas de valor em aberto (distribuição de clientes)
+    faixas = [('Até R$ 200', 0, 200), ('R$ 200–500', 200, 500),
+              ('R$ 500–1.000', 500, 1000), ('Acima de R$ 1.000', 1000, float('inf'))]
+    faixas_dist = []
+    for lbl, lo, hi in faixas:
+        grp = [c for c in clientes_abertos if lo < c['saldo'] <= hi]
+        faixas_dist.append({'label': lbl, 'qtd': len(grp),
+                            'valor': round(sum(c['saldo'] for c in grp), 2)})
+    cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as t FROM crediarios WHERE status='aberto'")
+    total_aberto = float(cur.fetchone()['t'])
+    cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
+    vendedoras = [dict(u) for u in cur.fetchall()]
+    cur.close(); close_db(conn)
+    taxa_vigente = get_taxa_vigente()
+    ctx = get_ctx(); ctx.update(clientes=clientes, total_aberto=total_aberto, vendedoras=vendedoras,
+        taxa_vigente=taxa_vigente, data_inicio=data_inicio, data_fim=data_fim,
+        n_abertos=len(clientes_abertos), n_atraso=len(clientes_atraso),
+        valor_atraso=valor_atraso, valor_em_dia=valor_em_dia,
+        clientes_atraso=clientes_atraso, top_devedores=top_devedores, faixas_dist=faixas_dist)
+    return render_template('crediarios.html', **ctx)
+
+
+@login_required
+def pagar_parcela(cid, pid):
+    vendedora_nome = request.form.get('vendedora_nome', '').strip()
+    valor_pago = float(request.form.get('valor_pago', 0) or 0)
+    forma_pg = request.form.get('forma_pagamento', 'dinheiro').strip()
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM crediarios WHERE id=%s", (cid,))
+        cred = dict(cur.fetchone())
+        cur.execute("UPDATE crediario_parcelas SET pago=TRUE,valor=%s,data_pagamento=CURRENT_DATE WHERE id=%s", (valor_pago, pid))
+        novo_saldo = round(float(cred['saldo_devedor']) - valor_pago, 2)
+        if novo_saldo <= 0.01:
+            cur.execute("DELETE FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE", (cid,))
+            cur.execute("UPDATE crediarios SET saldo_devedor=0,status='quitado' WHERE id=%s", (cid,))
+        else:
+            cur.execute("SELECT id FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE ORDER BY numero_parcela", (cid,))
+            rest = cur.fetchall()
+            if rest:
+                vp = math.ceil((novo_saldo / len(rest)) * 100) / 100
+                for i, p in enumerate(rest):
+                    v = round(novo_saldo - vp * (len(rest) - 1), 2) if i == len(rest) - 1 else vp
+                    cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (v, p['id']))
+            cur.execute("UPDATE crediarios SET saldo_devedor=%s WHERE id=%s", (novo_saldo, cid))
+        # Gravar no caixa com a forma de pagamento real (para taxas serem aplicadas corretamente)
+        descr = f"Crediário - {cred['cliente_nome']} ({forma_pg.replace('_',' ')})"
+        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,vendedora_nome) VALUES (%s,%s,'entrada',%s,%s,%s)",
+            (descr, valor_pago, forma_pg, cid, vendedora_nome))
+        conn.commit(); flash('Pagamento registrado!', 'ok')
+    except Exception as e: conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); close_db(conn)
+    return redirect(url_for('crediarios'))
+
+
+def register(app):
+    app.add_url_rule('/crediarios', 'crediarios', crediarios)
+    app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/pagar', 'pagar_parcela', pagar_parcela, methods=['POST'])

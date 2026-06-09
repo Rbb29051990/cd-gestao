@@ -232,8 +232,10 @@
               <td>
                 {% if d.parcelado %}
                   <span class="sit-badge {% if d.parc_pagas == d.num_parcelas %}sit-pago{% else %}sit-pend{% endif %}">{{ d.parc_pagas }}/{{ d.num_parcelas }} pagas</span>
+                {% elif d.status == 'pendente' %}
+                  <span class="sit-badge sit-pend">A pagar{% if d.data_vencimento %} · {{ d.data_vencimento.strftime('%d/%m') }}{% endif %}</span>
                 {% else %}
-                  <span class="sit-badge sit-pago">À vista</span>
+                  <span class="sit-badge sit-pago">Pago</span>
                 {% endif %}
               </td>
               <td>{{ d.forma_pagamento or '—' }}</td>
@@ -306,8 +308,15 @@
       <!-- 5. PARCELAMENTO -->
       <div class="step-sep"><span class="stn">5</span> Tem parcelamento?</div>
       <div class="seg">
-        <label class="seg-opt" id="parcNao" onclick="selParc('nao')"><input type="radio" name="parc_opt" value="nao" checked>Não</label>
-        <label class="seg-opt sel" id="parcSim" onclick="selParc('sim')"><input type="radio" name="parc_opt" value="sim">Sim</label>
+        <label class="seg-opt sel" id="parcNao" onclick="selParc('nao')"><input type="radio" name="parc_opt" value="nao" checked>Não</label>
+        <label class="seg-opt" id="parcSim" onclick="selParc('sim')"><input type="radio" name="parc_opt" value="sim">Sim</label>
+      </div>
+      <div id="secVencUnico" style="margin-top:12px">
+        <div class="form-field" style="margin:0">
+          <label class="form-label">Data de vencimento *</label>
+          <input class="form-input" type="date" name="data_vencimento_unica" id="vencUnico" style="width:200px">
+          <div style="font-size:11px;color:#aaa;margin-top:4px">Entra como conta a pagar e só sai do caixa quando você marcar como paga.</div>
+        </div>
       </div>
       <div id="secParcelas" style="display:none;margin-top:12px">
         <div class="form-field" style="margin:0 0 10px">
@@ -359,6 +368,7 @@
 </div>
 <script>
 document.querySelector('[name="data_despesa"]').value = new Date().toISOString().split('T')[0];
+(function(){ var vu=document.getElementById('vencUnico'); if(vu) vu.value = new Date().toISOString().split('T')[0]; })();
 
 function selTipo(t){
   const f=document.getElementById('optFixa'), a=document.getElementById('optAvulsa');
@@ -372,9 +382,11 @@ function selParc(v){
   nao.classList.remove('sel'); sim.classList.remove('sel');
   document.getElementById('parceladoHidden').value = v;
   if(v==='sim'){ sim.classList.add('sel'); sim.querySelector('input').checked=true;
-    document.getElementById('secParcelas').style.display='block'; gerarParcelasDesp(); }
+    document.getElementById('secParcelas').style.display='block';
+    document.getElementById('secVencUnico').style.display='none'; gerarParcelasDesp(); }
   else { nao.classList.add('sel'); nao.querySelector('input').checked=true;
-    document.getElementById('secParcelas').style.display='none'; }
+    document.getElementById('secParcelas').style.display='none';
+    document.getElementById('secVencUnico').style.display='block'; }
 }
 
 function selLocal(v){

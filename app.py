@@ -217,6 +217,8 @@ def init_db():
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS local_retirada VARCHAR(20)",
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS obs_retirada TEXT",
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS status VARCHAR(12) DEFAULT 'pago'",
+        "ALTER TABLE despesas ALTER COLUMN descricao DROP NOT NULL",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS data_vencimento DATE",
     ]
     for sql in migracoes:
         try:
@@ -456,13 +458,14 @@ def visao_geral():
         val_condicional = round(float(rc['v']), 2); n_condicional = int(rc['n'])
     except: val_condicional = 0.0; n_condicional = 0
     # Despesas do período = saída REAL de caixa:
-    #   • despesas à vista (não parceladas) pela data de lançamento
-    #   • parcelas de despesas parceladas somente quando pagas (pela data de pagamento)
+    #   • despesas à vista antigas (sem nenhuma parcela) pela data de lançamento
+    #   • qualquer parcela (1x ou Nx) somente quando paga (pela data de pagamento)
     try:
         cur.execute("""SELECT
-            COALESCE((SELECT SUM(valor) FROM despesas
-                      WHERE COALESCE(parcelado,FALSE)=FALSE
-                        AND DATE(criado_em) BETWEEN %s AND %s),0)
+            COALESCE((SELECT SUM(valor) FROM despesas d
+                      WHERE COALESCE(d.parcelado,FALSE)=FALSE
+                        AND NOT EXISTS (SELECT 1 FROM despesa_parcelas p WHERE p.despesa_id=d.id)
+                        AND DATE(d.criado_em) BETWEEN %s AND %s),0)
           + COALESCE((SELECT SUM(valor) FROM despesa_parcelas
                       WHERE pago=TRUE AND data_pagamento BETWEEN %s AND %s),0) as v""",
             (data_inicio, data_fim, data_inicio, data_fim))
@@ -1858,6 +1861,8 @@ def nova_despesa():
     if not parcelado or num_parc < 2:
         parcelado = False; num_parc = 1
     num_parc = min(max(num_parc, 1), 24)
+    # Vencimento (despesa sem parcelamento = 1 conta a pagar)
+    venc_unico = request.form.get('data_vencimento_unica') or date.today().isoformat()
     # Rótulo da despesa para histórico (categoria + descrição livre)
     rotulo = categoria or descricao or 'Despesa'
     if categoria and descricao:
@@ -1866,14 +1871,16 @@ def nova_despesa():
         # Persistir categoria nova, se digitada
         if categoria:
             cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING",(categoria,))
-        status = 'pendente' if parcelado else 'pago'
+        # Tanto parcelada quanto não-parcelada entram como conta(s) a pagar (pendente)
+        status = 'pendente'
+        data_venc_desp = None if parcelado else venc_unico
         cur.execute("""INSERT INTO despesas
             (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,
-             parcelado,num_parcelas,local_retirada,obs_retirada,status,usuario_id,usuario_nome)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+             parcelado,num_parcelas,local_retirada,obs_retirada,status,data_vencimento,usuario_id,usuario_nome)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (f"D{n+1}",descricao or None,categoria or None,valor,
              request.form.get('data_despesa') or date.today().isoformat(),
-             forma or None,tipo,parcelado,num_parc,local_ret,obs_ret,status,
+             forma or None,tipo,parcelado,num_parc,local_ret,obs_ret,status,data_venc_desp,
              session['uid'],session['nome']))
         desp_id = cur.fetchone()['id']
         if parcelado:
@@ -1890,11 +1897,12 @@ def nova_despesa():
                     VALUES (%s,%s,%s,%s)""",(desp_id,i,pvf,pd))
             flash(f'Despesa parcelada em {num_parc}x registrada! As parcelas entram no caixa conforme você as paga.','ok')
         else:
-            # À vista: sai do caixa agora
-            descr_caixa = f"Despesa: {rotulo}" + (f" [{local_ret}]" if local_ret else "")
-            cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,despesa_id,usuario_id,vendedora_nome) VALUES (%s,%s,'saida',%s,%s,%s,%s)",
-                (descr_caixa,valor,forma or None,desp_id,session['uid'],session['nome']))
-            flash('Despesa registrada!','ok')
+            # Sem parcelamento = 1 conta a pagar com vencimento (só entra no caixa quando paga)
+            cur.execute("""INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento)
+                VALUES (%s,1,%s,%s)""",(desp_id,valor,venc_unico))
+            try: venc_fmt = datetime.fromisoformat(venc_unico).strftime('%d/%m/%Y')
+            except Exception: venc_fmt = venc_unico
+            flash(f'Despesa registrada como conta a pagar (vence em {venc_fmt}). Marque como paga quando quitar.','ok')
         conn.commit()
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); conn.close()
@@ -2029,7 +2037,12 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v88 — 2026-06-08</b><br>
+    Versão: <b style='color:green'>v89 — 2026-06-08</b><br>
+    Despesas: corrigido erro ao salvar sem descrição (campo agora opcional) ✅<br>
+    Despesas: sem parcelamento agora pede data de vencimento e vira conta a pagar ✅<br>
+    Condicional: transferência também aceita crediário como forma de pagamento ✅<br>
+    Responsivo: ERP adaptado para celular e tablet (menu vira barra superior rolável) ✅<br>
+    Caixa: quadrantes de totais mais compactos na altura ✅<br>
     Menu: botão "Sair" movido para o final do menu lateral (abaixo de Usuários); removido "Minha senha" do topo ✅<br>
     Avatar: clique para carregar/tirar foto de perfil (ou iniciais do nome); foto também no cadastro de novo usuário ✅<br>
     Acesso negado: removida a opção de trocar senha da caixa de aviso ✅<br>

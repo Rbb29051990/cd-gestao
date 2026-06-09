@@ -1,4 +1,11 @@
-# CD Gestão Empresarial — v88
+# CD Gestão Empresarial — v89
+
+## Novidades da v89 (2026-06-08)
+- **Despesas — erro corrigido**: ao marcar despesa (fixa ou avulsa) **sem preencher a descrição**, dava erro de banco. A descrição agora é realmente opcional.
+- **Despesas — vencimento sem parcelamento**: ao escolher **"Não" no parcelamento**, aparece o campo **Data de vencimento**. A despesa entra como **conta a pagar** e **só sai do caixa quando você marca como paga** — útil para contas fixas com vencimento.
+- **Condicional / Transferência**: ao finalizar uma **transferência**, o **crediário** também aparece como forma de pagamento.
+- **Responsivo (celular e tablet)**: no celular/tablet o **menu lateral vira uma barra superior rolável**, formulários/grids ficam em coluna única, tabelas rolam na horizontal e modais ocupam a tela — sem ficar desconfigurado.
+- **Caixa — quadrantes mais justos**: os cards de totais ficaram **mais compactos na altura**.
 
 ## Novidades da v88 (2026-06-08)
 - **Menu lateral**: o botão **Sair** saiu do topo e agora fica no **final do menu**, logo abaixo de Usuários, com o mesmo visual moderno do menu (em vermelho).

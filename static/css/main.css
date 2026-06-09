@@ -221,23 +221,62 @@ body { font-family: 'Outfit', sans-serif; background: var(--cor-secundaria); col
 .btn-cancelar2 { padding: 13px 24px; border: 1.5px solid var(--cor-borda); color: #888; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 8px; display: inline-block; cursor: pointer; background: #fff; font-family: 'Outfit', sans-serif; }
 
 /* ─── RESPONSIVO ─── */
-@media (max-width: 768px) {
+/* ═══════════ RESPONSIVO — celular e tablet ═══════════ */
+@media (max-width: 860px) {
   .login-wrap { grid-template-columns: 1fr; }
   .login-left { display: none; }
   .login-right { padding: 40px 24px; }
+
+  /* Layout em coluna única; o menu lateral vira uma BARRA superior rolável */
   .dash-layout { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
-  .main-content { padding: 20px 16px; }
-  .dash-grid { grid-template-columns: 1fr; }
-  .topbar { padding: 0 16px; }
-  .page-title { font-size: 24px; }
-  .ficha-grid { grid-template-columns: 1fr; }
-  .form-grid { grid-template-columns: 1fr; }
+  .sidebar {
+    display: flex; flex-direction: row; align-items: stretch;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    border-right: none; border-bottom: 1.5px solid var(--cor-borda);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    padding: 6px 8px; gap: 2px;
+  }
+  .sidebar::-webkit-scrollbar { height: 4px; }
+  .nav-section { display: flex; flex-direction: row; margin: 0; gap: 2px; }
+  .nav-label { display: none; }
+  .nav-item {
+    flex-direction: column; align-items: center; gap: 3px;
+    border-left: none; border-bottom: 3px solid transparent;
+    padding: 7px 11px; font-size: 10.5px; white-space: nowrap; flex-shrink: 0;
+  }
+  .nav-item.active { border-left: none; border-bottom-color: var(--cor-primaria); background: transparent; color: var(--cor-texto); }
+  .nav-sair { margin-top: 0; padding-top: 7px; border-top: none; }
+
+  .main-content { padding: 18px 14px; }
+  .topbar { padding: 0 14px; }
+  .topbar-user { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .page-title { font-size: 22px; }
+
+  /* Grids e formulários em coluna única */
+  .dash-grid, .ficha-grid, .form-grid, .form-grid2 { grid-template-columns: 1fr; }
   .form-field.span2 { grid-column: span 1; }
+  .pg-opts { grid-template-columns: repeat(2,1fr); }
+
+  /* Grids inline de 3/4/5 colunas viram 2 colunas */
+  [style*="repeat(5,1fr)"], [style*="repeat(5, 1fr)"],
+  [style*="repeat(4,1fr)"], [style*="repeat(4, 1fr)"],
+  [style*="repeat(3,1fr)"], [style*="repeat(3, 1fr)"] { grid-template-columns: repeat(2,1fr) !important; }
+
+  /* Tabelas largas rolam na horizontal dentro do contêiner */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table, .vtable, .cd-table, .etable, .rtable, .ce-table { min-width: 560px; }
+
+  /* Modais ocupam a largura da tela */
+  .modal { max-width: 100% !important; padding: 22px 18px !important; }
 }
 @media (max-width: 480px) {
   .card-sm-value { font-size: 24px; }
   .fat-total-value { font-size: 24px; }
+  .topbar-user { display: none; }
+  .nav-item { font-size: 10px; padding: 6px 9px; }
+  [style*="repeat(5,1fr)"], [style*="repeat(5, 1fr)"],
+  [style*="repeat(4,1fr)"], [style*="repeat(4, 1fr)"],
+  [style*="repeat(3,1fr)"], [style*="repeat(3, 1fr)"] { grid-template-columns: 1fr 1fr !important; }
 }
 
 /* ─── ALERTAS DE DUPLICIDADE ─── */

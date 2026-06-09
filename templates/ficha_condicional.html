@@ -132,7 +132,7 @@
             <button type="button" class="pg-opt" onclick="selPg('credito_vista',this)">💳 Créd. à vista</button>
             <button type="button" class="pg-opt" onclick="selPg('credito_parcelado',this)">💳 Créd. parc.</button>
             <button type="button" class="pg-opt" onclick="selPg('link',this)">🔗 Link</button>
-            {% if cliente_cred %}<button type="button" class="pg-opt" onclick="selPg('crediario',this)">📋 Crediário</button>{% endif %}
+            {% if cliente_cred or cond.tipo == 'transferencia' %}<button type="button" class="pg-opt" onclick="selPg('crediario',this)">📋 Crediário</button>{% endif %}
           </div>
 
           <!-- Desconto (pix/dinheiro) -->

@@ -6,6 +6,12 @@
 .sortable.asc::after{content:'↑';color:#1a1a2e}
 .sortable.desc::after{content:'↓';color:#1a1a2e}
 .table thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+/* Quadrantes do caixa mais compactos (não esticam à altura do mais alto) */
+.cx-grid{align-items:start}
+.cx-grid > div{padding:12px 14px!important}
+.cx-grid > div > div:first-child{margin-bottom:4px!important}
+.cx-grid > div > div:nth-child(2){font-size:18px!important}
+.cx-grid > div > div:nth-child(3){margin-top:7px!important;padding-top:7px!important;gap:3px!important}
 </style>
 <div class="dash-wrap">
   <div class="topbar">
@@ -65,7 +71,7 @@
       </div>
 
       <!-- CARDS — NOVA ORDEM -->
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px">
+      <div class="cx-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px">
 
         <!-- 1. TOTAL ENTRADAS -->
         <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:20px 24px;box-shadow:0 4px 14px rgba(0,0,0,0.05);border-top:3px solid #2e7d32">

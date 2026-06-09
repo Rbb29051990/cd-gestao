@@ -185,6 +185,16 @@ def editar_venda(vid):
             cur.execute("""UPDATE vendas SET cliente_nome=%s, vendedora_nome=%s,
                           forma_pagamento=%s, parcelas=%s WHERE id=%s""",
                        (cliente_nome, vendedora_nome, forma_pagamento, parcelas, vid))
+            # Sincroniza a forma no Caixa (e, por consequência, na Visão Geral).
+            # Atualiza só a entrada à-vista desta venda — não mexe na entrada/parcelas
+            # de crediário (que têm a própria forma de pagamento).
+            formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
+            if forma_pagamento in formas_a_vista:
+                cur.execute("""UPDATE caixa SET forma_pagamento=%s
+                               WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada'""",
+                            (forma_pagamento, vid))
+            audit_log(cur, 'ALTERAR_VENDA', 'vendas', vid,
+                      {'forma_pagamento': forma_pagamento, 'cliente': cliente_nome})
             conn.commit()
             flash('Venda atualizada com sucesso!', 'ok')
             return redirect(url_for('ficha_venda', vid=vid))

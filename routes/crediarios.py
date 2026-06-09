@@ -108,10 +108,43 @@ def pagar_parcela(cid, pid):
             cur.execute("UPDATE crediarios SET saldo_devedor=%s WHERE id=%s", (novo_saldo, cid))
         # Gravar no caixa com a forma de pagamento real (para taxas serem aplicadas corretamente)
         descr = f"Crediário - {cred['cliente_nome']} ({forma_pg.replace('_',' ')})"
-        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,vendedora_nome) VALUES (%s,%s,'entrada',%s,%s,%s)",
-            (descr, valor_pago, forma_pg, cid, vendedora_nome))
+        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,parcela_id,vendedora_nome) VALUES (%s,%s,'entrada',%s,%s,%s,%s)",
+            (descr, valor_pago, forma_pg, cid, pid, vendedora_nome))
         conn.commit(); flash('Pagamento registrado!', 'ok')
     except Exception as e: conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); close_db(conn)
+    return redirect(url_for('crediarios'))
+
+
+@login_required
+def corrigir_forma_parcela(cid, pid):
+    """Corrige a forma de pagamento de uma parcela JÁ recebida, atualizando o
+    lançamento no caixa (e, por consequência, a Visão Geral). Não muda o valor."""
+    forma = request.form.get('forma_pagamento', '').strip()
+    formas_validas = ['dinheiro', 'pix', 'debito', 'credito_vista', 'credito_parcelado', 'link']
+    if forma not in formas_validas:
+        flash('Forma de pagamento inválida.', 'erro'); return redirect(url_for('crediarios'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Caminho normal: lançamento marcado com este parcela_id
+        cur.execute("""UPDATE caixa SET forma_pagamento=%s
+                       WHERE crediario_id=%s AND parcela_id=%s AND venda_id IS NULL""",
+                    (forma, cid, pid))
+        if cur.rowcount == 0:
+            # Legado: pagamentos antigos não gravavam parcela_id — corrige a entrada
+            # de parcela mais recente do crediário que ainda não tem parcela_id.
+            cur.execute("""UPDATE caixa SET forma_pagamento=%s
+                           WHERE id = (SELECT id FROM caixa
+                                       WHERE crediario_id=%s AND venda_id IS NULL AND parcela_id IS NULL
+                                       ORDER BY criado_em DESC LIMIT 1)""",
+                        (forma, cid))
+        if cur.rowcount == 0:
+            flash('Não encontrei o lançamento desta parcela no caixa para corrigir.', 'erro')
+        else:
+            flash('Forma de pagamento da parcela corrigida no caixa!', 'ok')
+        conn.commit()
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
     finally: cur.close(); close_db(conn)
     return redirect(url_for('crediarios'))
 
@@ -119,3 +152,4 @@ def pagar_parcela(cid, pid):
 def register(app):
     app.add_url_rule('/crediarios', 'crediarios', crediarios)
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/pagar', 'pagar_parcela', pagar_parcela, methods=['POST'])
+    app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/corrigir-forma', 'corrigir_forma_parcela', corrigir_forma_parcela, methods=['POST'])

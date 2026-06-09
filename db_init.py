@@ -166,6 +166,7 @@ def init_db():
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS data_vencimento DATE",
         "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS ip VARCHAR(80)",
         "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS user_agent TEXT",
+        "ALTER TABLE caixa ADD COLUMN IF NOT EXISTS parcela_id INTEGER",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em ON auditoria (criado_em DESC)",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_tabela_registro ON auditoria (tabela, registro_id)",
         "CREATE INDEX IF NOT EXISTS idx_estoque_codigo ON estoque (codigo)",

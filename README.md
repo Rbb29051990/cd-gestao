@@ -13,6 +13,10 @@
 - **Endpoints e URLs preservados**: todos os links e formulários continuam funcionando sem alteração nos templates.
 - **Por que isso ajuda**: a partir de agora, uma correção em uma área (ex: Vendas) mexe só no arquivo daquela área, sem precisar abrir o arquivo gigante inteiro.
 
+### Correções incluídas na v98
+- **Editar forma de pagamento de uma venda agora reflete no Caixa e na Visão Geral.** Antes, a edição mudava só o registro da venda; o lançamento no caixa mantinha a forma antiga, então os relatórios não acompanhavam. Agora a entrada à-vista da venda no caixa é atualizada junto (as taxas de cartão são recalculadas automaticamente).
+- **Corrigir a forma de pagamento de uma parcela de crediário já recebida.** Novo botão **"✏️ Forma"** ao lado das parcelas pagas: abre uma janelinha para escolher a forma correta, que atualiza o lançamento no Caixa (e a Visão Geral). O valor recebido não muda. Para isso, o caixa passou a registrar de qual parcela veio cada recebimento (coluna `parcela_id`); pagamentos antigos são corrigidos pela entrada mais recente daquele crediário.
+
 # CD Gestão Empresarial — v97
 
 ## Novidades da v97 (2026-06-08) — Segurança, Auditoria e Estoque Seguro

@@ -236,7 +236,8 @@
                   {% if not p.pago %}
                   <button onclick="event.stopPropagation();abrirPagamento({{ c.id }},{{ p.id }},'{{ p.data_vencimento.strftime('%d/%m/%Y') }}',{{ p.valor }})"
                     style="padding:6px 12px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">💰 Receber</button>
-                  {% else %}<span style="font-size:11px;font-weight:700;color:#2e7d32">✅ Pago</span>{% endif %}
+                  {% else %}<span style="font-size:11px;font-weight:700;color:#2e7d32">✅ Pago</span>
+                  <button onclick="event.stopPropagation();abrirCorrigirForma({{ c.id }},{{ p.id }})" title="Corrigir a forma de pagamento desta parcela no caixa" style="padding:5px 10px;background:#fff;color:#5b6175;border:1.5px solid #e0e0e8;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✏️ Forma</button>{% endif %}
                 </div>
               </div>
               {% endfor %}
@@ -297,6 +298,32 @@
       <div class="modal-footer">
         <button type="button" class="btn-cancelar" onclick="document.getElementById('modalPagamento').style.display='none'">Cancelar</button>
         <button type="submit" class="btn-salvar" style="background:#2e7d32">✅ Confirmar recebimento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL CORRIGIR FORMA DE PARCELA RECEBIDA -->
+<div class="modal-overlay" id="modalCorrigirForma" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <button class="modal-close" onclick="document.getElementById('modalCorrigirForma').style.display='none'">✕</button>
+    <div class="modal-title">Corrigir forma de pagamento</div>
+    <div class="modal-sub">Ajusta a forma desta parcela já recebida e atualiza o Caixa e a Visão Geral. O valor recebido não muda.</div>
+    <form method="POST" id="formCorrigirForma">
+      <div class="form-field">
+        <label class="form-label">Forma de pagamento correta</label>
+        <select name="forma_pagamento" class="form-input" style="cursor:pointer">
+          <option value="dinheiro">💵 Dinheiro</option>
+          <option value="pix">⚡ Pix</option>
+          <option value="debito">💳 Débito</option>
+          <option value="credito_vista">💳 Crédito à vista</option>
+          <option value="credito_parcelado">💳 Crédito parcelado</option>
+          <option value="link">🔗 Link</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalCorrigirForma').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#2e7d32">Salvar correção</button>
       </div>
     </form>
   </div>
@@ -368,6 +395,11 @@ function atualizarPreviewTaxa() {
   } else {
     info.style.display = 'none';
   }
+}
+
+function abrirCorrigirForma(cid, pid){
+  document.getElementById('formCorrigirForma').action = '/crediarios/'+cid+'/parcela/'+pid+'/corrigir-forma';
+  document.getElementById('modalCorrigirForma').style.display = 'flex';
 }
 
 function abrirPagamento(cid, pid, data, valor){

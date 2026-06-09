@@ -84,6 +84,8 @@ def versao():
     <b>CD Gestão</b><br>
     Versão: <b style='color:green'>v98 — 2026-06-09</b><br>
     v98: reorganização interna do código (app.py dividido em módulos: config, db, utils, auth e rotas por área) — mesmo comportamento da v97, manutenção mais fácil ✅<br>
+    v98: correção — editar a forma de pagamento de uma venda agora também atualiza o Caixa e a Visão Geral ✅<br>
+    v98: novo — corrigir a forma de pagamento de uma parcela de crediário já recebida (botão "✏️ Forma"), refletindo no Caixa e na Visão Geral ✅<br>
     v97: segurança, auditoria, bloqueio de rotas de desenvolvimento e estoque protegido contra venda duplicada ✅<br>
     v96: acabamento profissional de interface, mobile/tablet/notebook, tabelas, modais e usabilidade ✅<br>
     Despesas: corrigido erro ao salvar sem descrição (campo agora opcional) ✅<br>

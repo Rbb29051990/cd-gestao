@@ -1,4 +1,13 @@
-# CD Gestão Empresarial — v96
+# CD Gestão Empresarial — v97
+
+## Novidades da v97 (2026-06-08) — Segurança, Auditoria e Estoque Seguro
+- **Rotas de desenvolvimento protegidas**: `/setup` e `/reset-usuarios` ficam bloqueadas em produção, salvo liberação temporária via variável de ambiente.
+- **Auditoria de ações críticas**: criado registro interno para vendas, exclusões e alterações sensíveis, com usuário, data/hora, IP e detalhes da ação.
+- **Prevenção de venda duplicada de estoque**: baixa de produto em venda agora valida saldo no banco usando trava transacional (`FOR UPDATE`) antes de diminuir a quantidade.
+- **Proteção contra estoque negativo**: adicionada restrição no banco para impedir saldo negativo.
+- **Índices de performance**: criados índices para auditoria, estoque, vendas, caixa e parcelas de crediário.
+- **Logs de segurança**: falhas de login passam a ser registradas no log da aplicação.
+- **Healthcheck atualizado**: `/healthz` passa a identificar a versão v97.
 
 ## Novidades da v96 (2026-06-09) — Acabamento profissional e responsividade
 - **Interface mais profissional**: cards, tabelas, modais, botões e campos receberam ajustes de acabamento, sombra, espaçamento e área de toque.

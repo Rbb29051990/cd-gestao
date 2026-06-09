@@ -136,6 +136,36 @@ def db_cursor(commit=False):
     finally:
         cur.close(); close_db(conn)
 
+def is_production():
+    return os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'
+
+def audit_log(cur, acao, tabela=None, registro_id=None, detalhes=None):
+    """Registra ações críticas sem interromper o fluxo principal se a auditoria falhar."""
+    try:
+        payload = detalhes
+        if payload is not None and not isinstance(payload, str):
+            payload = json.dumps(payload, ensure_ascii=False, default=str)
+        cur.execute("""INSERT INTO auditoria
+            (usuario_id, usuario_nome, acao, tabela, registro_id, detalhes, ip, user_agent)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (session.get('uid'), session.get('nome'), acao, tabela, registro_id, payload,
+             request.headers.get('X-Forwarded-For', request.remote_addr) if request else None,
+             request.headers.get('User-Agent') if request else None))
+    except Exception as exc:
+        logger.warning('Falha ao registrar auditoria: %s', exc)
+
+def bloquear_estoque_negativo(cur, produto_id, quantidade):
+    """Trava o produto na transação e baixa estoque somente se houver saldo."""
+    cur.execute("SELECT id,codigo,quantidade FROM estoque WHERE id=%s FOR UPDATE", (produto_id,))
+    produto = cur.fetchone()
+    if not produto:
+        raise ValueError(f'Produto ID {produto_id} não encontrado.')
+    saldo = int(produto.get('quantidade') or 0)
+    if saldo < int(quantidade):
+        raise ValueError(f"Estoque insuficiente para {produto.get('codigo')}. Saldo atual: {saldo}.")
+    cur.execute("UPDATE estoque SET quantidade=quantidade-%s, ultima_venda=CURRENT_DATE WHERE id=%s", (quantidade, produto_id))
+    return produto
+
 def init_db():
     conn = get_db(); cur = conn.cursor()
     cur.execute("""CREATE TABLE IF NOT EXISTS usuarios (
@@ -261,6 +291,17 @@ def init_db():
         valor_unitario NUMERIC(10,2) DEFAULT 0,
         quantidade INTEGER DEFAULT 1,
         status VARCHAR(20) DEFAULT 'pendente')""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS auditoria (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER,
+        usuario_nome VARCHAR(200),
+        acao VARCHAR(80) NOT NULL,
+        tabela VARCHAR(80),
+        registro_id INTEGER,
+        detalhes TEXT,
+        ip VARCHAR(80),
+        user_agent TEXT,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     conn.commit()
     # ── MIGRAÇÕES — adiciona colunas novas em tabelas existentes ──
     migracoes = [
@@ -281,6 +322,15 @@ def init_db():
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS status VARCHAR(12) DEFAULT 'pago'",
         "ALTER TABLE despesas ALTER COLUMN descricao DROP NOT NULL",
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS data_vencimento DATE",
+        "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS ip VARCHAR(80)",
+        "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS user_agent TEXT",
+        "CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em ON auditoria (criado_em DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_auditoria_tabela_registro ON auditoria (tabela, registro_id)",
+        "CREATE INDEX IF NOT EXISTS idx_estoque_codigo ON estoque (codigo)",
+        "CREATE INDEX IF NOT EXISTS idx_vendas_criado_em ON vendas (criado_em)",
+        "CREATE INDEX IF NOT EXISTS idx_caixa_criado_em ON caixa (criado_em)",
+        "CREATE INDEX IF NOT EXISTS idx_crediario_parcelas_vencimento ON crediario_parcelas (data_vencimento, pago)",
+        "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_estoque_quantidade_nao_negativa') THEN ALTER TABLE estoque ADD CONSTRAINT chk_estoque_quantidade_nao_negativa CHECK (quantidade >= 0) NOT VALID; END IF; END $$;",
     ]
     for sql in migracoes:
         try:
@@ -457,14 +507,14 @@ def erro_interno(e):
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status':'ok','version':'v96'})
+        return jsonify({'status':'ok','version':'v97'})
     except Exception as exc:
         logger.exception('Healthcheck falhou')
         return jsonify({'status':'erro','detail':str(exc)}), 500
 
 @app.route('/setup')
 def setup():
-    if os.environ.get('ALLOW_SETUP') != 'true' and (os.environ.get('FLASK_ENV') == 'production' or os.environ.get('RENDER') == 'true'):
+    if os.environ.get('ALLOW_SETUP') != 'true' and is_production():
         return 'Setup bloqueado em produção. Defina ALLOW_SETUP=true apenas temporariamente.', 403
     try:
         init_db()
@@ -509,6 +559,7 @@ def login():
                        permissoes=u.get('permissoes','visao_geral,clientes,vendas,estoque'),
                        usuario_foto=bool(u.get('foto')), foto_v=1)
         return redirect(home_url())
+    logger.warning('Falha de login para usuario=%s ip=%s', nome, request.headers.get('X-Forwarded-For', request.remote_addr))
     return render_template('login.html', cliente=CLIENTE, erro='Usuario ou senha incorretos.')
 
 @app.route('/logout')
@@ -766,6 +817,7 @@ def usuario_editar(uid):
                         (nome,perfil,perms,generate_password_hash(nova_senha),uid))
         else:
             cur.execute("UPDATE usuarios SET nome=%s,perfil=%s,permissoes=%s WHERE id=%s",(nome,perfil,perms,uid))
+        audit_log(cur, 'ALTERAR_USUARIO', 'usuarios', uid, {'nome': nome, 'perfil': perfil, 'permissoes': perms, 'alterou_senha': bool(nova_senha)})
         conn.commit(); cur.close(); close_db(conn)
         flash('Usuario atualizado!','ok')
         return redirect(url_for('usuarios'))
@@ -941,7 +993,10 @@ def excluir_cliente(cid):
     if not pode_excluir():
         flash('Apenas o Administrador N1 pode excluir dados.','erro'); return redirect(url_for('clientes'))
     conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT codigo,nome FROM clientes WHERE id=%s", (cid,))
+    _old = cur.fetchone()
     cur.execute("DELETE FROM clientes WHERE id=%s",(cid,))
+    audit_log(cur, 'EXCLUIR_CLIENTE', 'clientes', cid, dict(_old) if _old else None)
     conn.commit(); cur.close(); close_db(conn)
     flash('Cliente excluido.','ok')
     return redirect(url_for('clientes'))
@@ -1139,7 +1194,10 @@ def excluir_estoque(eid):
     if not pode_excluir():
         flash('Apenas o Administrador N1 pode excluir dados.','erro'); return redirect(url_for('estoque'))
     conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT codigo,modelo,descricao,tamanho,quantidade FROM estoque WHERE id=%s", (eid,))
+    _old = cur.fetchone()
     cur.execute("DELETE FROM estoque WHERE id=%s",(eid,))
+    audit_log(cur, 'EXCLUIR_PRODUTO', 'estoque', eid, dict(_old) if _old else None)
     conn.commit(); cur.close(); close_db(conn)
     flash('Produto excluido.','ok')
     return redirect(url_for('estoque'))
@@ -1220,7 +1278,7 @@ def nova_venda():
                 (venda_id,pid or None,item.get('codigo'),item.get('modelo'),
                  item.get('descricao'),item.get('tamanho'),vunit,qtd,vunit*qtd))
             if pid:
-                cur.execute("UPDATE estoque SET quantidade=quantidade-%s,ultima_venda=CURRENT_DATE WHERE id=%s",(qtd,pid))
+                bloquear_estoque_negativo(cur, pid, qtd)
         if forma == 'crediario':
             entrada = parse_brl(request.form.get('entrada','0'))
             saldo = valor_total - entrada
@@ -1251,6 +1309,7 @@ def nova_venda():
                     VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
                     (f"Entrada crediário - {cliente_nome} ({entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome))
 
+        audit_log(cur, 'CRIAR_VENDA', 'vendas', venda_id, {'codigo': cod, 'cliente': cliente_nome, 'valor_final': valor_final, 'forma_pagamento': forma, 'qtd_itens': len(itens)})
         conn.commit(); flash('Venda registrada!','ok')
     except Exception as e:
         conn.rollback(); flash(str(e),'erro')
@@ -1297,7 +1356,10 @@ def excluir_venda(vid):
         cur.execute("DELETE FROM caixa WHERE venda_id=%s",(vid,))
         # Remover crediário vinculado (e suas parcelas)
         cur.execute("DELETE FROM crediarios WHERE venda_id=%s",(vid,))
+        cur.execute("SELECT codigo,cliente_nome,valor_total,forma_pagamento FROM vendas WHERE id=%s", (vid,))
+        _old_venda = cur.fetchone()
         cur.execute("DELETE FROM vendas WHERE id=%s",(vid,))
+        audit_log(cur, 'EXCLUIR_VENDA', 'vendas', vid, dict(_old_venda) if _old_venda else None)
         conn.commit(); flash('Venda excluída. Estoque e caixa restaurados.','ok')
     except Exception as e: conn.rollback(); flash(str(e),'erro')
     finally: cur.close(); close_db(conn)
@@ -2155,7 +2217,8 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v96 — 2026-06-09</b><br>
+    Versão: <b style='color:green'>v97 — 2026-06-08</b><br>
+    v97: segurança, auditoria, bloqueio de rotas de desenvolvimento e estoque protegido contra venda duplicada ✅<br>
     v96: acabamento profissional de interface, mobile/tablet/notebook, tabelas, modais e usabilidade ✅<br>
     Despesas: corrigido erro ao salvar sem descrição (campo agora opcional) ✅<br>
     Despesas: sem parcelamento agora pede data de vencimento e vira conta a pagar ✅<br>

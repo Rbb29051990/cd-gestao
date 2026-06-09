@@ -325,7 +325,7 @@ function filtrarCred(q) {
 
 function atalhoCred(tipo) {
   const hoje = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => localISODate(d);
   const form = document.getElementById('formFiltroCred');
   if (tipo === 'todos') {
     form.querySelector('[name=data_inicio]').value = '';

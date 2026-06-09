@@ -1,3 +1,10 @@
+# CD Gestão Empresarial — v91.2
+
+## Novidades da v91.2 (2026-06-08) — Correção de fuso horário
+- **Correção do botão Hoje e períodos padrão**: o ERP agora usa o fuso `America/Sao_Paulo`, evitando que o Render/UTC mostre o dia seguinte à noite no Brasil.
+- **Correção nos filtros rápidos em JavaScript**: removido uso de `toISOString()` para datas dos botões Hoje/7 dias/Mês/Ano, evitando virada indevida para o dia seguinte.
+- **Banco alinhado ao fuso do ERP**: conexões PostgreSQL passam a aplicar o timezone configurado em `APP_TIMEZONE` (padrão: `America/Sao_Paulo`).
+
 # CD Gestão Empresarial — v91.1
 
 ## Correção v91.1 (2026-06-09) — Rolagem lateral em tabelas

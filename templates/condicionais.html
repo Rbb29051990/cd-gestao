@@ -534,7 +534,7 @@ function filtrarTab(tbodyId,q){
 
 function atalhoCond(tipo){
   const hoje=new Date();
-  const fmt=d=>d.toISOString().split('T')[0];
+  const fmt=d=>localISODate(d);
   let ini, fim=fmt(hoje);
   if(tipo==='hoje') ini=fmt(hoje);
   else if(tipo==='semana'){ const d=new Date(hoje); d.setDate(d.getDate()-6); ini=fmt(d); }

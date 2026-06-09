@@ -306,7 +306,7 @@ function gerarParcelas(){
   let acc=0;
   for(let i=1;i<=n;i++){
     const d=new Date(); d.setDate(d.getDate()+i*30);
-    const ds=d.toISOString().split('T')[0];
+    const ds=localISODate(d);
     let val=i===n?Math.round((saldo-acc)*100)/100:Math.ceil((saldo/n)*100)/100;
     if(i<n)acc+=val;
     const row=document.createElement('div'); row.className='parcela-row';

@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, Response
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
 import os, json, random, math, base64, logging
 from contextlib import contextmanager
 import psycopg2
@@ -23,6 +24,16 @@ if not SECRET_KEY:
 app.secret_key = SECRET_KEY
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
+
+APP_TZ = ZoneInfo(os.environ.get("APP_TIMEZONE", "America/Sao_Paulo"))
+
+def agora_app():
+    """Data/hora oficial do ERP (padrão: Brasil/São Paulo)."""
+    return datetime.now(APP_TZ)
+
+def hoje_app():
+    """Data oficial do ERP, evitando diferença de UTC no Render."""
+    return agora_app().date()
 if not DATABASE_URL:
     raise RuntimeError('Configure a variável de ambiente DATABASE_URL.')
 
@@ -40,7 +51,7 @@ def get_taxa_vigente(data=None):
     """Retorna a taxa vigente para uma data específica (ou hoje)."""
     conn = get_db(); cur = conn.cursor()
     if data is None:
-        data = date.today()
+        data = hoje_app()
     cur.execute("""SELECT * FROM taxas_pagamento
                    WHERE vigencia_em <= %s
                    ORDER BY vigencia_em DESC LIMIT 1""", (data,))
@@ -98,7 +109,14 @@ CORES = ['#2e7d32','#1565c0','#6a1b9a','#c62828','#e65100','#00695c','#283593']
 
 def get_db():
     # Mantém compatibilidade com o código legado, mas usa pool de conexões.
-    return get_pool().getconn()
+    # Garante CURRENT_DATE/CURRENT_TIMESTAMP no fuso do ERP (Brasil), não no UTC do Render.
+    conn = get_pool().getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET TIME ZONE %s", (os.environ.get("APP_TIMEZONE", "America/Sao_Paulo"),))
+    except Exception:
+        logger.exception('Não foi possível ajustar o fuso horário da conexão')
+    return conn
 
 def close_db(conn):
     if conn:
@@ -501,7 +519,7 @@ def logout():
 @login_required
 def visao_geral():
     conn = get_db(); cur = conn.cursor()
-    hoje = datetime.now()
+    hoje = agora_app()
     # Período (mesmo padrão da aba Caixa)
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
     data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
@@ -525,7 +543,7 @@ def visao_geral():
             bruto = float(r['valor'] or 0)
             fat[f] += bruto
             if f in formas_com_taxa:
-                taxa_data = get_taxa_vigente(r['criado_em'].date() if hasattr(r['criado_em'],'date') else date.today())
+                taxa_data = get_taxa_vigente(r['criado_em'].date() if hasattr(r['criado_em'],'date') else hoje_app())
                 liq, _d, _p = calcular_liquido(bruto, f, taxa_data)
                 fat_liq[f] += liq
             else:
@@ -945,7 +963,7 @@ def estoque():
     cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
     entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
     cur.close(); close_db(conn)
-    hoje = date.today()
+    hoje = hoje_app()
     for i in itens:
         i['dias_estoque'] = (hoje - i['criado_em'].date()).days
         i['entradas_adicionais'] = entradas_map.get(i['id'], 0)
@@ -1052,7 +1070,7 @@ def novo_tamanho():
 @app.route('/estoque/etiquetas')
 @login_required
 def etiquetas():
-    data = request.args.get('data', date.today().isoformat())
+    data = request.args.get('data', hoje_app().isoformat())
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE DATE(criado_em)=%s AND ativo=TRUE ORDER BY id",(data,))
     itens = [dict(i) for i in cur.fetchall()]
@@ -1079,7 +1097,7 @@ def ficha_estoque(eid):
     if not row:
         flash('Produto nao encontrado.','erro'); return redirect(url_for('estoque'))
     item = dict(row)
-    item['dias_estoque'] = (date.today() - item['criado_em'].date()).days
+    item['dias_estoque'] = (hoje_app() - item['criado_em'].date()).days
     item['saidas'] = (item['estoque_inicial'] or 0) - item['quantidade']
     ctx = get_ctx(); ctx['item'] = item
     return render_template('ficha_estoque.html', **ctx)
@@ -1135,7 +1153,7 @@ def vendas():
         vendedoras = [dict(u) for u in cur.fetchall()]
         cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE ORDER BY nome")
         clientes_lista = [dict(c) for c in cur.fetchall()]
-        hoje = date.today()
+        hoje = hoje_app()
         data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
         data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
         try: date.fromisoformat(data_inicio)
@@ -1150,7 +1168,7 @@ def vendas():
         cur.execute("""SELECT c.*,v.criado_em as data_venda FROM crediarios c
             JOIN vendas v ON v.id=c.venda_id ORDER BY c.criado_em DESC""")
         lista_crediarios = [dict(c) for c in cur.fetchall()]
-        mes_ini = datetime.now().replace(day=1,hour=0,minute=0,second=0,microsecond=0)
+        mes_ini = agora_app().replace(day=1,hour=0,minute=0,second=0,microsecond=0)
         cur.execute("""SELECT vendedora_nome,COALESCE(SUM(valor_total),0) as total,
             COUNT(id) as num_vendas,COUNT(DISTINCT cliente_id) as clientes
             FROM vendas WHERE criado_em>=%s GROUP BY vendedora_nome ORDER BY total DESC""",(mes_ini,))
@@ -1158,8 +1176,8 @@ def vendas():
         cur.execute("SELECT DISTINCT DATE_TRUNC('month',criado_em) as mes FROM vendas ORDER BY mes DESC")
         meses = [{'mes_val':m['mes'].strftime('%Y-%m'),'mes_label':m['mes'].strftime('%B / %Y').capitalize()} for m in cur.fetchall()]
         cur.close(); close_db(conn)
-        now_mes = datetime.now().strftime('%Y-%m')
-        now_mes_label = datetime.now().strftime('%B / %Y').capitalize()
+        now_mes = agora_app().strftime('%Y-%m')
+        now_mes_label = agora_app().strftime('%B / %Y').capitalize()
         ctx = get_ctx()
         ctx.update(vendedoras=vendedoras, clientes=clientes_lista,
                    lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
@@ -1322,7 +1340,7 @@ def editar_venda(vid):
 @app.route('/vendas/ranking')
 @login_required
 def ranking_vendedoras():
-    hoje = date.today()
+    hoje = hoje_app()
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
     data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
     try: date.fromisoformat(data_inicio)
@@ -1371,7 +1389,7 @@ def condicionais():
     vendedoras = [dict(u) for u in cur.fetchall()]
     cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE ORDER BY nome")
     clientes_lista = [dict(c) for c in cur.fetchall()]
-    hoje = date.today()
+    hoje = hoje_app()
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
     data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
     try: date.fromisoformat(data_inicio)
@@ -1488,7 +1506,7 @@ def ficha_condicional(cid):
         cur.execute("SELECT codigo FROM vendas WHERE id=%s", (cond['venda_id'],))
         vv = cur.fetchone(); venda = dict(vv) if vv else None
     cur.close(); close_db(conn)
-    cond['dias'] = (date.today() - cond['criado_em'].date()).days
+    cond['dias'] = (hoje_app() - cond['criado_em'].date()).days
     ctx = get_ctx(); ctx.update(cond=cond, itens=itens, vendedoras=vendedoras,
                                 cliente_cred=cliente_cred, venda=venda)
     return render_template('ficha_condicional.html', **ctx)
@@ -1673,7 +1691,7 @@ def crediarios():
         agrupado[nome]['saldo'] += float(c['saldo_devedor'])
     clientes = list(agrupado.values())
     # ── Análise de atraso e distribuição por cliente (para os gráficos) ──
-    hoje = date.today()
+    hoje = hoje_app()
     for cli in clientes:
         atraso_val = 0.0; atraso_qtd = 0; dias_max = 0; prox_venc = None
         for c in cli['vendas']:
@@ -1764,7 +1782,7 @@ def taxas():
             deb = parse_brl(request.form.get('debito','0'))
             lnk = parse_brl(request.form.get('link','0'))
             ant = parse_brl(request.form.get('antecipacao','0'))
-            vig = request.form.get('vigencia_em', str(date.today()))
+            vig = request.form.get('vigencia_em', str(hoje_app()))
             cur.execute("""INSERT INTO taxas_pagamento
                 (vigencia_em,credito_vista,credito_parcelado,debito,link,antecipacao,usuario_id)
                 VALUES (%s,%s,%s,%s,%s,%s,%s)""",
@@ -1783,14 +1801,14 @@ def taxas():
     historico = [dict(r) for r in cur.fetchall()]
     cur.close(); close_db(conn)
     ctx = get_ctx()
-    ctx.update(taxa_atual=taxa_atual, historico=historico, today=str(date.today()))
+    ctx.update(taxa_atual=taxa_atual, historico=historico, today=str(hoje_app()))
     return render_template('taxas.html', **ctx)
 
 @app.route('/caixa')
 @login_required
 def caixa():
     conn = get_db(); cur = conn.cursor()
-    hoje = date.today()
+    hoje = hoje_app()
     # Suporte a filtro por data_inicio e data_fim
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
     data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
@@ -1827,7 +1845,7 @@ def caixa():
     desconto_vendas = 0.0; desconto_cred_entrada = 0.0; desconto_cred_parcela = 0.0
     for m in movs:
         if m['tipo'] == 'entrada' and m.get('forma_pagamento') in ['credito_vista','credito_parcelado','debito','link']:
-            taxa_data = get_taxa_vigente(m['criado_em'].date() if hasattr(m.get('criado_em',''), 'date') else date.today())
+            taxa_data = get_taxa_vigente(m['criado_em'].date() if hasattr(m.get('criado_em',''), 'date') else hoje_app())
             liq, desc, ptc = calcular_liquido(float(m['valor']), m['forma_pagamento'], taxa_data)
             m['valor_liquido'] = liq
             m['desconto_taxa'] = desc
@@ -1866,7 +1884,7 @@ def caixa():
 @login_required
 def despesas():
     conn = get_db(); cur = conn.cursor()
-    hoje = date.today()
+    hoje = hoje_app()
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
     data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
     try: date.fromisoformat(data_inicio)
@@ -1962,7 +1980,7 @@ def nova_despesa():
         parcelado = False; num_parc = 1
     num_parc = min(max(num_parc, 1), 24)
     # Vencimento (despesa sem parcelamento = 1 conta a pagar)
-    venc_unico = request.form.get('data_vencimento_unica') or date.today().isoformat()
+    venc_unico = request.form.get('data_vencimento_unica') or hoje_app().isoformat()
     # Rótulo da despesa para histórico (categoria + descrição livre)
     rotulo = categoria or descricao or 'Despesa'
     if categoria and descricao:
@@ -1979,7 +1997,7 @@ def nova_despesa():
              parcelado,num_parcelas,local_retirada,obs_retirada,status,data_vencimento,usuario_id,usuario_nome)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (f"D{n+1}",descricao or None,categoria or None,valor,
-             request.form.get('data_despesa') or date.today().isoformat(),
+             request.form.get('data_despesa') or hoje_app().isoformat(),
              forma or None,tipo,parcelado,num_parc,local_ret,obs_ret,status,data_venc_desp,
              session['uid'],session['nome']))
         desp_id = cur.fetchone()['id']
@@ -1991,7 +2009,7 @@ def nova_despesa():
                 pd = request.form.get(f'parcela_data_{i}')
                 pvf = parse_brl(pv) if pv else round(valor/num_parc, 2)
                 if not pd:
-                    pd = (date.today() + timedelta(days=30*i)).isoformat()
+                    pd = (hoje_app() + timedelta(days=30*i)).isoformat()
                 soma += pvf
                 cur.execute("""INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento)
                     VALUES (%s,%s,%s,%s)""",(desp_id,i,pvf,pd))
@@ -2059,7 +2077,7 @@ def excluir_despesa(did):
 @login_required
 def dashboard_view():
     conn = get_db(); cur = conn.cursor()
-    hoje = datetime.now()
+    hoje = agora_app()
     mes_ini = hoje.replace(day=1,hour=0,minute=0,second=0,microsecond=0)
     try:
         cur.execute("SELECT DATE(criado_em) as dia,COUNT(*) as qtd,COALESCE(SUM(valor_total),0) as total FROM vendas WHERE criado_em>=%s GROUP BY DATE(criado_em) ORDER BY dia",(mes_ini,))

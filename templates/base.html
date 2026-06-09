@@ -10,6 +10,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}?v=20260609-v91">
+
+  <script>
+    // Formata datas no horário local do navegador, evitando o bug do UTC/toISOString
+    // que fazia o botão "Hoje" virar o dia seguinte à noite no Brasil.
+    function localISODate(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    }
+  </script>
   <style>
     :root {
       --cor-primaria: {{ cliente.cor_primaria }};

@@ -367,8 +367,8 @@
   </div>
 </div>
 <script>
-document.querySelector('[name="data_despesa"]').value = new Date().toISOString().split('T')[0];
-(function(){ var vu=document.getElementById('vencUnico'); if(vu) vu.value = new Date().toISOString().split('T')[0]; })();
+document.querySelector('[name="data_despesa"]').value = localISODate(new Date());
+(function(){ var vu=document.getElementById('vencUnico'); if(vu) vu.value = localISODate(new Date()); })();
 
 function selTipo(t){
   const f=document.getElementById('optFixa'), a=document.getElementById('optAvulsa');
@@ -430,7 +430,7 @@ function gerarParcelasDesp(){
   let soma=0;
   for(let i=1;i<=n;i++){
     const d=new Date(); d.setDate(d.getDate()+30*i);
-    const dataSug=d.toISOString().split('T')[0];
+    const dataSug=localISODate(d);
     let val = (i===n) ? Math.round((total-base*(n-1))*100)/100 : base;
     soma+=val;
     const row=document.createElement('div');
@@ -469,7 +469,7 @@ function validarDespesa(){
 
 function atalhoDesp(tipo) {
   const hoje = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => localISODate(d);
   let ini, fim = fmt(hoje);
   if (tipo === 'hoje') ini = fmt(hoje);
   else if (tipo === 'semana') { const d=new Date(hoje); d.setDate(d.getDate()-6); ini=fmt(d); }

@@ -701,7 +701,7 @@ function etqImprimir(){
 document.addEventListener('DOMContentLoaded', () => {
   initMoeda(document.getElementById('eCusto'), eCalcDoCusto);
   initMoeda(document.getElementById('eVenda'), eCalcDaVenda);
-  const iso = new Date().toISOString().split('T')[0];
+  const iso = localISODate(new Date());
   const dEtiq = document.getElementById('dataEtiq');
   if(dEtiq) dEtiq.value = iso;
   etqRenderFolha();

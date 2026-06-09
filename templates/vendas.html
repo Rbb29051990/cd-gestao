@@ -644,7 +644,7 @@ function gerarParcelas() {
   let acumulado = 0;
   for (let i=1; i<=n; i++) {
     const d = new Date(); d.setDate(d.getDate()+i*30);
-    const dataSug = d.toISOString().split('T')[0];
+    const dataSug = localISODate(d);
     let val = i===n ? Math.round((saldo-acumulado)*100)/100 : Math.ceil((saldo/n)*100)/100;
     if (i<n) acumulado += val;
     const row = document.createElement('div');
@@ -918,7 +918,7 @@ function atualizarValorFinal(desc, pct) {
 
 function atalhoVendas(tipo) {
   const hoje = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => localISODate(d);
   let ini, fim = fmt(hoje);
   if (tipo === 'hoje') ini = fmt(hoje);
   else if (tipo === 'semana') { const d=new Date(hoje); d.setDate(d.getDate()-6); ini=fmt(d); }

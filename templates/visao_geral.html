@@ -262,7 +262,7 @@
 <script>
 function atalho(tipo){
   const hoje = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => localISODate(d);
   let inicio, fim = fmt(hoje);
   if (tipo === 'hoje'){ inicio = fmt(hoje); }
   else if (tipo === 'semana'){ const d = new Date(hoje); d.setDate(d.getDate()-6); inicio = fmt(d); }

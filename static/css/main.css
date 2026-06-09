@@ -897,3 +897,17 @@ input, select, textarea, button { font-size: 16px; }
   .modal, .modal-overlay { padding: 8px !important; align-items: flex-start !important; overflow-y: auto !important; }
   .modal-content, .modal-card, .modal-box { width: 100% !important; max-width: none !important; max-height: none !important; margin: 8px 0 !important; }
 }
+
+
+/* v91.1 — Correção de rolagem horizontal em tabelas largas */
+.table-wrap, .table-scroll, .scroll-table, .cd-table-wrap {
+  max-width: 100%;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+.vtable, .cd-table {
+  min-width: 980px;
+}
+@media (max-width: 860px) {
+  .vtable, .cd-table { min-width: 920px; }
+}

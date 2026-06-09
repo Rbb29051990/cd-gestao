@@ -1,3 +1,10 @@
+# CD Gestão Empresarial — v91.1
+
+## Correção v91.1 (2026-06-09) — Rolagem lateral em tabelas
+- **Vendas**: tabela principal da aba Vendas agora possui rolagem horizontal quando a tela é estreita.
+- **Condicional**: tabelas **Em aberto** e **Histórico (finalizadas/devolvidas)** agora possuem rolagem horizontal em celular, tablet e notebook.
+- Ajustado `overflow-x` e largura mínima das tabelas para evitar corte de colunas e botões de ação.
+
 # CD Gestão Empresarial — v91
 
 ## Novidades da v91 (2026-06-09) — Estabilidade, segurança e crescimento

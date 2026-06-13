@@ -121,11 +121,12 @@ def novo_modelo():
 @login_required
 def novo_tamanho():
     nome = request.form.get('nome', '').strip()
-    if nome:
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("INSERT INTO tamanhos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING", (nome,))
-        conn.commit(); cur.close(); close_db(conn)
-    return redirect(url_for('estoque'))
+    if not nome:
+        return jsonify({'ok': False, 'erro': 'Nome vazio'}), 400
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("INSERT INTO tamanhos_estoque (nome) VALUES (%s) ON CONFLICT DO NOTHING", (nome,))
+    conn.commit(); cur.close(); close_db(conn)
+    return jsonify({'ok': True, 'nome': nome})
 
 
 @login_required

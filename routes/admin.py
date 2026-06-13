@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v98'})
+        return jsonify({'status': 'ok', 'version': 'v99'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -82,7 +82,9 @@ def limpar_caixa_orfaos():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v98 — 2026-06-09</b><br>
+    Versão: <b style='color:green'>v99 — 2026-06-13</b><br>
+    v99: campo data de nascimento (novo e editar cliente) virou texto com máscara DD/MM/AAAA — digita direto sem precisar do calendário do browser ✅<br>
+    v99: estoque — ao adicionar tamanho novo via modal, o sistema mantém o cadastro de produto aberto e já seleciona o tamanho adicionado ✅<br>
     v98: reorganização interna do código (app.py dividido em módulos: config, db, utils, auth e rotas por área) — mesmo comportamento da v97, manutenção mais fácil ✅<br>
     v98: correção — editar a forma de pagamento de uma venda agora também atualiza o Caixa e a Visão Geral ✅<br>
     v98: novo — corrigir a forma de pagamento de uma parcela de crediário já recebida (botão "✏️ Forma"), refletindo no Caixa e na Visão Geral ✅<br>

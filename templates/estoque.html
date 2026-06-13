@@ -359,16 +359,17 @@
     <button class="modal-close" onclick="document.getElementById('modalTamanho').style.display='none'">×</button>
     <div class="modal-title" style="font-size:20px;margin-bottom:4px">Novo Tamanho</div>
     <div class="modal-sub">Adicionar tamanho ao sistema</div>
-    <form method="POST" action="/estoque/tamanho/novo">
+    <div>
       <div class="form-field">
         <span class="form-label">Tamanho</span>
-        <input class="form-input" type="text" name="nome" placeholder="Ex: XG, 62, P/M..." required autofocus>
+        <input class="form-input" type="text" id="novoTamanhoNome" placeholder="Ex: XG, 62, P/M..."
+               onkeydown="if(event.key==='Enter'){event.preventDefault();salvarNovoTamanho();}">
       </div>
       <div class="modal-footer" style="margin-top:16px;padding-top:16px">
-        <button type="submit" class="btn-salvar">Adicionar</button>
+        <button type="button" class="btn-salvar" onclick="salvarNovoTamanho()">Adicionar</button>
         <button type="button" class="btn-cancelar" onclick="document.getElementById('modalTamanho').style.display='none'">Cancelar</button>
       </div>
-    </form>
+    </div>
   </div>
 </div>
 
@@ -376,6 +377,29 @@
 <div id="printRoot"></div>
 
 <script>
+/* ── NOVO TAMANHO via AJAX (mantém modal de cadastro aberto) ── */
+function salvarNovoTamanho() {
+  const input = document.getElementById('novoTamanhoNome');
+  const nome = input.value.trim();
+  if (!nome) { input.focus(); return; }
+  const fd = new FormData();
+  fd.append('nome', nome);
+  fetch('/estoque/tamanho/novo', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) { alert(data.erro || 'Erro ao salvar tamanho.'); return; }
+      // Adiciona a opção em todos os selects de tamanho da página
+      document.querySelectorAll('select[name="tamanho"]').forEach(sel => {
+        const opt = document.createElement('option');
+        opt.value = data.nome; opt.textContent = data.nome; opt.selected = true;
+        sel.appendChild(opt);
+      });
+      input.value = '';
+      document.getElementById('modalTamanho').style.display = 'none';
+    })
+    .catch(() => alert('Erro de conexão ao salvar tamanho.'));
+}
+
 /* ── FOTO DO PRODUTO (redimensiona no navegador antes de enviar) ── */
 function eCarregarFoto(input){
   const file = input.files && input.files[0];

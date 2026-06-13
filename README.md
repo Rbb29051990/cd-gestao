@@ -1,6 +1,10 @@
-# CD Gestão Empresarial — v98
+# CD Gestão Empresarial — v99
 
-## Novidades da v98 (2026-06-09) — Reorganização interna do código (sem mudança de comportamento)
+## Novidades da v99 (2026-06-13)
+- **Data de nascimento com máscara:** campo virou texto `DD/MM/AAAA` — o usuário digita direto e as barras aparecem automaticamente. Funciona no cadastro e na edição de cliente.
+- **Estoque — novo tamanho sem sair do cadastro:** ao adicionar um tamanho que não existe, o sistema salva via AJAX, já seleciona o novo tamanho no formulário e mantém o modal de cadastro de produto aberto com todos os dados preenchidos.
+
+## v98 (2026-06-09) — Reorganização interna do código (sem mudança de comportamento)
 - **`app.py` dividido em módulos** para manutenção mais fácil e rápida. O comportamento é **idêntico ao da v97** — nenhuma tela, rota ou regra mudou.
 - **Nova estrutura:**
   - `config.py` — variáveis de ambiente, fuso horário e identidade visual.

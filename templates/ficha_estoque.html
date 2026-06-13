@@ -40,7 +40,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px;padding-bottom:24px;border-bottom:1.5px solid var(--cor-borda)">
           <div style="display:flex;align-items:center;gap:18px">
             {% if item.foto %}
-            <img src="{{ item.foto }}" onclick="window.open('{{ item.foto }}','_blank')" title="Clique para ampliar"
+            <img src="{{ item.foto }}" onclick="abrirLightbox(this.src)" title="Clique para ampliar"
                  style="width:84px;height:84px;border-radius:14px;object-fit:cover;box-shadow:0 4px 16px rgba(0,0,0,0.18);cursor:zoom-in">
             {% else %}
             <div style="width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,#f9a825,#f57f17);display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 16px rgba(249,168,37,0.3)">🛍️</div>
@@ -245,7 +245,18 @@ document.addEventListener('DOMContentLoaded', function() {
   mInitMoeda(document.getElementById('mCusto'), mCalcMarkup);
   mInitMoeda(document.getElementById('mVenda'), mCalcVenda);
 });
+function abrirLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxFoto').style.display = 'flex';
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') document.getElementById('lightboxFoto').style.display='none'; });
 </script>
+
+<!-- LIGHTBOX FOTO -->
+<div id="lightboxFoto" onclick="this.style.display='none'"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out;padding:20px">
+  <img id="lightboxImg" src="" style="max-width:100%;max-height:90vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.6);object-fit:contain">
+</div>
 
 <!-- MODAL CONFIRMAR EXCLUSÃO -->
 <div class="modal-overlay" id="confirmExc" style="display:none" onclick="if(event.target===this)this.style.display='none'">

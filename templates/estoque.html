@@ -122,6 +122,7 @@
             <thead><tr>
               <th onclick="ordenarE(0)">Data entrada</th>
               <th onclick="ordenarE(1)">Cód</th>
+              <th>Foto</th>
               <th onclick="ordenarE(2)">Modelo</th>
               <th>Descrição</th>
               <th onclick="ordenarE(4)">TAM</th>
@@ -139,6 +140,13 @@
               <tr onclick="window.location='/estoque/{{ item.id }}'" style="cursor:pointer" data-saldo="{{ item.quantidade }}" data-dias="{{ item.dias_estoque }}">
                 <td>{{ item.criado_em.strftime('%d/%m/%Y') }}</td>
                 <td><span class="ref-code">{{ item.codigo }}</span></td>
+                <td style="padding:4px 8px">
+                  {% if item.foto %}
+                  <img src="{{ item.foto }}" onclick="event.stopPropagation();abrirLightbox('{{ item.foto }}')"
+                       style="width:40px;height:40px;border-radius:8px;object-fit:cover;cursor:zoom-in;display:block"
+                       title="Clique para ampliar">
+                  {% else %}<span style="color:#ddd;font-size:18px">—</span>{% endif %}
+                </td>
                 <td>{{ item.modelo or '—' }}</td>
                 <td>{{ item.descricao or '—' }}</td>
                 <td>{{ item.tamanho or '—' }}</td>
@@ -161,7 +169,7 @@
                 <td>{{ item.ultima_venda.strftime('%d/%m/%Y') if item.ultima_venda else '—' }}</td>
               </tr>
               {% else %}
-              <tr><td colspan="12" class="empty-row">Nenhum item cadastrado ainda.</td></tr>
+              <tr><td colspan="13" class="empty-row">Nenhum item cadastrado ainda.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -173,7 +181,7 @@
         <button type="button" class="voltar-btn" onclick="mostrarPainel('eEstoque')" style="background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif">← Voltar ao estoque</button>
         <div class="page-title" style="font-size:20px;margin-bottom:18px">Cadastrar produto</div>
         <div class="form-card">
-          <form method="POST" action="/estoque/novo">
+          <form id="eFormCadastro" method="POST" action="/estoque/novo">
             <div class="section-sep">Identificação</div>
             <div class="form-grid2">
               <div class="form-field">
@@ -206,7 +214,7 @@
               </div>
               <div class="form-field">
                 <span class="form-label">Quantidade</span>
-                <input class="form-input" type="number" name="quantidade" id="eQtd" placeholder="Ex: 1" min="1" oninput="eCalcular()">
+                <input class="form-input" type="number" name="quantidade" id="eQtd" value="1" min="1" oninput="eCalcular()">
               </div>
             </div>
             <div class="section-sep">Foto do produto <span style="color:#ccc;text-transform:none;letter-spacing:0;font-weight:400">(opcional)</span></div>
@@ -261,7 +269,8 @@
               </div>
             </div>
             <div class="footer-btns">
-              <button type="submit" class="btn-salvar" onclick="prepararEnvio()">💾 Salvar item</button>
+              <button type="button" class="btn-salvar" onclick="prepararEnvio()">💾 Salvar item</button>
+              <button type="button" class="btn-cancelar" onclick="mostrarPainel('eEstoque')">← Voltar</button>
             </div>
           </form>
         </div>
@@ -373,10 +382,23 @@
   </div>
 </div>
 
+<!-- LIGHTBOX FOTO -->
+<div id="lightboxFoto" onclick="this.style.display='none'"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out;padding:20px">
+  <img id="lightboxImg" src="" style="max-width:100%;max-height:90vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.6);object-fit:contain">
+</div>
+
 <!-- Contêiner exclusivo de impressão das etiquetas -->
 <div id="printRoot"></div>
 
 <script>
+/* ── LIGHTBOX FOTO ── */
+function abrirLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxFoto').style.display = 'flex';
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') document.getElementById('lightboxFoto').style.display='none'; });
+
 /* ── NOVO TAMANHO via AJAX (mantém modal de cadastro aberto) ── */
 function salvarNovoTamanho() {
   const input = document.getElementById('novoTamanhoNome');
@@ -545,16 +567,29 @@ function eAtualizarTotais() {
 }
 
 function prepararEnvio() {
-  document.getElementById('eCustoNum').value  = parseMoeda(document.getElementById('eCusto').value);
-  document.getElementById('eMarkupNum').value = parseMoeda(document.getElementById('eMarkup').value);
-  document.getElementById('eVendaNum').value  = parseMoeda(document.getElementById('eVenda').value);
+  const custo = parseMoeda(document.getElementById('eCusto').value);
+  const venda = parseMoeda(document.getElementById('eVenda').value);
+  if (!custo || custo <= 0) { alert('Informe o custo unitário antes de salvar.'); return; }
+  if (!venda || venda <= 0) { alert('Informe o valor de venda antes de salvar.'); return; }
+
   const mStr = (document.getElementById('eMargem').value||'').replace('%','').replace(',','.');
-  document.getElementById('eMargemNum').value = parseFloat(mStr)||0;
-  // Substituir os campos de texto pelos numéricos no form
-  document.querySelector('[name=custo_unitario]').value = document.getElementById('eCustoNum').value;
-  document.querySelector('[name=markup]').value         = document.getElementById('eMarkupNum').value;
-  document.querySelector('[name=valor_venda]').value    = document.getElementById('eVendaNum').value;
-  document.querySelector('[name=margem_lucro]').value   = document.getElementById('eMargemNum').value;
+  const form = document.getElementById('eFormCadastro');
+  const fd = new FormData(form);
+  fd.set('custo_unitario', custo);
+  fd.set('markup', parseMoeda(document.getElementById('eMarkup').value));
+  fd.set('valor_venda', venda);
+  fd.set('margem_lucro', parseFloat(mStr)||0);
+  if (!fd.get('quantidade') || fd.get('quantidade') == '0') fd.set('quantidade', '1');
+
+  const btn = form.querySelector('.btn-salvar');
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
+
+  fetch('/estoque/novo', { method: 'POST', body: fd })
+    .then(r => {
+      if (r.ok) { location.replace('/estoque'); }
+      else { alert('Erro ao salvar. Tente novamente.'); btn.disabled = false; btn.textContent = '💾 Salvar item'; }
+    })
+    .catch(() => { alert('Erro de conexão. Tente novamente.'); btn.disabled = false; btn.textContent = '💾 Salvar item'; });
 }
 
 /* ── ORDENAR TABELA ── */

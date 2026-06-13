@@ -85,6 +85,9 @@ def versao():
     Versão: <b style='color:green'>v99 — 2026-06-13</b><br>
     v99: campo data de nascimento (novo e editar cliente) virou texto com máscara DD/MM/AAAA — digita direto sem precisar do calendário do browser ✅<br>
     v99: estoque — ao adicionar tamanho novo via modal, o sistema mantém o cadastro de produto aberto e já seleciona o tamanho adicionado ✅<br>
+    v99: estoque — botão "← Voltar" adicionado no rodapé do formulário de cadastro de produto ✅<br>
+    v99: estoque — quantidade padrão 1 ao abrir o formulário de cadastro ✅<br>
+    v99: estoque — cadastro de produto enviado via AJAX (sem navegação de página), eliminando duplicação causada pelo botão "voltar" do celular ✅<br>
     v98: reorganização interna do código (app.py dividido em módulos: config, db, utils, auth e rotas por área) — mesmo comportamento da v97, manutenção mais fácil ✅<br>
     v98: correção — editar a forma de pagamento de uma venda agora também atualiza o Caixa e a Visão Geral ✅<br>
     v98: novo — corrigir a forma de pagamento de uma parcela de crediário já recebida (botão "✏️ Forma"), refletindo no Caixa e na Visão Geral ✅<br>

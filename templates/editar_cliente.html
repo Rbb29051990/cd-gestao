@@ -46,7 +46,10 @@
             </div>
             <div class="form-field">
               <span class="form-label">Data de nascimento</span>
-              <input class="form-input" type="date" name="data_nascimento" value="{{ c.data_nascimento or '' }}" onchange="calcIdade(this)">
+              <input class="form-input" type="text" id="nascDisplay" placeholder="DD/MM/AAAA" maxlength="10"
+                     value="{{ c.data_nascimento.strftime('%d/%m/%Y') if c.data_nascimento else '' }}"
+                     oninput="mascaraData(this)">
+              <input type="hidden" name="data_nascimento" id="nascInput" value="{{ c.data_nascimento or '' }}">
               <div style="font-size:12px;color:#888;font-weight:600;margin-top:3px;min-height:16px" id="idadeCalc"></div>
             </div>
             <div class="form-field">
@@ -182,9 +185,26 @@ function buscarCEP_edit(val) {
     }
   }, 400);
 }
-function calcIdade(el) {
-  if (!el.value) { document.getElementById('idadeCalc').textContent=''; return; }
-  const n = new Date(el.value), h = new Date();
+function mascaraData(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2);
+  if (v.length > 5) v = v.slice(0,5) + '/' + v.slice(5,9);
+  el.value = v;
+  const hidden = document.getElementById('nascInput');
+  if (v.length === 10) {
+    const [d,m,y] = v.split('/');
+    if (hidden) hidden.value = y + '-' + m + '-' + d;
+    calcIdade(v);
+  } else {
+    if (hidden) hidden.value = '';
+    document.getElementById('idadeCalc').textContent = '';
+  }
+}
+function calcIdade(dataDisplay) {
+  if (!dataDisplay || dataDisplay.length < 10) { document.getElementById('idadeCalc').textContent=''; return; }
+  const [d,m,y] = dataDisplay.split('/');
+  const n = new Date(+y, +m-1, +d), h = new Date();
+  if (isNaN(n)) { document.getElementById('idadeCalc').textContent=''; return; }
   let a = h.getFullYear()-n.getFullYear();
   if (h.getMonth()<n.getMonth()||(h.getMonth()===n.getMonth()&&h.getDate()<n.getDate())) a--;
   document.getElementById('idadeCalc').textContent = a + ' anos';
@@ -234,8 +254,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('input[name=cpf]').forEach(el=>{ if(el.value) mascaraCPF(el); });
   const cepEl = document.getElementById('cepInput');
   if (cepEl && cepEl.value) mascaraCEP(cepEl);
-  const nascEl = document.querySelector('input[name=data_nascimento]');
-  if (nascEl && nascEl.value) calcIdade(nascEl);
+  const nascEl = document.getElementById('nascDisplay');
+  if (nascEl && nascEl.value) calcIdade(nascEl.value);
   const ufEl = document.getElementById('endUF');
   if (ufEl) ufEl.value = '{{ c.uf or "" }}';
 });

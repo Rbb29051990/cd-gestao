@@ -173,7 +173,8 @@
         <!-- Data nasc -->
         <div class="form-field">
           <label class="form-label">Data de nascimento</label>
-          <input class="form-input" type="date" name="data_nascimento" id="nascInput" onchange="mostrarIdade(this,'idadeHint')">
+          <input class="form-input" type="text" id="nascDisplay" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascaraData(this)">
+          <input type="hidden" name="data_nascimento" id="nascInput">
           <div class="campo-hint" id="idadeHint"></div>
         </div>
 
@@ -378,13 +379,30 @@ function toggleModal(btn, tipo, hiddenId) {
 /* ══════════════════════════════════════
    IDADE
 ══════════════════════════════════════ */
-function mostrarIdade(el, hintId) {
-  if (!el.value) { document.getElementById(hintId).textContent=''; return; }
-  const nasc = new Date(el.value);
+function mascaraData(el) {
+  let v = el.value.replace(/\D/g, '');
+  if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2);
+  if (v.length > 5) v = v.slice(0,5) + '/' + v.slice(5,9);
+  el.value = v;
+  const hidden = document.getElementById('nascInput');
+  if (v.length === 10) {
+    const [d,m,y] = v.split('/');
+    if (hidden) hidden.value = y + '-' + m + '-' + d;
+    mostrarIdade(v, 'idadeHint');
+  } else {
+    if (hidden) hidden.value = '';
+    document.getElementById('idadeHint').textContent = '';
+  }
+}
+function mostrarIdade(dataDisplay, hintId) {
+  if (!dataDisplay || dataDisplay.length < 10) { document.getElementById(hintId).textContent=''; return; }
+  const [d,m,y] = dataDisplay.split('/');
+  const nasc = new Date(+y, +m-1, +d);
+  if (isNaN(nasc)) { document.getElementById(hintId).textContent=''; return; }
   const hoje = new Date();
   let idade = hoje.getFullYear() - nasc.getFullYear();
-  const m = hoje.getMonth() - nasc.getMonth();
-  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--;
+  const dm = hoje.getMonth() - nasc.getMonth();
+  if (dm < 0 || (dm === 0 && hoje.getDate() < nasc.getDate())) idade--;
   document.getElementById(hintId).textContent = idade + ' anos';
 }
 

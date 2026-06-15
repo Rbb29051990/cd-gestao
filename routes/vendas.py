@@ -158,9 +158,17 @@ def excluir_venda(vid):
         for item in cur.fetchall():
             if item['produto_id']:
                 cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s", (item['quantidade'], item['produto_id']))
-        # Remover registros do caixa vinculados a esta venda
+        # Crediários gerados por esta venda
+        cur.execute("SELECT id FROM crediarios WHERE venda_id=%s", (vid,))
+        cred_ids = [r['id'] for r in cur.fetchall()]
+        # Remover do caixa os lançamentos diretos da venda (à vista e entrada do crediário)
         cur.execute("DELETE FROM caixa WHERE venda_id=%s", (vid,))
-        # Remover crediário vinculado (e suas parcelas)
+        # Remover do caixa os recebimentos de parcela (gravados por crediario_id, sem venda_id)
+        # e as parcelas desses crediários
+        if cred_ids:
+            cur.execute("DELETE FROM caixa WHERE crediario_id = ANY(%s)", (cred_ids,))
+            cur.execute("DELETE FROM crediario_parcelas WHERE crediario_id = ANY(%s)", (cred_ids,))
+        # Remover o(s) crediário(s) da venda
         cur.execute("DELETE FROM crediarios WHERE venda_id=%s", (vid,))
         cur.execute("SELECT codigo,cliente_nome,valor_total,forma_pagamento FROM vendas WHERE id=%s", (vid,))
         _old_venda = cur.fetchone()

@@ -3,6 +3,8 @@
 ## Novidades da v100 (2026-06-15)
 - **Correção do código sequencial (Estoque P, Clientes C, Despesas D, Usuários F):** o número agora é gerado a partir do **maior código já cadastrado**, e não da quantidade de registros. Antes, ao excluir itens, a contagem caía e o sistema repetia um código antigo (ex.: o estoque voltava para P22). Agora a sequência sempre continua de onde parou — é seguro excluir os dados de teste em qualquer aba.
 - **Renumeração de duplicados existentes:** rota `/admin/corrigir-codigos-estoque` (só Admin N1) que conserta produtos que já ficaram com código repetido.
+- **Excluir venda agora limpa o Caixa por completo:** os recebimentos de parcela de crediário (gravados por `crediario_id`, sem `venda_id`) ficavam órfãos no Caixa ao excluir a venda. Agora são removidos junto com a venda, com as parcelas.
+- **Limpeza de órfãos ampliada:** a rota `/admin/limpar-caixa-orfaos` agora varre o Caixa por venda, crediário e despesa inexistentes, e remove parcelas órfãs — conserta valores que já tenham ficado presos.
 - Inclui também as melhorias de estoque/foto da v99.1 (lightbox da foto, thumbnail na tabela, galeria liberada no avatar e na foto do produto, foto reduzida para salvar mais rápido no celular).
 
 ## v99 (2026-06-13)

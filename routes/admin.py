@@ -55,21 +55,45 @@ def limpar_caixa_orfaos():
         return 'Acesso negado', 403
     conn = get_db(); cur = conn.cursor()
     try:
-        # Remover registros do caixa cujas vendas não existem mais
-        cur.execute("""DELETE FROM caixa
-                       WHERE venda_id IS NOT NULL
-                       AND venda_id NOT IN (SELECT id FROM vendas)""")
-        removidos = cur.rowcount
-        # Remover crediários órfãos
+        # 1) Crediários cuja venda não existe mais (apaga primeiro p/ gerar órfãos no caixa abaixo)
         cur.execute("""DELETE FROM crediarios
                        WHERE venda_id IS NOT NULL
                        AND venda_id NOT IN (SELECT id FROM vendas)""")
         cred_removidos = cur.rowcount
+        # 2) Caixa de vendas que não existem mais
+        cur.execute("""DELETE FROM caixa
+                       WHERE venda_id IS NOT NULL
+                       AND venda_id NOT IN (SELECT id FROM vendas)""")
+        caixa_venda = cur.rowcount
+        # 3) Caixa de recebimentos de parcela cujo crediário não existe mais
+        cur.execute("""DELETE FROM caixa
+                       WHERE crediario_id IS NOT NULL
+                       AND crediario_id NOT IN (SELECT id FROM crediarios)""")
+        caixa_cred = cur.rowcount
+        # 4) Caixa de despesas que não existem mais
+        cur.execute("""DELETE FROM caixa
+                       WHERE despesa_id IS NOT NULL
+                       AND despesa_id NOT IN (SELECT id FROM despesas)""")
+        caixa_desp = cur.rowcount
+        # 5) Parcelas de crediário órfãs
+        cur.execute("""DELETE FROM crediario_parcelas
+                       WHERE crediario_id NOT IN (SELECT id FROM crediarios)""")
+        parc_removidas = cur.rowcount
+        # 6) Parcelas de despesa órfãs
+        cur.execute("""DELETE FROM despesa_parcelas
+                       WHERE despesa_id NOT IN (SELECT id FROM despesas)""")
+        dparc_removidas = cur.rowcount
         conn.commit()
+        total_caixa = caixa_venda + caixa_cred + caixa_desp
         return f"""<div style='font-family:monospace;padding:40px'>
         <b>✅ Limpeza concluída!</b><br><br>
-        Registros de caixa removidos: <b>{removidos}</b><br>
-        Crediários órfãos removidos: <b>{cred_removidos}</b><br><br>
+        Lançamentos de caixa removidos: <b>{total_caixa}</b><br>
+        &nbsp;&nbsp;• de vendas inexistentes: {caixa_venda}<br>
+        &nbsp;&nbsp;• de recebimentos de crediário inexistentes: {caixa_cred}<br>
+        &nbsp;&nbsp;• de despesas inexistentes: {caixa_desp}<br>
+        Crediários órfãos removidos: <b>{cred_removidos}</b><br>
+        Parcelas de crediário órfãs: <b>{parc_removidas}</b><br>
+        Parcelas de despesa órfãs: <b>{dparc_removidas}</b><br><br>
         <a href='/caixa'>← Voltar ao Caixa</a>
         </div>"""
     except Exception as e:
@@ -134,6 +158,8 @@ def versao():
     Versão: <b style='color:green'>v100 — 2026-06-15</b><br>
     v100: CORREÇÃO do código sequencial em Estoque (P), Clientes (C), Despesas (D) e Usuários (F): agora baseado no MAIOR número já cadastrado, não na contagem. Excluir registros não faz mais o código se repetir (antes o estoque voltava para P22) ✅<br>
     v100: nova rotina de manutenção para renumerar produtos com código duplicado já existentes (/admin/corrigir-codigos-estoque, só Admin N1) ✅<br>
+    v100: CORREÇÃO ao excluir uma venda — agora também remove do Caixa os recebimentos de parcela do crediário (que ficavam órfãos) e as parcelas; antes os valores continuavam aparecendo no Caixa ✅<br>
+    v100: rotina de limpeza de órfãos ampliada (/admin/limpar-caixa-orfaos) — varre Caixa por venda/crediário/despesa inexistentes e parcelas órfãs ✅<br>
     v100: estoque — lightbox da foto e thumbnail na tabela; galeria liberada no avatar e na foto do produto; foto reduzida (500px/0.70) p/ salvar mais rápido no celular ✅<br>
     v99: campo data de nascimento (novo e editar cliente) virou texto com máscara DD/MM/AAAA — digita direto sem precisar do calendário do browser ✅<br>
     v99: estoque — ao adicionar tamanho novo via modal, o sistema mantém o cadastro de produto aberto e já seleciona o tamanho adicionado ✅<br>

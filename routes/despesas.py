@@ -32,7 +32,8 @@ def despesas():
             d['parc_pagas'] = 0
     cur.execute("SELECT COALESCE(SUM(valor),0) as t FROM despesas WHERE DATE(COALESCE(data_despesa,criado_em)) BETWEEN %s AND %s", (data_inicio, data_fim))
     total = float(cur.fetchone()['t'])
-    cur.execute("SELECT COUNT(*) as t FROM despesas"); n = cur.fetchone()['t']
+    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM despesas WHERE codigo ~ '^D[0-9]+$'")
+    n = cur.fetchone()['m']
     # Categorias para o cadastro (ordenadas)
     cur.execute("SELECT nome FROM despesa_categorias WHERE ativo=TRUE ORDER BY nome")
     categorias = [r['nome'] for r in cur.fetchall()]
@@ -89,7 +90,8 @@ def despesas():
 @login_required
 def nova_despesa():
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) as t FROM despesas"); n = cur.fetchone()['t']
+    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM despesas WHERE codigo ~ '^D[0-9]+$'")
+    n = cur.fetchone()['m']
     valor = parse_brl(request.form.get('valor', '0'))
     descricao = request.form.get('descricao', '').strip()
     categoria = request.form.get('categoria', '').strip()

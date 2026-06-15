@@ -1,6 +1,11 @@
-# CD Gestão Empresarial — v99
+# CD Gestão Empresarial — v100
 
-## Novidades da v99 (2026-06-13)
+## Novidades da v100 (2026-06-15)
+- **Correção do código sequencial (Estoque P, Clientes C, Despesas D, Usuários F):** o número agora é gerado a partir do **maior código já cadastrado**, e não da quantidade de registros. Antes, ao excluir itens, a contagem caía e o sistema repetia um código antigo (ex.: o estoque voltava para P22). Agora a sequência sempre continua de onde parou — é seguro excluir os dados de teste em qualquer aba.
+- **Renumeração de duplicados existentes:** rota `/admin/corrigir-codigos-estoque` (só Admin N1) que conserta produtos que já ficaram com código repetido.
+- Inclui também as melhorias de estoque/foto da v99.1 (lightbox da foto, thumbnail na tabela, galeria liberada no avatar e na foto do produto, foto reduzida para salvar mais rápido no celular).
+
+## v99 (2026-06-13)
 - **Data de nascimento com máscara:** campo virou texto `DD/MM/AAAA` — o usuário digita direto e as barras aparecem automaticamente. Funciona no cadastro e na edição de cliente.
 - **Estoque — novo tamanho sem sair do cadastro:** ao adicionar um tamanho que não existe, o sistema salva via AJAX, já seleciona o novo tamanho no formulário e mantém o modal de cadastro de produto aberto com todos os dados preenchidos.
 

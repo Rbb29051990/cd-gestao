@@ -113,7 +113,8 @@ def usuario_novo():
         perms = _perms_do_form(perfil)
         foto = _foto_valida(request.form.get('foto', '').strip())
         conn = get_db(); cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) as t FROM usuarios"); n = cur.fetchone()['t']
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM usuarios WHERE codigo ~ '^F[0-9]+$'")
+        n = cur.fetchone()['m']
         try:
             cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes,foto) VALUES (%s,%s,%s,%s,%s,%s)",
                         (f"F{n+1}", nome, generate_password_hash(senha), perfil, perms, foto))

@@ -18,7 +18,8 @@ def estoque():
     modelos = [r['nome'] for r in cur.fetchall()]
     cur.execute("SELECT nome FROM tamanhos_estoque ORDER BY id")
     tamanhos = [r['nome'] for r in cur.fetchall()]
-    cur.execute("SELECT COUNT(*) as t FROM estoque"); n = cur.fetchone()['t']
+    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM estoque WHERE codigo ~ '^P[0-9]+$'")
+    n = cur.fetchone()['m']
     # Buscar total de entradas adicionais por item (mesma conexão, antes de fechar)
     cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
     entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
@@ -39,7 +40,8 @@ def estoque():
 @login_required
 def novo_estoque():
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) as t FROM estoque"); n = cur.fetchone()['t']
+    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM estoque WHERE codigo ~ '^P[0-9]+$'")
+    n = cur.fetchone()['m']
     qtd = int(request.form.get('quantidade', 1) or 1)
     custo_raw = request.form.get('custo_unitario', '').strip()
     venda_raw = request.form.get('valor_venda', '').strip()

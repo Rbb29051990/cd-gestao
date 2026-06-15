@@ -13,7 +13,8 @@ def clientes():
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM clientes WHERE ativo=TRUE ORDER BY nome")
     lista = [dict(c) for c in cur.fetchall()]
-    cur.execute("SELECT COUNT(*) as t FROM clientes"); n = cur.fetchone()['t']
+    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM clientes WHERE codigo ~ '^C[0-9]+$'")
+    n = cur.fetchone()['m']
     cur.close(); close_db(conn)
     for c in lista:
         p = c['nome'].split()
@@ -31,7 +32,8 @@ def novo_cliente():
     if cur.fetchone():
         cur.close(); close_db(conn)
         flash('DUPLICADO_NOME||' + nome, 'erro'); return redirect(url_for('clientes'))
-    cur.execute("SELECT COUNT(*) as t FROM clientes"); n = cur.fetchone()['t']
+    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM clientes WHERE codigo ~ '^C[0-9]+$'")
+    n = cur.fetchone()['m']
     try:
         cur.execute("""INSERT INTO clientes (codigo,nome,cpf,data_nascimento,telefone,telefone2,
             cep,logradouro,numero,complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar)

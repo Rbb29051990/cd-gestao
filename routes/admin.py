@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v99'})
+        return jsonify({'status': 'ok', 'version': 'v100'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -79,10 +79,62 @@ def limpar_caixa_orfaos():
         cur.close(); close_db(conn)
 
 
+@login_required
+def corrigir_codigos_estoque():
+    """Renumera produtos com código repetido. Mantém o item MAIS ANTIGO de cada
+    código (a primeira leva cadastrada) e atribui códigos novos sequenciais
+    (acima do maior já existente) aos repetidos cadastrados depois."""
+    if not pode_excluir():
+        return 'Acesso negado — apenas o Administrador N1.', 403
+    conn = get_db(); cur = conn.cursor()
+    try:
+        # Maior número já em uso → ponto de partida dos novos códigos
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM estoque WHERE codigo ~ '^P[0-9]+$'")
+        prox = cur.fetchone()['m'] + 1
+        # Todos os itens cujo código aparece mais de uma vez, ordenados por
+        # código e do mais antigo para o mais novo.
+        cur.execute("""SELECT id, codigo, modelo, descricao, criado_em FROM estoque
+                       WHERE codigo IN (SELECT codigo FROM estoque GROUP BY codigo HAVING COUNT(*) > 1)
+                       ORDER BY codigo, criado_em, id""")
+        rows = cur.fetchall()
+        renomeados = []
+        vistos = set()
+        for r in rows:
+            cod = r['codigo']
+            if cod not in vistos:
+                vistos.add(cod)          # mantém o mais antigo com o código original
+                continue
+            novo = f"P{prox}"; prox += 1
+            cur.execute("UPDATE estoque SET codigo=%s WHERE id=%s", (novo, r['id']))
+            renomeados.append((cod, novo, r['modelo'] or '', r['descricao'] or ''))
+        conn.commit()
+        if not renomeados:
+            corpo = "<b>✅ Nenhum código duplicado encontrado.</b> Tudo certo!"
+        else:
+            linhas = "".join(f"<tr><td style='padding:4px 12px;color:#c62828'>{c}</td>"
+                             f"<td style='padding:4px 12px'>→</td>"
+                             f"<td style='padding:4px 12px;color:#2e7d32;font-weight:700'>{n}</td>"
+                             f"<td style='padding:4px 12px;color:#555'>{m} {d}</td></tr>"
+                             for c, n, m, d in renomeados)
+            corpo = (f"<b>✅ {len(renomeados)} item(ns) renumerado(s):</b><br><br>"
+                     f"<table style='border-collapse:collapse'>{linhas}</table>")
+        return f"""<div style='font-family:monospace;padding:40px'>
+        {corpo}<br><br><a href='/estoque'>← Voltar ao Estoque</a>
+        </div>"""
+    except Exception as e:
+        conn.rollback()
+        return f'Erro: {e}', 500
+    finally:
+        cur.close(); close_db(conn)
+
+
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v99 — 2026-06-13</b><br>
+    Versão: <b style='color:green'>v100 — 2026-06-15</b><br>
+    v100: CORREÇÃO do código sequencial em Estoque (P), Clientes (C), Despesas (D) e Usuários (F): agora baseado no MAIOR número já cadastrado, não na contagem. Excluir registros não faz mais o código se repetir (antes o estoque voltava para P22) ✅<br>
+    v100: nova rotina de manutenção para renumerar produtos com código duplicado já existentes (/admin/corrigir-codigos-estoque, só Admin N1) ✅<br>
+    v100: estoque — lightbox da foto e thumbnail na tabela; galeria liberada no avatar e na foto do produto; foto reduzida (500px/0.70) p/ salvar mais rápido no celular ✅<br>
     v99: campo data de nascimento (novo e editar cliente) virou texto com máscara DD/MM/AAAA — digita direto sem precisar do calendário do browser ✅<br>
     v99: estoque — ao adicionar tamanho novo via modal, o sistema mantém o cadastro de produto aberto e já seleciona o tamanho adicionado ✅<br>
     v99: estoque — botão "← Voltar" adicionado no rodapé do formulário de cadastro de produto ✅<br>
@@ -153,4 +205,5 @@ def register(app):
     app.add_url_rule('/setup', 'setup', setup)
     app.add_url_rule('/reset-usuarios', 'reset_usuarios', reset_usuarios)
     app.add_url_rule('/admin/limpar-caixa-orfaos', 'limpar_caixa_orfaos', limpar_caixa_orfaos)
+    app.add_url_rule('/admin/corrigir-codigos-estoque', 'corrigir_codigos_estoque', corrigir_codigos_estoque)
     app.add_url_rule('/versao', 'versao', versao)

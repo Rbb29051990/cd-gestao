@@ -1,6 +1,12 @@
-# CD Gestão Empresarial — v103
+# CD Gestão Empresarial — v105
 
-## Novidades da v103 (2026-06-15)
+## Novidades da v105 (2026-06-15)
+- **Botão de exclusão do Caixa removido:** era um recurso temporário (v102/v103) para limpar lançamentos órfãos. Com a limpeza feita, o botão foi retirado — o Caixa volta a ser apenas um espelho automático das vendas, crediários e despesas, sem exclusão manual. A rota interna correspondente também foi removida.
+
+## v104 (2026-06-15)
+- **Ordenamento em todas as tabelas:** agora **todas as colunas de todas as abas** podem ser clicadas para ordenar (crescente/decrescente), com o ícone ↕ no cabeçalho — igual ao que já existia em Vendas. O sistema detecta automaticamente datas (dd/mm/aaaa), valores em R$, porcentagens, códigos e texto. Implementado de forma central no `base.html`, então vale para qualquer tabela, inclusive as futuras.
+
+## v103 (2026-06-15)
 - **Correção da aba Caixa:** a página dava "Erro interno" porque o texto de confirmação do botão de exclusão (v102) tinha aspas que quebravam a renderização. Corrigido — o Caixa abre normalmente e o botão 🗑️ funciona.
 - *Observação:* o botão de exclusão no Caixa é temporário (para limpeza de órfãos). Será removido em uma versão futura, já que o Caixa é um espelho e não a origem do dado.
 

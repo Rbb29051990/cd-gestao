@@ -41,6 +41,61 @@
       });
     });
   </script>
+
+  <!-- v103: ordenamento universal — torna TODAS as colunas de TODAS as tabelas clicáveis -->
+  <style>
+    table th.cd-sort{cursor:pointer;-webkit-user-select:none;user-select:none}
+    table th.cd-sort::after{content:'⇅';font-size:10px;color:#bbb;margin-left:4px;font-weight:400}
+    table th.cd-sort.cd-asc::after{content:'↑';color:var(--cor-texto,#1a1a2e)}
+    table th.cd-sort.cd-desc::after{content:'↓';color:var(--cor-texto,#1a1a2e)}
+  </style>
+  <script>
+    (function(){
+      function valor(txt){
+        txt = (txt||'').trim();
+        // Data dd/mm/aaaa (com hora opcional) → ordena cronologicamente
+        var d = txt.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+        if(d){ return {n: new Date(+d[3], +d[2]-1, +d[1], +(d[4]||0), +(d[5]||0)).getTime()}; }
+        // Número (R$, %, código P22/C1...): mantém só dígitos, vírgula e sinal
+        if(/[0-9]/.test(txt)){
+          var limpo = txt.replace(/[^0-9,\-]/g,'').replace(/\./g,'').replace(',','.');
+          var num = parseFloat(limpo);
+          if(limpo!=='' && !isNaN(num)) return {n: num};
+        }
+        return {s: txt.toLowerCase()};
+      }
+      function ordenar(tabela, idx, th){
+        var corpo = tabela.tBodies[0]; if(!corpo) return;
+        var linhas = Array.prototype.filter.call(corpo.rows, function(r){ return !r.querySelector('td[colspan]'); });
+        var asc = !th.classList.contains('cd-asc');
+        tabela.querySelectorAll('th.cd-sort').forEach(function(h){ h.classList.remove('cd-asc','cd-desc'); });
+        th.classList.add(asc ? 'cd-asc' : 'cd-desc');
+        linhas.sort(function(a,b){
+          var ca=a.cells[idx], cb=b.cells[idx];
+          var va=valor(ca?ca.textContent:''), vb=valor(cb?cb.textContent:'');
+          if('n' in va && 'n' in vb) return asc ? va.n-vb.n : vb.n-va.n;
+          var sa=('s' in va)?va.s:String(va.n), sb=('s' in vb)?vb.s:String(vb.n);
+          return asc ? sa.localeCompare(sb,'pt-BR') : sb.localeCompare(sa,'pt-BR');
+        });
+        linhas.forEach(function(r){ corpo.appendChild(r); });
+      }
+      function ativar(){
+        document.querySelectorAll('table').forEach(function(tabela){
+          if(tabela.classList.contains('no-sort')) return;
+          var cab = tabela.tHead; if(!cab || !cab.rows.length || !tabela.tBodies[0]) return;
+          Array.prototype.forEach.call(cab.rows[0].cells, function(th, idx){
+            if(th.getAttribute('onclick')) return;        // já tem ordenamento próprio (Vendas/Estoque/Caixa)
+            if(!th.textContent.trim()) return;            // coluna sem título (ações, etc.)
+            if(th.classList.contains('cd-sort')) return;
+            th.classList.add('cd-sort');
+            th.addEventListener('click', function(){ ordenar(tabela, idx, th); });
+          });
+        });
+      }
+      if(document.readyState!=='loading') ativar();
+      else document.addEventListener('DOMContentLoaded', ativar);
+    })();
+  </script>
 </head>
 <body>
   {% block content %}{% endblock %}

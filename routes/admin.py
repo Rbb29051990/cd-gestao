@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v103'})
+        return jsonify({'status': 'ok', 'version': 'v105'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,9 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v103 — 2026-06-15</b><br>
+    Versão: <b style='color:green'>v105 — 2026-06-15</b><br>
+    v105: removido o botão de exclusão de lançamento do Caixa (era temporário, só para limpeza de órfãos) — o Caixa volta a ser somente espelho das vendas/crediários/despesas ✅<br>
+    v104: ordenamento universal — TODAS as colunas de TODAS as tabelas agora são clicáveis para ordenar (datas, valores, % e texto), em todas as abas ✅<br>
     v103: correção — a aba Caixa dava "Erro interno" por causa do texto de confirmação do botão de exclusão; corrigido ✅<br>
     v102: Caixa — o Administrador N1 agora pode excluir um lançamento diretamente na lista (botão 🗑️), útil para remover registros órfãos ✅<br>
     v101: CORREÇÃO — ao excluir uma venda, os recebimentos de parcela do crediário também saem do Caixa (antes ficavam órfãos). Rode /admin/limpar-caixa-orfaos uma vez para limpar os que já ficaram presos ✅<br>

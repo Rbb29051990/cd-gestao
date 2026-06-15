@@ -1,11 +1,11 @@
 """Rota de Caixa: movimentações do período, totais por categoria de entrada,
 cálculo de líquido/descontos por forma e por categoria de crediário."""
 from datetime import date
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request
 from db import get_db, close_db
 from config import hoje_app
-from auth import login_required, get_ctx, pode_excluir
-from utils import get_taxa_vigente, calcular_liquido, audit_log
+from auth import login_required, get_ctx
+from utils import get_taxa_vigente, calcular_liquido
 
 
 @login_required
@@ -84,35 +84,5 @@ def caixa():
     return render_template('caixa.html', **ctx)
 
 
-@login_required
-def excluir_caixa(mid):
-    """Exclui um lançamento avulso do caixa. Restrito ao Administrador N1.
-    Serve para remover lançamentos órfãos (de vendas/crediários já apagados)."""
-    if not pode_excluir():
-        flash('Apenas o Administrador N1 pode excluir lançamentos do caixa.', 'erro')
-        return redirect(url_for('caixa'))
-    conn = get_db(); cur = conn.cursor()
-    try:
-        cur.execute("SELECT descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,despesa_id FROM caixa WHERE id=%s", (mid,))
-        _old = cur.fetchone()
-        cur.execute("DELETE FROM caixa WHERE id=%s", (mid,))
-        if cur.rowcount:
-            audit_log(cur, 'EXCLUIR_CAIXA', 'caixa', mid, dict(_old) if _old else None)
-            flash('Lançamento excluído do caixa.', 'ok')
-        else:
-            flash('Lançamento não encontrado.', 'erro')
-        conn.commit()
-    except Exception as e:
-        conn.rollback(); flash(str(e), 'erro')
-    finally:
-        cur.close(); close_db(conn)
-    data_inicio = request.form.get('data_inicio', '')
-    data_fim = request.form.get('data_fim', '')
-    if data_inicio and data_fim:
-        return redirect(url_for('caixa', data_inicio=data_inicio, data_fim=data_fim))
-    return redirect(url_for('caixa'))
-
-
 def register(app):
     app.add_url_rule('/caixa', 'caixa', caixa)
-    app.add_url_rule('/caixa/<int:mid>/excluir', 'excluir_caixa', excluir_caixa, methods=['POST'])

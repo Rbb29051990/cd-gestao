@@ -1,6 +1,9 @@
-# CD Gestão Empresarial — v101
+# CD Gestão Empresarial — v102
 
-## Novidades da v101 (2026-06-15)
+## Novidades da v102 (2026-06-15)
+- **Excluir lançamento do Caixa (Admin N1):** agora cada linha da lista de movimentações do Caixa tem um botão 🗑️ visível apenas para o Administrador N1. Serve para remover registros órfãos que tenham sobrado. A ação pede confirmação e avisa que, se o lançamento pertencer a uma venda ainda existente, o Caixa ficará diferente da venda.
+
+## v101 (2026-06-15)
 - **Excluir venda agora limpa o Caixa por completo:** os recebimentos de parcela de crediário (gravados por `crediario_id`, sem `venda_id`) ficavam órfãos no Caixa ao excluir a venda. Agora são removidos junto com a venda, com as parcelas.
 - **Limpeza de órfãos ampliada:** a rota `/admin/limpar-caixa-orfaos` agora varre o Caixa por venda, crediário e despesa inexistentes, e remove parcelas órfãs — **conserta os valores que já ficaram presos no Caixa** (rode uma vez após o deploy, logado como Admin N1).
 

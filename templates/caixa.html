@@ -184,7 +184,7 @@
               {% if pode_excluir %}
               <td style="text-align:center">
                 <form method="POST" action="/caixa/{{ m.id }}/excluir" style="display:inline"
-                      onsubmit="return confirm('Excluir este lançamento do caixa?\n\n{{ m.descricao|replace(\"'\", \"\") }}\nR$ {{ \"{:,.2f}\".format(m.valor|float)|replace(\",\",\"X\")|replace(\".\",\",\")|replace(\"X\",\".\") }}\n\nAtenção: se este lançamento pertencer a uma venda ainda existente, o caixa ficará diferente da venda. Use para limpar registros órfãos.');">
+                      onsubmit="return confirm('Excluir este lançamento do caixa? Esta ação não pode ser desfeita.\n\nAtenção: se o lançamento pertencer a uma venda ainda existente, o caixa ficará diferente da venda. Use apenas para limpar registros órfãos.');">
                   <input type="hidden" name="data_inicio" value="{{ data_inicio }}">
                   <input type="hidden" name="data_fim" value="{{ data_fim }}">
                   <button type="submit" title="Excluir lançamento"

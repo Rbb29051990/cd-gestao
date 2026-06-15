@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v102'})
+        return jsonify({'status': 'ok', 'version': 'v103'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v102 — 2026-06-15</b><br>
+    Versão: <b style='color:green'>v103 — 2026-06-15</b><br>
+    v103: correção — a aba Caixa dava "Erro interno" por causa do texto de confirmação do botão de exclusão; corrigido ✅<br>
     v102: Caixa — o Administrador N1 agora pode excluir um lançamento diretamente na lista (botão 🗑️), útil para remover registros órfãos ✅<br>
     v101: CORREÇÃO — ao excluir uma venda, os recebimentos de parcela do crediário também saem do Caixa (antes ficavam órfãos). Rode /admin/limpar-caixa-orfaos uma vez para limpar os que já ficaram presos ✅<br>
     v100: CORREÇÃO do código sequencial em Estoque (P), Clientes (C), Despesas (D) e Usuários (F): agora baseado no MAIOR número já cadastrado, não na contagem. Excluir registros não faz mais o código se repetir (antes o estoque voltava para P22) ✅<br>

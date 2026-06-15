@@ -1,7 +1,11 @@
-# CD Gestão Empresarial — v102
+# CD Gestão Empresarial — v103
 
-## Novidades da v102 (2026-06-15)
-- **Excluir lançamento do Caixa (Admin N1):** agora cada linha da lista de movimentações do Caixa tem um botão 🗑️ visível apenas para o Administrador N1. Serve para remover registros órfãos que tenham sobrado. A ação pede confirmação e avisa que, se o lançamento pertencer a uma venda ainda existente, o Caixa ficará diferente da venda.
+## Novidades da v103 (2026-06-15)
+- **Correção da aba Caixa:** a página dava "Erro interno" porque o texto de confirmação do botão de exclusão (v102) tinha aspas que quebravam a renderização. Corrigido — o Caixa abre normalmente e o botão 🗑️ funciona.
+- *Observação:* o botão de exclusão no Caixa é temporário (para limpeza de órfãos). Será removido em uma versão futura, já que o Caixa é um espelho e não a origem do dado.
+
+## v102 (2026-06-15)
+- **Excluir lançamento do Caixa (Admin N1):** cada linha da lista de movimentações do Caixa tem um botão 🗑️ visível apenas para o Administrador N1. Serve para remover registros órfãos que tenham sobrado. A ação pede confirmação e avisa que, se o lançamento pertencer a uma venda ainda existente, o Caixa ficará diferente da venda.
 
 ## v101 (2026-06-15)
 - **Excluir venda agora limpa o Caixa por completo:** os recebimentos de parcela de crediário (gravados por `crediario_id`, sem `venda_id`) ficavam órfãos no Caixa ao excluir a venda. Agora são removidos junto com a venda, com as parcelas.

@@ -32,10 +32,9 @@
 .etq-cell.ativa{background:#fff;border:1px solid #9ad}
 .etq-cell.ativa:hover{background:#f0fbfb}
 .etq-cell.inicio{outline:2px solid #00838f;outline-offset:-2px;z-index:1}
-.c-cod{font-size:6.5pt;font-weight:700;letter-spacing:.4px;color:#1a1a2e;line-height:1.05}
-.c-mod{font-size:5.5pt;color:#333;line-height:1.05;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.c-tam{font-size:5.5pt;color:#555;font-weight:600;line-height:1.05}
-.c-preco{font-size:8.5pt;font-weight:800;color:#000;line-height:1.1;margin-top:1px}
+.c-cod{font-size:7.5pt;font-weight:800;letter-spacing:.3px;color:#1a3a9c;line-height:1.1}
+.c-mod{font-size:6pt;color:#1a3a9c;font-weight:600;line-height:1.1;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c-preco{font-size:10pt;font-weight:800;color:#0b1f5c;line-height:1.15;margin-top:1px}
 /* Contêiner exclusivo de impressão (fora do fluxo na tela) */
 #printRoot{display:none}
 @media print{
@@ -732,8 +731,7 @@ function etqRenderFolha(){
       const L=labels[pos];
       html += '<div class="etq-cell ativa'+inicioCls+'" onclick="etqSetInicio('+idx+')">'+
         '<div class="c-cod">'+L.codigo+'</div>'+
-        '<div class="c-mod">'+(L.modelo||'')+'</div>'+
-        '<div class="c-tam">'+(L.tamanho||'ÚNICO')+'</div>'+
+        '<div class="c-mod">'+((L.modelo||'')+' · '+(L.tamanho||'ÚNICO'))+'</div>'+
         '<div class="c-preco">'+etqMoeda(L.valor_venda)+'</div></div>';
     } else {
       html += '<div class="etq-cell'+inicioCls+'" onclick="etqSetInicio('+idx+')"><span class="etq-num">'+(idx+1)+'</span></div>';

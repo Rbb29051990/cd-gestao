@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 from flask import render_template, request, redirect, url_for, session, flash
 from db import get_db, close_db
 from config import hoje_app
-from auth import login_required, get_ctx, pode_excluir
+from auth import login_required, get_ctx, pode_excluir, is_admin
 from utils import parse_brl
 
 
@@ -190,6 +190,57 @@ def pagar_parcela_despesa(did, pid):
 
 
 @login_required
+def editar_despesa(did):
+    """Edita uma despesa. Liberado para N1 e N2.
+    Categoria/descrição/tipo/forma/origem podem ser alterados sempre.
+    Valor e vencimento só quando a despesa ainda não foi paga e não é parcelada
+    (conta a pagar única em aberto) — evita desencontro com parcelas/caixa."""
+    if not is_admin():
+        flash('Apenas administradores (N1 ou N2) podem editar despesas.', 'erro')
+        return redirect(url_for('despesas'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM despesas WHERE id=%s", (did,))
+        d = cur.fetchone()
+        if not d:
+            flash('Despesa não encontrada.', 'erro'); return redirect(url_for('despesas'))
+        d = dict(d)
+        categoria = request.form.get('categoria', '').strip()
+        descricao = request.form.get('descricao', '').strip()
+        forma = request.form.get('forma_pagamento', '').strip()
+        tipo = request.form.get('tipo', 'avulsa').strip().lower()
+        if tipo not in ('fixa', 'avulsa'): tipo = 'avulsa'
+        local_ret = request.form.get('local_retirada', '').strip().lower()
+        if local_ret not in ('caixa', 'pix'): local_ret = None
+        obs_ret = request.form.get('obs_retirada', '').strip() or None
+        # Valor/vencimento só são editáveis em conta a pagar única ainda em aberto
+        editavel_valor = (not d.get('parcelado')) and (d.get('status') != 'pago')
+        if categoria:
+            cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING", (categoria,))
+        if editavel_valor:
+            valor = parse_brl(request.form.get('valor', '0'))
+            venc = request.form.get('data_vencimento') or d.get('data_vencimento')
+            cur.execute("""UPDATE despesas SET categoria=%s,descricao=%s,forma_pagamento=%s,tipo=%s,
+                           local_retirada=%s,obs_retirada=%s,valor=%s,data_vencimento=%s WHERE id=%s""",
+                        (categoria or None, descricao or None, forma or None, tipo, local_ret, obs_ret, valor, venc, did))
+            # Atualiza a parcela única ainda em aberto (mantém a conta a pagar coerente)
+            cur.execute("UPDATE despesa_parcelas SET valor=%s, data_vencimento=%s WHERE despesa_id=%s AND pago=FALSE",
+                        (valor, venc, did))
+        else:
+            cur.execute("""UPDATE despesas SET categoria=%s,descricao=%s,forma_pagamento=%s,tipo=%s,
+                           local_retirada=%s,obs_retirada=%s WHERE id=%s""",
+                        (categoria or None, descricao or None, forma or None, tipo, local_ret, obs_ret, did))
+        # Se a forma mudou, mantém o caixa coerente para lançamentos já pagos desta despesa
+        cur.execute("UPDATE caixa SET forma_pagamento=%s WHERE despesa_id=%s", (forma or None, did))
+        conn.commit(); flash('Despesa atualizada!', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('despesas'))
+
+
+@login_required
 def excluir_despesa(did):
     if not pode_excluir():
         flash('Apenas o Administrador N1 pode excluir dados.', 'erro'); return redirect(url_for('despesas'))
@@ -208,4 +259,5 @@ def register(app):
     app.add_url_rule('/despesas', 'despesas', despesas)
     app.add_url_rule('/despesas/nova', 'nova_despesa', nova_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/parcela/<int:pid>/pagar', 'pagar_parcela_despesa', pagar_parcela_despesa, methods=['POST'])
+    app.add_url_rule('/despesas/<int:did>/editar', 'editar_despesa', editar_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/excluir', 'excluir_despesa', excluir_despesa, methods=['POST'])

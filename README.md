@@ -1,6 +1,12 @@
-# CD Gestão Empresarial — v109
+# CD Gestão Empresarial — v111
 
-## Novidades da v109 (2026-06-16)
+## Novidades da v111 (2026-06-16)
+- **Etiquetas corrigidas:** o **preço** voltou a sair na impressão. Ele não aparecia porque o conteúdo (4 linhas) estourava a altura da etiqueta (1,5 cm) e o preço, na última linha, era cortado. Agora a etiqueta usa **3 linhas** — código / modelo · tamanho / preço — com as **informações em azul, centralizadas** e o **preço maior e mais legível**.
+
+## v110 (2026-06-16)
+- **Editar despesa lançada:** cada despesa na tabela agora tem um botão ✏️ (ao lado do excluir), liberado para **Administradores N1 e N2**. Abre um modal para corrigir categoria, descrição, tipo, forma de pagamento e origem. **Valor e vencimento** podem ser editados enquanto a despesa for uma conta a pagar ainda em aberto; em despesas já pagas ou parceladas, esses dois campos ficam bloqueados (para não desencontrar com as parcelas e o caixa), mas os demais continuam editáveis. Se a forma de pagamento mudar, os lançamentos já feitos no caixa para essa despesa são atualizados junto.
+
+## v109 (2026-06-16)
 - **Despesa sem campo de data:** removido o campo "Data do lançamento" do cadastro de nova despesa. A data agora é automática — a despesa é registrada com a data de hoje. (O campo de **Data de vencimento**, quando não há parcelamento, continua existindo.)
 
 ## v108 (2026-06-16) — Vendas no líquido

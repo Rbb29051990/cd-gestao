@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v105'})
+        return jsonify({'status': 'ok', 'version': 'v106'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,10 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v105 — 2026-06-15</b><br>
+    Versão: <b style='color:green'>v106 — 2026-06-16</b><br>
+    v106: celular — valores em R$ não quebram mais em duas linhas na Visão Geral ✅<br>
+    v106: Crediários — filtro de data já vem preenchido (mês vigente até hoje), igual às outras abas (botão "Todos" mostra tudo) ✅<br>
+    v106: celular — o menu superior agora rola automaticamente até a aba ativa ficar visível ✅<br>
     v105: removido o botão de exclusão de lançamento do Caixa (era temporário, só para limpeza de órfãos) — o Caixa volta a ser somente espelho das vendas/crediários/despesas ✅<br>
     v104: ordenamento universal — TODAS as colunas de TODAS as tabelas agora são clicáveis para ordenar (datas, valores, % e texto), em todas as abas ✅<br>
     v103: correção — a aba Caixa dava "Erro interno" por causa do texto de confirmação do botão de exclusão; corrigido ✅<br>

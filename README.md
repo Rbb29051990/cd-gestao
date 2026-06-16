@@ -1,6 +1,11 @@
-# CD Gestão Empresarial — v105
+# CD Gestão Empresarial — v106
 
-## Novidades da v105 (2026-06-15)
+## Novidades da v106 (2026-06-16) — ajustes de celular
+- **Valores em R$ na mesma linha:** na Visão Geral (Controle de Entradas), o símbolo e o número não quebram mais em duas linhas no celular.
+- **Crediários com data pré-fixada:** o filtro De/Até já abre preenchido com o mês vigente (1º dia → hoje), igual às outras abas. O botão "Todos" continua mostrando todos os crediários.
+- **Menu acompanha a aba ativa:** no celular, a barra de menu superior agora rola automaticamente até deixar visível a aba em que você está (ex.: Taxas).
+
+## v105 (2026-06-15)
 - **Botão de exclusão do Caixa removido:** era um recurso temporário (v102/v103) para limpar lançamentos órfãos. Com a limpeza feita, o botão foi retirado — o Caixa volta a ser apenas um espelho automático das vendas, crediários e despesas, sem exclusão manual. A rota interna correspondente também foi removida.
 
 ## v104 (2026-06-15)

@@ -96,6 +96,21 @@
       else document.addEventListener('DOMContentLoaded', ativar);
     })();
   </script>
+
+  <!-- v106: no celular o menu vira barra horizontal — rola até a aba ativa ficar visível -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      var ativo = document.querySelector('.nav-item.active');
+      if(!ativo) return;
+      // Sobe na árvore até achar um contêiner com rolagem horizontal real
+      var cont = ativo.parentElement;
+      while(cont && cont.scrollWidth <= cont.clientWidth + 2){ cont = cont.parentElement; }
+      if(!cont || cont === document.body || cont === document.documentElement) return;
+      var cr = cont.getBoundingClientRect();
+      var ar = ativo.getBoundingClientRect();
+      cont.scrollLeft += (ar.left - cr.left) - (cont.clientWidth/2) + (ar.width/2);
+    });
+  </script>
 </head>
 <body>
   {% block content %}{% endblock %}

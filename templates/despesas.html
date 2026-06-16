@@ -292,16 +292,12 @@
         <input class="form-input" type="text" name="descricao" placeholder="Detalhe livre. Ex: aluguel ref. junho, fornecedor X...">
       </div>
 
-      <!-- 4. VALOR + DATA -->
+      <!-- 4. VALOR (a data do lançamento é automática = hoje) -->
       <div class="step-sep"><span class="stn">4</span> Valor total</div>
       <div class="form-grid">
         <div class="form-field">
           <label class="form-label">Valor (R$) *</label>
           <input class="form-input" type="text" inputmode="numeric" name="valor" id="valorDesp" required placeholder="0,00">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Data do lançamento</label>
-          <input class="form-input" type="date" name="data_despesa">
         </div>
       </div>
 
@@ -367,7 +363,6 @@
   </div>
 </div>
 <script>
-document.querySelector('[name="data_despesa"]').value = localISODate(new Date());
 (function(){ var vu=document.getElementById('vencUnico'); if(vu) vu.value = localISODate(new Date()); })();
 
 function selTipo(t){

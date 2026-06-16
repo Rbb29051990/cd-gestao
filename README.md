@@ -1,6 +1,9 @@
-# CD Gestão Empresarial — v108
+# CD Gestão Empresarial — v109
 
-## Novidades da v108 (2026-06-16) — Vendas no líquido
+## Novidades da v109 (2026-06-16)
+- **Despesa sem campo de data:** removido o campo "Data do lançamento" do cadastro de nova despesa. A data agora é automática — a despesa é registrada com a data de hoje. (O campo de **Data de vencimento**, quando não há parcelamento, continua existindo.)
+
+## v108 (2026-06-16) — Vendas no líquido
 - **Taxa do cartão e Valor líquido na tabela:** cada venda agora mostra a taxa da maquininha descontada e o **valor líquido** (bruto − desconto − taxa) — o que de fato entra na conta. Usa o mesmo cálculo do Caixa (taxa vigente na data da venda), então os números batem entre as telas.
 - **Total e ticket médio líquidos:** os cards do topo (Total período e Ticket médio) passam a refletir o líquido do período.
 - **Ranking por líquido + donut de 3 cores:** o ranking de vendedores agora ordena pelo valor líquido, e o gráfico de cada vendedor mostra a composição da venda em 3 fatias — 🟢 Líquido, 🟠 Desconto, 🔴 Taxa — somando o bruto, com o líquido total ao lado.

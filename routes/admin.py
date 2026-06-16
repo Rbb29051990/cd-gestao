@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v111'})
+        return jsonify({'status': 'ok', 'version': 'v112'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,9 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v111 — 2026-06-16</b><br>
+    Versão: <b style='color:green'>v112 — 2026-06-16</b><br>
+    v112: Despesas — o período agora filtra pelas contas que VENCEM no intervalo; todos os gráficos respeitam só o período ✅<br>
+    v112: Despesas — o gráfico "Por forma de pagamento" foi substituído por 3 pizzas (Fixa × Avulsa) dos 3 meses anteriores ao atual ✅<br>
     v111: Etiquetas — corrigido o preço que não saía na impressão (estourava a altura da etiqueta); layout em 3 linhas (código / modelo · tamanho / preço), informações em azul e centralizadas, preço maior e mais legível ✅<br>
     v110: Despesas — agora é possível EDITAR uma despesa já lançada (botão ✏️), liberado para Administradores N1 e N2. Valor e vencimento são editáveis enquanto a conta a pagar não foi quitada ✅<br>
     v109: Despesas — removido o campo "Data do lançamento" do cadastro; a data passa a ser automática (hoje) ✅<br>

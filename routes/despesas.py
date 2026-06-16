@@ -19,7 +19,8 @@ def despesas():
     except: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
     except: data_fim = hoje.strftime('%Y-%m-%d')
-    cur.execute("SELECT * FROM despesas WHERE DATE(COALESCE(data_despesa,criado_em)) BETWEEN %s AND %s ORDER BY criado_em DESC", (data_inicio, data_fim))
+    # Período filtra pelas contas que VENCEM no intervalo (não pela data de lançamento)
+    cur.execute("SELECT * FROM despesas WHERE DATE(COALESCE(data_vencimento,data_despesa,criado_em)) BETWEEN %s AND %s ORDER BY COALESCE(data_vencimento,data_despesa,criado_em) DESC", (data_inicio, data_fim))
     lista = [dict(d) for d in cur.fetchall()]
     # Carregar parcelas de cada despesa parcelada
     for d in lista:
@@ -30,7 +31,7 @@ def despesas():
         else:
             d['parcelas'] = []
             d['parc_pagas'] = 0
-    cur.execute("SELECT COALESCE(SUM(valor),0) as t FROM despesas WHERE DATE(COALESCE(data_despesa,criado_em)) BETWEEN %s AND %s", (data_inicio, data_fim))
+    cur.execute("SELECT COALESCE(SUM(valor),0) as t FROM despesas WHERE DATE(COALESCE(data_vencimento,data_despesa,criado_em)) BETWEEN %s AND %s", (data_inicio, data_fim))
     total = float(cur.fetchone()['t'])
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM despesas WHERE codigo ~ '^D[0-9]+$'")
     n = cur.fetchone()['m']
@@ -48,6 +49,30 @@ def despesas():
         p['atrasada'] = bool(p['data_vencimento'] and p['data_vencimento'] < hoje)
     total_a_pagar = round(sum(float(p['valor'] or 0) for p in a_pagar), 2)
     n_atrasadas = sum(1 for p in a_pagar if p['atrasada'])
+    # ── 3 pizzas: Fixa × Avulsa dos 3 meses ANTERIORES ao mês atual (independe do filtro) ──
+    MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
+                'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+    def _add_months(y, mth, delta):
+        idx = (y * 12 + (mth - 1)) + delta
+        return idx // 12, idx % 12 + 1
+    tri_meses = []
+    for back in (3, 2, 1):
+        yy, mm = _add_months(hoje.year, hoje.month, -back)
+        ini_m = date(yy, mm, 1)
+        ny, nm = _add_months(yy, mm, 1)
+        fim_m = date(ny, nm, 1) - timedelta(days=1)
+        cur.execute("""SELECT LOWER(COALESCE(tipo,'')) as tp, COALESCE(SUM(valor),0) as t
+                       FROM despesas
+                       WHERE DATE(COALESCE(data_vencimento,data_despesa,criado_em)) BETWEEN %s AND %s
+                       GROUP BY LOWER(COALESCE(tipo,''))""", (ini_m, fim_m))
+        fx = av = 0.0
+        for r in cur.fetchall():
+            if (r['tp'] or '') in ('fixa', 'fixo'): fx += float(r['t'])
+            else: av += float(r['t'])
+        tot_m = round(fx + av, 2)
+        tri_meses.append({'label': f"{MESES_PT[mm-1]}/{yy}", 'fixa': round(fx, 2),
+                          'avulsa': round(av, 2), 'total': tot_m,
+                          'pct_fixa': round(fx / tot_m * 100, 1) if tot_m else 0})
     cur.close(); close_db(conn)
     # ── Agregações para gráficos (fixa vs avulsa + descrições + categorias) ──
     def _norm_tipo(t):
@@ -55,14 +80,11 @@ def despesas():
     total_fixa = total_avulsa = 0.0
     qtd_fixa = qtd_avulsa = 0
     cat_fixa, cat_avulsa = {}, {}
-    forma_dist = {}
     for d in lista:
         v = float(d['valor'] or 0)
         tp = _norm_tipo(d.get('tipo'))
         d['tipo'] = tp  # normaliza para o template
         chave = (d.get('categoria') or d.get('descricao') or '—').strip() or '—'
-        fp = (d.get('forma_pagamento') or 'Não informado').strip() or 'Não informado'
-        forma_dist[fp] = forma_dist.get(fp, 0.0) + v
         if tp == 'fixa':
             total_fixa += v; qtd_fixa += 1
             cat_fixa[chave] = cat_fixa.get(chave, 0.0) + v
@@ -74,14 +96,11 @@ def despesas():
         return [{'descricao': k, 'valor': round(v, 2)} for k, v in itens]
     desc_fixa_list = _ranked(cat_fixa)
     desc_avulsa_list = _ranked(cat_avulsa)
-    forma_list = sorted(
-        [{'forma': k, 'valor': round(v, 2)} for k, v in forma_dist.items()],
-        key=lambda x: x['valor'], reverse=True)
     ctx = get_ctx()
     ctx.update(lista=lista, total=total, data_inicio=data_inicio, data_fim=data_fim, next_cod=f"D{n+1}",
                total_fixa=round(total_fixa, 2), total_avulsa=round(total_avulsa, 2),
                qtd_fixa=qtd_fixa, qtd_avulsa=qtd_avulsa,
-               desc_fixa=desc_fixa_list, desc_avulsa=desc_avulsa_list, forma_list=forma_list,
+               desc_fixa=desc_fixa_list, desc_avulsa=desc_avulsa_list, tri_meses=tri_meses,
                categorias=categorias, a_pagar=a_pagar, total_a_pagar=total_a_pagar,
                n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas)
     return render_template('despesas.html', **ctx)

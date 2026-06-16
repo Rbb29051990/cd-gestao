@@ -1,6 +1,10 @@
-# CD Gestão Empresarial — v111
+# CD Gestão Empresarial — v112
 
-## Novidades da v111 (2026-06-16)
+## Novidades da v112 (2026-06-16) — Despesas
+- **Período por vencimento:** o filtro De/Até agora seleciona as despesas que **vencem** no intervalo (antes era pela data de lançamento). A tabela, o total e todos os gráficos passam a refletir exatamente o período escolhido.
+- **3 pizzas Fixa × Avulsa:** o antigo gráfico "Por forma de pagamento" foi substituído por **3 pizzas pequenas**, uma para cada um dos **3 meses anteriores ao mês atual**. Cada pizza mostra quanto foi gasto em despesa **Fixa** (azul) × **Avulsa** (laranja) naquele mês, com os valores ao lado. Esses 3 gráficos são sempre os 3 meses anteriores — não dependem do período selecionado — para comparar a evolução.
+
+## v111 (2026-06-16)
 - **Etiquetas corrigidas:** o **preço** voltou a sair na impressão. Ele não aparecia porque o conteúdo (4 linhas) estourava a altura da etiqueta (1,5 cm) e o preço, na última linha, era cortado. Agora a etiqueta usa **3 linhas** — código / modelo · tamanho / preço — com as **informações em azul, centralizadas** e o **preço maior e mais legível**.
 
 ## v110 (2026-06-16)

@@ -204,6 +204,7 @@ function atalho(tipo) {
     inicio = fmt(d);
   } else if (tipo === 'mes') {
     inicio = fmt(hoje).slice(0,7) + '-01';
+    fim = fmt(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0));
   }
   document.getElementById('dataInicio').value = inicio;
   document.getElementById('dataFim').value = fim;

@@ -1,4 +1,10 @@
-# CD Gestão Empresarial — v113
+# CD Gestão Empresarial — v114
+
+
+## Novidades da v114 (2026-06-16) — Filtro mensal completo
+- **Atalho Mês corrigido em todas as abas com filtro por período**: agora o botão **Mês** seleciona automaticamente do **primeiro dia ao último dia do mês atual**, e não apenas até a data de hoje.
+- Aplicado em **Visão Geral, Vendas, Caixa, Crediários, Condicionais e Despesas**.
+- Mantidas todas as melhorias da v113 de despesas recorrentes e fechamento mensal.
 
 ## Novidades da v113 (2026-06-16) — Despesas recorrentes e fechamento mensal
 - **Despesas recorrentes**: ao lançar uma despesa fixa **sem parcelamento**, agora é possível marcar como **recorrente**.

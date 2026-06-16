@@ -266,7 +266,7 @@ function atalho(tipo){
   let inicio, fim = fmt(hoje);
   if (tipo === 'hoje'){ inicio = fmt(hoje); }
   else if (tipo === 'semana'){ const d = new Date(hoje); d.setDate(d.getDate()-6); inicio = fmt(d); }
-  else if (tipo === 'mes'){ inicio = fmt(hoje).slice(0,7) + '-01'; }
+  else if (tipo === 'mes'){ inicio = fmt(hoje).slice(0,7) + '-01'; fim = fmt(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0)); }
   document.getElementById('dataInicio').value = inicio;
   document.getElementById('dataFim').value = fim;
   document.getElementById('formFiltro').submit();

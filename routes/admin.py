@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v107'})
+        return jsonify({'status': 'ok', 'version': 'v108'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,9 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v107 — 2026-06-16</b><br>
+    Versão: <b style='color:green'>v108 — 2026-06-16</b><br>
+    v108: Vendas — agora a tabela mostra a Taxa do cartão e o Valor líquido (bruto − desconto − taxa) por venda; o total do período e o ticket médio também são líquidos ✅<br>
+    v108: Vendas — ranking por valor líquido e donut com 3 cores (líquido, desconto e taxa), com o líquido total ao lado ✅<br>
     v107: Clientes — contato e endereço padronizados: o botão do WhatsApp fica sempre abaixo do telefone, e o GPS sempre abaixo do endereço (sem mais ficar ora do lado, ora embaixo) ✅<br>
     v106: celular — valores em R$ não quebram mais em duas linhas na Visão Geral ✅<br>
     v106: Crediários — filtro de data já vem preenchido (mês vigente até hoje), igual às outras abas (botão "Todos" mostra tudo) ✅<br>

@@ -1,6 +1,11 @@
-# CD Gestão Empresarial — v107
+# CD Gestão Empresarial — v108
 
-## Novidades da v107 (2026-06-16)
+## Novidades da v108 (2026-06-16) — Vendas no líquido
+- **Taxa do cartão e Valor líquido na tabela:** cada venda agora mostra a taxa da maquininha descontada e o **valor líquido** (bruto − desconto − taxa) — o que de fato entra na conta. Usa o mesmo cálculo do Caixa (taxa vigente na data da venda), então os números batem entre as telas.
+- **Total e ticket médio líquidos:** os cards do topo (Total período e Ticket médio) passam a refletir o líquido do período.
+- **Ranking por líquido + donut de 3 cores:** o ranking de vendedores agora ordena pelo valor líquido, e o gráfico de cada vendedor mostra a composição da venda em 3 fatias — 🟢 Líquido, 🟠 Desconto, 🔴 Taxa — somando o bruto, com o líquido total ao lado.
+
+## v107 (2026-06-16)
 - **Tabela de Clientes padronizada:** o botão do WhatsApp agora fica sempre **abaixo** do telefone, e o GPS sempre **abaixo** do endereço. Antes, dependendo do tamanho do conteúdo, eles apareciam ora ao lado, ora embaixo, deixando a tabela desalinhada.
 
 ## v106 (2026-06-16) — ajustes de celular

@@ -168,9 +168,9 @@
             </div>
           </form>
           <div class="top-summary" id="topSummary">
-            <div class="top-chip"><b id="tsTotal">—</b><small>Total período</small></div>
-            <div class="top-chip"><b id="tsQtd">—</b><small>Vendas</small></div>
-            <div class="top-chip"><b id="tsTicket">—</b><small>Ticket médio</small></div>
+            <div class="top-chip"><b id="tsTotal">R$ {{ "{:,.2f}".format(total_liquido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Líquido período</small></div>
+            <div class="top-chip"><b id="tsQtd">{{ n_vendas_periodo }}</b><small>Vendas</small></div>
+            <div class="top-chip"><b id="tsTicket">R$ {{ "{:,.2f}".format(ticket_liquido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Ticket médio</small></div>
           </div>
         </div>
 
@@ -185,10 +185,10 @@
         <div class="table-wrap" style="max-height:420px;overflow:auto;-webkit-overflow-scrolling:touch;margin-bottom:20px">
           <table class="vtable" id="tabelaVendas">
             <thead><tr>
-              <th class="sortable" onclick="ordenarV(0)">Data</th><th>Cód</th>
-              <th class="sortable" onclick="ordenarV(2)">Vendedor (a)</th><th>Cliente</th>
+              <th>Data</th><th>Cód</th>
+              <th>Vendedor (a)</th><th>Cliente</th>
               <th>Itens</th><th>Valor venda</th>
-              <th>Desconto</th><th class="sortable" onclick="ordenarV(7)">Valor final</th><th class="sortable" onclick="ordenarV(8)">Pagamento</th><th></th>
+              <th>Desconto</th><th>Taxa</th><th>Valor líquido</th><th>Pagamento</th><th></th>
             </tr></thead>
             <tbody id="tbodyVendas">
               {% for v in lista_vendas %}
@@ -205,8 +205,13 @@
                   <span style="font-size:11px;color:#aaa"> ({{ "{:,.1f}".format(v.pct_desconto|float)|replace(".",",") }}%)</span>
                   {% else %}<span style="color:#ccc">—</span>{% endif %}
                 </td>
+                <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">
+                  {% if v.taxa_valor and v.taxa_valor > 0 %}
+                  <span style="color:#f57f17;font-weight:700">- R$ {{ "{:,.2f}".format(v.taxa_valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+                  {% else %}<span style="color:#ccc">—</span>{% endif %}
+                </td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer;font-weight:700;color:#2e7d32">
-                  R$ {{ "{:,.2f}".format((v.valor_total|float - (v.desconto|float if v.desconto else 0)))|replace(",","X")|replace(".",",")|replace("X",".") }}
+                  R$ {{ "{:,.2f}".format(v.valor_liquido|float)|replace(",","X")|replace(".",",")|replace("X",".") }}
                 </td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">
                   {% if v.forma_pagamento=='pix' %}<span class="badge bp-pix">⚡ Pix</span>
@@ -225,7 +230,7 @@
                   {% endif %}
                 </td>
               </tr>
-              {% else %}<tr><td colspan="10" class="empty-row">Nenhuma venda registrada ainda.</td></tr>{% endfor %}
+              {% else %}<tr><td colspan="11" class="empty-row">Nenhuma venda registrada ainda.</td></tr>{% endfor %}
             </tbody>
           </table>
         </div>
@@ -750,23 +755,30 @@ async function carregarRanking() {
     body.innerHTML = '<div class="rank-empty">Nenhuma venda neste mês.</div>';
     return;
   }
-  const somaTotal = d.ranking.reduce((s,r)=>s+parseFloat(r.total||0),0) || 1;
   body.innerHTML = d.ranking.map((r,i) => {
-    const total = parseFloat(r.total||0);
-    const part = Math.round(total/somaTotal*100);
-    const ticket = r.num_vendas>0 ? total/r.num_vendas : 0;
-    const cor = RK_CORES[i] || '#9aa0ab';
+    const liquido  = parseFloat(r.liquido||0);
+    const desconto = parseFloat(r.desconto||0);
+    const taxa     = parseFloat(r.taxa||0);
+    const bruto    = parseFloat(r.bruto||0) || (liquido+desconto+taxa) || 1;
+    const pL = liquido/bruto*100, pD = desconto/bruto*100;
+    const ticket = r.num_vendas>0 ? liquido/r.num_vendas : 0;
+    const grad = `conic-gradient(#2e7d32 0 ${pL}%, #f0a23c ${pL}% ${pL+pD}%, #e2574d ${pL+pD}% 100%)`;
     return `<div class="rank-card">
       <div class="rc-top">
         <span class="rank-pos ${RK_POS[i]||'rn'}">${i+1}</span>
         <span class="rc-name" title="${r.vendedora_nome}">${r.vendedora_nome}</span>
       </div>
       <div class="rc-body">
-        <div class="donut" style="--c:${cor};--p:${part}">
-          <div class="hole"><b>${part}%</b><small>do total</small></div>
+        <div class="donut" style="background:${grad}">
+          <div class="hole"><b>${Math.round(pL)}%</b><small>líquido</small></div>
         </div>
         <div class="rc-info">
-          <div class="rc-total">${rkMoeda(total)}</div>
+          <div class="rc-total">${rkMoeda(liquido)}</div>
+          <div style="display:flex;flex-direction:column;gap:2px;margin:4px 0 6px;font-size:10px;color:#666">
+            <span style="display:flex;align-items:center;gap:5px"><i style="width:8px;height:8px;border-radius:2px;background:#2e7d32;display:inline-block"></i>Líquido ${rkMoeda(liquido)}</span>
+            <span style="display:flex;align-items:center;gap:5px"><i style="width:8px;height:8px;border-radius:2px;background:#f0a23c;display:inline-block"></i>Desconto ${rkMoeda(desconto)}</span>
+            <span style="display:flex;align-items:center;gap:5px"><i style="width:8px;height:8px;border-radius:2px;background:#e2574d;display:inline-block"></i>Taxa ${rkMoeda(taxa)}</span>
+          </div>
           <div class="rc-mini">
             <div><span>${r.num_vendas}</span><label>Vendas</label></div>
             <div><span>${r.clientes}</span><label>Clientes</label></div>
@@ -777,7 +789,7 @@ async function carregarRanking() {
     </div>`;
   }).join('');
 }
-document.addEventListener('DOMContentLoaded', function(){ carregarRanking(); calcResumo(); });
+document.addEventListener('DOMContentLoaded', function(){ carregarRanking(); });
 
 function ordenarV(col) {
   const tbody = document.getElementById('tbodyVendas');

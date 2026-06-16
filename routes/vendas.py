@@ -6,7 +6,28 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from db import get_db, close_db
 from config import agora_app, hoje_app
 from auth import login_required, get_ctx, pode_excluir
-from utils import parse_brl, bloquear_estoque_negativo, audit_log
+from utils import parse_brl, bloquear_estoque_negativo, audit_log, get_taxa_vigente, calcular_liquido
+
+# Formas de cartão (sofrem taxa da maquininha no momento da venda à vista).
+# Crediário/pix/dinheiro não têm taxa aqui — a taxa das parcelas aparece no Caixa.
+FORMAS_CARTAO = ('credito_vista', 'credito_parcelado', 'debito', 'link')
+
+
+def _fin_venda(v, taxa_cache):
+    """Decompõe uma venda em (bruto, desconto, taxa, líquido).
+    Líquido = bruto - desconto - taxa do cartão (o que de fato entra na conta)."""
+    bruto = float(v.get('valor_total') or 0)
+    desconto = float(v.get('desconto') or 0)
+    pago = round(bruto - desconto, 2)
+    forma = v.get('forma_pagamento') or ''
+    if forma in FORMAS_CARTAO:
+        d = v.get('criado_em')
+        chave = d.date().isoformat() if hasattr(d, 'date') else 'hoje'
+        if chave not in taxa_cache:
+            taxa_cache[chave] = get_taxa_vigente(d.date() if hasattr(d, 'date') else None)
+        liq, desc_taxa, _ = calcular_liquido(pago, forma, taxa_cache[chave])
+        return bruto, desconto, desc_taxa, liq
+    return bruto, desconto, 0.0, pago
 
 
 @login_required
@@ -42,11 +63,24 @@ def vendas():
         cur.close(); close_db(conn)
         now_mes = agora_app().strftime('%Y-%m')
         now_mes_label = agora_app().strftime('%B / %Y').capitalize()
+        # Decompõe cada venda (bruto/desconto/taxa/líquido) e soma os totais do período
+        taxa_cache = {}
+        tot_bruto = tot_desc = tot_taxa = tot_liq = 0.0
+        for v in lista_vendas:
+            bruto, desc, taxa, liq = _fin_venda(v, taxa_cache)
+            v['taxa_valor'] = round(taxa, 2)
+            v['valor_liquido'] = round(liq, 2)
+            tot_bruto += bruto; tot_desc += desc; tot_taxa += taxa; tot_liq += liq
+        n_vendas = len(lista_vendas)
+        ticket_liq = round(tot_liq / n_vendas, 2) if n_vendas else 0.0
         ctx = get_ctx()
         ctx.update(vendedoras=vendedoras, clientes=clientes_lista,
                    lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
                    ranking=ranking, meses=meses, now_mes=now_mes, now_mes_label=now_mes_label,
-                   data_inicio=data_inicio, data_fim=data_fim)
+                   data_inicio=data_inicio, data_fim=data_fim,
+                   total_bruto=round(tot_bruto, 2), total_desconto=round(tot_desc, 2),
+                   total_taxa=round(tot_taxa, 2), total_liquido=round(tot_liq, 2),
+                   n_vendas_periodo=n_vendas, ticket_liquido=ticket_liq)
         return render_template('vendas.html', **ctx)
     except Exception as e:
         return "<pre style='padding:20px'>ERRO VENDAS: " + str(e) + "</pre>", 500
@@ -233,12 +267,30 @@ def ranking_vendedoras():
     try: date.fromisoformat(data_fim)
     except: data_fim = hoje.strftime('%Y-%m-%d')
     conn = get_db(); cur = conn.cursor()
-    cur.execute("""SELECT vendedora_nome,COALESCE(SUM(valor_total),0) as total,
-        COUNT(id) as num_vendas,COUNT(DISTINCT cliente_id) as clientes
-        FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s
-        GROUP BY vendedora_nome ORDER BY total DESC""", (data_inicio, data_fim))
-    ranking = [dict(r) for r in cur.fetchall()]
+    cur.execute("""SELECT vendedora_nome, valor_total, desconto, forma_pagamento, criado_em, cliente_id
+        FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
+    vendas_periodo = [dict(r) for r in cur.fetchall()]
     cur.close(); close_db(conn)
+    # Agrega por vendedora calculando o líquido (bruto - desconto - taxa)
+    taxa_cache = {}
+    agg = {}
+    for v in vendas_periodo:
+        nome = v.get('vendedora_nome') or '—'
+        bruto, desc, taxa, liq = _fin_venda(v, taxa_cache)
+        a = agg.setdefault(nome, {'vendedora_nome': nome, 'bruto': 0.0, 'desconto': 0.0,
+                                  'taxa': 0.0, 'liquido': 0.0, 'num_vendas': 0, '_clientes': set()})
+        a['bruto'] += bruto; a['desconto'] += desc; a['taxa'] += taxa; a['liquido'] += liq
+        a['num_vendas'] += 1
+        if v.get('cliente_id'):
+            a['_clientes'].add(v['cliente_id'])
+    ranking = []
+    for a in agg.values():
+        ranking.append({'vendedora_nome': a['vendedora_nome'],
+                        'bruto': round(a['bruto'], 2), 'desconto': round(a['desconto'], 2),
+                        'taxa': round(a['taxa'], 2), 'liquido': round(a['liquido'], 2),
+                        'total': round(a['liquido'], 2),  # compat: ranking por líquido
+                        'num_vendas': a['num_vendas'], 'clientes': len(a['_clientes'])})
+    ranking.sort(key=lambda r: r['liquido'], reverse=True)
     return jsonify({'ranking': ranking})
 
 

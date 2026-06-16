@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v114'})
+        return jsonify({'status': 'ok', 'version': 'v115'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v114 — 2026-06-16</b><br>
+    Versão: <b style='color:green'>v115 — 2026-06-16</b><br>
+    v115: Despesas — indicadores, gráfico Fixa × Avulsa e contas a pagar agora usam o valor da parcela que vence no período selecionado (não o valor total da despesa) ✅<br>
     v114: Atalho Mês corrigido em todas as abas com filtro de período: agora seleciona do primeiro ao último dia do mês ✅<br>
     v113: Despesas — recorrência mensal: uma despesa fixa sem parcelamento pode gerar 12 contas a pagar em aberto automaticamente ✅<br>
     v113: Despesas — fechamento mensal com gráfico verde/vermelho mostrando despesas pagas × a pagar dentro do período ✅<br>

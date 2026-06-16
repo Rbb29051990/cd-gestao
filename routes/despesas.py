@@ -37,19 +37,31 @@ def despesas():
     except: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
     except: data_fim = hoje.strftime('%Y-%m-%d')
-    # Período filtra pelas contas que VENCEM no intervalo (não pela data de lançamento)
-    cur.execute("SELECT * FROM despesas WHERE DATE(COALESCE(data_vencimento,data_despesa,criado_em)) BETWEEN %s AND %s ORDER BY COALESCE(data_vencimento,data_despesa,criado_em) DESC", (data_inicio, data_fim))
+    # v115: o período da aba Despesas é sempre baseado no VENCIMENTO DAS PARCELAS.
+    # Isso evita somar o valor total de uma despesa parcelada/recorrente dentro de um único mês.
+    # Ex.: empréstimo de 18x R$ 750 aparece no mês como R$ 750, e não como R$ 13.500.
+    cur.execute("""SELECT d.*,
+                          COALESCE(SUM(p.valor),0) AS valor_periodo,
+                          MIN(p.data_vencimento) AS vencimento_periodo,
+                          COUNT(p.id) AS parcelas_periodo
+                   FROM despesas d
+                   JOIN despesa_parcelas p ON p.despesa_id=d.id
+                   WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
+                   GROUP BY d.id
+                   ORDER BY MIN(p.data_vencimento) DESC, d.id DESC""", (data_inicio, data_fim))
     lista = [dict(d) for d in cur.fetchall()]
-    # Carregar parcelas de cada despesa parcelada
+    # Carregar parcelas de cada despesa para status; o valor exibido/contabilizado é somente o valor vencido no período.
     for d in lista:
-        if d.get('parcelado'):
-            cur.execute("SELECT * FROM despesa_parcelas WHERE despesa_id=%s ORDER BY numero", (d['id'],))
-            d['parcelas'] = [dict(p) for p in cur.fetchall()]
-            d['parc_pagas'] = sum(1 for p in d['parcelas'] if p['pago'])
-        else:
-            d['parcelas'] = []
-            d['parc_pagas'] = 0
-    cur.execute("SELECT COALESCE(SUM(valor),0) as t FROM despesas WHERE DATE(COALESCE(data_vencimento,data_despesa,criado_em)) BETWEEN %s AND %s", (data_inicio, data_fim))
+        cur.execute("SELECT * FROM despesa_parcelas WHERE despesa_id=%s ORDER BY numero", (d['id'],))
+        d['parcelas'] = [dict(p) for p in cur.fetchall()]
+        d['parc_pagas'] = sum(1 for p in d['parcelas'] if p['pago'])
+        d['valor_total_original'] = d.get('valor')
+        d['valor'] = float(d.get('valor_periodo') or 0)
+        if not d.get('data_vencimento') and d.get('vencimento_periodo'):
+            d['data_vencimento'] = d.get('vencimento_periodo')
+    cur.execute("""SELECT COALESCE(SUM(valor),0) as t
+                   FROM despesa_parcelas
+                   WHERE DATE(data_vencimento) BETWEEN %s AND %s""", (data_inicio, data_fim))
     total = float(cur.fetchone()['t'])
     # Fechamento mensal: parcelas/despesas do período por vencimento.
     # Verde = pagas; vermelho = em aberto/a pagar.
@@ -68,12 +80,14 @@ def despesas():
     # Categorias para o cadastro (ordenadas)
     cur.execute("SELECT nome FROM despesa_categorias WHERE ativo=TRUE ORDER BY nome")
     categorias = [r['nome'] for r in cur.fetchall()]
-    # Contas a pagar (parcelas pendentes — independe do filtro de data)
+    # Contas a pagar (parcelas pendentes do período filtrado)
     cur.execute("""SELECT p.id as parcela_id, p.numero, p.valor, p.data_vencimento,
                           d.id as despesa_id, d.codigo, d.descricao, d.categoria,
                           d.forma_pagamento, d.local_retirada, d.num_parcelas
                    FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
-                   WHERE p.pago=FALSE ORDER BY p.data_vencimento""")
+                   WHERE p.pago=FALSE
+                     AND DATE(p.data_vencimento) BETWEEN %s AND %s
+                   ORDER BY p.data_vencimento, d.id, p.numero""", (data_inicio, data_fim))
     a_pagar = [dict(r) for r in cur.fetchall()]
     for p in a_pagar:
         p['atrasada'] = bool(p['data_vencimento'] and p['data_vencimento'] < hoje)
@@ -91,10 +105,11 @@ def despesas():
         ini_m = date(yy, mm, 1)
         ny, nm = _add_months(yy, mm, 1)
         fim_m = date(ny, nm, 1) - timedelta(days=1)
-        cur.execute("""SELECT LOWER(COALESCE(tipo,'')) as tp, COALESCE(SUM(valor),0) as t
-                       FROM despesas
-                       WHERE DATE(COALESCE(data_vencimento,data_despesa,criado_em)) BETWEEN %s AND %s
-                       GROUP BY LOWER(COALESCE(tipo,''))""", (ini_m, fim_m))
+        cur.execute("""SELECT LOWER(COALESCE(d.tipo,'')) as tp, COALESCE(SUM(p.valor),0) as t
+                       FROM despesa_parcelas p
+                       JOIN despesas d ON d.id=p.despesa_id
+                       WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
+                       GROUP BY LOWER(COALESCE(d.tipo,''))""", (ini_m, fim_m))
         fx = av = 0.0
         for r in cur.fetchall():
             if (r['tp'] or '') in ('fixa', 'fixo'): fx += float(r['t'])

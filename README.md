@@ -1,5 +1,13 @@
-# CD Gestão Empresarial — v114
+# CD Gestão Empresarial — v115
 
+
+
+## Novidades da v115 (2026-06-16) — Despesas por vencimento e valor da parcela
+- **Gráficos corrigidos por período:** os indicadores da aba **Despesas** agora consideram somente as parcelas com **data de vencimento dentro do período selecionado**.
+- **Valor correto em despesas parceladas:** uma despesa parcelada passa a entrar no mês pelo **valor da parcela**, e não pelo valor total da despesa. Ex.: empréstimo de 18x R$ 750 aparece no mês como **R$ 750**, não como R$ 13.500.
+- **Despesa Fixa × Avulsa corrigida:** o gráfico passa a somar as parcelas vencidas no período, separando corretamente fixa e avulsa.
+- **Contas a pagar corrigidas:** a tabela **Contas a pagar — parcelas pendentes** mostra somente parcelas pendentes com vencimento dentro do período filtrado.
+- **Fechamento mensal mais confiável:** total do período, pagas e a pagar passam a representar o que realmente vence no mês selecionado.
 
 ## Novidades da v114 (2026-06-16) — Filtro mensal completo
 - **Atalho Mês corrigido em todas as abas com filtro por período**: agora o botão **Mês** seleciona automaticamente do **primeiro dia ao último dia do mês atual**, e não apenas até a data de hoje.

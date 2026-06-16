@@ -1,4 +1,11 @@
-# CD Gestão Empresarial — v112
+# CD Gestão Empresarial — v113
+
+## Novidades da v113 (2026-06-16) — Despesas recorrentes e fechamento mensal
+- **Despesas recorrentes**: ao lançar uma despesa fixa **sem parcelamento**, agora é possível marcar como **recorrente**.
+- **Geração automática para 12 meses**: o sistema cria 12 contas a pagar mensais em aberto, usando o vencimento informado como base.
+- **Valores variáveis por mês**: cada lançamento futuro pode ser editado individualmente antes do pagamento, permitindo ajustar água, luz, salário, holerite, aluguel etc.
+- **Parcelamento não é recorrência**: quando a despesa tem parcelamento, o campo de recorrência é ocultado e o sistema mantém o fluxo de parcelas com vencimentos definidos.
+- **Fechamento mensal**: novo gráfico verde/vermelho mostra despesas **pagas × a pagar** dentro do período filtrado, com valores ao lado. Quando todas forem pagas, o gráfico fica 100% verde.
 
 ## Novidades da v112 (2026-06-16) — Despesas
 - **Período por vencimento:** o filtro De/Até agora seleciona as despesas que **vencem** no intervalo (antes era pela data de lançamento). A tabela, o total e todos os gráficos passam a refletir exatamente o período escolhido.

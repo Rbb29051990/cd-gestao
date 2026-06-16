@@ -164,6 +164,11 @@ def init_db():
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS status VARCHAR(12) DEFAULT 'pago'",
         "ALTER TABLE despesas ALTER COLUMN descricao DROP NOT NULL",
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS data_vencimento DATE",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS recorrente BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS recorrencia_grupo VARCHAR(80)",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS recorrencia_seq INTEGER",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS recorrencia_total INTEGER DEFAULT 1",
+        "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS recorrencia_base DATE",
         "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS ip VARCHAR(80)",
         "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS user_agent TEXT",
         "ALTER TABLE caixa ADD COLUMN IF NOT EXISTS parcela_id INTEGER",
@@ -212,6 +217,8 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_crediarios_status ON crediarios (status)",
         "CREATE INDEX IF NOT EXISTS idx_condicionais_status_criado ON condicionais (status, criado_em)",
         "CREATE INDEX IF NOT EXISTS idx_despesas_criado ON despesas (criado_em)",
+        "CREATE INDEX IF NOT EXISTS idx_despesas_vencimento_status ON despesas (data_vencimento, status)",
+        "CREATE INDEX IF NOT EXISTS idx_despesas_recorrencia ON despesas (recorrencia_grupo, recorrencia_seq)",
         "CREATE INDEX IF NOT EXISTS idx_despesa_parcelas_pago_data ON despesa_parcelas (pago, data_pagamento, data_vencimento)",
     ]
     try:

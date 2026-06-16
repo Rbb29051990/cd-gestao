@@ -54,6 +54,10 @@
 .apagar-pay{padding:7px 13px;background:#e65100;color:#fff;border:none;border-radius:7px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
 .sit-badge{display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;border-radius:20px}
 .sit-pago{background:#e8f5e9;color:#2e7d32}.sit-pend{background:#fff8e1;color:#f57f17}
+.recorrente-info{font-size:11px;color:#2e7d32;background:#e8f5e9;border-radius:8px;padding:8px 10px;margin-top:8px;font-weight:600}
+.fechamento-grid{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.fechamento-metric{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:13px;margin-bottom:8px}
+.fechamento-metric b{font-size:15px}
 </style>
 <style>.modal-tall{max-height:90vh;overflow-y:auto}</style>
 <div class="dash-wrap">
@@ -115,6 +119,23 @@
       <!-- PAINEL DE GRÁFICOS -->
       {% set pct_fixa = (total_fixa / total * 100) if total > 0 else 0 %}
       <div class="desp-charts">
+        <!-- FECHAMENTO DO MÊS: PAGAS vs A PAGAR -->
+        <div class="chart-card">
+          <div class="chart-title">Fechamento do mês · Pagas × A pagar</div>
+          {% if despesas_total_mes > 0 %}
+          <div class="fechamento-grid">
+            <div class="donut2" style="background:conic-gradient(#2e7d32 0 {{ despesas_pct_pago }}%,#c62828 {{ despesas_pct_pago }}% 100%)">
+              <div class="hole"><b>{{ "%.0f"|format(despesas_pct_pago) }}%</b><small>pagas</small></div>
+            </div>
+            <div class="donut-legend">
+              <div class="fechamento-metric"><span><span class="leg-dot" style="background:#2e7d32;display:inline-block;margin-right:7px"></span>Pagas</span><b style="color:#2e7d32">{{ moeda(despesas_pagas_mes) }}</b></div>
+              <div class="fechamento-metric"><span><span class="leg-dot" style="background:#c62828;display:inline-block;margin-right:7px"></span>A pagar</span><b style="color:#c62828">{{ moeda(despesas_abertas_mes) }}</b></div>
+              <div class="fechamento-metric" style="border-top:1px solid #f0f0f5;padding-top:9px"><span>Total do período</span><b style="color:#1a1a2e">{{ moeda(despesas_total_mes) }}</b></div>
+            </div>
+          </div>
+          {% else %}<div class="chart-empty">Nenhuma despesa com vencimento no período.</div>{% endif %}
+        </div>
+
         <!-- DONUT: FIXA vs AVULSA -->
         <div class="chart-card">
           <div class="chart-title">Despesa fixa × avulsa</div>
@@ -344,6 +365,15 @@
           <input class="form-input" type="date" name="data_vencimento_unica" id="vencUnico" style="width:200px">
           <div style="font-size:11px;color:#aaa;margin-top:4px">Entra como conta a pagar e só sai do caixa quando você marcar como paga.</div>
         </div>
+        <div class="step-sep" style="margin-top:16px"><span class="stn">6</span> É uma despesa recorrente?</div>
+        <input type="hidden" name="recorrente" id="recorrenteHidden" value="nao">
+        <div class="seg">
+          <label class="seg-opt sel" id="recNao" onclick="selRecorrente('nao')"><input type="radio" name="rec_opt" value="nao" checked>Não</label>
+          <label class="seg-opt" id="recSim" onclick="selRecorrente('sim')"><input type="radio" name="rec_opt" value="sim">Sim</label>
+        </div>
+        <div id="recInfo" class="recorrente-info" style="display:none">
+          O sistema vai gerar 12 contas a pagar mensais, todas em aberto, usando o mesmo dia do vencimento informado. Você poderá editar valor e vencimento de cada mês.
+        </div>
       </div>
       <div id="secParcelas" style="display:none;margin-top:12px">
         <div class="form-field" style="margin:0 0 10px">
@@ -361,8 +391,8 @@
         <div style="font-size:11px;color:#aaa;margin-top:6px">Vencimentos sugeridos a cada 30 dias (30/60/90…). Edite as datas e valores se precisar. As parcelas só entram no caixa quando você marcar como pagas.</div>
       </div>
 
-      <!-- 6. MEIO DE PAGAMENTO -->
-      <div class="step-sep"><span class="stn">6</span> Meio de pagamento *</div>
+      <!-- 7. MEIO DE PAGAMENTO -->
+      <div class="step-sep"><span class="stn">7</span> Meio de pagamento *</div>
       <div class="form-field" style="margin:0">
         <select class="form-input" name="forma_pagamento" required style="cursor:pointer">
           <option value="">Selecione...</option>
@@ -375,8 +405,8 @@
         </select>
       </div>
 
-      <!-- 7. LOCAL DE RETIRADA -->
-      <div class="step-sep"><span class="stn">7</span> De onde saiu o pagamento? *</div>
+      <!-- 8. LOCAL DE RETIRADA -->
+      <div class="step-sep"><span class="stn">8</span> De onde saiu o pagamento? *</div>
       <div class="seg">
         <label class="seg-opt sel" id="locCaixa" onclick="selLocal('caixa')"><input type="radio" name="local_retirada" value="caixa" checked>🏦 Caixa</label>
         <label class="seg-opt" id="locPix" onclick="selLocal('pix')"><input type="radio" name="local_retirada" value="pix">⚡ PIX / Banco</label>
@@ -510,10 +540,22 @@ function selParc(v){
   document.getElementById('parceladoHidden').value = v;
   if(v==='sim'){ sim.classList.add('sel'); sim.querySelector('input').checked=true;
     document.getElementById('secParcelas').style.display='block';
-    document.getElementById('secVencUnico').style.display='none'; gerarParcelasDesp(); }
+    document.getElementById('secVencUnico').style.display='none';
+    selRecorrente('nao');
+    gerarParcelasDesp(); }
   else { nao.classList.add('sel'); nao.querySelector('input').checked=true;
     document.getElementById('secParcelas').style.display='none';
     document.getElementById('secVencUnico').style.display='block'; }
+}
+
+function selRecorrente(v){
+  const nao=document.getElementById('recNao'), sim=document.getElementById('recSim');
+  const hidden=document.getElementById('recorrenteHidden');
+  if(!nao || !sim || !hidden) return;
+  nao.classList.remove('sel'); sim.classList.remove('sel');
+  hidden.value = v;
+  if(v==='sim'){ sim.classList.add('sel'); sim.querySelector('input').checked=true; document.getElementById('recInfo').style.display='block'; }
+  else { nao.classList.add('sel'); nao.querySelector('input').checked=true; document.getElementById('recInfo').style.display='none'; }
 }
 
 function selLocal(v){
@@ -590,6 +632,10 @@ function validarDespesa(){
     if(Math.abs(soma-val)>0.05){
       if(!confirm('A soma das parcelas ('+brl(soma)+') é diferente do valor total ('+brl(val)+'). Deseja continuar mesmo assim?')) return false;
     }
+  }
+  if(document.getElementById('parceladoHidden').value!=='sim' && document.getElementById('recorrenteHidden') && document.getElementById('recorrenteHidden').value==='sim'){
+    const venc=document.getElementById('vencUnico').value || 'a data informada';
+    return confirm('Confirmar despesa recorrente? O sistema vai gerar 12 contas a pagar mensais em aberto a partir de '+venc+'.');
   }
   return true;
 }

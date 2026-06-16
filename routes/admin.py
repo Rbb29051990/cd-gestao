@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v112'})
+        return jsonify({'status': 'ok', 'version': 'v113'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,10 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v112 — 2026-06-16</b><br>
+    Versão: <b style='color:green'>v113 — 2026-06-16</b><br>
+    v113: Despesas — recorrência mensal: uma despesa fixa sem parcelamento pode gerar 12 contas a pagar em aberto automaticamente ✅<br>
+    v113: Despesas — fechamento mensal com gráfico verde/vermelho mostrando despesas pagas × a pagar dentro do período ✅<br>
+    v113: Despesas — despesas parceladas continuam com início/fim e não entram como recorrentes ✅<br>
     v112: Despesas — o período agora filtra pelas contas que VENCEM no intervalo; todos os gráficos respeitam só o período ✅<br>
     v112: Despesas — o gráfico "Por forma de pagamento" foi substituído por 3 pizzas (Fixa × Avulsa) dos 3 meses anteriores ao atual ✅<br>
     v111: Etiquetas — corrigido o preço que não saía na impressão (estourava a altura da etiqueta); layout em 3 linhas (código / modelo · tamanho / preço), informações em azul e centralizadas, preço maior e mais legível ✅<br>

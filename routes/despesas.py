@@ -2,11 +2,29 @@
 formas), novo lançamento passo a passo (parcelado ou conta a pagar única),
 pagamento de parcela (lança saída no caixa) e exclusão (só N1)."""
 from datetime import datetime, date, timedelta
+import calendar
+import secrets
 from flask import render_template, request, redirect, url_for, session, flash
 from db import get_db, close_db
 from config import hoje_app
 from auth import login_required, get_ctx, pode_excluir, is_admin
 from utils import parse_brl
+
+
+def _add_months_clamped(base_date, months):
+    """Soma meses mantendo o dia original quando possível e ajustando para o último dia do mês quando necessário."""
+    idx = (base_date.year * 12 + (base_date.month - 1)) + months
+    y = idx // 12
+    m = idx % 12 + 1
+    last = calendar.monthrange(y, m)[1]
+    return date(y, m, min(base_date.day, last))
+
+
+def _parse_iso_date(value, default=None):
+    try:
+        return date.fromisoformat(value)
+    except Exception:
+        return default or hoje_app()
 
 
 @login_required
@@ -33,6 +51,18 @@ def despesas():
             d['parc_pagas'] = 0
     cur.execute("SELECT COALESCE(SUM(valor),0) as t FROM despesas WHERE DATE(COALESCE(data_vencimento,data_despesa,criado_em)) BETWEEN %s AND %s", (data_inicio, data_fim))
     total = float(cur.fetchone()['t'])
+    # Fechamento mensal: parcelas/despesas do período por vencimento.
+    # Verde = pagas; vermelho = em aberto/a pagar.
+    cur.execute("""SELECT
+                    COALESCE(SUM(CASE WHEN pago=TRUE THEN valor ELSE 0 END),0) AS pagas,
+                    COALESCE(SUM(CASE WHEN pago=FALSE THEN valor ELSE 0 END),0) AS abertas
+                   FROM despesa_parcelas
+                   WHERE DATE(data_vencimento) BETWEEN %s AND %s""", (data_inicio, data_fim))
+    fm = cur.fetchone()
+    despesas_pagas_mes = round(float(fm['pagas'] or 0), 2)
+    despesas_abertas_mes = round(float(fm['abertas'] or 0), 2)
+    despesas_total_mes = round(despesas_pagas_mes + despesas_abertas_mes, 2)
+    despesas_pct_pago = round((despesas_pagas_mes / despesas_total_mes * 100), 1) if despesas_total_mes else 0
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM despesas WHERE codigo ~ '^D[0-9]+$'")
     n = cur.fetchone()['m']
     # Categorias para o cadastro (ordenadas)
@@ -102,7 +132,9 @@ def despesas():
                qtd_fixa=qtd_fixa, qtd_avulsa=qtd_avulsa,
                desc_fixa=desc_fixa_list, desc_avulsa=desc_avulsa_list, tri_meses=tri_meses,
                categorias=categorias, a_pagar=a_pagar, total_a_pagar=total_a_pagar,
-               n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas)
+               n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas,
+               despesas_pagas_mes=despesas_pagas_mes, despesas_abertas_mes=despesas_abertas_mes,
+               despesas_total_mes=despesas_total_mes, despesas_pct_pago=despesas_pct_pago)
     return render_template('despesas.html', **ctx)
 
 
@@ -121,6 +153,8 @@ def nova_despesa():
     if local_ret not in ('caixa', 'pix'): local_ret = None
     obs_ret = request.form.get('obs_retirada', '').strip() or None
     parcelado = request.form.get('parcelado', 'nao').strip().lower() == 'sim'
+    # Regra de negócio: despesa parcelada tem início e fim; portanto não é recorrente.
+    recorrente = (not parcelado) and (request.form.get('recorrente', 'nao').strip().lower() == 'sim')
     try:
         num_parc = int(request.form.get('num_parcelas', '1') or 1)
     except ValueError:
@@ -128,8 +162,11 @@ def nova_despesa():
     if not parcelado or num_parc < 2:
         parcelado = False; num_parc = 1
     num_parc = min(max(num_parc, 1), 24)
-    # Vencimento (despesa sem parcelamento = 1 conta a pagar)
+    if parcelado:
+        recorrente = False
+    # Vencimento (despesa sem parcelamento = 1 conta a pagar; recorrente gera 12 contas)
     venc_unico = request.form.get('data_vencimento_unica') or hoje_app().isoformat()
+    venc_base = _parse_iso_date(venc_unico, hoje_app())
     # Rótulo da despesa para histórico (categoria + descrição livre)
     rotulo = categoria or descricao or 'Despesa'
     if categoria and descricao:
@@ -138,19 +175,40 @@ def nova_despesa():
         # Persistir categoria nova, se digitada
         if categoria:
             cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING", (categoria,))
-        # Tanto parcelada quanto não-parcelada entram como conta(s) a pagar (pendente)
+        # Tanto parcelada quanto não-parcelada entram como conta(s) a pagar (pendente).
+        # Recorrente: gera 12 lançamentos independentes, todos em aberto, permitindo ajustar valor/vencimento mês a mês.
         status = 'pendente'
-        data_venc_desp = None if parcelado else venc_unico
-        cur.execute("""INSERT INTO despesas
-            (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,
-             parcelado,num_parcelas,local_retirada,obs_retirada,status,data_vencimento,usuario_id,usuario_nome)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-            (f"D{n+1}", descricao or None, categoria or None, valor,
-             request.form.get('data_despesa') or hoje_app().isoformat(),
-             forma or None, tipo, parcelado, num_parc, local_ret, obs_ret, status, data_venc_desp,
-             session['uid'], session['nome']))
-        desp_id = cur.fetchone()['id']
-        if parcelado:
+        if recorrente:
+            grupo = 'REC-' + hoje_app().strftime('%Y%m%d') + '-' + secrets.token_hex(4).upper()
+            for idx in range(12):
+                venc = _add_months_clamped(venc_base, idx)
+                cod = f"D{n+1+idx}"
+                cur.execute("""INSERT INTO despesas
+                    (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,
+                     parcelado,num_parcelas,local_retirada,obs_retirada,status,data_vencimento,usuario_id,usuario_nome,
+                     recorrente,recorrencia_grupo,recorrencia_seq,recorrencia_total,recorrencia_base)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                    (cod, descricao or None, categoria or None, valor,
+                     request.form.get('data_despesa') or hoje_app().isoformat(),
+                     forma or None, tipo, False, 1, local_ret, obs_ret, status, venc.isoformat(),
+                     session['uid'], session['nome'], True, grupo, idx + 1, 12, venc_base.isoformat()))
+                desp_id_mes = cur.fetchone()['id']
+                cur.execute("""INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento)
+                    VALUES (%s,1,%s,%s)""", (desp_id_mes, valor, venc.isoformat()))
+            flash('Despesa recorrente registrada! Foram geradas 12 contas a pagar mensais em aberto.', 'ok')
+        else:
+            data_venc_desp = None if parcelado else venc_unico
+            cur.execute("""INSERT INTO despesas
+                (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,
+                 parcelado,num_parcelas,local_retirada,obs_retirada,status,data_vencimento,usuario_id,usuario_nome,
+                 recorrente,recorrencia_total)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                (f"D{n+1}", descricao or None, categoria or None, valor,
+                 request.form.get('data_despesa') or hoje_app().isoformat(),
+                 forma or None, tipo, parcelado, num_parc, local_ret, obs_ret, status, data_venc_desp,
+                 session['uid'], session['nome'], False, 1))
+            desp_id = cur.fetchone()['id']
+        if (not recorrente) and parcelado:
             # Gera as parcelas; só viram saída no Caixa quando pagas
             soma = 0.0
             for i in range(1, num_parc + 1):
@@ -163,7 +221,7 @@ def nova_despesa():
                 cur.execute("""INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento)
                     VALUES (%s,%s,%s,%s)""", (desp_id, i, pvf, pd))
             flash(f'Despesa parcelada em {num_parc}x registrada! As parcelas entram no caixa conforme você as paga.', 'ok')
-        else:
+        elif not recorrente:
             # Sem parcelamento = 1 conta a pagar com vencimento (só entra no caixa quando paga)
             cur.execute("""INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento)
                 VALUES (%s,1,%s,%s)""", (desp_id, valor, venc_unico))

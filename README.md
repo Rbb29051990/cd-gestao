@@ -1,6 +1,9 @@
-# CD Gestão Empresarial — v106
+# CD Gestão Empresarial — v107
 
-## Novidades da v106 (2026-06-16) — ajustes de celular
+## Novidades da v107 (2026-06-16)
+- **Tabela de Clientes padronizada:** o botão do WhatsApp agora fica sempre **abaixo** do telefone, e o GPS sempre **abaixo** do endereço. Antes, dependendo do tamanho do conteúdo, eles apareciam ora ao lado, ora embaixo, deixando a tabela desalinhada.
+
+## v106 (2026-06-16) — ajustes de celular
 - **Valores em R$ na mesma linha:** na Visão Geral (Controle de Entradas), o símbolo e o número não quebram mais em duas linhas no celular.
 - **Crediários com data pré-fixada:** o filtro De/Até já abre preenchido com o mês vigente (1º dia → hoje), igual às outras abas. O botão "Todos" continua mostrando todos os crediários.
 - **Menu acompanha a aba ativa:** no celular, a barra de menu superior agora rola automaticamente até deixar visível a aba em que você está (ex.: Taxas).

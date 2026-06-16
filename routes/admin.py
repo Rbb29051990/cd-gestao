@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v106'})
+        return jsonify({'status': 'ok', 'version': 'v107'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v106 — 2026-06-16</b><br>
+    Versão: <b style='color:green'>v107 — 2026-06-16</b><br>
+    v107: Clientes — contato e endereço padronizados: o botão do WhatsApp fica sempre abaixo do telefone, e o GPS sempre abaixo do endereço (sem mais ficar ora do lado, ora embaixo) ✅<br>
     v106: celular — valores em R$ não quebram mais em duas linhas na Visão Geral ✅<br>
     v106: Crediários — filtro de data já vem preenchido (mês vigente até hoje), igual às outras abas (botão "Todos" mostra tudo) ✅<br>
     v106: celular — o menu superior agora rola automaticamente até a aba ativa ficar visível ✅<br>

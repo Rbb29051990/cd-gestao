@@ -9,7 +9,7 @@
 .dsh-ins .ic{font-size:20px;line-height:1.1;flex-shrink:0}
 .dsh-ins .tx{font-size:12.5px;color:#333;font-weight:600;line-height:1.35}
 .dsh-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.card{background:#fff;border:1.5px solid var(--cor-borda);border-radius:13px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:16px 18px;position:relative;overflow:hidden}
+.card{background:#fff;border:1.5px solid var(--cor-borda);border-radius:13px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:13px 16px;position:relative;overflow:hidden}
 .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#1565c0,#2e7d32,#f9a825)}
 .card.full{grid-column:1/-1}
 .card-h{font-size:13.5px;font-weight:800;color:var(--cor-texto)}
@@ -62,9 +62,9 @@
 /* Resultado (pizza + detalhe + caixa de lucro) */
 .res-layout{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
 .res-pie{display:flex;flex-direction:column;align-items:center;gap:14px;flex-shrink:0}
-.res-pie .donut{width:172px;height:172px}
-.res-pie .donut::after{inset:34px}
-.res-pie .donut-c b{font-size:13px;padding:0 8px;line-height:1.15}
+.res-pie .donut{width:150px;height:150px}
+.res-pie .donut::after{inset:30px}
+.res-pie .donut-c b{font-size:12.5px;padding:0 8px;line-height:1.15}
 .res-legend{width:200px}
 .res-detail{flex:1;min-width:250px}
 .rd-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#a0a0ad;margin-bottom:8px}
@@ -72,14 +72,23 @@
 .rd-row .d{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;vertical-align:middle}
 .rd-row b{font-variant-numeric:tabular-nums;color:var(--cor-texto)}
 .rd-row.tot{border-bottom:0;border-top:2px solid #eaeaf2;margin-top:2px;font-weight:800;color:var(--cor-texto)}
-.res-lucro{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:18px;padding:16px 22px;border-radius:12px;flex-wrap:wrap}
+.res-lucro-wrap{display:flex;justify-content:center;margin-top:14px}
+.res-lucro{display:inline-flex;align-items:center;gap:18px;padding:11px 26px;border-radius:12px;flex-wrap:wrap;justify-content:center}
 .res-lucro.pos{background:linear-gradient(90deg,#eafaef,#f4fbf6);border:1.5px solid #b8e6c4}
 .res-lucro.neg{background:linear-gradient(90deg,#fdecec,#fdf4f4);border:1.5px solid #f3c0c0}
-.res-lucro .rl-lbl{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--cor-texto)}
-.res-lucro .rl-formula{font-size:10.5px;color:#888;margin-top:3px}
-.res-lucro .rl-v{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;text-align:right;line-height:1.05}
+.res-lucro .rl-lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--cor-texto)}
+.res-lucro .rl-formula{font-size:10px;color:#888;margin-top:2px}
+.res-lucro .rl-v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
 .res-lucro.pos .rl-v{color:#2e7d32}.res-lucro.neg .rl-v{color:#c62828}
-.res-lucro .rl-v small{display:block;font-size:11px;font-weight:700;color:#999}
+/* Tendência: 3 barras por mês com rótulo vertical */
+.trend3{display:flex;align-items:flex-end;gap:8px;height:140px;padding-top:4px}
+.t3col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+.t3bars{display:flex;gap:3px;align-items:flex-end;height:122px;width:100%;justify-content:center}
+.t3b{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;flex:1;max-width:22px}
+.t3b .bar{width:100%;border-radius:3px 3px 0 0;min-height:2px}
+.t3b .bar.ent{background:#2e7d32}.t3b .bar.fix{background:#f9a825}.t3b .bar.avul{background:#c62828}
+.t3lab{font-size:8px;font-weight:700;color:#777;writing-mode:vertical-rl;transform:rotate(180deg);margin-bottom:2px;white-space:nowrap;letter-spacing:-.2px}
+.t3mes{font-size:9.5px;font-weight:700;color:#888;white-space:nowrap}
 @media(max-width:900px){.dsh-grid{grid-template-columns:1fr}.res-pie,.res-legend{width:100%}}
 </style>
 
@@ -151,39 +160,59 @@
                 <div class="rd-row tot"><span>Total de entradas líquidas</span><b class="pos">{{ brl(resultado.entradas_liquidas) }}</b></div>
               {% else %}<div class="empty">Sem entradas no período.</div>{% endif %}
               <div class="rd-title" style="margin-top:16px">Despesas do período</div>
-              <div class="rd-row"><span><span class="d" style="background:#e65100"></span>Despesas fixas</span><b class="neg">{{ brl(resultado.despesas_fixas) }}</b></div>
+              <div class="rd-row"><span><span class="d" style="background:#f9a825"></span>Despesas fixas</span><b class="neg">{{ brl(resultado.despesas_fixas) }}</b></div>
               <div class="rd-row"><span><span class="d" style="background:#c62828"></span>Despesas avulsas</span><b class="neg">{{ brl(resultado.despesas_avulsas) }}</b></div>
               <div class="rd-row tot"><span>Total de despesas</span><b class="neg">{{ brl(resultado.despesas) }}</b></div>
             </div>
           </div>
-          <div class="res-lucro {{ 'neg' if resultado.lucro_liquido < 0 else 'pos' }}">
-            <div>
-              <div class="rl-lbl">Lucro líquido da empresa</div>
-              <div class="rl-formula">Entradas líquidas − (Despesas fixas + Despesas avulsas)</div>
+          <div class="res-lucro-wrap">
+            <div class="res-lucro {{ 'neg' if resultado.lucro_liquido < 0 else 'pos' }}">
+              <div>
+                <div class="rl-lbl">Lucro líquido da empresa</div>
+                <div class="rl-formula">Entradas líquidas − (Despesas fixas + Despesas avulsas)</div>
+              </div>
+              <div class="rl-v">{{ brl(resultado.lucro_liquido) }}</div>
             </div>
-            <div class="rl-v">{{ brl(resultado.lucro_liquido) }}<small>margem {{ resultado.margem_pct }}%</small></div>
           </div>
         </div>
       </div>
 
-      <!-- 2 · TENDÊNCIA -->
+      <!-- 2 · TENDÊNCIA (3 barras) + 3 · LINHA DE LUCRO -->
       <div class="dsh-grid">
         <div class="card full">
           <div class="card-h">📈 Tendência · últimos 6 meses</div>
-          <div class="card-sub">Faturamento × lucro estimado (independe do filtro)</div>
+          <div class="card-sub">Entradas líquidas, despesas fixas e avulsas por mês (independe do filtro)</div>
           {% if tendencia %}
-          <div class="trend">
+          <div class="trend3">
             {% for t in tendencia %}
-            <div class="trend-col">
-              <div class="trend-bars">
-                <div class="tb fat" style="height:{{ t.fat_h }}%" title="Faturamento {{ brl(t.fat) }}"></div>
-                <div class="tb luc {{ 'neg' if t.luc_neg else '' }}" style="height:{{ t.luc_h }}%" title="Lucro {{ brl(t.lucro) }}"></div>
+            <div class="t3col">
+              <div class="t3bars">
+                <div class="t3b"><span class="t3lab">{{ t.ent_k }}</span><div class="bar ent" style="height:{{ t.ent_h }}%" title="Entradas {{ brl(t.ent) }}"></div></div>
+                <div class="t3b"><span class="t3lab">{{ t.fix_k }}</span><div class="bar fix" style="height:{{ t.fix_h }}%" title="Fixas {{ brl(t.fix) }}"></div></div>
+                <div class="t3b"><span class="t3lab">{{ t.avul_k }}</span><div class="bar avul" style="height:{{ t.avul_h }}%" title="Avulsas {{ brl(t.avul) }}"></div></div>
               </div>
-              <div class="trend-lbl">{{ t.label }}</div>
+              <div class="t3mes">{{ t.label }}</div>
             </div>
             {% endfor %}
           </div>
-          <div class="legend"><span><span class="dot" style="background:#1565c0"></span>Faturamento</span><span><span class="dot" style="background:#2e7d32"></span>Lucro</span></div>
+          <div class="legend">
+            <span><span class="dot" style="background:#2e7d32"></span>Entradas líquidas</span>
+            <span><span class="dot" style="background:#f9a825"></span>Despesas fixas</span>
+            <span><span class="dot" style="background:#c62828"></span>Despesas avulsas</span>
+          </div>
+
+          <div class="card-h" style="font-size:12px;margin-top:14px">Lucro líquido por mês</div>
+          {% if line_poly %}
+          <svg class="spark" viewBox="0 0 600 130" preserveAspectRatio="xMidYMid meet" style="height:130px">
+            <line x1="30" y1="{{ line_zero_y }}" x2="570" y2="{{ line_zero_y }}" stroke="#e0e0ea" stroke-width="1" stroke-dasharray="4 3"/>
+            <polyline points="{{ line_poly }}" fill="none" stroke="#1565c0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            {% for p in line_pts %}
+            <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.5" fill="{{ '#c62828' if p.neg else '#1565c0' }}"></circle>
+            <text x="{{ p.x }}" y="{{ p.y - 8 }}" text-anchor="middle" font-size="11" font-weight="700" fill="{{ '#c62828' if p.neg else '#1a1a2e' }}">{{ p.k }}</text>
+            <text x="{{ p.x }}" y="125" text-anchor="middle" font-size="10" fill="#999">{{ p.mes }}</text>
+            {% endfor %}
+          </svg>
+          {% else %}<div class="empty">Sem dados.</div>{% endif %}
           {% else %}<div class="empty">Sem dados de vendas.</div>{% endif %}
         </div>
       </div>

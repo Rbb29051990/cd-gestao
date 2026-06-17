@@ -5,7 +5,7 @@
 A aba **Dashboards** (antes um placeholder) agora traz 11 gráficos gerenciais + cartões de insight automáticos, com filtro de período pré-fixado no mês (1º → último dia):
 
 1. **Resultado do período** — gráfico de **pizza** com Entradas líquidas (base da aba Caixa), Despesas fixas e Despesas avulsas; ao lado, o detalhamento da origem das entradas (por forma de pagamento) e o montante das despesas; abaixo, uma caixa destacada com o **Lucro líquido da empresa** (entradas líquidas − despesas).
-2. **Tendência dos últimos 6 meses** — faturamento × lucro, para enxergar crescimento e sazonalidade.
+2. **Tendência dos últimos 6 meses** — barras compactas de entradas líquidas, despesas fixas e avulsas por mês (com rótulos), seguidas de uma linha de lucro líquido mês a mês com rótulos.
 3. **Fluxo de caixa acumulado** — saldo dia a dia no período.
 4. **Top produtos · curva ABC** — por receita e margem, classificados em A/B/C (Pareto).
 5. **Mix por categoria/modelo** — donut da participação na receita.

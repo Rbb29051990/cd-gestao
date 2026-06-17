@@ -36,6 +36,14 @@ def _brl(v):
     return ("R$ " + f"{float(v or 0):,.2f}").replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _kbrl(v):
+    """Formato compacto p/ rótulos de gráfico: 10490 -> '10,5k', -7991 -> '-8,0k'."""
+    v = float(v or 0); a = abs(v); s = '-' if v < 0 else ''
+    if a >= 1000:
+        return (s + f"{a/1000:.1f}".replace('.', ',') + 'k')
+    return s + f"{a:.0f}"
+
+
 @login_required
 def dashboard_view():
     conn = get_db(); cur = conn.cursor()
@@ -128,35 +136,61 @@ def dashboard_view():
         'despesas': despesas_total, 'lucro_liquido': lucro_liquido, 'margem_pct': margem_pct,
     }
 
-    # ── 2. Tendência dos últimos 6 meses (faturamento × lucro aprox.) ──
+    # ── 2. Tendência 6 meses: barras de entradas líq./fixas/avulsas + ──
+    # ── 3. linha de lucro líquido por mês (independe do filtro) ──
     tendencia = []
-    fat_max_trend = 1.0
+    line_pts = []; line_poly = ''; line_zero_y = 70.0
     try:
         ya, ma = _add_months(hoje.year, hoje.month, -5)
         ini_trend = date(ya, ma, 1)
-        cur.execute("""SELECT to_char(date_trunc('month',criado_em),'YYYY-MM') AS ym, COALESCE(SUM(valor_total),0) AS v
-                       FROM vendas WHERE criado_em>=%s GROUP BY 1""", (ini_trend,))
-        fat_mes = {r['ym']: float(r['v']) for r in cur.fetchall()}
-        cur.execute("""SELECT to_char(date_trunc('month',v.criado_em),'YYYY-MM') AS ym,
-                       COALESCE(SUM(vi.quantidade*COALESCE(e.custo_unitario,0)),0) AS v
-                       FROM venda_itens vi JOIN vendas v ON v.id=vi.venda_id
-                       LEFT JOIN estoque e ON e.id=vi.produto_id
-                       WHERE v.criado_em>=%s GROUP BY 1""", (ini_trend,))
-        cmv_mes = {r['ym']: float(r['v']) for r in cur.fetchall()}
-        cur.execute("""SELECT to_char(date_trunc('month',data_vencimento),'YYYY-MM') AS ym, COALESCE(SUM(valor),0) AS v
-                       FROM despesa_parcelas WHERE data_vencimento>=%s GROUP BY 1""", (ini_trend,))
-        desp_mes = {r['ym']: float(r['v']) for r in cur.fetchall()}
+        # Despesas por mês (vencimento), separadas em fixa/avulsa
+        cur.execute("""SELECT to_char(date_trunc('month',p.data_vencimento),'YYYY-MM') AS ym,
+                       LOWER(COALESCE(d.tipo,'')) AS tp, COALESCE(SUM(p.valor),0) AS v
+                       FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
+                       WHERE p.data_vencimento>=%s GROUP BY 1,2""", (ini_trend,))
+        fix_mes = {}; avul_mes = {}
+        for r in cur.fetchall():
+            if (r['tp'] or '') in ('fixa', 'fixo'): fix_mes[r['ym']] = fix_mes.get(r['ym'], 0.0) + float(r['v'])
+            else: avul_mes[r['ym']] = avul_mes.get(r['ym'], 0.0) + float(r['v'])
+        # Entradas líquidas por mês (caixa, líquido da taxa de cartão)
+        ent_mes = {}
+        cur.execute("""SELECT forma_pagamento, valor, criado_em FROM caixa
+                       WHERE tipo='entrada' AND criado_em>=%s""", (ini_trend,))
+        tcache = {}
+        for r in cur.fetchall():
+            bruto = float(r['valor'] or 0); f = r['forma_pagamento'] or 'outros'
+            dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
+            if f in FORMAS_COM_TAXA:
+                k = dt.isoformat()
+                if k not in tcache: tcache[k] = get_taxa_vigente(dt)
+                liq, _d, _p = calcular_liquido(bruto, f, tcache[k])
+            else:
+                liq = bruto
+            ym = dt.strftime('%Y-%m')
+            ent_mes[ym] = ent_mes.get(ym, 0.0) + liq
         for back in range(5, -1, -1):
             y, m = _add_months(hoje.year, hoje.month, -back)
             ym = f"{y:04d}-{m:02d}"
-            fat = round(fat_mes.get(ym, 0), 2)
-            lucro = round(fat - cmv_mes.get(ym, 0) - desp_mes.get(ym, 0), 2)
-            tendencia.append({'label': f"{MESES_PT[m-1]}/{str(y)[2:]}", 'fat': fat, 'lucro': lucro})
-        fat_max_trend = max([t['fat'] for t in tendencia] + [1])
-        for t in tendencia:
-            t['fat_h'] = round(t['fat'] / fat_max_trend * 100)
-            t['luc_h'] = round(abs(t['lucro']) / fat_max_trend * 100)
-            t['luc_neg'] = t['lucro'] < 0
+            ent = round(ent_mes.get(ym, 0), 2); fix = round(fix_mes.get(ym, 0), 2); avul = round(avul_mes.get(ym, 0), 2)
+            tendencia.append({'label': f"{MESES_PT[m-1]}/{str(y)[2:]}", 'ent': ent, 'fix': fix,
+                              'avul': avul, 'lucro': round(ent - fix - avul, 2)})
+        trend_max = max([max(t['ent'], t['fix'], t['avul']) for t in tendencia] + [1])
+        for t in tendencia:  # alturas em % com teto de 75% (deixa espaço p/ rótulo vertical)
+            t['ent_h'] = round(t['ent'] / trend_max * 75)
+            t['fix_h'] = round(t['fix'] / trend_max * 75)
+            t['avul_h'] = round(t['avul'] / trend_max * 75)
+            t['ent_k'] = _kbrl(t['ent']); t['fix_k'] = _kbrl(t['fix']); t['avul_k'] = _kbrl(t['avul'])
+        # Linha de lucro líquido por mês (escala própria, comporta valores negativos)
+        lucros = [t['lucro'] for t in tendencia]
+        lo = min(lucros + [0]); hi = max(lucros + [0]); rng = (hi - lo) or 1
+        W = 600.0; pytop = 24.0; pybot = 22.0; H = 130.0; px = 30.0
+        n = len(tendencia)
+        for i, t in enumerate(tendencia):
+            x = round(px + i / max(n - 1, 1) * (W - 2 * px), 1)
+            yv = round(pytop + (hi - t['lucro']) / rng * (H - pytop - pybot), 1)
+            line_pts.append({'x': x, 'y': yv, 'k': _kbrl(t['lucro']), 'mes': t['label'], 'neg': t['lucro'] < 0})
+        line_poly = ' '.join(f"{p['x']},{p['y']}" for p in line_pts)
+        line_zero_y = round(pytop + (hi - 0) / rng * (H - pytop - pybot), 1)
     except Exception:
         rollback()
 
@@ -362,10 +396,10 @@ def dashboard_view():
     if entradas_liquidas > 0 or despesas_total > 0:
         insights.append({'ic': '💡', 'tom': 'bom' if lucro_liquido >= 0 else 'ruim',
                          'tx': f"Lucro líquido do período: {_brl(lucro_liquido)} (margem {margem_pct}%)."})
-    if len(tendencia) >= 2 and tendencia[-2]['fat'] > 0:
-        var = round((tendencia[-1]['fat'] - tendencia[-2]['fat']) / tendencia[-2]['fat'] * 100, 1)
+    if len(tendencia) >= 2 and tendencia[-2]['ent'] > 0:
+        var = round((tendencia[-1]['ent'] - tendencia[-2]['ent']) / tendencia[-2]['ent'] * 100, 1)
         insights.append({'ic': '📈' if var >= 0 else '📉', 'tom': 'bom' if var >= 0 else 'alerta',
-                         'tx': f"Faturamento {'subiu' if var >= 0 else 'caiu'} {abs(var)}% vs o mês anterior."})
+                         'tx': f"Entradas líquidas {'subiram' if var >= 0 else 'caíram'} {abs(var)}% vs o mês anterior."})
     if top_produtos:
         p = top_produtos[0]
         insights.append({'ic': '🏆', 'tom': 'neutro',
@@ -394,7 +428,7 @@ def dashboard_view():
         mes_atual=hoje.strftime('%B / %Y').capitalize(),
         resultado=resultado, entradas_origem=entradas_origem,
         pie_segments=pie_segments, pie_conic=pie_conic,
-        tendencia=tendencia, fat_max_trend=fat_max_trend,
+        tendencia=tendencia, line_pts=line_pts, line_poly=line_poly, line_zero_y=line_zero_y,
         fluxo=fluxo, fluxo_pts=fluxo_pts, fluxo_zero_y=fluxo_zero_y,
         top_produtos=top_produtos, rec_max=rec_max,
         mix=mix, mix_total=mix_total, mix_conic=mix_conic,

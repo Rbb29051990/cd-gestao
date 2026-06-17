@@ -1,5 +1,8 @@
-# CD Gestão Empresarial — v116
+# CD Gestão Empresarial — v117
 
+## Novidades da v117 (2026-06-16) — Despesas: painel de gráficos simplificado
+- **Dois gráficos apenas:** a aba Despesas exibe somente **Fechamento do mês · Pagas × A pagar** e **Despesa fixa × avulsa**, lado a lado em colunas iguais, sem espaço em branco.
+- **Tabelas maiores:** Contas a pagar, Contas pagas e a tabela de lançamentos cresceram proporcionalmente aproveitando o espaço liberado.
 
 ## Novidades da v116 (2026-06-16) — Pagamento de despesas e fechamento operacional
 - **Contas a pagar e contas pagas lado a lado:** a área financeira da aba Despesas agora mostra o que ainda falta pagar e o que já foi pago no período selecionado.

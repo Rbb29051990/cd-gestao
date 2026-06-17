@@ -11,7 +11,7 @@
 .vg-wrap .main-content  { height:100%; overflow:hidden; display:flex; flex-direction:column;
                            padding:18px 26px 14px; box-sizing:border-box; }
 .vg-body                { flex:1; min-height:0; display:grid;
-                           grid-template-columns:1.15fr 1fr; gap:18px; }
+                           grid-template-columns:1.15fr 1fr; gap:18px; align-items:start; }
 
 /* ── CONTROLE DE ENTRADAS ── */
 .ce-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:13px;
@@ -52,11 +52,14 @@
                      text-transform:uppercase; letter-spacing:.3px;
                      position:sticky; bottom:0; z-index:1; }
 
-/* ── METRIC CARDS: 8 quadrantes iguais (2 colunas × 4 linhas) ── */
-.mg-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(4,1fr); gap:10px; }
-.mg-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:13px;
-           padding:10px 16px; box-shadow:0 3px 12px rgba(0,0,0,.05); position:relative;
-           overflow:hidden; display:flex; flex-direction:column; justify-content:center; gap:3px;
+/* ── METRIC CARDS: 8 quadrantes iguais (2 colunas × 4 linhas) ──
+   Linhas com altura de CONTEÚDO (não esticam): cards compactos, sem espaço
+   vazio interno. align-content:start mantém tudo encostado no topo. */
+.mg-grid { display:grid; grid-template-columns:1fr 1fr;
+           grid-template-rows:repeat(4,auto); align-content:start; gap:10px; }
+.mg-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:12px;
+           padding:11px 16px; box-shadow:0 3px 12px rgba(0,0,0,.05); position:relative;
+           overflow:hidden; display:flex; flex-direction:column; justify-content:center; gap:2px;
            text-decoration:none; transition:box-shadow .18s, transform .18s; }
 .mg-card:hover { box-shadow:0 8px 26px rgba(0,0,0,.1); transform:translateY(-2px); }
 .mg-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:13px 13px 0 0; }

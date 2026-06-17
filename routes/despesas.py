@@ -93,6 +93,19 @@ def despesas():
         p['atrasada'] = bool(p['data_vencimento'] and p['data_vencimento'] < hoje)
     total_a_pagar = round(sum(float(p['valor'] or 0) for p in a_pagar), 2)
     n_atrasadas = sum(1 for p in a_pagar if p['atrasada'])
+
+    # v116: contas pagas do período ao lado das pendentes.
+    # Base: data_pagamento dentro do período filtrado, para o fechamento financeiro real.
+    cur.execute("""SELECT p.id as parcela_id, p.numero, p.valor, p.data_vencimento, p.data_pagamento,
+                          p.forma_pagamento as forma_pagamento_parcela, p.obs_pagamento,
+                          d.id as despesa_id, d.codigo, d.descricao, d.categoria,
+                          d.forma_pagamento, d.local_retirada, d.num_parcelas
+                   FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
+                   WHERE p.pago=TRUE
+                     AND DATE(p.data_pagamento) BETWEEN %s AND %s
+                   ORDER BY p.data_pagamento DESC, d.id DESC, p.numero DESC""", (data_inicio, data_fim))
+    pagas_periodo = [dict(r) for r in cur.fetchall()]
+    total_pagas_periodo = round(sum(float(p['valor'] or 0) for p in pagas_periodo), 2)
     # ── 3 pizzas: Fixa × Avulsa dos 3 meses ANTERIORES ao mês atual (independe do filtro) ──
     MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
                 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -147,6 +160,7 @@ def despesas():
                qtd_fixa=qtd_fixa, qtd_avulsa=qtd_avulsa,
                desc_fixa=desc_fixa_list, desc_avulsa=desc_avulsa_list, tri_meses=tri_meses,
                categorias=categorias, a_pagar=a_pagar, total_a_pagar=total_a_pagar,
+               pagas_periodo=pagas_periodo, total_pagas_periodo=total_pagas_periodo,
                n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas,
                despesas_pagas_mes=despesas_pagas_mes, despesas_abertas_mes=despesas_abertas_mes,
                despesas_total_mes=despesas_total_mes, despesas_pct_pago=despesas_pct_pago)
@@ -161,12 +175,12 @@ def nova_despesa():
     valor = parse_brl(request.form.get('valor', '0'))
     descricao = request.form.get('descricao', '').strip()
     categoria = request.form.get('categoria', '').strip()
-    forma = request.form.get('forma_pagamento', '').strip()
+    # v116: forma/origem/observação são informadas somente no pagamento.
+    forma = ''
     tipo = request.form.get('tipo', 'avulsa').strip().lower()
     if tipo not in ('fixa', 'avulsa'): tipo = 'avulsa'
-    local_ret = request.form.get('local_retirada', '').strip().lower()
-    if local_ret not in ('caixa', 'pix'): local_ret = None
-    obs_ret = request.form.get('obs_retirada', '').strip() or None
+    local_ret = None
+    obs_ret = None
     parcelado = request.form.get('parcelado', 'nao').strip().lower() == 'sim'
     # Regra de negócio: despesa parcelada tem início e fim; portanto não é recorrente.
     recorrente = (not parcelado) and (request.form.get('recorrente', 'nao').strip().lower() == 'sim')
@@ -265,12 +279,28 @@ def pagar_parcela_despesa(did, pid):
         p = dict(p)
         if p['pago']:
             flash('Esta parcela já está paga.', 'erro'); return redirect(url_for('despesas'))
-        cur.execute("UPDATE despesa_parcelas SET pago=TRUE,data_pagamento=CURRENT_DATE WHERE id=%s", (pid,))
+        data_pagamento = request.form.get('data_pagamento') or hoje_app().isoformat()
+        forma_pagamento = (request.form.get('forma_pagamento') or '').strip()
+        obs_pagamento = (request.form.get('obs_pagamento') or '').strip() or None
+        if not forma_pagamento:
+            flash('Informe a forma de pagamento para quitar a despesa.', 'erro')
+            return redirect(url_for('despesas'))
+        # valida data ISO; se vier inválida, usa a data atual do Brasil
+        try:
+            date.fromisoformat(data_pagamento)
+        except Exception:
+            data_pagamento = hoje_app().isoformat()
+        cur.execute("""UPDATE despesa_parcelas
+                       SET pago=TRUE,data_pagamento=%s,forma_pagamento=%s,obs_pagamento=%s
+                       WHERE id=%s""", (data_pagamento, forma_pagamento, obs_pagamento, pid))
         rotulo = d.get('categoria') or d.get('descricao') or 'Despesa'
-        loc = d.get('local_retirada')
-        descr_caixa = f"Despesa: {rotulo} (parc. {p['numero']}/{d.get('num_parcelas')})" + (f" [{loc}]" if loc else "")
-        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,despesa_id,usuario_id,vendedora_nome) VALUES (%s,%s,'saida',%s,%s,%s,%s)",
-            (descr_caixa, float(p['valor']), d.get('forma_pagamento'), did, session['uid'], session['nome']))
+        descr_caixa = f"Despesa: {rotulo} (parc. {p['numero']}/{d.get('num_parcelas')})"
+        if obs_pagamento:
+            descr_caixa += f" — {obs_pagamento}"
+        cur.execute("""INSERT INTO caixa
+                       (descricao,valor,tipo,forma_pagamento,despesa_id,parcela_id,usuario_id,vendedora_nome,criado_em)
+                       VALUES (%s,%s,'saida',%s,%s,%s,%s,%s,%s)""",
+            (descr_caixa, float(p['valor']), forma_pagamento, did, pid, session['uid'], session['nome'], data_pagamento))
         # Se todas pagas, fecha a despesa
         cur.execute("SELECT COUNT(*) as t FROM despesa_parcelas WHERE despesa_id=%s AND pago=FALSE", (did,))
         if cur.fetchone()['t'] == 0:

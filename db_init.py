@@ -114,6 +114,7 @@ def init_db():
         id SERIAL PRIMARY KEY, despesa_id INTEGER, numero INTEGER,
         valor NUMERIC(10,2) DEFAULT 0, data_vencimento DATE,
         pago BOOLEAN DEFAULT FALSE, data_pagamento DATE,
+        forma_pagamento VARCHAR(50), obs_pagamento TEXT,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS condicionais (
         id SERIAL PRIMARY KEY, codigo VARCHAR(12) UNIQUE,
@@ -172,6 +173,8 @@ def init_db():
         "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS ip VARCHAR(80)",
         "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS user_agent TEXT",
         "ALTER TABLE caixa ADD COLUMN IF NOT EXISTS parcela_id INTEGER",
+        "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50)",
+        "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS obs_pagamento TEXT",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em ON auditoria (criado_em DESC)",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_tabela_registro ON auditoria (tabela, registro_id)",
         "CREATE INDEX IF NOT EXISTS idx_estoque_codigo ON estoque (codigo)",

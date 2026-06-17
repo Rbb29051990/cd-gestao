@@ -48,10 +48,16 @@
 .parc-row input{padding:8px 10px;border:1.5px solid #e0e0e8;border-radius:7px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1a1a2e;outline:none;background:#fff;width:100%}
 .parc-box{border:1.5px solid #ffe0b2;border-radius:9px;overflow:hidden;margin-top:6px}
 .parc-conf{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f0;font-size:12px;font-weight:700}
-.apagar-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:18px}
+.financeiro-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;align-items:start}
+.apagar-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:18px;min-width:0}
 .apagar-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1.5px solid #eee;border-radius:9px;margin-bottom:8px}
 .apagar-item.atr{border-color:#f3c0c0;background:#fdf3f3}
+.apagar-item.paga{border-color:#c8e6c9;background:#f6fff7}
+.apagar-desc{font-size:11px;color:#777;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .apagar-pay{padding:7px 13px;background:#e65100;color:#fff;border:none;border-radius:7px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+@media(max-width:900px){.financeiro-duo{grid-template-columns:1fr}.apagar-item{align-items:flex-start}.apagar-desc{white-space:normal}}
+.pagamento-resumo{background:#f8f8fc;border:1.5px solid #eee;border-radius:10px;padding:12px;margin-bottom:12px}
+.pagamento-resumo b{color:#1a1a2e}
 .sit-badge{display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;border-radius:20px}
 .sit-pago{background:#e8f5e9;color:#2e7d32}.sit-pend{background:#fff8e1;color:#f57f17}
 .recorrente-info{font-size:11px;color:#2e7d32;background:#e8f5e9;border-radius:8px;padding:8px 10px;margin-top:8px;font-weight:600}
@@ -214,39 +220,73 @@
         </div>
       </div>
 
-      <!-- CONTAS A PAGAR (parcelas pendentes) -->
-      {% if a_pagar %}
-      <div class="apagar-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-          <div class="chart-title" style="margin:0">🗓️ Contas a pagar — parcelas pendentes</div>
-          <div style="display:flex;gap:10px">
-            <span style="font-size:12px;font-weight:700;color:#e65100">Total: {{ moeda(total_a_pagar) }}</span>
-            {% if n_atrasadas > 0 %}<span style="font-size:12px;font-weight:700;color:#c62828">{{ n_atrasadas }} atrasada(s)</span>{% endif %}
+      <!-- CONTAS DO PERÍODO: A PAGAR E PAGAS -->
+      <div class="financeiro-duo">
+        <div class="apagar-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+            <div class="chart-title" style="margin:0">🗓️ Contas a pagar</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <span style="font-size:12px;font-weight:700;color:#e65100">Total: {{ moeda(total_a_pagar) }}</span>
+              {% if n_atrasadas > 0 %}<span style="font-size:12px;font-weight:700;color:#c62828">{{ n_atrasadas }} atrasada(s)</span>{% endif %}
+            </div>
           </div>
+          {% if a_pagar %}
+          <div style="max-height:260px;overflow-y:auto;padding-right:4px">
+            {% for p in a_pagar %}
+            <div class="apagar-item {% if p.atrasada %}atr{% endif %}">
+              <div style="min-width:0;flex:1">
+                <div style="font-size:13px;font-weight:700;color:#1a1a2e">{{ p.categoria or 'Despesa' }}
+                  <span style="font-size:11px;font-weight:600;color:#888">· parc. {{ p.numero }}/{{ p.num_parcelas }}</span></div>
+                {% if p.descricao %}<div class="apagar-desc">{{ p.descricao }}</div>{% endif %}
+                <div style="font-size:11px;color:{% if p.atrasada %}#c62828{% else %}#aaa{% endif %};font-weight:600;margin-top:1px">
+                  {{ p.codigo }} · vence {{ p.data_vencimento.strftime('%d/%m/%Y') if p.data_vencimento else '—' }}
+                  {% if p.atrasada %}· ⏰ vencida{% endif %}</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
+                <span style="font-size:14px;font-weight:800;color:#c62828">{{ moeda(p.valor) }}</span>
+                <button type="button" class="apagar-pay"
+                        data-action="/despesas/{{ p.despesa_id }}/parcela/{{ p.parcela_id }}/pagar"
+                        data-titulo="{{ (p.categoria or 'Despesa')|e }}"
+                        data-desc="{{ (p.descricao or '')|e }}"
+                        data-valor="{{ moeda(p.valor)|e }}"
+                        data-venc="{{ p.data_vencimento.strftime('%d/%m/%Y') if p.data_vencimento else '—' }}"
+                        onclick="abrirPagamentoDespesa(this)">✅ Pagar</button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+            <div class="chart-empty">Nenhuma conta pendente no período.</div>
+          {% endif %}
         </div>
-        <div style="max-height:240px;overflow-y:auto;padding-right:4px">
-          {% for p in a_pagar %}
-          <div class="apagar-item {% if p.atrasada %}atr{% endif %}">
-            <div style="min-width:0">
-              <div style="font-size:13px;font-weight:700;color:#1a1a2e">{{ p.categoria or p.descricao or 'Despesa' }}
-                <span style="font-size:11px;font-weight:600;color:#888">· parc. {{ p.numero }}/{{ p.num_parcelas }}</span></div>
-              <div style="font-size:11px;color:{% if p.atrasada %}#c62828{% else %}#aaa{% endif %};font-weight:600;margin-top:1px">
-                {{ p.codigo }} · vence {{ p.data_vencimento.strftime('%d/%m/%Y') if p.data_vencimento else '—' }}
-                {% if p.atrasada %}· ⏰ vencida{% endif %}
-                {% if p.forma_pagamento %}· {{ p.forma_pagamento }}{% endif %}</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px">
-              <span style="font-size:14px;font-weight:800;color:#c62828">{{ moeda(p.valor) }}</span>
-              <form method="POST" action="/despesas/{{ p.despesa_id }}/parcela/{{ p.parcela_id }}/pagar"
-                    onsubmit="return confirm('Confirmar pagamento desta parcela? Ela será lançada como saída no caixa.')">
-                <button type="submit" class="apagar-pay">✅ Pagar</button>
-              </form>
-            </div>
+
+        <div class="apagar-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+            <div class="chart-title" style="margin:0">✅ Contas pagas</div>
+            <span style="font-size:12px;font-weight:700;color:#2e7d32">Total: {{ moeda(total_pagas_periodo) }}</span>
           </div>
-          {% endfor %}
+          {% if pagas_periodo %}
+          <div style="max-height:260px;overflow-y:auto;padding-right:4px">
+            {% for p in pagas_periodo %}
+            <div class="apagar-item paga">
+              <div style="min-width:0;flex:1">
+                <div style="font-size:13px;font-weight:700;color:#1a1a2e">{{ p.categoria or 'Despesa' }}
+                  <span style="font-size:11px;font-weight:600;color:#888">· parc. {{ p.numero }}/{{ p.num_parcelas }}</span></div>
+                {% if p.descricao %}<div class="apagar-desc">{{ p.descricao }}</div>{% endif %}
+                <div style="font-size:11px;color:#2e7d32;font-weight:600;margin-top:1px">
+                  {{ p.codigo }} · pago em {{ p.data_pagamento.strftime('%d/%m/%Y') if p.data_pagamento else '—' }}
+                  {% if p.forma_pagamento_parcela or p.forma_pagamento %}· {{ p.forma_pagamento_parcela or p.forma_pagamento }}{% endif %}</div>
+                {% if p.obs_pagamento %}<div class="apagar-desc">Obs.: {{ p.obs_pagamento }}</div>{% endif %}
+              </div>
+              <span style="font-size:14px;font-weight:800;color:#2e7d32;flex-shrink:0">{{ moeda(p.valor) }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+            <div class="chart-empty">Nenhuma conta paga no período.</div>
+          {% endif %}
         </div>
       </div>
-      {% endif %}
 
       <div style="margin-bottom:12px">
         <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:300px;font-weight:500" type="text" placeholder="Buscar por descrição, categoria..." oninput="filtrarDesp(this.value)">
@@ -391,9 +431,38 @@
         <div style="font-size:11px;color:#aaa;margin-top:6px">Vencimentos sugeridos a cada 30 dias (30/60/90…). Edite as datas e valores se precisar. As parcelas só entram no caixa quando você marcar como pagas.</div>
       </div>
 
-      <!-- 7. MEIO DE PAGAMENTO -->
-      <div class="step-sep"><span class="stn">7</span> Meio de pagamento *</div>
-      <div class="form-field" style="margin:0">
+      <div class="recorrente-info" style="background:#f8f8fc;color:#777">
+        A forma de pagamento, a data real e a observação serão informadas somente quando você clicar em <b>Pagar</b>.
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalDespesa').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#e65100">💸 Registrar despesa</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- MODAL PAGAR DESPESA -->
+<div class="modal-overlay" id="modalPagarDespesa" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <button class="modal-close" onclick="document.getElementById('modalPagarDespesa').style.display='none'">✕</button>
+    <div class="modal-title">Pagar despesa</div>
+    <div class="modal-sub">Informe a data real e a forma de pagamento</div>
+    <form method="POST" id="formPagarDespesa">
+      <div class="pagamento-resumo">
+        <div><b id="pgTitulo">Despesa</b></div>
+        <div id="pgDesc" style="font-size:12px;color:#777;font-weight:600;margin-top:2px"></div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px"><span>Vencimento</span><b id="pgVenc">—</b></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:13px"><span>Valor</span><b id="pgValor" style="color:#c62828">R$ 0,00</b></div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Data do pagamento *</label>
+        <input class="form-input" type="date" name="data_pagamento" id="pgData" required>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Forma de pagamento *</label>
         <select class="form-input" name="forma_pagamento" required style="cursor:pointer">
           <option value="">Selecione...</option>
           <option value="Pix">⚡ Pix</option>
@@ -404,21 +473,13 @@
           <option value="Cartão parcelado">💳 Cartão parcelado</option>
         </select>
       </div>
-
-      <!-- 8. LOCAL DE RETIRADA -->
-      <div class="step-sep"><span class="stn">8</span> De onde saiu o pagamento? *</div>
-      <div class="seg">
-        <label class="seg-opt sel" id="locCaixa" onclick="selLocal('caixa')"><input type="radio" name="local_retirada" value="caixa" checked>🏦 Caixa</label>
-        <label class="seg-opt" id="locPix" onclick="selLocal('pix')"><input type="radio" name="local_retirada" value="pix">⚡ PIX / Banco</label>
+      <div class="form-field">
+        <label class="form-label">Observação do pagamento (opcional)</label>
+        <input class="form-input" type="text" name="obs_pagamento" placeholder="Ex: pago pela conta Nubank, caixa da loja...">
       </div>
-      <div class="form-field" style="margin:10px 0 0">
-        <label class="form-label">Observação da retirada (opcional)</label>
-        <input class="form-input" type="text" name="obs_retirada" placeholder="Ex: conta Nubank, caixa da loja, retirada Carol...">
-      </div>
-
       <div class="modal-footer">
-        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalDespesa').style.display='none'">Cancelar</button>
-        <button type="submit" class="btn-salvar" style="background:#e65100">💸 Registrar despesa</button>
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalPagarDespesa').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#2e7d32">✅ Confirmar pagamento</button>
       </div>
     </form>
   </div>
@@ -617,6 +678,19 @@ function somarParcelas(){
   let soma=0;
   document.querySelectorAll('[name^="parcela_valor_"]').forEach(el=>{ soma+=parseFloat(el.value)||0; });
   document.getElementById('parcSoma').textContent=brl(soma);
+}
+
+
+function abrirPagamentoDespesa(btn){
+  const modal=document.getElementById('modalPagarDespesa');
+  const form=document.getElementById('formPagarDespesa');
+  form.action=btn.dataset.action;
+  document.getElementById('pgTitulo').textContent=btn.dataset.titulo || 'Despesa';
+  document.getElementById('pgDesc').textContent=btn.dataset.desc || '';
+  document.getElementById('pgValor').textContent=btn.dataset.valor || 'R$ 0,00';
+  document.getElementById('pgVenc').textContent=btn.dataset.venc || '—';
+  document.getElementById('pgData').value=localISODate(new Date());
+  modal.style.display='flex';
 }
 
 function validarDespesa(){

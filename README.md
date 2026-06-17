@@ -1,6 +1,13 @@
-# CD Gestão Empresarial — v115
+# CD Gestão Empresarial — v116
 
 
+## Novidades da v116 (2026-06-16) — Pagamento de despesas e fechamento operacional
+- **Contas a pagar e contas pagas lado a lado:** a área financeira da aba Despesas agora mostra o que ainda falta pagar e o que já foi pago no período selecionado.
+- **Descrição visível nas listas:** abaixo da categoria aparece a descrição da despesa, facilitando identificar rapidamente aluguel, compras, fornecedores e referências do mês.
+- **Pagamento com data real:** ao clicar em **Pagar**, abre um modal para informar a data em que a despesa foi paga.
+- **Forma de pagamento no momento correto:** Pix, dinheiro, boleto, débito ou cartão agora são informados apenas na quitação da despesa, não no cadastro inicial.
+- **Cadastro de despesa mais rápido:** o lançamento cria a obrigação; a data real, forma e observação entram somente no pagamento.
+- **Caixa mais confiável:** a saída no caixa usa a data e a forma informadas no momento do pagamento.
 
 ## Novidades da v115 (2026-06-16) — Despesas por vencimento e valor da parcela
 - **Gráficos corrigidos por período:** os indicadores da aba **Despesas** agora consideram somente as parcelas com **data de vencimento dentro do período selecionado**.

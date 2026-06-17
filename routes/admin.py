@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v122'})
+        return jsonify({'status': 'ok', 'version': 'v124'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v122 — 2026-06-17</b><br>
+    Versão: <b style='color:green'>v124 — 2026-06-17</b><br>
+    v124: Dashboard executivo moderno em uma página só — corrigido o bug que renderizava a aba sem estilo (faltava estender o base.html); KPIs, gráficos, rankings e alertas num layout único e compacto ✅<br>
     v122: Dashboards — 11 gráficos estratégicos (resultado, tendência 6 meses, fluxo acumulado, top produtos ABC, mix, tamanhos, estoque parado, inadimplência do crediário, conversão de condicional, vendedoras, desconto × margem) + cartões de insight automáticos e filtro de período ✅<br>
     v121: Menu lateral unificado em um único arquivo compartilhado (_sidebar.html) — fim do bug em que os ícones mudavam ao trocar de aba; item ativo destacado pela URL ✅<br>
     v121: Período de TODAS as abas (Visão Geral, Vendas, Caixa, Ajustes, Crediários, Condicional, Despesas) agora abre pré-fixado do 1º ao último dia do mês ✅<br>

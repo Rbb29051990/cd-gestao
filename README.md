@@ -1,4 +1,11 @@
-# CD Gestão Empresarial — v122
+# CD Gestão Empresarial — v124
+
+## Novidades da v124 (2026-06-17) — Dashboard executivo moderno
+
+- **Bug corrigido:** a aba Dashboard da v123 renderizava sem estilo (sidebar/topbar quebrados, fontes erradas) porque o template **não estendia o `base.html`** — começava direto no `<style>`, sem `{% extends %}`/`{% block content %}`. Agora estende corretamente e carrega o CSS/JS do app.
+- **Design moderno num só lugar:** dashboard executivo numa página única e compacta — linha de KPIs (faturamento bruto/líquido, taxas, despesas, lucro, margem com barra de saúde, ticket médio), gráficos (faturamento 12 meses, despesas fixas × avulsas, evolução do lucro, taxas por forma, top categorias), rankings (vendedoras, estoque parado, top clientes) e alertas inteligentes no rodapé.
+- **Filtro de período** com atalhos Hoje/7 dias/Mês (o Mês vai do 1º ao último dia), comparando sempre com o período anterior de mesma duração.
+- Limpeza de uma consulta morta no ranking de vendedoras.
 
 ## Novidades da v122 (2026-06-17) — Dashboards estratégicos
 

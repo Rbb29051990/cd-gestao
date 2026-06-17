@@ -1,9 +1,10 @@
-"""Dashboard Executivo V123.
+"""Dashboard Executivo V124.
 
-Versão compacta em 3 linhas:
+Dashboard moderno em uma página só (estende base.html):
   1. KPIs financeiros principais
   2. Tendências financeiras + taxas + top categorias
   3. Ranking vendedoras + estoque parado + top clientes
+  + alertas inteligentes no rodapé
 """
 from datetime import date, timedelta
 from flask import render_template, request
@@ -301,15 +302,8 @@ def dashboard_view():
             nome = r['vendedora_nome'] or '—'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
             liq, _desc, _ = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, taxa_cache)
-            obj = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'clientes': 0})
+            obj = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0})
             obj['liquido'] += liq; obj['vendas'] += 1; obj['pecas'] += int(r['pecas'] or 0)
-        try:
-            cur.execute("""SELECT COALESCE(u.nome,'—') AS nome, COUNT(c.id) AS clientes
-                           FROM clientes c LEFT JOIN usuarios u ON u.id = NULL
-                           WHERE 1=0 GROUP BY 1""")
-        except Exception:
-            rollback()
-        # Clientes cadastrados por vendedora não possui vínculo direto no schema atual; manter 0 até existir o vínculo.
         vendedoras = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]
         for v in vendedoras:
             v['liquido'] = round(v['liquido'], 2)

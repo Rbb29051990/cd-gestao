@@ -2,6 +2,9 @@
 
 ## Novidades da v121 (2026-06-17) — Visão Geral: 8 quadrantes compactos e despesas fixa × avulsa
 
+- **Período do mês em todas as abas:** os filtros de data de **todas** as telas (Visão Geral, Vendas, Caixa, Ajustes, Crediários, Condicional e Despesas) agora abrem pré-preenchidos do **1º ao último dia do mês corrente**, em vez de terminar no dia de hoje.
+- **Mobile/tablet da Visão Geral:** o layout de altura fixa passou a valer apenas no desktop; no celular e no tablet a tela flui naturalmente como as demais, sem destoar.
+
 - **Cabe numa página só:** os quadrantes foram compactados e padronizados (todos do mesmo tamanho, sem espaço vazio interno), eliminando o corte do card Lucro Líquido.
 - **Despesas separadas:** dois novos quadrantes mostram o montante de **Despesas fixas** e **Despesas avulsas** a pagar no período, calculados pelo **vencimento das parcelas** dentro da seleção de datas.
 - **Nova ordem dos 8 quadrantes:** 1) Despesas fixas · 2) Despesas avulsas · 3) Lucro líquido · 4) Crediários em aberto · 5) Em condicional/transferência · 6) Valor de estoque · 7) Custo do estoque · 8) Potencial de venda do estoque.

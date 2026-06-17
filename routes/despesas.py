@@ -6,7 +6,7 @@ import calendar
 import secrets
 from flask import render_template, request, redirect, url_for, session, flash
 from db import get_db, close_db
-from config import hoje_app
+from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir, is_admin
 from utils import parse_brl
 
@@ -32,11 +32,11 @@ def despesas():
     conn = get_db(); cur = conn.cursor()
     hoje = hoje_app()
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+    data_fim    = request.args.get('data_fim',    fim_mes_app())
     try: date.fromisoformat(data_inicio)
     except: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
-    except: data_fim = hoje.strftime('%Y-%m-%d')
+    except: data_fim = fim_mes_app()
     # v115: o período da aba Despesas é sempre baseado no VENCIMENTO DAS PARCELAS.
     # Isso evita somar o valor total de uma despesa parcelada/recorrente dentro de um único mês.
     # Ex.: empréstimo de 18x R$ 750 aparece no mês como R$ 750, e não como R$ 13.500.

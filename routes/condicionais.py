@@ -4,7 +4,7 @@ import json
 from datetime import date
 from flask import render_template, request, redirect, url_for, flash
 from db import get_db, close_db
-from config import hoje_app
+from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import parse_brl
 
@@ -20,11 +20,11 @@ def condicionais():
     clientes_lista = [dict(c) for c in cur.fetchall()]
     hoje = hoje_app()
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+    data_fim    = request.args.get('data_fim',    fim_mes_app())
     try: date.fromisoformat(data_inicio)
     except: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
-    except: data_fim = hoje.strftime('%Y-%m-%d')
+    except: data_fim = fim_mes_app()
     # Abertas no período (o filtro do topo conecta a tela toda)
     cur.execute("""SELECT c.*,
         COALESCE((SELECT SUM(quantidade) FROM condicional_itens WHERE condicional_id=c.id AND status='pendente'),0) as qtd_pecas

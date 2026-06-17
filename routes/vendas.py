@@ -4,7 +4,7 @@ import json
 from datetime import date
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from db import get_db, close_db
-from config import agora_app, hoje_app
+from config import agora_app, hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import parse_brl, bloquear_estoque_negativo, audit_log, get_taxa_vigente, calcular_liquido
 
@@ -40,11 +40,11 @@ def vendas():
         clientes_lista = [dict(c) for c in cur.fetchall()]
         hoje = hoje_app()
         data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-        data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+        data_fim    = request.args.get('data_fim',    fim_mes_app())
         try: date.fromisoformat(data_inicio)
         except: data_inicio = hoje.strftime('%Y-%m-01')
         try: date.fromisoformat(data_fim)
-        except: data_fim = hoje.strftime('%Y-%m-%d')
+        except: data_fim = fim_mes_app()
         cur.execute("""SELECT v.*, COUNT(vi.id) as qtd_itens FROM vendas v
             LEFT JOIN venda_itens vi ON vi.venda_id=v.id
             WHERE DATE(v.criado_em) BETWEEN %s AND %s
@@ -261,11 +261,11 @@ def editar_venda(vid):
 def ranking_vendedoras():
     hoje = hoje_app()
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    data_fim = request.args.get('data_fim', fim_mes_app())
     try: date.fromisoformat(data_inicio)
     except: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
-    except: data_fim = hoje.strftime('%Y-%m-%d')
+    except: data_fim = fim_mes_app()
     conn = get_db(); cur = conn.cursor()
     cur.execute("""SELECT vendedora_nome, valor_total, desconto, forma_pagamento, criado_em, cliente_id
         FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))

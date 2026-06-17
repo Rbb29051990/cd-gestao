@@ -3,7 +3,7 @@ cálculo de líquido/descontos por forma e por categoria de crediário."""
 from datetime import date
 from flask import render_template, request
 from db import get_db, close_db
-from config import hoje_app
+from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx
 from utils import get_taxa_vigente, calcular_liquido
 
@@ -14,12 +14,12 @@ def caixa():
     hoje = hoje_app()
     # Suporte a filtro por data_inicio e data_fim
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
+    data_fim    = request.args.get('data_fim',    fim_mes_app())
     # Garantir formato correto
     try: date.fromisoformat(data_inicio)
     except: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
-    except: data_fim = hoje.strftime('%Y-%m-%d')
+    except: data_fim = fim_mes_app()
     cur.execute("SELECT * FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em DESC", (data_inicio, data_fim))
     movs = [dict(m) for m in cur.fetchall()]
     # Categorias de entrada:

@@ -1,6 +1,7 @@
 """Configuração central do CD Gestão: variáveis de ambiente, fuso horário e
 constantes visuais do cliente. Não importa nada do app (camada mais baixa)."""
 import os
+import calendar
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -31,6 +32,19 @@ def agora_app():
 def hoje_app():
     """Data oficial do ERP, evitando diferença de UTC no Render."""
     return agora_app().date()
+
+
+def inicio_mes_app():
+    """Primeiro dia do mês corrente em ISO (yyyy-mm-01)."""
+    d = hoje_app()
+    return f"{d.year:04d}-{d.month:02d}-01"
+
+
+def fim_mes_app():
+    """Último dia do mês corrente em ISO (yyyy-mm-dd)."""
+    d = hoje_app()
+    ultimo = calendar.monthrange(d.year, d.month)[1]
+    return f"{d.year:04d}-{d.month:02d}-{ultimo:02d}"
 
 
 # ── Identidade visual ──

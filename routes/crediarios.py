@@ -4,17 +4,17 @@ import math
 from collections import OrderedDict
 from flask import render_template, request, redirect, url_for, flash
 from db import get_db, close_db
-from config import hoje_app
+from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx
 from utils import get_taxa_vigente
 
 
 @login_required
 def crediarios():
-    # Pré-fixa o período no mês vigente (1º dia → hoje), igual às demais abas.
+    # Pré-fixa o período no mês vigente (1º dia → último dia), igual às demais abas.
     # O botão "Todos" envia os campos vazios, caindo na listagem sem filtro.
     data_inicio = request.args.get('data_inicio', hoje_app().strftime('%Y-%m-01'))
-    data_fim = request.args.get('data_fim', hoje_app().strftime('%Y-%m-%d'))
+    data_fim = request.args.get('data_fim', fim_mes_app())
     conn = get_db(); cur = conn.cursor()
     if data_inicio and data_fim:
         cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda

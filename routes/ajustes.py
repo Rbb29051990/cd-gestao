@@ -7,7 +7,7 @@ transferência e outros.
 from datetime import date, datetime, time
 from flask import render_template, request, redirect, url_for, session, flash
 from db import get_db, close_db
-from config import hoje_app
+from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import parse_brl, audit_log, get_taxa_vigente, calcular_liquido
 
@@ -69,11 +69,11 @@ def ajustes():
     conn = get_db(); cur = conn.cursor()
     hoje = hoje_app()
     data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    data_fim = request.args.get('data_fim', fim_mes_app())
     try: date.fromisoformat(data_inicio)
     except Exception: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
-    except Exception: data_fim = hoje.strftime('%Y-%m-%d')
+    except Exception: data_fim = fim_mes_app()
 
     cur.execute("""SELECT * FROM ajustes_financeiros
                    WHERE DATE(data_ajuste) BETWEEN %s AND %s

@@ -1,97 +1,5 @@
-{% extends "base.html" %}
-{% block content %}
-{% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
 <style>
-.dsh-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px}
-.dsh-insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:18px}
-.dsh-ins{background:#fff;border:1.5px solid var(--cor-borda);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 3px 12px rgba(0,0,0,.04);border-left-width:4px}
-.dsh-ins.bom{border-left-color:#2e7d32}.dsh-ins.alerta{border-left-color:#e65100}.dsh-ins.ruim{border-left-color:#c62828}.dsh-ins.neutro{border-left-color:#1565c0}
-.dsh-ins .ic{font-size:20px;line-height:1.1;flex-shrink:0}
-.dsh-ins .tx{font-size:12.5px;color:#333;font-weight:600;line-height:1.35}
-.dsh-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.card{background:#fff;border:1.5px solid var(--cor-borda);border-radius:13px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:13px 16px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#1565c0,#2e7d32,#f9a825)}
-.card.full{grid-column:1/-1}
-.card-h{font-size:13.5px;font-weight:800;color:var(--cor-texto)}
-.card-sub{font-size:10.5px;color:#a0a0ad;margin-bottom:14px;margin-top:1px}
-/* Barras horizontais */
-.barline{display:flex;align-items:center;gap:10px;margin-bottom:9px}
-.barline .lbl{font-size:11px;font-weight:700;color:#555;width:120px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.barline .track{flex:1;background:#f2f2f6;border-radius:6px;height:16px;position:relative;overflow:hidden}
-.barline .fill{height:100%;border-radius:6px;min-width:2px}
-.barline .val{font-size:11px;font-weight:800;color:var(--cor-texto);width:104px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums}
-.barline .val small{font-weight:600;color:#a0a0ad}
-/* Demonstrativo de resultado */
-.dem{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f3f7;font-size:13px}
-.dem .k{color:#666;font-weight:600}.dem .k.op{color:#aaa;font-weight:600}
-.dem .v{font-weight:800;font-variant-numeric:tabular-nums}
-.dem.tot{margin-top:8px;padding:12px 14px;border:0;border-radius:10px;background:#f2fbf4}
-.dem.tot.neg{background:#fdeaea}
-.dem.tot .k{font-size:13px;font-weight:800;color:var(--cor-texto);text-transform:uppercase;letter-spacing:.4px}
-.dem.tot .v{font-size:20px}
-.pos{color:#2e7d32}.neg{color:#c62828}.azul{color:#1565c0}
-/* Tendência (colunas) */
-.trend{display:flex;align-items:flex-end;gap:10px;height:150px;padding-top:8px}
-.trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
-.trend-bars{display:flex;gap:3px;align-items:flex-end;height:120px;width:100%;justify-content:center}
-.trend-bars .tb{width:14px;border-radius:3px 3px 0 0;min-height:2px}
-.trend-bars .tb.fat{background:#1565c0}.trend-bars .tb.luc{background:#2e7d32}.trend-bars .tb.luc.neg{background:#c62828}
-.trend-lbl{font-size:9.5px;font-weight:700;color:#888;white-space:nowrap}
-.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:10.5px;color:#777;font-weight:600}
-.legend .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:middle}
-/* Donut */
-.donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.donut{width:150px;height:150px;border-radius:50%;position:relative;flex-shrink:0}
-.donut::after{content:'';position:absolute;inset:30px;background:#fff;border-radius:50%}
-.donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:1}
-.donut-c b{font-size:15px;color:var(--cor-texto)}.donut-c span{font-size:9px;color:#a0a0ad;text-transform:uppercase;letter-spacing:.5px}
-.donut-leg{flex:1;min-width:150px}
-.dleg{display:flex;align-items:center;gap:8px;font-size:11.5px;margin-bottom:6px}
-.dleg .d{width:10px;height:10px;border-radius:3px;flex-shrink:0}
-.dleg .n{font-weight:700;color:#555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dleg .p{font-weight:800;color:var(--cor-texto)}
-/* Stat boxes */
-.stats{display:flex;gap:10px;flex-wrap:wrap}
-.stat{flex:1;min-width:90px;background:#f7f7fb;border-radius:10px;padding:11px 12px}
-.stat .l{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#a0a0ad}
-.stat .n{font-size:18px;font-weight:800;color:var(--cor-texto);margin-top:2px;font-variant-numeric:tabular-nums}
-.abc{display:inline-block;width:18px;height:18px;border-radius:5px;text-align:center;line-height:18px;font-size:10px;font-weight:800;color:#fff}
-.abc.A{background:#2e7d32}.abc.B{background:#f9a825}.abc.C{background:#c62828}
-.spark{width:100%;height:auto}
-.empty{color:#bbb;font-size:12px;text-align:center;padding:24px 0}
-/* Resultado (pizza + detalhe + caixa de lucro) */
-.res-layout{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
-.res-pie{display:flex;flex-direction:column;align-items:center;gap:14px;flex-shrink:0}
-.res-pie .donut{width:150px;height:150px}
-.res-pie .donut::after{inset:30px}
-.res-pie .donut-c b{font-size:12.5px;padding:0 8px;line-height:1.15}
-.res-legend{width:160px}
-.res-detail{flex:1 1 270px;max-width:380px;min-width:240px}
-.res-charts{flex:2 1 320px;min-width:280px}
-.rc-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#a0a0ad;margin-bottom:6px}
-.rd-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#a0a0ad;margin-bottom:8px}
-.rd-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f3f3f7;font-size:12.5px;color:#555;font-weight:600}
-.rd-row .d{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;vertical-align:middle}
-.rd-row b{font-variant-numeric:tabular-nums;color:var(--cor-texto)}
-.rd-row.tot{border-bottom:0;border-top:2px solid #eaeaf2;margin-top:2px;font-weight:800;color:var(--cor-texto)}
-.res-lucro-wrap{display:flex;justify-content:center;margin-top:14px}
-.res-lucro{display:inline-flex;align-items:center;gap:18px;padding:11px 26px;border-radius:12px;flex-wrap:wrap;justify-content:center}
-.res-lucro.pos{background:linear-gradient(90deg,#eafaef,#f4fbf6);border:1.5px solid #b8e6c4}
-.res-lucro.neg{background:linear-gradient(90deg,#fdecec,#fdf4f4);border:1.5px solid #f3c0c0}
-.res-lucro .rl-lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--cor-texto)}
-.res-lucro .rl-formula{font-size:10px;color:#888;margin-top:2px}
-.res-lucro .rl-v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
-.res-lucro.pos .rl-v{color:#2e7d32}.res-lucro.neg .rl-v{color:#c62828}
-/* Tendência: 3 barras por mês com rótulo vertical */
-.trend3{display:flex;align-items:flex-end;gap:8px;height:140px;padding-top:4px}
-.t3col{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
-.t3bars{display:flex;gap:3px;align-items:flex-end;height:122px;width:100%;justify-content:center}
-.t3b{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;flex:1;max-width:22px}
-.t3b .bar{width:100%;border-radius:3px 3px 0 0;min-height:2px}
-.t3b .bar.ent{background:#2e7d32}.t3b .bar.fix{background:#f9a825}.t3b .bar.avul{background:#c62828}
-.t3lab{font-size:8px;font-weight:700;color:#777;writing-mode:vertical-rl;transform:rotate(180deg);margin-bottom:2px;white-space:nowrap;letter-spacing:-.2px}
-.t3mes{font-size:9.5px;font-weight:700;color:#888;white-space:nowrap}
-@media(max-width:900px){.dsh-grid{grid-template-columns:1fr}.res-pie,.res-legend{width:100%}}
+.dashboard-v123{padding:14px 16px 10px;background:#f6f8fb;min-height:calc(100vh - 0px);color:#172033;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}.dash-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:8px}.dash-title{font-size:21px;font-weight:850;letter-spacing:-.4px}.dash-sub{font-size:12px;color:#64748b;margin-top:2px}.dash-filter{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}.dash-filter label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;font-weight:800;margin-bottom:3px}.dash-filter input{height:32px;border:1px solid #dbe3ef;border-radius:10px;background:#fff;padding:0 10px;font-size:12px}.dash-filter button{height:32px;border:0;border-radius:10px;padding:0 10px;background:#e9eef8;color:#334155;font-size:12px;font-weight:800;cursor:pointer}.kpi-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-bottom:8px}.kpi{background:#fff;border:1px solid #e6edf7;border-radius:14px;padding:9px 10px;box-shadow:0 8px 20px rgba(15,23,42,.04);min-height:86px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}.kpi-title{font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.55px;color:#64748b;white-space:nowrap}.kpi-value{font-size:18px;font-weight:900;letter-spacing:-.6px;color:#0f172a;line-height:1.08}.kpi-sub{font-size:10.5px;color:#64748b;line-height:1.22;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kpi-foot{display:flex;align-items:center;justify-content:space-between;gap:5px;margin-top:2px}.var{font-size:10px;font-weight:850;border-radius:999px;padding:2px 6px;background:#f1f5f9;color:#64748b}.var.pos{background:#dcfce7;color:#15803d}.var.neg{background:#fee2e2;color:#b91c1c}.var.alerta{background:#fef3c7;color:#b45309}.health{width:54px;height:6px;background:#edf2f7;border-radius:999px;overflow:hidden}.health span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e)}.dash-grid{display:grid;grid-template-columns:1.05fr 1.05fr .72fr;gap:8px;margin-bottom:8px}.stack{display:grid;grid-template-rows:1fr 1fr;gap:8px;min-height:245px}.panel{background:#fff;border:1px solid #e6edf7;border-radius:16px;box-shadow:0 8px 22px rgba(15,23,42,.04);padding:10px 11px;overflow:hidden}.panel-h{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px}.panel-title{font-size:12px;font-weight:900;color:#172033;letter-spacing:-.15px}.panel-meta{font-size:10px;color:#94a3b8;font-weight:800}.mini-bars{height:78px;display:flex;align-items:flex-end;gap:5px;border-bottom:1px solid #eef2f7;padding:5px 2px 0}.mini-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}.mini-bar{width:62%;border-radius:6px 6px 1px 1px;min-height:2px;background:#2563eb}.mini-bar.liq{background:#16a34a}.mini-lbl{font-size:8.6px;color:#94a3b8;margin-top:3px;white-space:nowrap}.svgbox{height:80px;width:100%;display:block}.legend{display:flex;align-items:center;gap:9px;margin-top:2px;font-size:10px;color:#64748b;font-weight:750}.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}.side-stack{display:grid;grid-template-rows:1fr 1fr;gap:8px;min-height:245px}.donut-flex{display:flex;gap:10px;align-items:center;height:78px}.donut{width:74px;height:74px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto}.donut:after{content:'';width:42px;height:42px;background:#fff;border-radius:50%;box-shadow:inset 0 0 0 1px #eef2f7}.tax-list{flex:1;min-width:0}.tax-row,.rank-row,.aging-row,.cat-row{display:grid;align-items:center;gap:7px;font-size:11px;color:#334155;margin:4px 0}.tax-row{grid-template-columns:9px 1fr auto}.cat-row{grid-template-columns:1fr 68px 42px}.aging-row{grid-template-columns:74px 1fr 66px 44px}.rank-row{grid-template-columns:20px 1fr 78px 48px 46px}.client-row{display:grid;grid-template-columns:1fr 78px 45px 60px 52px;gap:7px;align-items:center;font-size:11px;margin:5px 0;color:#334155}.rname{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.muted{color:#94a3b8;font-size:10px}.num{text-align:right;font-weight:850;color:#0f172a}.track{height:7px;background:#eef2f7;border-radius:999px;overflow:hidden}.fill{height:100%;border-radius:999px;background:#2563eb}.third-row{display:grid;grid-template-columns:1fr .92fr 1.18fr;gap:8px;margin-bottom:8px}.third-row .panel{min-height:165px}.small-table-head{display:grid;gap:7px;font-size:9px;text-transform:uppercase;color:#94a3b8;font-weight:900;border-bottom:1px solid #eef2f7;padding-bottom:5px;margin-bottom:4px}.vendor-head{grid-template-columns:20px 1fr 78px 48px 46px}.client-head{grid-template-columns:1fr 78px 45px 60px 52px}.footer-alerts{display:flex;gap:8px;align-items:center;overflow:hidden}.alert-card{background:#fff;border:1px solid #e6edf7;border-radius:13px;padding:8px 10px;display:flex;gap:7px;align-items:center;min-width:0;flex:1;box-shadow:0 8px 20px rgba(15,23,42,.035);font-size:11.5px;color:#334155;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.alert-card:before{content:'●';font-size:13px}.alert-card.bom:before{color:#16a34a}.alert-card.alerta:before{color:#f59e0b}.alert-card.ruim:before{color:#dc2626}.empty{height:80px;display:grid;place-items:center;color:#94a3b8;font-size:12px;background:#f8fafc;border-radius:12px}.only-mobile{display:none}@media(max-width:1200px){.kpi-row{grid-template-columns:repeat(4,1fr)}.dash-grid,.third-row{grid-template-columns:1fr}.stack,.side-stack{min-height:auto}.footer-alerts{flex-direction:column}.alert-card{width:100%}}@media(max-width:720px){.dashboard-v123{padding:10px}.dash-top{align-items:flex-start;flex-direction:column}.kpi-row{grid-template-columns:1fr 1fr}.rank-row,.vendor-head{grid-template-columns:20px 1fr 70px}.rank-row .hide-sm,.vendor-head .hide-sm{display:none}.client-row,.client-head{grid-template-columns:1fr 70px 42px}.client-row .hide-sm,.client-head .hide-sm{display:none}}
 </style>
 
 <div class="dash-wrap">
@@ -104,275 +12,91 @@
   </div>
   <div class="dash-layout">
     {% include "_sidebar.html" %}
-    <main class="main-content">
+    <main class="main-content dashboard-v123">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
 
-      <div class="dsh-head">
-        <div>
-          <div class="page-title" style="margin-bottom:1px">Dashboards</div>
-          <div class="page-date">📅 {{ periodo_label }}</div>
-        </div>
-        <form method="GET" id="formFiltro" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-          <div>
-            <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">De</div>
-            <input type="date" name="data_inicio" id="dataInicio" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_inicio }}" onchange="this.form.submit()">
-          </div>
-          <div>
-            <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">Até</div>
-            <input type="date" name="data_fim" id="dataFim" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_fim }}" onchange="this.form.submit()">
-          </div>
-          <div style="display:flex;gap:5px">
-            <button type="button" class="filtro-btn" onclick="atalho('hoje')">Hoje</button>
-            <button type="button" class="filtro-btn" onclick="atalho('semana')">7 dias</button>
-            <button type="button" class="filtro-btn" onclick="atalho('mes')">Mês</button>
-          </div>
+      <div class="dash-top">
+        <div><div class="dash-title">Dashboard Executivo</div><div class="dash-sub">{{ periodo_label }} · visão compacta V123</div></div>
+        <form class="dash-filter" method="GET">
+          <div><label>De</label><input type="date" name="data_inicio" value="{{ data_inicio }}" onchange="this.form.submit()"></div>
+          <div><label>Até</label><input type="date" name="data_fim" value="{{ data_fim }}" onchange="this.form.submit()"></div>
+          <button type="button" onclick="atalho('hoje')">Hoje</button><button type="button" onclick="atalho('semana')">7 dias</button><button type="button" onclick="atalho('mes')">Mês</button>
         </form>
       </div>
 
-      {% if insights %}
-      <div class="dsh-insights">
-        {% for i in insights %}
-        <div class="dsh-ins {{ i.tom }}"><span class="ic">{{ i.ic }}</span><span class="tx">{{ i.tx }}</span></div>
+      <section class="kpi-row">
+        {% for k in kpis %}
+        <div class="kpi">
+          <div class="kpi-title">{{ k.titulo }}</div>
+          <div class="kpi-value">{{ k.valor }}</div>
+          <div class="kpi-sub">{{ k.sub }}</div>
+          <div class="kpi-foot">
+            {% if k.saude is defined %}<div class="health"><span style="width:{{ k.saude }}%"></span></div>{% else %}<span></span>{% endif %}
+            {% if k.var %}<span class="var {{ k.tom }}">{{ k.var }}</span>{% endif %}
+          </div>
+        </div>
         {% endfor %}
-      </div>
-      {% endif %}
+      </section>
 
-      <!-- 1 · RESULTADO DO PERÍODO (pizza) -->
-      <div class="dsh-grid">
-        <div class="card full">
-          <div class="card-h">💰 Resultado do período</div>
-          <div class="card-sub">Entradas líquidas (caixa) × despesas fixas e avulsas</div>
-          <div class="res-layout">
-            <div class="res-pie">
-              <div class="donut" style="background:{{ pie_conic }}">
-                <div class="donut-c"><b>{{ brl(resultado.entradas_liquidas) }}</b><span>Entradas líq.</span></div>
-              </div>
-              <div class="res-legend">
-                {% for s in pie_segments %}
-                <div class="dleg"><span class="d" style="background:{{ s.cor }}"></span><span class="n">{{ s.label }}</span><span class="p">{{ s.pct }}%</span></div>
-                {% endfor %}
-              </div>
-            </div>
-            <div class="res-detail">
-              <div class="rd-title">Origem das entradas líquidas</div>
-              {% if entradas_origem %}
-                {% for o in entradas_origem %}
-                <div class="rd-row"><span><span class="d" style="background:{{ o.cor }}"></span>{{ o.label }}</span><b class="pos">{{ brl(o.valor) }}</b></div>
-                {% endfor %}
-                <div class="rd-row tot"><span>Total de entradas líquidas</span><b class="pos">{{ brl(resultado.entradas_liquidas) }}</b></div>
-              {% else %}<div class="empty">Sem entradas no período.</div>{% endif %}
-              <div class="rd-title" style="margin-top:16px">Despesas do período</div>
-              <div class="rd-row"><span><span class="d" style="background:#f9a825"></span>Despesas fixas</span><b class="neg">{{ brl(resultado.despesas_fixas) }}</b></div>
-              <div class="rd-row"><span><span class="d" style="background:#c62828"></span>Despesas avulsas</span><b class="neg">{{ brl(resultado.despesas_avulsas) }}</b></div>
-              <div class="rd-row tot"><span>Total de despesas</span><b class="neg">{{ brl(resultado.despesas) }}</b></div>
-            </div>
-            <div class="res-charts">
-              <div class="rc-title">Tendência · 6 meses (entradas líq. · fixas · avulsas)</div>
-              {% if tendencia %}
-              <div class="trend3">
-                {% for t in tendencia %}
-                <div class="t3col">
-                  <div class="t3bars">
-                    <div class="t3b"><span class="t3lab">{{ t.ent_k }}</span><div class="bar ent" style="height:{{ t.ent_h }}%" title="Entradas {{ brl(t.ent) }}"></div></div>
-                    <div class="t3b"><span class="t3lab">{{ t.fix_k }}</span><div class="bar fix" style="height:{{ t.fix_h }}%" title="Fixas {{ brl(t.fix) }}"></div></div>
-                    <div class="t3b"><span class="t3lab">{{ t.avul_k }}</span><div class="bar avul" style="height:{{ t.avul_h }}%" title="Avulsas {{ brl(t.avul) }}"></div></div>
-                  </div>
-                  <div class="t3mes">{{ t.label }}</div>
-                </div>
-                {% endfor %}
-              </div>
-              <div class="legend">
-                <span><span class="dot" style="background:#2e7d32"></span>Entradas líq.</span>
-                <span><span class="dot" style="background:#f9a825"></span>Desp. fixas</span>
-                <span><span class="dot" style="background:#c62828"></span>Desp. avulsas</span>
-              </div>
-              <div class="rc-title" style="margin-top:12px">Lucro líquido por mês</div>
-              {% if line_poly %}
-              <svg class="spark" viewBox="0 0 600 130" preserveAspectRatio="xMidYMid meet" style="height:118px">
-                <line x1="30" y1="{{ line_zero_y }}" x2="570" y2="{{ line_zero_y }}" stroke="#e0e0ea" stroke-width="1" stroke-dasharray="4 3"/>
-                <polyline points="{{ line_poly }}" fill="none" stroke="#1565c0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-                {% for p in line_pts %}
-                <circle cx="{{ p.x }}" cy="{{ p.y }}" r="3.5" fill="{{ '#c62828' if p.neg else '#1565c0' }}"></circle>
-                <text x="{{ p.x }}" y="{{ p.y - 8 }}" text-anchor="middle" font-size="12" font-weight="700" fill="{{ '#c62828' if p.neg else '#1a1a2e' }}">{{ p.k }}</text>
-                <text x="{{ p.x }}" y="125" text-anchor="middle" font-size="11" fill="#999">{{ p.mes }}</text>
-                {% endfor %}
-              </svg>
-              {% else %}<div class="empty">Sem dados.</div>{% endif %}
-              {% else %}<div class="empty">Sem dados de vendas.</div>{% endif %}
-            </div>
+      <section class="dash-grid">
+        <div class="stack">
+          <div class="panel">
+            <div class="panel-h"><div class="panel-title">Faturamento Bruto · 12 meses</div><div class="panel-meta">tooltip nos valores</div></div>
+            {% if trend %}<div class="mini-bars">{% for t in trend %}<div class="mini-col" title="{{ t.label }} · {{ brl(t.bruto) }}"><div class="mini-bar" style="height:{{ t.bruto_h }}%"></div><div class="mini-lbl">{{ t.label }}</div></div>{% endfor %}</div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
           </div>
-          <div class="res-lucro-wrap">
-            <div class="res-lucro {{ 'neg' if resultado.lucro_liquido < 0 else 'pos' }}">
-              <div>
-                <div class="rl-lbl">Lucro líquido da empresa</div>
-                <div class="rl-formula">Entradas líquidas − (Despesas fixas + Despesas avulsas)</div>
-              </div>
-              <div class="rl-v">{{ brl(resultado.lucro_liquido) }}</div>
-            </div>
+          <div class="panel">
+            <div class="panel-h"><div class="panel-title">Faturamento Líquido · 12 meses</div><div class="panel-meta">após taxas</div></div>
+            {% if trend %}<div class="mini-bars">{% for t in trend %}<div class="mini-col" title="{{ t.label }} · {{ brl(t.liquido) }}"><div class="mini-bar liq" style="height:{{ t.liquido_h }}%"></div><div class="mini-lbl">{{ t.label }}</div></div>{% endfor %}</div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
           </div>
         </div>
-      </div>
 
-      <!-- 4 · TOP PRODUTOS (ABC) -->
-      <div class="dsh-grid">
-        <div class="card full">
-          <div class="card-h">🏆 Top produtos · receita e margem (curva ABC)</div>
-          <div class="card-sub">A = concentram até 80% da receita · B até 95% · C o restante</div>
-          {% if top_produtos %}
-          {% for p in top_produtos %}
-          <div class="barline">
-            <span class="lbl"><span class="abc {{ p.classe }}">{{ p.classe }}</span> {{ p.nome }}</span>
-            <div class="track"><div class="fill" style="width:{{ (p.receita / rec_max * 100)|round(1) }}%;background:#1565c0"></div></div>
-            <span class="val">{{ brl(p.receita) }}<br><small>{{ p.qtd }} un · margem {{ p.margem }}%</small></span>
+        <div class="stack">
+          <div class="panel">
+            <div class="panel-h"><div class="panel-title">Despesas Fixas × Avulsas</div><div class="panel-meta">{{ brl(resultado.despesas) }}</div></div>
+            {% if trend %}<svg class="svgbox" viewBox="0 0 300 104" preserveAspectRatio="none">
+              <line x1="24" y1="91" x2="282" y2="91" stroke="#eef2f7"/><polyline points="{{ fix_poly }}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><polyline points="{{ avul_poly }}" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              {% for t in trend %}<circle cx="{{ t.x }}" cy="{{ t.fixas_y }}" r="2.5" fill="#2563eb"><title>{{ t.label }} fixas: {{ brl(t.fixas) }}</title></circle><circle cx="{{ t.x }}" cy="{{ t.avulsas_y }}" r="2.5" fill="#dc2626"><title>{{ t.label }} avulsas: {{ brl(t.avulsas) }}</title></circle>{% endfor %}
+            </svg><div class="legend"><span><i class="dot" style="background:#2563eb"></i>Fixas</span><span><i class="dot" style="background:#dc2626"></i>Avulsas</span></div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
           </div>
-          {% endfor %}
-          {% else %}<div class="empty">Sem vendas no período.</div>{% endif %}
-        </div>
-      </div>
-
-      <!-- 5 · MIX + 6 · TAMANHOS -->
-      <div class="dsh-grid">
-        <div class="card">
-          <div class="card-h">👗 Mix por categoria/modelo</div>
-          <div class="card-sub">Participação na receita do período</div>
-          {% if mix %}
-          <div class="donut-wrap">
-            <div class="donut" style="background:{{ mix_conic }}">
-              <div class="donut-c"><b>{{ brl(mix_total) }}</b><span>Receita</span></div>
-            </div>
-            <div class="donut-leg">
-              {% for m in mix %}
-              <div class="dleg"><span class="d" style="background:{{ m.cor }}"></span><span class="n">{{ m.label }}</span><span class="p">{{ m.pct }}%</span></div>
-              {% endfor %}
-            </div>
+          <div class="panel">
+            <div class="panel-h"><div class="panel-title">Evolução do Lucro Líquido</div><div class="panel-meta">{{ brl(resultado.lucro_liquido) }}</div></div>
+            {% if trend %}<svg class="svgbox" viewBox="0 0 300 104" preserveAspectRatio="none">
+              <line x1="24" y1="52" x2="282" y2="52" stroke="#e5e7eb" stroke-dasharray="4 3"/><polyline points="{{ lucro_poly }}" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              {% for t in trend %}<circle cx="{{ t.x }}" cy="{{ t.lucro_y }}" r="2.7" fill="{{ '#dc2626' if t.lucro < 0 else '#16a34a' }}"><title>{{ t.label }} lucro: {{ brl(t.lucro) }}</title></circle>{% endfor %}
+            </svg>{% else %}<div class="empty">Sem dados.</div>{% endif %}
           </div>
-          {% else %}<div class="empty">Sem vendas no período.</div>{% endif %}
         </div>
 
-        <div class="card">
-          <div class="card-h">📏 Vendas por tamanho</div>
-          <div class="card-sub">Quantidade vendida por tamanho</div>
-          {% if tamanhos %}
-          {% for t in tamanhos %}
-          <div class="barline">
-            <span class="lbl" style="width:48px">{{ t.tam }}</span>
-            <div class="track"><div class="fill" style="width:{{ (t.qtd / tam_max * 100)|round(1) }}%;background:#6a1b9a"></div></div>
-            <span class="val">{{ t.qtd }} un<br><small>{{ brl(t.receita) }}</small></span>
+        <div class="side-stack">
+          <div class="panel">
+            <div class="panel-h"><div class="panel-title">Taxas por forma</div><div class="panel-meta">{{ brl(resultado.taxas_total) }}</div></div>
+            <div class="donut-flex"><div class="donut" style="background:{{ taxas_conic }}"></div><div class="tax-list">{% for t in taxas_formas[:4] %}<div class="tax-row"><span class="dot" style="background:{{ t.cor }}"></span><span class="rname">{{ t.label }}</span><span class="num">{{ t.pct }}%</span></div>{% endfor %}</div></div>
           </div>
-          {% endfor %}
-          {% else %}<div class="empty">Sem vendas no período.</div>{% endif %}
-        </div>
-      </div>
-
-      <!-- 8 · CREDIÁRIO + 7 · ESTOQUE PARADO -->
-      <div class="dsh-grid">
-        <div class="card">
-          <div class="card-h">⚠️ Inadimplência do crediário</div>
-          <div class="card-sub">A receber em aberto por faixa · {{ cred_atraso_pct }}% em atraso</div>
-          {% if cred_total > 0 %}
-          {% for f in cred_faixas %}
-          <div class="barline">
-            <span class="lbl">{{ f.faixa }}</span>
-            <div class="track"><div class="fill" style="width:{{ (f.valor / cred_max * 100)|round(1) }}%;background:{{ f.cor }}"></div></div>
-            <span class="val">{{ brl(f.valor) }}</span>
-          </div>
-          {% endfor %}
-          <div class="stats" style="margin-top:12px">
-            <div class="stat"><div class="l">Total a receber</div><div class="n">{{ brl(cred_total) }}</div></div>
-            <div class="stat"><div class="l">Em atraso</div><div class="n neg">{{ brl(cred_atraso) }}</div></div>
-          </div>
-          {% else %}<div class="empty">Nenhum crediário em aberto.</div>{% endif %}
-        </div>
-
-        <div class="card">
-          <div class="card-h">📦 Estoque parado (capital empatado)</div>
-          <div class="card-sub">Custo em estoque por tempo desde a última venda</div>
-          {% if aging_total > 0 %}
-          {% for f in aging %}
-          <div class="barline">
-            <span class="lbl">{{ f.faixa }}</span>
-            <div class="track"><div class="fill" style="width:{{ (f.valor / aging_max * 100)|round(1) }}%;background:{{ f.cor }}"></div></div>
-            <span class="val">{{ brl(f.valor) }}</span>
-          </div>
-          {% endfor %}
-          <div class="stats" style="margin-top:12px">
-            <div class="stat"><div class="l">Custo total parado</div><div class="n">{{ brl(aging_total) }}</div></div>
-            <div class="stat"><div class="l">Parado +90 dias</div><div class="n neg">{{ brl(estoque_parado_90) }}</div></div>
-          </div>
-          {% else %}<div class="empty">Sem estoque ativo.</div>{% endif %}
-        </div>
-      </div>
-
-      <!-- 9 · CONDICIONAL + 3 · FLUXO ACUMULADO -->
-      <div class="dsh-grid">
-        <div class="card">
-          <div class="card-h">🛍️ Conversão de condicional</div>
-          <div class="card-sub">Condicionais abertas no período e seu desfecho</div>
-          <div class="stats">
-            <div class="stat"><div class="l">Em aberto</div><div class="n azul">{{ cond.aberta }}</div></div>
-            <div class="stat"><div class="l">Viraram venda</div><div class="n pos">{{ cond.venda }}</div></div>
-            <div class="stat"><div class="l">Devolvidas</div><div class="n neg">{{ cond.devolvida }}</div></div>
-          </div>
-          <div class="barline" style="margin-top:14px">
-            <span class="lbl">Conversão</span>
-            <div class="track"><div class="fill" style="width:{{ cond.taxa }}%;background:#2e7d32"></div></div>
-            <span class="val">{{ cond.taxa }}%</span>
-          </div>
-          <div style="font-size:11px;color:#a0a0ad;margin-top:4px">Geraram {{ brl(cond.valor_venda) }} em vendas.</div>
-        </div>
-
-        <div class="card">
-          <div class="card-h">💵 Fluxo de caixa acumulado</div>
-          <div class="card-sub">Saldo acumulado dia a dia no período</div>
-          {% if fluxo_pts %}
-          <svg class="spark" viewBox="0 0 300 70" preserveAspectRatio="none" style="height:80px">
-            <line x1="0" y1="{{ fluxo_zero_y }}" x2="300" y2="{{ fluxo_zero_y }}" stroke="#e6e6ee" stroke-width="1" stroke-dasharray="4 3"/>
-            <polyline points="{{ fluxo_pts }}" fill="none" stroke="{{ '#2e7d32' if fluxo.saldo >= 0 else '#c62828' }}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-          </svg>
-          {% else %}<div class="empty">Sem movimentações no período.</div>{% endif %}
-          <div class="stats" style="margin-top:12px">
-            <div class="stat"><div class="l">Entradas</div><div class="n pos">{{ brl(fluxo.entradas) }}</div></div>
-            <div class="stat"><div class="l">Saídas</div><div class="n neg">{{ brl(fluxo.saidas) }}</div></div>
-            <div class="stat"><div class="l">Saldo</div><div class="n {{ 'pos' if fluxo.saldo >= 0 else 'neg' }}">{{ brl(fluxo.saldo) }}</div></div>
+          <div class="panel">
+            <div class="panel-h"><div class="panel-title">Top 5 Categorias</div><div class="panel-meta">mais vendidas</div></div>
+            {% if top_categorias %}{% for c in top_categorias %}<div class="cat-row"><span class="rname">{{ c.categoria }}</span><div class="track"><div class="fill" style="width:{{ c.pct }}%;background:#7c3aed"></div></div><span class="num">{{ brl(c.receita) }}</span></div>{% endfor %}{% else %}<div class="empty">Sem vendas.</div>{% endif %}
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- 10 · VENDEDORAS + 11 · DESCONTO × MARGEM -->
-      <div class="dsh-grid">
-        <div class="card">
-          <div class="card-h">🥇 Desempenho por vendedora</div>
-          <div class="card-sub">Total, ticket médio e peças por venda</div>
-          {% if vendedoras %}
-          {% for v in vendedoras %}
-          <div class="barline">
-            <span class="lbl">{{ v.nome }}</span>
-            <div class="track"><div class="fill" style="width:{{ (v.total / vend_max * 100)|round(1) }}%;background:#00838f"></div></div>
-            <span class="val">{{ brl(v.total) }}<br><small>ticket {{ brl(v.ticket) }} · {{ v.pecas_venda }} pç</small></span>
-          </div>
-          {% endfor %}
-          {% else %}<div class="empty">Sem vendas no período.</div>{% endif %}
+      <section class="third-row">
+        <div class="panel">
+          <div class="panel-h"><div class="panel-title">Ranking de Vendedoras</div><div class="panel-meta">venda líquida</div></div>
+          <div class="small-table-head vendor-head"><span>#</span><span>Vendedora</span><span>Líquido</span><span class="hide-sm">Peças</span><span class="hide-sm">Cli.</span></div>
+          {% if vendedoras %}{% for v in vendedoras %}<div class="rank-row"><span>{{ loop.index }}</span><span class="rname" title="Ticket {{ brl(v.ticket) }}">{{ v.nome }}</span><span class="num">{{ brl(v.liquido) }}</span><span class="num hide-sm">{{ v.pecas }}</span><span class="num hide-sm">{{ v.clientes }}</span></div>{% endfor %}{% else %}<div class="empty">Sem vendas.</div>{% endif %}
         </div>
-
-        <div class="card">
-          <div class="card-h">🏷️ Desconto concedido × margem</div>
-          <div class="card-sub">Disciplina de preço no período</div>
-          <div class="stats">
-            <div class="stat"><div class="l">Desconto total</div><div class="n neg">{{ brl(desc.total) }}</div></div>
-            <div class="stat"><div class="l">% médio</div><div class="n">{{ desc.pct_medio }}%</div></div>
-          </div>
-          <div class="stats" style="margin-top:10px">
-            <div class="stat"><div class="l">Vendas c/ desconto</div><div class="n">{{ desc.n_com_desc }}/{{ desc.n_vendas }}</div></div>
-            <div class="stat"><div class="l">Margem líquida</div><div class="n {{ 'pos' if resultado.margem_pct >= 0 else 'neg' }}">{{ resultado.margem_pct }}%</div></div>
-          </div>
-          <div class="barline" style="margin-top:14px">
-            <span class="lbl">Vendas c/ desconto</span>
-            <div class="track"><div class="fill" style="width:{{ desc.pct_vendas }}%;background:#e65100"></div></div>
-            <span class="val">{{ desc.pct_vendas }}%</span>
-          </div>
+        <div class="panel">
+          <div class="panel-h"><div class="panel-title">Estoque Parado</div><div class="panel-meta">+60 dias: {{ brl(estoque_parado_60) }}</div></div>
+          {% if aging %}{% for a in aging %}<div class="aging-row"><span class="rname">{{ a.faixa }}</span><div class="track"><div class="fill" style="width:{{ (a.valor / aging_max * 100)|round(1) }}%;background:{{ a.cor }}"></div></div><span class="num">{{ brl(a.valor) }}</span><span class="num">{{ a.pecas }}pç</span></div>{% endfor %}{% else %}<div class="empty">Sem estoque.</div>{% endif %}
         </div>
-      </div>
+        <div class="panel">
+          <div class="panel-h"><div class="panel-title">Top 5 Clientes</div><div class="panel-meta">valor líquido</div></div>
+          <div class="small-table-head client-head"><span>Cliente</span><span>Líquido</span><span>Peças</span><span class="hide-sm">Ticket</span><span class="hide-sm">Última</span></div>
+          {% if top_clientes %}{% for c in top_clientes %}<div class="client-row"><span class="rname">{{ c.nome }}</span><span class="num">{{ brl(c.liquido) }}</span><span class="num">{{ c.pecas }}</span><span class="num hide-sm">{{ brl(c.ticket) }}</span><span class="muted hide-sm">{{ c.ultima_fmt }}</span></div>{% endfor %}{% else %}<div class="empty">Sem clientes no período.</div>{% endif %}
+        </div>
+      </section>
 
+      {% if insights %}<section class="footer-alerts">{% for i in insights[:5] %}<div class="alert-card {{ i.tom }}">{{ i.tx }}</div>{% endfor %}</section>{% endif %}
     </main>
   </div>
 </div>
@@ -380,14 +104,13 @@
 <script>
 function atalho(tipo){
   const hoje = new Date();
-  const fmt = d => localISODate(d);
-  let inicio, fim = fmt(hoje);
-  if (tipo === 'hoje'){ inicio = fmt(hoje); }
-  else if (tipo === 'semana'){ const d = new Date(hoje); d.setDate(d.getDate()-6); inicio = fmt(d); }
-  else if (tipo === 'mes'){ inicio = fmt(hoje).slice(0,7) + '-01'; fim = fmt(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0)); }
-  document.getElementById('dataInicio').value = inicio;
-  document.getElementById('dataFim').value = fim;
-  document.getElementById('formFiltro').submit();
+  const pad = n => String(n).padStart(2,'0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  let ini = new Date(hoje), fim = new Date(hoje);
+  if(tipo === 'semana') ini.setDate(hoje.getDate()-6);
+  if(tipo === 'mes') ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.querySelector('input[name="data_inicio"]').value = fmt(ini);
+  document.querySelector('input[name="data_fim"]').value = fmt(fim);
+  document.querySelector('.dash-filter').submit();
 }
 </script>
-{% endblock %}

@@ -1,21 +1,11 @@
-"""Rota de Dashboards estratégicos (v122).
+"""Dashboard Executivo V123.
 
-Reúne 11 visões gerenciais + cartões de insight automáticos, com filtro de
-período pré-fixado no mês corrente (1º → último dia), igual às demais abas:
-
-  1. Resultado do período (receita bruta → taxas → CMV → despesas → lucro líquido)
-  2. Tendência dos últimos 6 meses (faturamento × lucro)
-  3. Fluxo de caixa acumulado
-  4. Top produtos por receita e margem (curva ABC)
-  5. Mix por categoria/modelo
-  6. Vendas por tamanho
-  7. Estoque parado (aging do capital empatado)
-  8. Inadimplência do crediário por faixa
-  9. Conversão de condicional
- 10. Desempenho por vendedora (ticket médio e peças/venda)
- 11. Desconto concedido × margem
+Versão compacta em 3 linhas:
+  1. KPIs financeiros principais
+  2. Tendências financeiras + taxas + top categorias
+  3. Ranking vendedoras + estoque parado + top clientes
 """
-from datetime import date
+from datetime import date, timedelta
 from flask import render_template, request
 from db import get_db, close_db
 from config import hoje_app, inicio_mes_app, fim_mes_app
@@ -24,12 +14,17 @@ from utils import get_taxa_vigente, calcular_liquido
 
 MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 FORMAS_COM_TAXA = ('credito_vista', 'credito_parcelado', 'debito', 'link')
-PALETA = ['#1565c0', '#2e7d32', '#6a1b9a', '#e65100', '#c0396b', '#00838f', '#f9a825', '#5e35b1']
-
-
-def _add_months(y, m, delta):
-    idx = (y * 12 + (m - 1)) + delta
-    return idx // 12, idx % 12 + 1
+FORMA_LABEL = {
+    'dinheiro': 'Dinheiro', 'pix': 'PIX', 'debito': 'Débito',
+    'credito_vista': 'Crédito à vista', 'credito_parcelado': 'Crédito parcelado',
+    'link': 'Link', 'transferencia': 'Transferência', 'crediario': 'Crediário', 'outros': 'Outros'
+}
+FORMA_COR = {
+    'dinheiro': '#16a34a', 'pix': '#0891b2', 'debito': '#2563eb',
+    'credito_vista': '#7c3aed', 'credito_parcelado': '#9333ea',
+    'link': '#f59e0b', 'transferencia': '#0284c7', 'crediario': '#db2777', 'outros': '#94a3b8'
+}
+PALETA = ['#2563eb', '#16a34a', '#7c3aed', '#f59e0b', '#db2777', '#0891b2', '#64748b']
 
 
 def _brl(v):
@@ -37,407 +32,345 @@ def _brl(v):
 
 
 def _kbrl(v):
-    """Formato compacto p/ rótulos de gráfico: 10490 -> '10,5k', -7991 -> '-8,0k'."""
-    v = float(v or 0); a = abs(v); s = '-' if v < 0 else ''
+    v = float(v or 0)
+    s = '-' if v < 0 else ''
+    a = abs(v)
     if a >= 1000:
-        return (s + f"{a/1000:.1f}".replace('.', ',') + 'k')
+        return s + f"{a/1000:.1f}".replace('.', ',') + 'k'
     return s + f"{a:.0f}"
+
+
+def _add_months(y, m, delta):
+    idx = (y * 12 + (m - 1)) + delta
+    return idx // 12, idx % 12 + 1
+
+
+def _month_start(d):
+    return date(d.year, d.month, 1)
+
+
+def _parse_date(value, fallback):
+    try:
+        return date.fromisoformat(value)
+    except Exception:
+        return date.fromisoformat(fallback)
+
+
+def _pct_atual_anterior(atual, anterior):
+    atual = float(atual or 0); anterior = float(anterior or 0)
+    if anterior == 0:
+        return None
+    return round((atual - anterior) / anterior * 100, 1)
+
+
+def _fmt_pct(v):
+    if v is None:
+        return '—'
+    return (('+' if v >= 0 else '') + f"{v:.1f}%").replace('.', ',')
+
+
+def _liquido_com_taxa(bruto, forma, dt, taxa_cache):
+    bruto = float(bruto or 0)
+    forma = forma or 'outros'
+    if forma in FORMAS_COM_TAXA:
+        k = dt.isoformat()
+        if k not in taxa_cache:
+            taxa_cache[k] = get_taxa_vigente(dt)
+        liq, desc, pct = calcular_liquido(bruto, forma, taxa_cache[k])
+        return float(liq or 0), float(desc or 0), float(pct or 0)
+    return bruto, 0.0, 0.0
 
 
 @login_required
 def dashboard_view():
-    conn = get_db(); cur = conn.cursor()
-    hoje = hoje_app()
-    data_inicio = request.args.get('data_inicio', inicio_mes_app())
-    data_fim = request.args.get('data_fim', fim_mes_app())
-    try: date.fromisoformat(data_inicio)
-    except Exception: data_inicio = inicio_mes_app()
-    try: date.fromisoformat(data_fim)
-    except Exception: data_fim = fim_mes_app()
+    conn = get_db(); cur = conn.cursor(); hoje = hoje_app()
+    data_inicio = _parse_date(request.args.get('data_inicio'), inicio_mes_app())
+    data_fim = _parse_date(request.args.get('data_fim'), fim_mes_app())
+    if data_fim < data_inicio:
+        data_inicio, data_fim = data_fim, data_inicio
+    data_inicio_s = data_inicio.isoformat(); data_fim_s = data_fim.isoformat()
 
     def rollback():
         try: conn.rollback()
         except Exception: pass
 
-    # ── 1. Resultado do período (PIZZA): entradas líquidas × despesas ──
-    # "Entradas líquidas" = entradas do caixa menos a taxa do cartão (mesma base
-    # do saldo_bruto da aba Caixa). A origem é detalhada por forma de pagamento.
-    FORMA_LABEL = {'dinheiro': 'Dinheiro', 'pix': 'PIX', 'debito': 'Débito',
-                   'credito_vista': 'Crédito à vista', 'credito_parcelado': 'Crédito parcelado',
-                   'link': 'Link', 'transferencia': 'Transferência', 'crediario': 'Crediário',
-                   'outros': 'Outros'}
-    FORMA_COR = {'dinheiro': '#2e7d32', 'pix': '#00838f', 'debito': '#1565c0',
-                 'credito_vista': '#5e35b1', 'credito_parcelado': '#6a1b9a',
-                 'link': '#f9a825', 'transferencia': '#0277bd', 'crediario': '#c0396b',
-                 'outros': '#90a4ae'}
-    entradas_liquidas = 0.0
-    por_forma = {}
+    # Período anterior com a mesma duração
+    dias = (data_fim - data_inicio).days + 1
+    prev_fim = data_inicio - timedelta(days=1)
+    prev_inicio = prev_fim - timedelta(days=dias - 1)
+
+    # Entradas/faturamento bruto e líquido pelo caixa (base financeira real)
+    def resumo_financeiro_periodo(ini, fim):
+        bruto = liquido = taxas = 0.0
+        por_forma_taxas = {}
+        taxa_cache = {}
+        try:
+            cur.execute("""SELECT forma_pagamento, valor, criado_em FROM caixa
+                           WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s""", (ini, fim))
+            for r in cur.fetchall():
+                b = float(r['valor'] or 0)
+                forma = r['forma_pagamento'] or 'outros'
+                dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
+                liq, desc, _pct = _liquido_com_taxa(b, forma, dt, taxa_cache)
+                bruto += b; liquido += liq; taxas += desc
+                if desc:
+                    por_forma_taxas[forma] = por_forma_taxas.get(forma, 0.0) + desc
+        except Exception:
+            rollback()
+        return round(bruto, 2), round(liquido, 2), round(taxas, 2), por_forma_taxas
+
+    faturamento_bruto, faturamento_liquido, taxas_total, taxas_formas_dict = resumo_financeiro_periodo(data_inicio_s, data_fim_s)
+    fat_bruto_ant, fat_liq_ant, taxas_ant, _ = resumo_financeiro_periodo(prev_inicio.isoformat(), prev_fim.isoformat())
+
+    # Despesas por tipo
+    def despesas_periodo(ini, fim):
+        fixas = avulsas = 0.0
+        try:
+            cur.execute("""SELECT LOWER(COALESCE(d.tipo,'')) AS tp, COALESCE(SUM(p.valor),0) AS total
+                           FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
+                           WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
+                           GROUP BY LOWER(COALESCE(d.tipo,''))""", (ini, fim))
+            for r in cur.fetchall():
+                if (r['tp'] or '') in ('fixa', 'fixo'):
+                    fixas += float(r['total'] or 0)
+                else:
+                    avulsas += float(r['total'] or 0)
+        except Exception:
+            rollback()
+        return round(fixas, 2), round(avulsas, 2), round(fixas + avulsas, 2)
+
+    despesas_fixas, despesas_avulsas, despesas_total = despesas_periodo(data_inicio_s, data_fim_s)
+    desp_fixas_ant, desp_avulsas_ant, despesas_ant = despesas_periodo(prev_inicio.isoformat(), prev_fim.isoformat())
+    lucro_liquido = round(faturamento_liquido - despesas_total, 2)
+    lucro_ant = round(fat_liq_ant - despesas_ant, 2)
+    margem_pct = round(lucro_liquido / faturamento_liquido * 100, 1) if faturamento_liquido else 0
+    ticket_medio = 0.0; qtd_vendas = 0; qtd_clientes_cad = 0; qtd_clientes_cad_ant = 0
     try:
+        cur.execute("SELECT COUNT(*) AS n, COALESCE(AVG(valor_total),0) AS ticket FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s", (data_inicio_s, data_fim_s))
+        r = cur.fetchone(); qtd_vendas = int(r['n'] or 0); ticket_medio = round(float(r['ticket'] or 0), 2)
+        cur.execute("SELECT COUNT(*) AS n FROM clientes WHERE DATE(criado_em) BETWEEN %s AND %s", (data_inicio_s, data_fim_s))
+        qtd_clientes_cad = int(cur.fetchone()['n'] or 0)
+        cur.execute("SELECT COUNT(*) AS n FROM clientes WHERE DATE(criado_em) BETWEEN %s AND %s", (prev_inicio.isoformat(), prev_fim.isoformat()))
+        qtd_clientes_cad_ant = int(cur.fetchone()['n'] or 0)
+    except Exception:
+        rollback()
+    try:
+        cur.execute("SELECT COUNT(*) AS n, COALESCE(AVG(valor_total),0) AS ticket FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s", (prev_inicio.isoformat(), prev_fim.isoformat()))
+        r = cur.fetchone(); ticket_ant = round(float(r['ticket'] or 0), 2)
+    except Exception:
+        rollback(); ticket_ant = 0.0
+
+    taxa_pct = round(taxas_total / faturamento_bruto * 100, 1) if faturamento_bruto else 0
+    saude_label = 'Negativa' if margem_pct < 0 else ('Atenção' if margem_pct < 5 else ('Regular' if margem_pct < 10 else ('Saudável' if margem_pct < 15 else 'Excelente')))
+    saude_pct = max(0, min(100, round((margem_pct / 20) * 100))) if margem_pct > 0 else 0
+
+    kpis = [
+        {'titulo': 'Faturamento Bruto', 'valor': _brl(faturamento_bruto), 'sub': 'Antes das taxas', 'var': _fmt_pct(_pct_atual_anterior(faturamento_bruto, fat_bruto_ant)), 'tom': 'pos' if (faturamento_bruto >= fat_bruto_ant) else 'neg'},
+        {'titulo': 'Total de Taxas', 'valor': _brl(taxas_total), 'sub': f'{taxa_pct}% do faturamento', 'var': _fmt_pct(_pct_atual_anterior(taxas_total, taxas_ant)), 'tom': 'neg' if (taxas_total > taxas_ant and taxas_ant) else 'pos'},
+        {'titulo': 'Faturamento Líquido', 'valor': _brl(faturamento_liquido), 'sub': '', 'var': _fmt_pct(_pct_atual_anterior(faturamento_liquido, fat_liq_ant)), 'tom': 'pos' if faturamento_liquido >= fat_liq_ant else 'neg'},
+        {'titulo': 'Total de Despesas', 'valor': _brl(despesas_total), 'sub': f'Fixas: {_brl(despesas_fixas)} · Avulsas: {_brl(despesas_avulsas)}', 'var': _fmt_pct(_pct_atual_anterior(despesas_total, despesas_ant)), 'tom': 'neg' if despesas_total > despesas_ant and despesas_ant else 'pos'},
+        {'titulo': 'Lucro Líquido', 'valor': _brl(lucro_liquido), 'sub': 'Faturamento líquido − despesas', 'var': _fmt_pct(_pct_atual_anterior(lucro_liquido, lucro_ant)), 'tom': 'pos' if lucro_liquido >= 0 else 'neg'},
+        {'titulo': 'Margem Líquida', 'valor': f'{str(margem_pct).replace(".", ",")}%', 'sub': saude_label, 'var': '', 'tom': 'pos' if margem_pct >= 10 else ('alerta' if margem_pct >= 0 else 'neg'), 'saude': saude_pct},
+        {'titulo': 'Ticket Médio', 'valor': _brl(ticket_medio), 'sub': f'{qtd_vendas} vendas realizadas', 'var': _fmt_pct(_pct_atual_anterior(ticket_medio, ticket_ant)), 'tom': 'pos' if ticket_medio >= ticket_ant else 'neg'},
+    ]
+
+    # Tendência mensal: últimos até 12 meses com base no fim do filtro
+    meses = []
+    for back in range(11, -1, -1):
+        y, m = _add_months(data_fim.year, data_fim.month, -back)
+        meses.append({'ym': f'{y:04d}-{m:02d}', 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}', 'y': y, 'm': m})
+
+    trend = []
+    try:
+        # Entradas do caixa bruto/liquido/taxas
+        ini_trend = date(meses[0]['y'], meses[0]['m'], 1)
         cur.execute("""SELECT forma_pagamento, valor, criado_em FROM caixa
-                       WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
+                       WHERE tipo='entrada' AND criado_em >= %s""", (ini_trend,))
+        mensal = {m['ym']: {'bruto': 0.0, 'liquido': 0.0, 'taxas': 0.0, 'fixas': 0.0, 'avulsas': 0.0} for m in meses}
         taxa_cache = {}
         for r in cur.fetchall():
-            bruto = float(r['valor'] or 0)
-            f = r['forma_pagamento'] or 'outros'
-            if f in FORMAS_COM_TAXA:
-                d = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-                key = d.isoformat()
-                if key not in taxa_cache:
-                    taxa_cache[key] = get_taxa_vigente(d)
-                liq, _desc, _pct = calcular_liquido(bruto, f, taxa_cache[key])
-            else:
-                liq = bruto
-            entradas_liquidas += liq
-            por_forma[f] = por_forma.get(f, 0.0) + liq
-    except Exception:
-        rollback()
-    entradas_liquidas = round(entradas_liquidas, 2)
-    entradas_origem = [{'label': FORMA_LABEL.get(f, f.title()), 'valor': round(v, 2),
-                        'cor': FORMA_COR.get(f, '#90a4ae')}
-                       for f, v in sorted(por_forma.items(), key=lambda kv: kv[1], reverse=True)
-                       if round(v, 2) != 0]
-
-    # Despesas do período por vencimento (fixa + avulsa) — mesmo critério das demais abas
-    despesas_fixas = despesas_avulsas = 0.0
-    try:
-        cur.execute("""SELECT LOWER(COALESCE(d.tipo,'')) AS tp, COALESCE(SUM(p.valor),0) AS t
-                       FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
-                       WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
-                       GROUP BY LOWER(COALESCE(d.tipo,''))""", (data_inicio, data_fim))
-        for r in cur.fetchall():
-            if (r['tp'] or '') in ('fixa', 'fixo'): despesas_fixas += float(r['t'])
-            else: despesas_avulsas += float(r['t'])
-    except Exception:
-        rollback()
-    despesas_fixas = round(despesas_fixas, 2)
-    despesas_avulsas = round(despesas_avulsas, 2)
-    despesas_total = round(despesas_fixas + despesas_avulsas, 2)
-
-    lucro_liquido = round(entradas_liquidas - despesas_total, 2)
-    margem_pct = round(lucro_liquido / entradas_liquidas * 100, 1) if entradas_liquidas else 0
-
-    # Pizza com 3 fatias: entradas líquidas, despesas fixas, despesas avulsas
-    pie_segments = [
-        {'label': 'Entradas líquidas', 'valor': entradas_liquidas, 'cor': '#2e7d32'},
-        {'label': 'Despesas fixas', 'valor': despesas_fixas, 'cor': '#e65100'},
-        {'label': 'Despesas avulsas', 'valor': despesas_avulsas, 'cor': '#c62828'},
-    ]
-    pie_base = sum(s['valor'] for s in pie_segments) or 1
-    ang = 0.0; stops = []
-    for s in pie_segments:
-        s['pct'] = round(s['valor'] / pie_base * 100, 1)
-        ini = round(ang, 2); ang += s['valor'] / pie_base * 360; fim = round(ang, 2)
-        stops.append(f"{s['cor']} {ini}deg {fim}deg")
-    pie_conic = ('conic-gradient(' + ', '.join(stops) + ')') if pie_base > 1 else 'conic-gradient(#eee 0deg 360deg)'
-
-    resultado = {
-        'entradas_liquidas': entradas_liquidas,
-        'despesas_fixas': despesas_fixas, 'despesas_avulsas': despesas_avulsas,
-        'despesas': despesas_total, 'lucro_liquido': lucro_liquido, 'margem_pct': margem_pct,
-    }
-
-    # ── 2. Tendência 6 meses: barras de entradas líq./fixas/avulsas + ──
-    # ── 3. linha de lucro líquido por mês (independe do filtro) ──
-    tendencia = []
-    line_pts = []; line_poly = ''; line_zero_y = 70.0
-    try:
-        ya, ma = _add_months(hoje.year, hoje.month, -5)
-        ini_trend = date(ya, ma, 1)
-        # Despesas por mês (vencimento), separadas em fixa/avulsa
-        cur.execute("""SELECT to_char(date_trunc('month',p.data_vencimento),'YYYY-MM') AS ym,
-                       LOWER(COALESCE(d.tipo,'')) AS tp, COALESCE(SUM(p.valor),0) AS v
-                       FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
-                       WHERE p.data_vencimento>=%s GROUP BY 1,2""", (ini_trend,))
-        fix_mes = {}; avul_mes = {}
-        for r in cur.fetchall():
-            if (r['tp'] or '') in ('fixa', 'fixo'): fix_mes[r['ym']] = fix_mes.get(r['ym'], 0.0) + float(r['v'])
-            else: avul_mes[r['ym']] = avul_mes.get(r['ym'], 0.0) + float(r['v'])
-        # Entradas líquidas por mês (caixa, líquido da taxa de cartão)
-        ent_mes = {}
-        cur.execute("""SELECT forma_pagamento, valor, criado_em FROM caixa
-                       WHERE tipo='entrada' AND criado_em>=%s""", (ini_trend,))
-        tcache = {}
-        for r in cur.fetchall():
-            bruto = float(r['valor'] or 0); f = r['forma_pagamento'] or 'outros'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-            if f in FORMAS_COM_TAXA:
-                k = dt.isoformat()
-                if k not in tcache: tcache[k] = get_taxa_vigente(dt)
-                liq, _d, _p = calcular_liquido(bruto, f, tcache[k])
-            else:
-                liq = bruto
             ym = dt.strftime('%Y-%m')
-            ent_mes[ym] = ent_mes.get(ym, 0.0) + liq
-        for back in range(5, -1, -1):
-            y, m = _add_months(hoje.year, hoje.month, -back)
-            ym = f"{y:04d}-{m:02d}"
-            ent = round(ent_mes.get(ym, 0), 2); fix = round(fix_mes.get(ym, 0), 2); avul = round(avul_mes.get(ym, 0), 2)
-            tendencia.append({'label': f"{MESES_PT[m-1]}/{str(y)[2:]}", 'ent': ent, 'fix': fix,
-                              'avul': avul, 'lucro': round(ent - fix - avul, 2)})
-        trend_max = max([max(t['ent'], t['fix'], t['avul']) for t in tendencia] + [1])
-        for t in tendencia:  # alturas em % com teto de 75% (deixa espaço p/ rótulo vertical)
-            t['ent_h'] = round(t['ent'] / trend_max * 75)
-            t['fix_h'] = round(t['fix'] / trend_max * 75)
-            t['avul_h'] = round(t['avul'] / trend_max * 75)
-            t['ent_k'] = _kbrl(t['ent']); t['fix_k'] = _kbrl(t['fix']); t['avul_k'] = _kbrl(t['avul'])
-        # Linha de lucro líquido por mês (escala própria, comporta valores negativos)
-        lucros = [t['lucro'] for t in tendencia]
-        lo = min(lucros + [0]); hi = max(lucros + [0]); rng = (hi - lo) or 1
-        W = 600.0; pytop = 24.0; pybot = 22.0; H = 130.0; px = 30.0
-        n = len(tendencia)
-        for i, t in enumerate(tendencia):
-            x = round(px + i / max(n - 1, 1) * (W - 2 * px), 1)
-            yv = round(pytop + (hi - t['lucro']) / rng * (H - pytop - pybot), 1)
-            line_pts.append({'x': x, 'y': yv, 'k': _kbrl(t['lucro']), 'mes': t['label'], 'neg': t['lucro'] < 0})
-        line_poly = ' '.join(f"{p['x']},{p['y']}" for p in line_pts)
-        line_zero_y = round(pytop + (hi - 0) / rng * (H - pytop - pybot), 1)
-    except Exception:
-        rollback()
-
-    # ── 3. Fluxo de caixa acumulado no período ──
-    fluxo = {'entradas': 0.0, 'saidas': 0.0, 'saldo': 0.0}
-    fluxo_pts = ''; fluxo_zero_y = 35.0
-    try:
-        cur.execute("""SELECT DATE(criado_em) AS dia,
-                       COALESCE(SUM(CASE WHEN tipo='entrada' THEN valor ELSE 0 END),0) AS ent,
-                       COALESCE(SUM(CASE WHEN tipo='saida' THEN valor ELSE 0 END),0) AS sai
-                       FROM caixa WHERE DATE(criado_em) BETWEEN %s AND %s
-                       GROUP BY DATE(criado_em) ORDER BY dia""", (data_inicio, data_fim))
-        acum = 0.0; tot_e = tot_s = 0.0; serie = []
+            if ym not in mensal: continue
+            b = float(r['valor'] or 0); forma = r['forma_pagamento'] or 'outros'
+            liq, desc, _ = _liquido_com_taxa(b, forma, dt, taxa_cache)
+            mensal[ym]['bruto'] += b; mensal[ym]['liquido'] += liq; mensal[ym]['taxas'] += desc
+        cur.execute("""SELECT to_char(date_trunc('month',p.data_vencimento),'YYYY-MM') AS ym,
+                       LOWER(COALESCE(d.tipo,'')) AS tp, COALESCE(SUM(p.valor),0) AS total
+                       FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
+                       WHERE p.data_vencimento >= %s GROUP BY 1,2""", (ini_trend,))
         for r in cur.fetchall():
-            e = float(r['ent']); s = float(r['sai']); acum += e - s
-            tot_e += e; tot_s += s; serie.append(acum)
-        fluxo = {'entradas': round(tot_e, 2), 'saidas': round(tot_s, 2), 'saldo': round(tot_e - tot_s, 2)}
-        if serie:
-            lo = min(serie + [0]); hi = max(serie + [0]); rng = (hi - lo) or 1
-            n = len(serie); W = 300.0; H = 70.0
-            pts = []
-            for i, v in enumerate(serie):
-                x = round(i / max(n - 1, 1) * W, 1)
-                y = round(H - (v - lo) / rng * H, 1)
-                pts.append(f"{x},{y}")
-            fluxo_pts = ' '.join(pts)
-            fluxo_zero_y = round(H - (0 - lo) / rng * H, 1)
+            ym = r['ym']
+            if ym not in mensal: continue
+            if (r['tp'] or '') in ('fixa', 'fixo'):
+                mensal[ym]['fixas'] += float(r['total'] or 0)
+            else:
+                mensal[ym]['avulsas'] += float(r['total'] or 0)
+        max_bar = max([mensal[m['ym']]['bruto'] for m in meses] + [1])
+        max_liq = max([mensal[m['ym']]['liquido'] for m in meses] + [1])
+        max_desp = max([max(mensal[m['ym']]['fixas'], mensal[m['ym']]['avulsas']) for m in meses] + [1])
+        lucros = [mensal[m['ym']]['liquido'] - mensal[m['ym']]['fixas'] - mensal[m['ym']]['avulsas'] for m in meses]
+        max_abs_lucro = max([abs(x) for x in lucros] + [1])
+        for m in meses:
+            d = mensal[m['ym']]
+            lucro = d['liquido'] - d['fixas'] - d['avulsas']
+            trend.append({
+                'label': m['label'],
+                'bruto': round(d['bruto'], 2), 'liquido': round(d['liquido'], 2),
+                'fixas': round(d['fixas'], 2), 'avulsas': round(d['avulsas'], 2), 'lucro': round(lucro, 2),
+                'bruto_h': round(d['bruto'] / max_bar * 100) if max_bar else 0,
+                'liquido_h': round(d['liquido'] / max_liq * 100) if max_liq else 0,
+                'fixas_y': round(90 - (d['fixas'] / max_desp * 76)) if max_desp else 90,
+                'avulsas_y': round(90 - (d['avulsas'] / max_desp * 76)) if max_desp else 90,
+                'lucro_y': round(52 - (lucro / max_abs_lucro * 38)) if max_abs_lucro else 52,
+            })
     except Exception:
         rollback()
+    # x coords and SVG polylines
+    for i, t in enumerate(trend):
+        t['x'] = round(24 + i * (252 / max(len(trend)-1, 1)), 1)
+    fix_poly = ' '.join(f"{t['x']},{t['fixas_y']}" for t in trend)
+    avul_poly = ' '.join(f"{t['x']},{t['avulsas_y']}" for t in trend)
+    lucro_poly = ' '.join(f"{t['x']},{t['lucro_y']}" for t in trend)
 
-    # ── 4. Top produtos por receita e margem (curva ABC) ──
-    top_produtos = []; rec_max = 1.0
-    try:
-        cur.execute("""SELECT vi.modelo, vi.descricao, vi.codigo_produto,
-                       SUM(vi.quantidade) AS qtd, SUM(vi.valor_total) AS receita,
-                       COALESCE(SUM(vi.quantidade*COALESCE(e.custo_unitario,0)),0) AS custo
-                       FROM venda_itens vi JOIN vendas v ON v.id=vi.venda_id
-                       LEFT JOIN estoque e ON e.id=vi.produto_id
-                       WHERE DATE(v.criado_em) BETWEEN %s AND %s
-                       GROUP BY vi.modelo, vi.descricao, vi.codigo_produto
-                       ORDER BY receita DESC LIMIT 10""", (data_inicio, data_fim))
-        for r in cur.fetchall():
-            receita = float(r['receita'] or 0); custo = float(r['custo'] or 0)
-            lucro = round(receita - custo, 2)
-            top_produtos.append({
-                'nome': (r['descricao'] or r['modelo'] or r['codigo_produto'] or '—'),
-                'modelo': r['modelo'] or '', 'qtd': int(r['qtd'] or 0),
-                'receita': round(receita, 2), 'lucro': lucro,
-                'margem': round(lucro / receita * 100, 1) if receita else 0})
-        rec_max = max([p['receita'] for p in top_produtos] + [1])
-        cur.execute("""SELECT COALESCE(SUM(vi.valor_total),0) AS t
-                       FROM venda_itens vi JOIN vendas v ON v.id=vi.venda_id
-                       WHERE DATE(v.criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
-        rec_itens_total = float(cur.fetchone()['t'] or 0) or 1
-        cum = 0.0
-        for p in top_produtos:
-            cum += p['receita']
-            p['acum_pct'] = round(cum / rec_itens_total * 100, 1)
-            p['classe'] = 'A' if p['acum_pct'] <= 80 else ('B' if p['acum_pct'] <= 95 else 'C')
-    except Exception:
-        rollback()
+    # Taxas por forma de pagamento
+    taxas_formas = []
+    total_taxas_base = sum(taxas_formas_dict.values()) or 1
+    for i, (forma, valor) in enumerate(sorted(taxas_formas_dict.items(), key=lambda kv: kv[1], reverse=True)):
+        taxas_formas.append({'label': FORMA_LABEL.get(forma, forma.title()), 'valor': round(valor, 2), 'pct': round(valor / total_taxas_base * 100, 1), 'cor': FORMA_COR.get(forma, PALETA[i % len(PALETA)])})
+    if not taxas_formas:
+        taxas_formas = [{'label': 'Sem taxas', 'valor': 0, 'pct': 100, 'cor': '#e2e8f0'}]
+    ang = 0; stops = []
+    for s in taxas_formas:
+        ini = ang; ang += s['pct'] * 3.6; stops.append(f"{s['cor']} {ini:.1f}deg {ang:.1f}deg")
+    taxas_conic = 'conic-gradient(' + ', '.join(stops) + ')'
 
-    # ── 5. Mix por categoria/modelo (donut) ──
-    mix = []; mix_total = 0.0; mix_conic = 'conic-gradient(#eee 0deg 360deg)'
+    # Top 5 categorias (receita bruta por itens; margem média de cadastro quando houver)
+    top_categorias = []; cat_max = 1
     try:
-        cur.execute("""SELECT COALESCE(NULLIF(vi.modelo,''),'Outros') AS modelo,
-                       SUM(vi.valor_total) AS receita, SUM(vi.quantidade) AS qtd
+        cur.execute("""SELECT COALESCE(NULLIF(vi.modelo,''),'Sem categoria') AS categoria,
+                       COALESCE(SUM(vi.valor_total),0) AS receita, COALESCE(SUM(vi.quantidade),0) AS pecas
                        FROM venda_itens vi JOIN vendas v ON v.id=vi.venda_id
                        WHERE DATE(v.criado_em) BETWEEN %s AND %s
-                       GROUP BY 1 ORDER BY receita DESC""", (data_inicio, data_fim))
-        rows = cur.fetchall()
-        mix_total = round(sum(float(r['receita'] or 0) for r in rows), 2)
-        base = mix_total or 1
-        ang = 0.0; stops = []
-        for i, r in enumerate(rows[:8]):
-            rec = float(r['receita'] or 0)
-            pct = round(rec / base * 100, 1)
-            cor = PALETA[i % len(PALETA)]
-            ini = round(ang, 2); ang += pct * 3.6; fim = round(ang, 2)
-            stops.append(f"{cor} {ini}deg {fim}deg")
-            mix.append({'label': r['modelo'], 'valor': round(rec, 2), 'qtd': int(r['qtd'] or 0),
-                        'pct': pct, 'cor': cor})
-        if stops:
-            mix_conic = 'conic-gradient(' + ', '.join(stops) + ')'
+                       GROUP BY 1 ORDER BY receita DESC LIMIT 5""", (data_inicio_s, data_fim_s))
+        top_categorias = [{'categoria': r['categoria'], 'receita': round(float(r['receita'] or 0), 2), 'pecas': int(r['pecas'] or 0)} for r in cur.fetchall()]
+        cat_max = max([c['receita'] for c in top_categorias] + [1])
+        for c in top_categorias:
+            c['pct'] = round(c['receita'] / cat_max * 100, 1)
     except Exception:
         rollback()
 
-    # ── 6. Vendas por tamanho ──
-    tamanhos = []; tam_max = 1
-    try:
-        cur.execute("""SELECT COALESCE(NULLIF(vi.tamanho,''),'—') AS tam,
-                       SUM(vi.quantidade) AS qtd, SUM(vi.valor_total) AS receita
-                       FROM venda_itens vi JOIN vendas v ON v.id=vi.venda_id
-                       WHERE DATE(v.criado_em) BETWEEN %s AND %s
-                       GROUP BY 1 ORDER BY qtd DESC LIMIT 12""", (data_inicio, data_fim))
-        tamanhos = [{'tam': r['tam'], 'qtd': int(r['qtd'] or 0), 'receita': round(float(r['receita'] or 0), 2)}
-                    for r in cur.fetchall()]
-        tam_max = max([t['qtd'] for t in tamanhos] + [1])
-    except Exception:
-        rollback()
-
-    # ── 7. Estoque parado (aging do capital empatado) — ponto no tempo ──
-    aging = []; aging_total = 0.0; estoque_parado_90 = 0.0
+    # Estoque parado com valor e peças
+    aging = []; aging_total = estoque_parado_60 = estoque_parado_90 = 0.0; aging_max = 1
     try:
         cur.execute("""SELECT
             COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em)))<=30 THEN custo_unitario*quantidade ELSE 0 END),0) AS b0,
             COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em))) BETWEEN 31 AND 60 THEN custo_unitario*quantidade ELSE 0 END),0) AS b1,
             COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em))) BETWEEN 61 AND 90 THEN custo_unitario*quantidade ELSE 0 END),0) AS b2,
             COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em)))>90 THEN custo_unitario*quantidade ELSE 0 END),0) AS b3,
+            COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em)))<=30 THEN quantidade ELSE 0 END),0) AS q0,
+            COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em))) BETWEEN 31 AND 60 THEN quantidade ELSE 0 END),0) AS q1,
+            COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em))) BETWEEN 61 AND 90 THEN quantidade ELSE 0 END),0) AS q2,
+            COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em)))>90 THEN quantidade ELSE 0 END),0) AS q3,
             COALESCE(SUM(custo_unitario*quantidade),0) AS total
             FROM estoque WHERE ativo=TRUE AND quantidade>0""")
         a = cur.fetchone()
         aging = [
-            {'faixa': 'Até 30 dias', 'valor': round(float(a['b0']), 2), 'cor': '#2e7d32'},
-            {'faixa': '31–60 dias', 'valor': round(float(a['b1']), 2), 'cor': '#f9a825'},
-            {'faixa': '61–90 dias', 'valor': round(float(a['b2']), 2), 'cor': '#e65100'},
-            {'faixa': '+90 dias', 'valor': round(float(a['b3']), 2), 'cor': '#c62828'},
+            {'faixa': '0–30 dias', 'valor': round(float(a['b0']), 2), 'pecas': int(a['q0'] or 0), 'cor': '#16a34a'},
+            {'faixa': '31–60 dias', 'valor': round(float(a['b1']), 2), 'pecas': int(a['q1'] or 0), 'cor': '#f59e0b'},
+            {'faixa': '61–90 dias', 'valor': round(float(a['b2']), 2), 'pecas': int(a['q2'] or 0), 'cor': '#ea580c'},
+            {'faixa': '+90 dias', 'valor': round(float(a['b3']), 2), 'pecas': int(a['q3'] or 0), 'cor': '#dc2626'},
         ]
         aging_total = round(float(a['total']), 2)
+        estoque_parado_60 = round(float(a['b2']) + float(a['b3']), 2)
         estoque_parado_90 = round(float(a['b3']), 2)
-    except Exception:
-        rollback()
-    aging_max = max([f['valor'] for f in aging] + [1]) if aging else 1
-
-    # ── 8. Inadimplência do crediário por faixa (parcelas em aberto) ──
-    cred_faixas = []; cred_total = cred_atraso = 0.0; cred_atraso_pct = 0; cred_max = 1
-    try:
-        cur.execute("""SELECT
-            COALESCE(SUM(CASE WHEN data_vencimento>=CURRENT_DATE THEN valor ELSE 0 END),0) AS av,
-            COALESCE(SUM(CASE WHEN (CURRENT_DATE-data_vencimento) BETWEEN 1 AND 30 THEN valor ELSE 0 END),0) AS d1,
-            COALESCE(SUM(CASE WHEN (CURRENT_DATE-data_vencimento) BETWEEN 31 AND 60 THEN valor ELSE 0 END),0) AS d2,
-            COALESCE(SUM(CASE WHEN (CURRENT_DATE-data_vencimento)>60 THEN valor ELSE 0 END),0) AS d3
-            FROM crediario_parcelas WHERE pago=FALSE""")
-        c = cur.fetchone()
-        cred_faixas = [
-            {'faixa': 'A vencer', 'valor': round(float(c['av']), 2), 'cor': '#2e7d32'},
-            {'faixa': '1–30 dias', 'valor': round(float(c['d1']), 2), 'cor': '#f9a825'},
-            {'faixa': '31–60 dias', 'valor': round(float(c['d2']), 2), 'cor': '#e65100'},
-            {'faixa': '+60 dias', 'valor': round(float(c['d3']), 2), 'cor': '#c62828'},
-        ]
-        cred_total = round(sum(f['valor'] for f in cred_faixas), 2)
-        cred_atraso = round(cred_faixas[1]['valor'] + cred_faixas[2]['valor'] + cred_faixas[3]['valor'], 2)
-        cred_atraso_pct = round(cred_atraso / cred_total * 100, 1) if cred_total else 0
-        cred_max = max([f['valor'] for f in cred_faixas] + [1])
+        aging_max = max([x['valor'] for x in aging] + [1])
     except Exception:
         rollback()
 
-    # ── 9. Conversão de condicional (período por criação) ──
-    cond = {'aberta': 0, 'venda': 0, 'devolvida': 0, 'valor_venda': 0.0, 'taxa': 0}
+    # Ranking de vendedoras por valor líquido, com peças e clientes cadastrados no período
+    vendedoras = []
     try:
-        cur.execute("""SELECT
-            COUNT(*) FILTER (WHERE status='aberta') AS aberta,
-            COUNT(*) FILTER (WHERE status='finalizada' AND venda_id IS NOT NULL) AS venda,
-            COUNT(*) FILTER (WHERE status='devolvida') AS devolvida,
-            COALESCE(SUM(valor_total) FILTER (WHERE status='finalizada' AND venda_id IS NOT NULL),0) AS valor_venda
-            FROM condicionais WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
-        c = cur.fetchone()
-        venda = int(c['venda'] or 0); dev = int(c['devolvida'] or 0)
-        fechadas = venda + dev
-        cond = {'aberta': int(c['aberta'] or 0), 'venda': venda, 'devolvida': dev,
-                'valor_venda': round(float(c['valor_venda'] or 0), 2),
-                'taxa': round(venda / fechadas * 100, 1) if fechadas else 0}
-    except Exception:
-        rollback()
-
-    # ── 10. Desempenho por vendedora (ticket médio e peças/venda) ──
-    vendedoras = []; vend_max = 1.0
-    try:
-        cur.execute("""SELECT v.vendedora_nome AS nome, COUNT(DISTINCT v.id) AS vendas,
-                       COALESCE(SUM(v.valor_total),0) AS total, COALESCE(SUM(it.qtd),0) AS pecas
-                       FROM vendas v
-                       LEFT JOIN (SELECT venda_id, SUM(quantidade) AS qtd FROM venda_itens GROUP BY venda_id) it
-                              ON it.venda_id=v.id
+        cur.execute("""SELECT v.id, v.vendedora_nome, v.valor_total, v.forma_pagamento, v.criado_em,
+                       COALESCE(SUM(vi.quantidade),0) AS pecas
+                       FROM vendas v LEFT JOIN venda_itens vi ON vi.venda_id=v.id
                        WHERE DATE(v.criado_em) BETWEEN %s AND %s
-                       GROUP BY v.vendedora_nome ORDER BY total DESC LIMIT 8""", (data_inicio, data_fim))
+                       GROUP BY v.id, v.vendedora_nome, v.valor_total, v.forma_pagamento, v.criado_em""", (data_inicio_s, data_fim_s))
+        tmp = {}; taxa_cache = {}
         for r in cur.fetchall():
-            vendas_n = int(r['vendas'] or 0); total = float(r['total'] or 0); pecas = int(r['pecas'] or 0)
-            vendedoras.append({'nome': r['nome'] or '—', 'vendas': vendas_n, 'total': round(total, 2),
-                               'ticket': round(total / vendas_n, 2) if vendas_n else 0,
-                               'pecas_venda': round(pecas / vendas_n, 1) if vendas_n else 0})
-        vend_max = max([v['total'] for v in vendedoras] + [1])
+            nome = r['vendedora_nome'] or '—'
+            dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
+            liq, _desc, _ = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, taxa_cache)
+            obj = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'clientes': 0})
+            obj['liquido'] += liq; obj['vendas'] += 1; obj['pecas'] += int(r['pecas'] or 0)
+        try:
+            cur.execute("""SELECT COALESCE(u.nome,'—') AS nome, COUNT(c.id) AS clientes
+                           FROM clientes c LEFT JOIN usuarios u ON u.id = NULL
+                           WHERE 1=0 GROUP BY 1""")
+        except Exception:
+            rollback()
+        # Clientes cadastrados por vendedora não possui vínculo direto no schema atual; manter 0 até existir o vínculo.
+        vendedoras = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]
+        for v in vendedoras:
+            v['liquido'] = round(v['liquido'], 2)
+            v['ticket'] = round(v['liquido'] / v['vendas'], 2) if v['vendas'] else 0
     except Exception:
         rollback()
 
-    # ── 11. Desconto concedido × margem ──
-    desc = {'total': 0.0, 'pct_medio': 0, 'n_vendas': 0, 'n_com_desc': 0, 'pct_vendas': 0}
+    # Top 5 clientes por valor líquido
+    top_clientes = []
     try:
-        cur.execute("""SELECT COALESCE(SUM(desconto),0) AS total,
-                       COALESCE(AVG(NULLIF(pct_desconto,0)),0) AS pct_medio, COUNT(*) AS n,
-                       COUNT(CASE WHEN COALESCE(desconto,0)>0 THEN 1 END) AS n_desc
-                       FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
-        d = cur.fetchone()
-        n = int(d['n'] or 0); nd = int(d['n_desc'] or 0)
-        desc = {'total': round(float(d['total'] or 0), 2), 'pct_medio': round(float(d['pct_medio'] or 0), 1),
-                'n_vendas': n, 'n_com_desc': nd, 'pct_vendas': round(nd / n * 100, 1) if n else 0}
+        cur.execute("""SELECT v.cliente_nome AS nome, v.valor_total, v.forma_pagamento, v.criado_em,
+                       v.id, COALESCE(SUM(vi.quantidade),0) AS pecas
+                       FROM vendas v LEFT JOIN venda_itens vi ON vi.venda_id=v.id
+                       WHERE DATE(v.criado_em) BETWEEN %s AND %s AND COALESCE(v.cliente_nome,'') <> ''
+                       GROUP BY v.id, v.cliente_nome, v.valor_total, v.forma_pagamento, v.criado_em""", (data_inicio_s, data_fim_s))
+        tmp = {}; taxa_cache = {}
+        for r in cur.fetchall():
+            nome = r['nome'] or 'Cliente não informado'
+            dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
+            liq, _desc, _ = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, taxa_cache)
+            obj = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'compras': 0, 'pecas': 0, 'ultima': dt})
+            obj['liquido'] += liq; obj['compras'] += 1; obj['pecas'] += int(r['pecas'] or 0); obj['ultima'] = max(obj['ultima'], dt)
+        top_clientes = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]
+        for c in top_clientes:
+            c['liquido'] = round(c['liquido'], 2)
+            c['ticket'] = round(c['liquido'] / c['compras'], 2) if c['compras'] else 0
+            c['ultima_fmt'] = c['ultima'].strftime('%d/%m/%y')
     except Exception:
         rollback()
+
+    # Alertas inteligentes do rodapé
+    insights = []
+    fat_var = _pct_atual_anterior(faturamento_liquido, fat_liq_ant)
+    luc_var = _pct_atual_anterior(lucro_liquido, lucro_ant)
+    tick_var = _pct_atual_anterior(ticket_medio, ticket_ant)
+    cli_var = _pct_atual_anterior(qtd_clientes_cad, qtd_clientes_cad_ant)
+    if fat_var is not None:
+        insights.append({'tom': 'bom' if fat_var >= 0 else 'alerta', 'tx': f"Faturamento líquido {'cresceu' if fat_var >= 0 else 'caiu'} {abs(fat_var)}% em relação ao período anterior."})
+    if luc_var is not None:
+        insights.append({'tom': 'bom' if luc_var >= 0 else 'ruim', 'tx': f"Lucro líquido {'cresceu' if luc_var >= 0 else 'caiu'} {abs(luc_var)}% em relação ao período anterior."})
+    if tick_var is not None:
+        insights.append({'tom': 'bom' if tick_var >= 0 else 'alerta', 'tx': f"Ticket médio {'cresceu' if tick_var >= 0 else 'caiu'} {abs(tick_var)}% em relação ao período anterior."})
+    if cli_var is not None:
+        insights.append({'tom': 'bom' if cli_var >= 0 else 'alerta', 'tx': f"Clientes cadastrados {'cresceram' if cli_var >= 0 else 'caíram'} {abs(cli_var)}% em relação ao período anterior."})
+    if estoque_parado_90 > 0:
+        insights.append({'tom': 'alerta', 'tx': f"Estoque parado acima de 90 dias: {_brl(estoque_parado_90)}."})
 
     cur.close(); close_db(conn)
-
-    # ── Cartões de insight automáticos ──
-    insights = []
-    if entradas_liquidas > 0 or despesas_total > 0:
-        insights.append({'ic': '💡', 'tom': 'bom' if lucro_liquido >= 0 else 'ruim',
-                         'tx': f"Lucro líquido do período: {_brl(lucro_liquido)} (margem {margem_pct}%)."})
-    if len(tendencia) >= 2 and tendencia[-2]['ent'] > 0:
-        var = round((tendencia[-1]['ent'] - tendencia[-2]['ent']) / tendencia[-2]['ent'] * 100, 1)
-        insights.append({'ic': '📈' if var >= 0 else '📉', 'tom': 'bom' if var >= 0 else 'alerta',
-                         'tx': f"Entradas líquidas {'subiram' if var >= 0 else 'caíram'} {abs(var)}% vs o mês anterior."})
-    if top_produtos:
-        p = top_produtos[0]
-        insights.append({'ic': '🏆', 'tom': 'neutro',
-                         'tx': f"Quem mais fatura: {p['nome']} ({_brl(p['receita'])}, margem {p['margem']}%)."})
-    if estoque_parado_90 > 0:
-        insights.append({'ic': '📦', 'tom': 'alerta',
-                         'tx': f"{_brl(estoque_parado_90)} em estoque parado há mais de 90 dias."})
-    if cred_total > 0:
-        insights.append({'ic': '⚠️', 'tom': 'ruim' if cred_atraso_pct >= 20 else ('alerta' if cred_atraso_pct > 0 else 'bom'),
-                         'tx': f"{cred_atraso_pct}% do crediário em atraso ({_brl(cred_atraso)} a recuperar)."})
-    if cond['venda'] + cond['devolvida'] > 0:
-        insights.append({'ic': '🛍️', 'tom': 'bom' if cond['taxa'] >= 50 else 'neutro',
-                         'tx': f"Conversão de condicional em {cond['taxa']}% ({cond['venda']} viraram venda)."})
-    if vendedoras:
-        v = vendedoras[0]
-        insights.append({'ic': '🥇', 'tom': 'neutro',
-                         'tx': f"Destaque em vendas: {v['nome']} ({_brl(v['total'])}, ticket {_brl(v['ticket'])})."})
-
-    periodo_label = (f"{data_inicio.split('-')[2]}/{data_inicio.split('-')[1]}"
-                     f" até {data_fim.split('-')[2]}/{data_fim.split('-')[1]}")
-
+    periodo_label = f"{data_inicio.strftime('%d/%m/%Y')} até {data_fim.strftime('%d/%m/%Y')}"
     ctx = get_ctx()
     ctx.update(
-        data_inicio=data_inicio, data_fim=data_fim, periodo_label=periodo_label,
+        data_inicio=data_inicio_s, data_fim=data_fim_s, periodo_label=periodo_label,
         hoje=hoje.strftime('%A, %d de %B de %Y').capitalize(),
-        mes_atual=hoje.strftime('%B / %Y').capitalize(),
-        resultado=resultado, entradas_origem=entradas_origem,
-        pie_segments=pie_segments, pie_conic=pie_conic,
-        tendencia=tendencia, line_pts=line_pts, line_poly=line_poly, line_zero_y=line_zero_y,
-        fluxo=fluxo, fluxo_pts=fluxo_pts, fluxo_zero_y=fluxo_zero_y,
-        top_produtos=top_produtos, rec_max=rec_max,
-        mix=mix, mix_total=mix_total, mix_conic=mix_conic,
-        tamanhos=tamanhos, tam_max=tam_max,
-        aging=aging, aging_total=aging_total, aging_max=aging_max, estoque_parado_90=estoque_parado_90,
-        cred_faixas=cred_faixas, cred_total=cred_total, cred_atraso=cred_atraso,
-        cred_atraso_pct=cred_atraso_pct, cred_max=cred_max,
-        cond=cond, vendedoras=vendedoras, vend_max=vend_max, desc=desc,
-        insights=insights)
+        kpis=kpis, resultado={'faturamento_bruto': faturamento_bruto, 'taxas_total': taxas_total,
+                               'faturamento_liquido': faturamento_liquido, 'despesas': despesas_total,
+                               'despesas_fixas': despesas_fixas, 'despesas_avulsas': despesas_avulsas,
+                               'lucro_liquido': lucro_liquido, 'margem_pct': margem_pct, 'ticket_medio': ticket_medio},
+        trend=trend, fix_poly=fix_poly, avul_poly=avul_poly, lucro_poly=lucro_poly,
+        taxas_formas=taxas_formas, taxas_conic=taxas_conic, top_categorias=top_categorias, cat_max=cat_max,
+        aging=aging, aging_total=aging_total, aging_max=aging_max, estoque_parado_60=estoque_parado_60,
+        vendedoras=vendedoras, top_clientes=top_clientes, insights=insights, brl=_brl, kbrl=_kbrl)
     return render_template('dashboard.html', **ctx)
 
 

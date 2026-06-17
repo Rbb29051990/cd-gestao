@@ -22,7 +22,7 @@ from auth import (controle_acesso_abas, security_headers,
 
 # Módulos de rota (cada um expõe register(app))
 from routes import (auth_routes, visao_geral, usuarios, clientes, estoque,
-                    vendas, condicionais, crediarios, taxas, caixa, despesas,
+                    vendas, condicionais, crediarios, taxas, caixa, despesas, ajustes,
                     dashboard, admin)
 
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO'))
@@ -44,7 +44,7 @@ app.errorhandler(500)(erro_interno)
 
 # ── Registro de rotas (preserva os nomes de endpoint usados nos templates) ──
 for modulo in (auth_routes, visao_geral, usuarios, clientes, estoque, vendas,
-               condicionais, crediarios, taxas, caixa, despesas, dashboard, admin):
+               condicionais, crediarios, taxas, caixa, despesas, ajustes, dashboard, admin):
     modulo.register(app)
 
 # ── Inicialização do banco no start ──

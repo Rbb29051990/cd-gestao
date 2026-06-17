@@ -1,15 +1,12 @@
 # RELEASE V118
 
-## Nova funcionalidade: Ajustes Financeiros
+## Ajustes Financeiros
 
-Objetivo:
-Permitir lançamentos manuais de entradas financeiras para correções de caixa,
-implantação do sistema no meio do mês e demais ajustes administrativos.
+Nova opção no menu Financeiro: **Ajustes**.
 
-### Novo menu
-Financeiro → Ajustes
+Permite lançar entradas avulsas no caixa para implantação no meio do mês e correções futuras.
 
-### Tipos de ajuste
+### Tipos disponíveis
 - Saldo Inicial
 - Ajuste de Caixa
 - Recebimento Avulso
@@ -23,13 +20,10 @@ Financeiro → Ajustes
 - Descrição
 - Forma de Pagamento
 - Valor
-- Observação (opcional)
+- Observação opcional
 
-### Casos de uso
-- Implantação do sistema no meio do mês
-- Correção de diferenças de caixa
-- Aportes dos sócios
-- Recebimentos extraordinários
+### Integração
+Cada ajuste gera automaticamente uma entrada na tabela `caixa`, mantendo histórico próprio na tabela `ajustes_financeiros`.
 
-Observação:
-Esta versão contém a especificação funcional aprovada para implementação.
+### Segurança
+A exclusão de ajustes fica restrita ao Administrador N1 e remove também a movimentação correspondente no caixa.

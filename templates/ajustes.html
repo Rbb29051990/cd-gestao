@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+{% macro moeda(v) %}R$ {{ "{:,.2f}".format(v|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+<style>
+.aj-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}.aj-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05)}.aj-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#aaa;margin-bottom:14px}.aj-form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.aj-field{display:flex;flex-direction:column;gap:5px}.aj-field.full{grid-column:1/-1}.aj-field label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px}.aj-field input,.aj-field select,.aj-field textarea{padding:11px 12px;border:1.5px solid #e0e0e8;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1a1a2e;outline:none;background:#fff}.aj-field textarea{min-height:72px;resize:vertical}.aj-btn{padding:12px 18px;background:#1565c0;color:#fff;border:none;border-radius:9px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;cursor:pointer}.aj-total{font-size:26px;font-weight:800;color:#2e7d32;margin-bottom:8px}.aj-break{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f2f2f6;font-size:13px}.aj-break span{color:#777;font-weight:600}.aj-break b{color:#1a1a2e}.bdg-aj{display:inline-block;padding:3px 9px;font-size:10px;font-weight:800;border-radius:20px;text-transform:uppercase;letter-spacing:.4px;background:#e3f2fd;color:#1565c0}.aj-del{padding:7px 10px;border:1px solid #f3c0c0;background:#fff;color:#c62828;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer}@media(max-width:850px){.aj-grid,.aj-form{grid-template-columns:1fr}.aj-field.full{grid-column:auto}}
+</style>
+<div class="dash-wrap">
+  <div class="topbar"><div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div><div class="topbar-right"><span class="topbar-user">{{ nome }}</span><div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div></div></div>
+  <div class="dash-layout">
+    <nav class="sidebar">
+      <div class="nav-section"><div class="nav-label">Principal</div>
+        <a href="/visao-geral" class="nav-item">◉ Visão Geral</a><a href="/clientes" class="nav-item">◉ Clientes</a><a href="/estoque" class="nav-item">◉ Estoque</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Financeiro</div>
+        <a href="/vendas" class="nav-item">🛒 Vendas</a><a href="/condicionais" class="nav-item">🛍️ Condicional</a><a href="/caixa" class="nav-item">💰 Caixa</a><a href="/ajustes" class="nav-item active">🧾 Ajustes</a><a href="/crediarios" class="nav-item">📋 Crediários</a><a href="/despesas" class="nav-item">🧾 Despesas</a><a href="/taxas" class="nav-item">💳 Taxas</a>
+      </div>
+      <div class="nav-section"><div class="nav-label">Sistema</div><a href="/dashboard" class="nav-item">📊 Dashboards</a><a href="/usuarios" class="nav-item">🔐 Usuários</a><a href="/logout" class="nav-item nav-sair">🚪 Sair</a></div>
+    </nav>
+    <main class="main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+      <div class="page-header"><div><div class="page-title">Ajustes Financeiros</div><div class="page-subtitle">Lançamentos manuais de entrada para saldo inicial, correções e recebimentos avulsos.</div></div></div>
+
+      <form method="GET" class="filter-bar" style="margin-bottom:18px">
+        <input type="date" name="data_inicio" id="dataInicio" value="{{ data_inicio }}"><input type="date" name="data_fim" id="dataFim" value="{{ data_fim }}"><button type="submit" class="btn-filter">Filtrar</button>
+      </form>
+
+      <div class="aj-grid">
+        <div class="aj-card">
+          <div class="aj-title">Novo ajuste</div>
+          <form method="POST" action="/ajustes/novo" class="aj-form">
+            <div class="aj-field"><label>Data</label><input type="date" name="data_ajuste" value="{{ hoje }}" required></div>
+            <div class="aj-field"><label>Tipo</label><select name="tipo_ajuste" required>{% for v,l in tipos_ajuste %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+            <div class="aj-field full"><label>Descrição</label><input name="descricao" placeholder="Ex.: Saldo inicial das vendas antes do sistema" required></div>
+            <div class="aj-field"><label>Forma de pagamento</label><select name="forma_pagamento" required>{% for v,l in formas_pagamento %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+            <div class="aj-field"><label>Valor</label><input name="valor" placeholder="0,00" required></div>
+            <div class="aj-field full"><label>Observação opcional</label><textarea name="observacao" placeholder="Detalhes para auditoria, se necessário"></textarea></div>
+            <div class="aj-field full"><button type="submit" class="aj-btn">+ Lançar ajuste no caixa</button></div>
+          </form>
+        </div>
+        <div class="aj-card">
+          <div class="aj-title">Resumo do período</div>
+          <div class="aj-total">{{ moeda(totais.total) }}</div>
+          <div class="aj-break"><span>Saldo Inicial</span><b>{{ moeda(totais.saldo_inicial) }}</b></div>
+          <div class="aj-break"><span>Ajuste de Caixa</span><b>{{ moeda(totais.ajuste_caixa) }}</b></div>
+          <div class="aj-break"><span>Recebimento Avulso</span><b>{{ moeda(totais.recebimento_avulso) }}</b></div>
+          <div class="aj-break"><span>Aporte dos Sócios</span><b>{{ moeda(totais.aporte_socios) }}</b></div>
+          <div class="aj-break"><span>Transferência</span><b>{{ moeda(totais.transferencia) }}</b></div>
+          <div class="aj-break"><span>Outros</span><b>{{ moeda(totais.outros) }}</b></div>
+        </div>
+      </div>
+
+      <div class="section-title">Histórico de ajustes</div>
+      <div class="table-wrap" style="max-height:430px;overflow-y:auto">
+        <table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Forma</th><th>Valor</th><th>Usuário</th><th>Observação</th><th>Ações</th></tr></thead><tbody>
+        {% for a in lista %}
+          <tr><td>{{ a.data_ajuste.strftime('%d/%m/%Y') if a.data_ajuste else '—' }}</td><td><span class="bdg-aj">{{ tipos_dict.get(a.tipo_ajuste, a.tipo_ajuste) }}</span></td><td style="font-weight:700">{{ a.descricao }}</td><td>{{ formas_dict.get(a.forma_pagamento, a.forma_pagamento) }}</td><td style="font-weight:800;color:#2e7d32">+ {{ moeda(a.valor) }}</td><td>{{ a.usuario_nome or '—' }}</td><td>{{ a.observacao or '—' }}</td><td>{% if pode_excluir %}<form method="POST" action="/ajustes/excluir/{{ a.id }}" onsubmit="return confirm('Excluir este ajuste? Ele também será removido do caixa.')"><button class="aj-del" type="submit">Excluir</button></form>{% else %}<span style="color:#ccc">—</span>{% endif %}</td></tr>
+        {% else %}<tr><td colspan="8" class="empty-row">Nenhum ajuste financeiro no período.</td></tr>{% endfor %}
+        </tbody></table>
+      </div>
+    </main>
+  </div>
+</div>
+{% endblock %}

@@ -101,6 +101,18 @@ def init_db():
         forma_pagamento VARCHAR(50), venda_id INTEGER, crediario_id INTEGER,
         despesa_id INTEGER, usuario_id INTEGER, vendedora_nome VARCHAR(200),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS ajustes_financeiros (
+        id SERIAL PRIMARY KEY,
+        data_ajuste DATE DEFAULT CURRENT_DATE,
+        tipo_ajuste VARCHAR(40) NOT NULL,
+        descricao TEXT NOT NULL,
+        forma_pagamento VARCHAR(50),
+        valor NUMERIC(10,2) DEFAULT 0,
+        observacao TEXT,
+        caixa_id INTEGER,
+        usuario_id INTEGER,
+        usuario_nome VARCHAR(200),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS despesas (
         id SERIAL PRIMARY KEY, codigo VARCHAR(10) UNIQUE,
         descricao TEXT NOT NULL, categoria VARCHAR(100),
@@ -173,6 +185,8 @@ def init_db():
         "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS ip VARCHAR(80)",
         "ALTER TABLE auditoria ADD COLUMN IF NOT EXISTS user_agent TEXT",
         "ALTER TABLE caixa ADD COLUMN IF NOT EXISTS parcela_id INTEGER",
+        "ALTER TABLE ajustes_financeiros ADD COLUMN IF NOT EXISTS caixa_id INTEGER",
+        "ALTER TABLE ajustes_financeiros ADD COLUMN IF NOT EXISTS usuario_nome VARCHAR(200)",
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50)",
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS obs_pagamento TEXT",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em ON auditoria (criado_em DESC)",
@@ -180,6 +194,8 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_estoque_codigo ON estoque (codigo)",
         "CREATE INDEX IF NOT EXISTS idx_vendas_criado_em ON vendas (criado_em)",
         "CREATE INDEX IF NOT EXISTS idx_caixa_criado_em ON caixa (criado_em)",
+        "CREATE INDEX IF NOT EXISTS idx_ajustes_data ON ajustes_financeiros (data_ajuste DESC)",
+        "CREATE INDEX IF NOT EXISTS idx_ajustes_tipo ON ajustes_financeiros (tipo_ajuste)",
         "CREATE INDEX IF NOT EXISTS idx_crediario_parcelas_vencimento ON crediario_parcelas (data_vencimento, pago)",
         "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_estoque_quantidade_nao_negativa') THEN ALTER TABLE estoque ADD CONSTRAINT chk_estoque_quantidade_nao_negativa CHECK (quantidade >= 0) NOT VALID; END IF; END $$;",
     ]

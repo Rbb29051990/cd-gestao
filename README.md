@@ -1,4 +1,24 @@
-# CD Gestão Empresarial — v121
+# CD Gestão Empresarial — v122
+
+## Novidades da v122 (2026-06-17) — Dashboards estratégicos
+
+A aba **Dashboards** (antes um placeholder) agora traz 11 gráficos gerenciais + cartões de insight automáticos, com filtro de período pré-fixado no mês (1º → último dia):
+
+1. **Resultado do período** — demonstrativo da receita bruta → taxas de cartão → CMV (custo dos produtos) → despesas → **lucro líquido** com margem %.
+2. **Tendência dos últimos 6 meses** — faturamento × lucro, para enxergar crescimento e sazonalidade.
+3. **Fluxo de caixa acumulado** — saldo dia a dia no período.
+4. **Top produtos · curva ABC** — por receita e margem, classificados em A/B/C (Pareto).
+5. **Mix por categoria/modelo** — donut da participação na receita.
+6. **Vendas por tamanho** — orienta a grade de compra.
+7. **Estoque parado (aging)** — capital empatado por tempo sem venda (até 30 / 31–60 / 61–90 / +90 dias).
+8. **Inadimplência do crediário** — a receber por faixa (a vencer / 1–30 / 31–60 / +60 dias) e % em atraso.
+9. **Conversão de condicional** — quantas viraram venda × foram devolvidas.
+10. **Desempenho por vendedora** — total, ticket médio e peças por venda.
+11. **Desconto concedido × margem** — disciplina de preço.
+
+- **Cartões de insight automáticos:** frases geradas dos próprios dados (lucro do mês, variação vs mês anterior, produto que mais fatura, estoque parado, atraso do crediário, conversão de condicional, destaque de vendas).
+- **Filtro de período** igual às demais abas (De/Até + atalhos Hoje/7 dias/Mês), pré-fixado no mês corrente.
+- Tudo em CSS/SVG, sem biblioteca externa, mantendo o visual do app.
 
 ## Novidades da v121 (2026-06-17) — Visão Geral: 8 quadrantes compactos e despesas fixa × avulsa
 

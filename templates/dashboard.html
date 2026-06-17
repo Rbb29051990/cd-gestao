@@ -1,5 +1,67 @@
 {% extends "base.html" %}
 {% block content %}
+{% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+<style>
+.dsh-head{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.dsh-insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:18px}
+.dsh-ins{background:#fff;border:1.5px solid var(--cor-borda);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;box-shadow:0 3px 12px rgba(0,0,0,.04);border-left-width:4px}
+.dsh-ins.bom{border-left-color:#2e7d32}.dsh-ins.alerta{border-left-color:#e65100}.dsh-ins.ruim{border-left-color:#c62828}.dsh-ins.neutro{border-left-color:#1565c0}
+.dsh-ins .ic{font-size:20px;line-height:1.1;flex-shrink:0}
+.dsh-ins .tx{font-size:12.5px;color:#333;font-weight:600;line-height:1.35}
+.dsh-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:#fff;border:1.5px solid var(--cor-borda);border-radius:13px;box-shadow:0 4px 16px rgba(0,0,0,.05);padding:16px 18px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#1565c0,#2e7d32,#f9a825)}
+.card.full{grid-column:1/-1}
+.card-h{font-size:13.5px;font-weight:800;color:var(--cor-texto)}
+.card-sub{font-size:10.5px;color:#a0a0ad;margin-bottom:14px;margin-top:1px}
+/* Barras horizontais */
+.barline{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.barline .lbl{font-size:11px;font-weight:700;color:#555;width:120px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.barline .track{flex:1;background:#f2f2f6;border-radius:6px;height:16px;position:relative;overflow:hidden}
+.barline .fill{height:100%;border-radius:6px;min-width:2px}
+.barline .val{font-size:11px;font-weight:800;color:var(--cor-texto);width:104px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums}
+.barline .val small{font-weight:600;color:#a0a0ad}
+/* Demonstrativo de resultado */
+.dem{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f3f3f7;font-size:13px}
+.dem .k{color:#666;font-weight:600}.dem .k.op{color:#aaa;font-weight:600}
+.dem .v{font-weight:800;font-variant-numeric:tabular-nums}
+.dem.tot{margin-top:8px;padding:12px 14px;border:0;border-radius:10px;background:#f2fbf4}
+.dem.tot.neg{background:#fdeaea}
+.dem.tot .k{font-size:13px;font-weight:800;color:var(--cor-texto);text-transform:uppercase;letter-spacing:.4px}
+.dem.tot .v{font-size:20px}
+.pos{color:#2e7d32}.neg{color:#c62828}.azul{color:#1565c0}
+/* Tendência (colunas) */
+.trend{display:flex;align-items:flex-end;gap:10px;height:150px;padding-top:8px}
+.trend-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;justify-content:flex-end}
+.trend-bars{display:flex;gap:3px;align-items:flex-end;height:120px;width:100%;justify-content:center}
+.trend-bars .tb{width:14px;border-radius:3px 3px 0 0;min-height:2px}
+.trend-bars .tb.fat{background:#1565c0}.trend-bars .tb.luc{background:#2e7d32}.trend-bars .tb.luc.neg{background:#c62828}
+.trend-lbl{font-size:9.5px;font-weight:700;color:#888;white-space:nowrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:10.5px;color:#777;font-weight:600}
+.legend .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:middle}
+/* Donut */
+.donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.donut{width:150px;height:150px;border-radius:50%;position:relative;flex-shrink:0}
+.donut::after{content:'';position:absolute;inset:30px;background:#fff;border-radius:50%}
+.donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:1}
+.donut-c b{font-size:15px;color:var(--cor-texto)}.donut-c span{font-size:9px;color:#a0a0ad;text-transform:uppercase;letter-spacing:.5px}
+.donut-leg{flex:1;min-width:150px}
+.dleg{display:flex;align-items:center;gap:8px;font-size:11.5px;margin-bottom:6px}
+.dleg .d{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.dleg .n{font-weight:700;color:#555;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dleg .p{font-weight:800;color:var(--cor-texto)}
+/* Stat boxes */
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{flex:1;min-width:90px;background:#f7f7fb;border-radius:10px;padding:11px 12px}
+.stat .l{font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#a0a0ad}
+.stat .n{font-size:18px;font-weight:800;color:var(--cor-texto);margin-top:2px;font-variant-numeric:tabular-nums}
+.abc{display:inline-block;width:18px;height:18px;border-radius:5px;text-align:center;line-height:18px;font-size:10px;font-weight:800;color:#fff}
+.abc.A{background:#2e7d32}.abc.B{background:#f9a825}.abc.C{background:#c62828}
+.spark{width:100%;height:auto}
+.empty{color:#bbb;font-size:12px;text-align:center;padding:24px 0}
+@media(max-width:900px){.dsh-grid{grid-template-columns:1fr}}
+</style>
+
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
@@ -12,13 +74,249 @@
     {% include "_sidebar.html" %}
     <main class="main-content">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
-      <div class="page-title">Dashboards</div>
-      <div class="page-date">{{ hoje }}</div>
-      <div style="margin-top:60px;text-align:center;color:#333;">
-        <div style="font-size:48px;margin-bottom:16px">📊</div>
-        <div style="font-size:14px;letter-spacing:2px;text-transform:uppercase;">Gráficos serão adicionados aos poucos</div>
+
+      <div class="dsh-head">
+        <div>
+          <div class="page-title" style="margin-bottom:1px">Dashboards</div>
+          <div class="page-date">📅 {{ periodo_label }}</div>
+        </div>
+        <form method="GET" id="formFiltro" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">De</div>
+            <input type="date" name="data_inicio" id="dataInicio" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_inicio }}" onchange="this.form.submit()">
+          </div>
+          <div>
+            <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">Até</div>
+            <input type="date" name="data_fim" id="dataFim" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_fim }}" onchange="this.form.submit()">
+          </div>
+          <div style="display:flex;gap:5px">
+            <button type="button" class="filtro-btn" onclick="atalho('hoje')">Hoje</button>
+            <button type="button" class="filtro-btn" onclick="atalho('semana')">7 dias</button>
+            <button type="button" class="filtro-btn" onclick="atalho('mes')">Mês</button>
+          </div>
+        </form>
       </div>
+
+      {% if insights %}
+      <div class="dsh-insights">
+        {% for i in insights %}
+        <div class="dsh-ins {{ i.tom }}"><span class="ic">{{ i.ic }}</span><span class="tx">{{ i.tx }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- 1 · RESULTADO + 2 · TENDÊNCIA -->
+      <div class="dsh-grid">
+        <div class="card">
+          <div class="card-h">💰 Resultado do período</div>
+          <div class="card-sub">Da receita bruta ao lucro líquido</div>
+          <div class="dem"><span class="k">Receita bruta</span><span class="v pos">{{ brl(resultado.receita_bruta) }}</span></div>
+          <div class="dem"><span class="k op">(−) Taxas de cartão</span><span class="v neg">{{ brl(resultado.desconto_taxas) }}</span></div>
+          <div class="dem"><span class="k">(=) Receita líquida</span><span class="v azul">{{ brl(resultado.receita_liquida) }}</span></div>
+          <div class="dem"><span class="k op">(−) Custo dos produtos (CMV)</span><span class="v neg">{{ brl(resultado.cmv) }}</span></div>
+          <div class="dem"><span class="k">(=) Lucro bruto</span><span class="v">{{ brl(resultado.lucro_bruto) }}</span></div>
+          <div class="dem"><span class="k op">(−) Despesas do período</span><span class="v neg">{{ brl(resultado.despesas) }}</span></div>
+          <div class="dem tot {{ 'neg' if resultado.lucro_liquido < 0 else '' }}">
+            <span class="k">Lucro líquido</span>
+            <span class="v {{ 'pos' if resultado.lucro_liquido >= 0 else 'neg' }}">{{ brl(resultado.lucro_liquido) }} <small style="font-size:12px;color:#999">· {{ resultado.margem_pct }}%</small></span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">📈 Tendência · últimos 6 meses</div>
+          <div class="card-sub">Faturamento × lucro estimado (independe do filtro)</div>
+          {% if tendencia %}
+          <div class="trend">
+            {% for t in tendencia %}
+            <div class="trend-col">
+              <div class="trend-bars">
+                <div class="tb fat" style="height:{{ t.fat_h }}%" title="Faturamento {{ brl(t.fat) }}"></div>
+                <div class="tb luc {{ 'neg' if t.luc_neg else '' }}" style="height:{{ t.luc_h }}%" title="Lucro {{ brl(t.lucro) }}"></div>
+              </div>
+              <div class="trend-lbl">{{ t.label }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="legend"><span><span class="dot" style="background:#1565c0"></span>Faturamento</span><span><span class="dot" style="background:#2e7d32"></span>Lucro</span></div>
+          {% else %}<div class="empty">Sem dados de vendas.</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- 4 · TOP PRODUTOS (ABC) -->
+      <div class="dsh-grid">
+        <div class="card full">
+          <div class="card-h">🏆 Top produtos · receita e margem (curva ABC)</div>
+          <div class="card-sub">A = concentram até 80% da receita · B até 95% · C o restante</div>
+          {% if top_produtos %}
+          {% for p in top_produtos %}
+          <div class="barline">
+            <span class="lbl"><span class="abc {{ p.classe }}">{{ p.classe }}</span> {{ p.nome }}</span>
+            <div class="track"><div class="fill" style="width:{{ (p.receita / rec_max * 100)|round(1) }}%;background:#1565c0"></div></div>
+            <span class="val">{{ brl(p.receita) }}<br><small>{{ p.qtd }} un · margem {{ p.margem }}%</small></span>
+          </div>
+          {% endfor %}
+          {% else %}<div class="empty">Sem vendas no período.</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- 5 · MIX + 6 · TAMANHOS -->
+      <div class="dsh-grid">
+        <div class="card">
+          <div class="card-h">👗 Mix por categoria/modelo</div>
+          <div class="card-sub">Participação na receita do período</div>
+          {% if mix %}
+          <div class="donut-wrap">
+            <div class="donut" style="background:{{ mix_conic }}">
+              <div class="donut-c"><b>{{ brl(mix_total) }}</b><span>Receita</span></div>
+            </div>
+            <div class="donut-leg">
+              {% for m in mix %}
+              <div class="dleg"><span class="d" style="background:{{ m.cor }}"></span><span class="n">{{ m.label }}</span><span class="p">{{ m.pct }}%</span></div>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}<div class="empty">Sem vendas no período.</div>{% endif %}
+        </div>
+
+        <div class="card">
+          <div class="card-h">📏 Vendas por tamanho</div>
+          <div class="card-sub">Quantidade vendida por tamanho</div>
+          {% if tamanhos %}
+          {% for t in tamanhos %}
+          <div class="barline">
+            <span class="lbl" style="width:48px">{{ t.tam }}</span>
+            <div class="track"><div class="fill" style="width:{{ (t.qtd / tam_max * 100)|round(1) }}%;background:#6a1b9a"></div></div>
+            <span class="val">{{ t.qtd }} un<br><small>{{ brl(t.receita) }}</small></span>
+          </div>
+          {% endfor %}
+          {% else %}<div class="empty">Sem vendas no período.</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- 8 · CREDIÁRIO + 7 · ESTOQUE PARADO -->
+      <div class="dsh-grid">
+        <div class="card">
+          <div class="card-h">⚠️ Inadimplência do crediário</div>
+          <div class="card-sub">A receber em aberto por faixa · {{ cred_atraso_pct }}% em atraso</div>
+          {% if cred_total > 0 %}
+          {% for f in cred_faixas %}
+          <div class="barline">
+            <span class="lbl">{{ f.faixa }}</span>
+            <div class="track"><div class="fill" style="width:{{ (f.valor / cred_max * 100)|round(1) }}%;background:{{ f.cor }}"></div></div>
+            <span class="val">{{ brl(f.valor) }}</span>
+          </div>
+          {% endfor %}
+          <div class="stats" style="margin-top:12px">
+            <div class="stat"><div class="l">Total a receber</div><div class="n">{{ brl(cred_total) }}</div></div>
+            <div class="stat"><div class="l">Em atraso</div><div class="n neg">{{ brl(cred_atraso) }}</div></div>
+          </div>
+          {% else %}<div class="empty">Nenhum crediário em aberto.</div>{% endif %}
+        </div>
+
+        <div class="card">
+          <div class="card-h">📦 Estoque parado (capital empatado)</div>
+          <div class="card-sub">Custo em estoque por tempo desde a última venda</div>
+          {% if aging_total > 0 %}
+          {% for f in aging %}
+          <div class="barline">
+            <span class="lbl">{{ f.faixa }}</span>
+            <div class="track"><div class="fill" style="width:{{ (f.valor / aging_max * 100)|round(1) }}%;background:{{ f.cor }}"></div></div>
+            <span class="val">{{ brl(f.valor) }}</span>
+          </div>
+          {% endfor %}
+          <div class="stats" style="margin-top:12px">
+            <div class="stat"><div class="l">Custo total parado</div><div class="n">{{ brl(aging_total) }}</div></div>
+            <div class="stat"><div class="l">Parado +90 dias</div><div class="n neg">{{ brl(estoque_parado_90) }}</div></div>
+          </div>
+          {% else %}<div class="empty">Sem estoque ativo.</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- 9 · CONDICIONAL + 3 · FLUXO ACUMULADO -->
+      <div class="dsh-grid">
+        <div class="card">
+          <div class="card-h">🛍️ Conversão de condicional</div>
+          <div class="card-sub">Condicionais abertas no período e seu desfecho</div>
+          <div class="stats">
+            <div class="stat"><div class="l">Em aberto</div><div class="n azul">{{ cond.aberta }}</div></div>
+            <div class="stat"><div class="l">Viraram venda</div><div class="n pos">{{ cond.venda }}</div></div>
+            <div class="stat"><div class="l">Devolvidas</div><div class="n neg">{{ cond.devolvida }}</div></div>
+          </div>
+          <div class="barline" style="margin-top:14px">
+            <span class="lbl">Conversão</span>
+            <div class="track"><div class="fill" style="width:{{ cond.taxa }}%;background:#2e7d32"></div></div>
+            <span class="val">{{ cond.taxa }}%</span>
+          </div>
+          <div style="font-size:11px;color:#a0a0ad;margin-top:4px">Geraram {{ brl(cond.valor_venda) }} em vendas.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">💵 Fluxo de caixa acumulado</div>
+          <div class="card-sub">Saldo acumulado dia a dia no período</div>
+          {% if fluxo_pts %}
+          <svg class="spark" viewBox="0 0 300 70" preserveAspectRatio="none" style="height:80px">
+            <line x1="0" y1="{{ fluxo_zero_y }}" x2="300" y2="{{ fluxo_zero_y }}" stroke="#e6e6ee" stroke-width="1" stroke-dasharray="4 3"/>
+            <polyline points="{{ fluxo_pts }}" fill="none" stroke="{{ '#2e7d32' if fluxo.saldo >= 0 else '#c62828' }}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          </svg>
+          {% else %}<div class="empty">Sem movimentações no período.</div>{% endif %}
+          <div class="stats" style="margin-top:12px">
+            <div class="stat"><div class="l">Entradas</div><div class="n pos">{{ brl(fluxo.entradas) }}</div></div>
+            <div class="stat"><div class="l">Saídas</div><div class="n neg">{{ brl(fluxo.saidas) }}</div></div>
+            <div class="stat"><div class="l">Saldo</div><div class="n {{ 'pos' if fluxo.saldo >= 0 else 'neg' }}">{{ brl(fluxo.saldo) }}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10 · VENDEDORAS + 11 · DESCONTO × MARGEM -->
+      <div class="dsh-grid">
+        <div class="card">
+          <div class="card-h">🥇 Desempenho por vendedora</div>
+          <div class="card-sub">Total, ticket médio e peças por venda</div>
+          {% if vendedoras %}
+          {% for v in vendedoras %}
+          <div class="barline">
+            <span class="lbl">{{ v.nome }}</span>
+            <div class="track"><div class="fill" style="width:{{ (v.total / vend_max * 100)|round(1) }}%;background:#00838f"></div></div>
+            <span class="val">{{ brl(v.total) }}<br><small>ticket {{ brl(v.ticket) }} · {{ v.pecas_venda }} pç</small></span>
+          </div>
+          {% endfor %}
+          {% else %}<div class="empty">Sem vendas no período.</div>{% endif %}
+        </div>
+
+        <div class="card">
+          <div class="card-h">🏷️ Desconto concedido × margem</div>
+          <div class="card-sub">Disciplina de preço no período</div>
+          <div class="stats">
+            <div class="stat"><div class="l">Desconto total</div><div class="n neg">{{ brl(desc.total) }}</div></div>
+            <div class="stat"><div class="l">% médio</div><div class="n">{{ desc.pct_medio }}%</div></div>
+          </div>
+          <div class="stats" style="margin-top:10px">
+            <div class="stat"><div class="l">Vendas c/ desconto</div><div class="n">{{ desc.n_com_desc }}/{{ desc.n_vendas }}</div></div>
+            <div class="stat"><div class="l">Margem líquida</div><div class="n {{ 'pos' if resultado.margem_pct >= 0 else 'neg' }}">{{ resultado.margem_pct }}%</div></div>
+          </div>
+          <div class="barline" style="margin-top:14px">
+            <span class="lbl">Vendas c/ desconto</span>
+            <div class="track"><div class="fill" style="width:{{ desc.pct_vendas }}%;background:#e65100"></div></div>
+            <span class="val">{{ desc.pct_vendas }}%</span>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 </div>
+
+<script>
+function atalho(tipo){
+  const hoje = new Date();
+  const fmt = d => localISODate(d);
+  let inicio, fim = fmt(hoje);
+  if (tipo === 'hoje'){ inicio = fmt(hoje); }
+  else if (tipo === 'semana'){ const d = new Date(hoje); d.setDate(d.getDate()-6); inicio = fmt(d); }
+  else if (tipo === 'mes'){ inicio = fmt(hoje).slice(0,7) + '-01'; fim = fmt(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0)); }
+  document.getElementById('dataInicio').value = inicio;
+  document.getElementById('dataFim').value = fim;
+  document.getElementById('formFiltro').submit();
+}
+</script>
 {% endblock %}

@@ -1,4 +1,12 @@
-# CD Gestão Empresarial — v120
+# CD Gestão Empresarial — v121
+
+## Novidades da v121 (2026-06-17) — Visão Geral: 8 quadrantes compactos e despesas fixa × avulsa
+
+- **Cabe numa página só:** os quadrantes foram compactados e padronizados (todos do mesmo tamanho, sem espaço vazio interno), eliminando o corte do card Lucro Líquido.
+- **Despesas separadas:** dois novos quadrantes mostram o montante de **Despesas fixas** e **Despesas avulsas** a pagar no período, calculados pelo **vencimento das parcelas** dentro da seleção de datas.
+- **Nova ordem dos 8 quadrantes:** 1) Despesas fixas · 2) Despesas avulsas · 3) Lucro líquido · 4) Crediários em aberto · 5) Em condicional/transferência · 6) Valor de estoque · 7) Custo do estoque · 8) Potencial de venda do estoque.
+- **Lucro líquido:** passa a ser Total líquido de entrada − (Despesas fixas + Despesas avulsas) do período.
+- **Mobile/tablet preservado:** o layout responsivo continua empilhando os quadrantes em 2 colunas roláveis no celular e no tablet.
 
 ## Novidades da v120 (2026-06-17) — Ajustes: sidebar consistente, edição e valores líquidos
 

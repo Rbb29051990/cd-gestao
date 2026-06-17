@@ -52,16 +52,12 @@
                      text-transform:uppercase; letter-spacing:.3px;
                      position:sticky; bottom:0; z-index:1; }
 
-/* ── METRIC CARDS: 3 linhas de 2 + Lucro Líquido full-width (4ª linha) ── */
-.mg-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(4,1fr); gap:12px; }
+/* ── METRIC CARDS: 8 quadrantes iguais (2 colunas × 4 linhas) ── */
+.mg-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(4,1fr); gap:10px; }
 .mg-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:13px;
-           padding:13px 18px; box-shadow:0 3px 12px rgba(0,0,0,.05); position:relative;
-           overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;
+           padding:10px 16px; box-shadow:0 3px 12px rgba(0,0,0,.05); position:relative;
+           overflow:hidden; display:flex; flex-direction:column; justify-content:center; gap:3px;
            text-decoration:none; transition:box-shadow .18s, transform .18s; }
-.mg-card.mg-wide { grid-column:1 / -1; flex-direction:row; align-items:center; justify-content:space-between; }
-.mg-card.mg-wide > div { display:flex; align-items:center; gap:16px; }
-.mg-card.mg-wide .mg-top { margin-bottom:0; }
-.mg-card.mg-wide .mg-sub { margin-top:0; }
 .mg-card:hover { box-shadow:0 8px 26px rgba(0,0,0,.1); transform:translateY(-2px); }
 .mg-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:13px 13px 0 0; }
 .mg-card.c-azul::before    { background:#1565c0; }
@@ -69,14 +65,14 @@
 .mg-card.c-rosa::before    { background:#c0396b; }
 .mg-card.c-laranja::before { background:#e65100; }
 .mg-card.c-ouro::before    { background:#f9a825; }
-.mg-top  { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
-.mg-icon { font-size:17px; }
+.mg-top  { display:flex; align-items:center; gap:7px; margin-bottom:0; }
+.mg-icon { font-size:16px; }
 .mg-label{ font-size:9.5px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#a0a0ad; }
-.mg-val  { font-family:'Outfit',sans-serif; font-size:19px; font-weight:700; color:var(--cor-texto); line-height:1.1; }
+.mg-val  { font-family:'Outfit',sans-serif; font-size:18px; font-weight:700; color:var(--cor-texto); line-height:1.1; }
 .mg-val.pos { color:#2e7d32; }
 .mg-val.neg { color:#c62828; }
-.mg-link { font-size:10px; font-weight:600; color:#c0c0cc; margin-top:5px; }
-.mg-sub  { font-size:10px; color:#a0a0ad; margin-top:2px; }
+.mg-link { font-size:10px; font-weight:600; color:#c0c0cc; margin-top:0; }
+.mg-sub  { font-size:10px; color:#a0a0ad; margin-top:0; }
 </style>
 
 <div class="dash-wrap vg-wrap">
@@ -197,66 +193,64 @@
           </div>
         </div>
 
-        <!-- DIREITA: 3 linhas × 2 cards -->
+        <!-- DIREITA: 8 quadrantes (2 colunas × 4 linhas) -->
         <div class="mg-grid">
 
-          <a href="/estoque" class="mg-card c-azul">
-            <div>
-              <div class="mg-top"><span class="mg-icon">📦</span><span class="mg-label">Valor em estoque</span></div>
-              <div class="mg-val">{{ brl(val_estoque) }}</div>
-            </div>
-            <div class="mg-link">Ver estoque →</div>
+          <!-- 1 · Despesas fixas (vencendo no período) -->
+          <a href="/despesas" class="mg-card c-laranja">
+            <div class="mg-top"><span class="mg-icon">📌</span><span class="mg-label">Despesas fixas</span></div>
+            <div class="mg-val">{{ brl(despesas_fixas) }}</div>
+            <div class="mg-sub">A pagar no período · vencimento</div>
           </a>
 
-          <a href="/estoque" class="mg-card c-azul">
-            <div>
-              <div class="mg-top"><span class="mg-icon">🏷️</span><span class="mg-label">Custo do estoque</span></div>
-              <div class="mg-val">{{ brl(custo_estoque) }}</div>
-            </div>
-            <div class="mg-link">Ver estoque →</div>
+          <!-- 2 · Despesas avulsas (vencendo no período) -->
+          <a href="/despesas" class="mg-card c-laranja">
+            <div class="mg-top"><span class="mg-icon">💸</span><span class="mg-label">Despesas avulsas</span></div>
+            <div class="mg-val">{{ brl(despesas_avulsas) }}</div>
+            <div class="mg-sub">A pagar no período · vencimento</div>
           </a>
 
-          <a href="/estoque" class="mg-card c-verde">
-            <div>
-              <div class="mg-top"><span class="mg-icon">📈</span><span class="mg-label">Lucro potencial</span></div>
-              <div class="mg-val pos">{{ brl(lucro_potencial) }}</div>
-              <div class="mg-sub">Valor venda − custo do estoque</div>
-            </div>
-            <div class="mg-link">Ver estoque →</div>
-          </a>
+          <!-- 3 · Lucro líquido = total líquido entrada − (fixas + avulsas) -->
+          <div class="mg-card c-ouro">
+            <div class="mg-top"><span class="mg-icon">🏆</span><span class="mg-label">Lucro líquido</span></div>
+            <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}">{{ brl(lucro_liquido) }}</div>
+            <div class="mg-sub">Entradas líquidas − despesas do período</div>
+          </div>
 
-          <a href="/condicionais" class="mg-card c-azul">
-            <div>
-              <div class="mg-top"><span class="mg-icon">🛍️</span><span class="mg-label">Em condicional / transferência</span></div>
-              <div class="mg-val">{{ brl(val_condicional) }}</div>
-              <div class="mg-sub">{{ n_condicional }} em aberto · peças reservadas</div>
-            </div>
-            <div class="mg-link">Ver condicional →</div>
-          </a>
-
+          <!-- 4 · Crediários em aberto -->
           <a href="/crediarios" class="mg-card c-rosa">
-            <div>
-              <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Crediários em aberto</span></div>
-              <div class="mg-val">{{ brl(val_crediarios) }}</div>
-            </div>
+            <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Crediários em aberto</span></div>
+            <div class="mg-val">{{ brl(val_crediarios) }}</div>
             <div class="mg-link">Ver crediários →</div>
           </a>
 
-          <a href="/despesas" class="mg-card c-laranja">
-            <div>
-              <div class="mg-top"><span class="mg-icon">💸</span><span class="mg-label">Despesas do período</span></div>
-              <div class="mg-val">{{ brl(val_despesas) }}</div>
-            </div>
-            <div class="mg-link">Ver despesas →</div>
+          <!-- 5 · Em condicional / transferência -->
+          <a href="/condicionais" class="mg-card c-azul">
+            <div class="mg-top"><span class="mg-icon">🛍️</span><span class="mg-label">Em condicional / transferência</span></div>
+            <div class="mg-val">{{ brl(val_condicional) }}</div>
+            <div class="mg-sub">{{ n_condicional }} em aberto · peças reservadas</div>
           </a>
 
-          <div class="mg-card c-ouro mg-wide">
-            <div>
-              <div class="mg-top"><span class="mg-icon">🏆</span><span class="mg-label">Lucro líquido</span></div>
-              <div class="mg-sub">Entradas líquidas − despesas</div>
-            </div>
-            <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}">{{ brl(lucro_liquido) }}</div>
-          </div>
+          <!-- 6 · Valor de estoque -->
+          <a href="/estoque" class="mg-card c-azul">
+            <div class="mg-top"><span class="mg-icon">📦</span><span class="mg-label">Valor de estoque</span></div>
+            <div class="mg-val">{{ brl(val_estoque) }}</div>
+            <div class="mg-link">Ver estoque →</div>
+          </a>
+
+          <!-- 7 · Custo do estoque -->
+          <a href="/estoque" class="mg-card c-azul">
+            <div class="mg-top"><span class="mg-icon">🏷️</span><span class="mg-label">Custo do estoque</span></div>
+            <div class="mg-val">{{ brl(custo_estoque) }}</div>
+            <div class="mg-link">Ver estoque →</div>
+          </a>
+
+          <!-- 8 · Potencial de venda = valor de estoque − custo de estoque -->
+          <a href="/estoque" class="mg-card c-verde">
+            <div class="mg-top"><span class="mg-icon">📈</span><span class="mg-label">Potencial de venda do estoque</span></div>
+            <div class="mg-val pos">{{ brl(lucro_potencial) }}</div>
+            <div class="mg-sub">Valor de estoque − custo de estoque</div>
+          </a>
 
         </div><!-- /mg-grid -->
       </div><!-- /vg-body -->

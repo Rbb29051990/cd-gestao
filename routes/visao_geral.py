@@ -67,21 +67,25 @@ def visao_geral():
         rc = cur.fetchone()
         val_condicional = round(float(rc['v']), 2); n_condicional = int(rc['n'])
     except: val_condicional = 0.0; n_condicional = 0
-    # Despesas do período = saída REAL de caixa:
-    #   • despesas à vista antigas (sem nenhuma parcela) pela data de lançamento
-    #   • qualquer parcela (1x ou Nx) somente quando paga (pela data de pagamento)
+    # Despesas do período pelo VENCIMENTO das parcelas (valores que SERÃO pagos
+    # dentro do período selecionado), separadas em fixas e avulsas — mesmo
+    # critério da aba Despesas (d.tipo = 'fixa'/'fixo' → fixa; o resto → avulsa).
+    despesas_fixas = despesas_avulsas = 0.0
     try:
-        cur.execute("""SELECT
-            COALESCE((SELECT SUM(valor) FROM despesas d
-                      WHERE COALESCE(d.parcelado,FALSE)=FALSE
-                        AND NOT EXISTS (SELECT 1 FROM despesa_parcelas p WHERE p.despesa_id=d.id)
-                        AND DATE(d.criado_em) BETWEEN %s AND %s),0)
-          + COALESCE((SELECT SUM(valor) FROM despesa_parcelas
-                      WHERE pago=TRUE AND data_pagamento BETWEEN %s AND %s),0) as v""",
-            (data_inicio, data_fim, data_inicio, data_fim))
-        val_despesas = round(float(cur.fetchone()['v']), 2)
-    except: val_despesas = 0.0
-    # Lucro líquido do período = entradas líquidas − despesas do período
+        cur.execute("""SELECT LOWER(COALESCE(d.tipo,'')) as tp, COALESCE(SUM(p.valor),0) as t
+                       FROM despesa_parcelas p
+                       JOIN despesas d ON d.id=p.despesa_id
+                       WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
+                       GROUP BY LOWER(COALESCE(d.tipo,''))""", (data_inicio, data_fim))
+        for r in cur.fetchall():
+            if (r['tp'] or '') in ('fixa', 'fixo'): despesas_fixas += float(r['t'])
+            else: despesas_avulsas += float(r['t'])
+    except Exception:
+        pass
+    despesas_fixas   = round(despesas_fixas, 2)
+    despesas_avulsas = round(despesas_avulsas, 2)
+    val_despesas     = round(despesas_fixas + despesas_avulsas, 2)
+    # Lucro líquido = entradas líquidas − (despesas fixas + avulsas) do período
     lucro_liquido = round(fat_total_liq - val_despesas, 2)
     # Movimentações recentes (filtradas pelo período)
     try:
@@ -100,7 +104,8 @@ def visao_geral():
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,
                val_condicional=val_condicional, n_condicional=n_condicional,
-               val_despesas=val_despesas, lucro_liquido=lucro_liquido,
+               val_despesas=val_despesas, despesas_fixas=despesas_fixas,
+               despesas_avulsas=despesas_avulsas, lucro_liquido=lucro_liquido,
                movs=movs, estoque_baixo=estoque_baixo,
                data_inicio=data_inicio, data_fim=data_fim,
                mes_atual=hoje.strftime('%B / %Y').capitalize(),

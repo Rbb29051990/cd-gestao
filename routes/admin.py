@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v117'})
+        return jsonify({'status': 'ok', 'version': 'v120'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v117 — 2026-06-16</b><br>
+    Versão: <b style='color:green'>v120 — 2026-06-17</b><br>
+    v120: Ajustes — sidebar consistente em todas as páginas; botão Editar para admins N1/N2; colunas Valor Bruto, Desc. Taxa e Líquido na tabela ✅<br>
     v117: Despesas — painel de gráficos simplificado: apenas Fechamento do mês e Fixa × Avulsa; tabelas crescidas proporcionalmente ✅<br>
     v116: Despesas — contas a pagar e contas pagas lado a lado, pagamento com data real e forma de pagamento informada na quitação ✅<br>
     v115: Despesas — indicadores, gráfico Fixa × Avulsa e contas a pagar agora usam o valor da parcela que vence no período selecionado (não o valor total da despesa) ✅<br>

@@ -2,7 +2,7 @@
 {% block content %}
 {% macro moeda(v) %}R$ {{ "{:,.2f}".format(v|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
 <style>
-.aj-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}.aj-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05)}.aj-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#aaa;margin-bottom:14px}.aj-form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.aj-field{display:flex;flex-direction:column;gap:5px}.aj-field.full{grid-column:1/-1}.aj-field label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px}.aj-field input,.aj-field select,.aj-field textarea{padding:11px 12px;border:1.5px solid #e0e0e8;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1a1a2e;outline:none;background:#fff}.aj-field textarea{min-height:72px;resize:vertical}.aj-btn{padding:12px 18px;background:#1565c0;color:#fff;border:none;border-radius:9px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;cursor:pointer}.aj-total{font-size:26px;font-weight:800;color:#2e7d32;margin-bottom:8px}.aj-break{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f2f2f6;font-size:13px}.aj-break span{color:#777;font-weight:600}.aj-break b{color:#1a1a2e}.bdg-aj{display:inline-block;padding:3px 9px;font-size:10px;font-weight:800;border-radius:20px;text-transform:uppercase;letter-spacing:.4px;background:#e3f2fd;color:#1565c0}.aj-del{padding:7px 10px;border:1px solid #f3c0c0;background:#fff;color:#c62828;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer}@media(max-width:850px){.aj-grid,.aj-form{grid-template-columns:1fr}.aj-field.full{grid-column:auto}}
+.aj-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}.aj-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05)}.aj-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#aaa;margin-bottom:14px}.aj-form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.aj-field{display:flex;flex-direction:column;gap:5px}.aj-field.full{grid-column:1/-1}.aj-field label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.5px}.aj-field input,.aj-field select,.aj-field textarea{padding:11px 12px;border:1.5px solid #e0e0e8;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1a1a2e;outline:none;background:#fff}.aj-field textarea{min-height:72px;resize:vertical}.aj-btn{padding:12px 18px;background:#1565c0;color:#fff;border:none;border-radius:9px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:800;cursor:pointer}.aj-total{font-size:26px;font-weight:800;color:#2e7d32;margin-bottom:8px}.aj-break{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #f2f2f6;font-size:13px}.aj-break span{color:#777;font-weight:600}.aj-break b{color:#1a1a2e}.bdg-aj{display:inline-block;padding:3px 9px;font-size:10px;font-weight:800;border-radius:20px;text-transform:uppercase;letter-spacing:.4px;background:#e3f2fd;color:#1565c0}.aj-del{padding:7px 10px;border:1px solid #f3c0c0;background:#fff;color:#c62828;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer}.aj-edit{padding:7px 10px;border:1px solid #c5cae9;background:#fff;color:#1565c0;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;margin-right:4px}.aj-acoes{display:flex;gap:4px;align-items:center}@media(max-width:850px){.aj-grid,.aj-form{grid-template-columns:1fr}.aj-field.full{grid-column:auto}}
 </style>
 <div class="dash-wrap">
   <div class="topbar"><div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div><div class="topbar-right"><span class="topbar-user">{{ nome }}</span><div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div></div></div>
@@ -79,13 +79,53 @@
 
       <div class="section-title">Histórico de ajustes</div>
       <div class="table-wrap" style="max-height:430px;overflow-y:auto">
-        <table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Forma</th><th>Valor</th><th>Usuário</th><th>Observação</th><th>Ações</th></tr></thead><tbody>
+        <table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Forma</th><th>Valor Bruto</th><th>Desc. Taxa</th><th>Líquido</th><th>Usuário</th><th>Observação</th><th>Ações</th></tr></thead><tbody>
         {% for a in lista %}
-          <tr><td>{{ a.data_ajuste.strftime('%d/%m/%Y') if a.data_ajuste else '—' }}</td><td><span class="bdg-aj">{{ tipos_dict.get(a.tipo_ajuste, a.tipo_ajuste) }}</span></td><td style="font-weight:700">{{ a.descricao }}</td><td>{{ formas_dict.get(a.forma_pagamento, a.forma_pagamento) }}</td><td style="font-weight:800;color:#2e7d32">+ {{ moeda(a.valor) }}</td><td>{{ a.usuario_nome or '—' }}</td><td>{{ a.observacao or '—' }}</td><td>{% if pode_excluir %}<form method="POST" action="/ajustes/excluir/{{ a.id }}" onsubmit="return confirm('Excluir este ajuste? Ele também será removido do caixa.')"><button class="aj-del" type="submit">Excluir</button></form>{% else %}<span style="color:#ccc">—</span>{% endif %}</td></tr>
-        {% else %}<tr><td colspan="8" class="empty-row">Nenhum ajuste financeiro no período.</td></tr>{% endfor %}
+          <tr>
+            <td>{{ a.data_ajuste.strftime('%d/%m/%Y') if a.data_ajuste else '—' }}</td>
+            <td><span class="bdg-aj">{{ tipos_dict.get(a.tipo_ajuste, a.tipo_ajuste) }}</span></td>
+            <td style="font-weight:700">{{ a.descricao }}</td>
+            <td>{{ formas_dict.get(a.forma_pagamento, a.forma_pagamento) }}</td>
+            <td style="font-weight:800;color:#2e7d32">+ {{ moeda(a.valor_bruto) }}</td>
+            <td style="color:{% if a.desconto_taxa > 0 %}#c62828{% else %}#aaa{% endif %}">{% if a.desconto_taxa > 0 %}- {{ moeda(a.desconto_taxa) }}<br><span style="font-size:10px;color:#aaa">{{ "%.2f"|format(a.taxa_pct) }}%</span>{% else %}—{% endif %}</td>
+            <td style="font-weight:800;color:#1565c0">{{ moeda(a.valor_liquido) }}</td>
+            <td>{{ a.usuario_nome or '—' }}</td>
+            <td>{{ a.observacao or '—' }}</td>
+            <td>
+              <div class="aj-acoes">
+                {% if is_admin_user %}
+                <button class="aj-edit" type="button" onclick="abrirEditar({{ a.id }},'{{ a.data_ajuste.strftime('%Y-%m-%d') if a.data_ajuste else hoje }}','{{ a.tipo_ajuste }}',{{ a.descricao|tojson }},{{ (a.forma_pagamento or '')|tojson }},{{ a.valor_bruto }},{{ (a.observacao or '')|tojson }})">Editar</button>
+                {% endif %}
+                {% if pode_excluir %}
+                <form method="POST" action="/ajustes/excluir/{{ a.id }}" onsubmit="return confirm('Excluir este ajuste? Ele também será removido do caixa.')"><button class="aj-del" type="submit">Excluir</button></form>
+                {% endif %}
+                {% if not is_admin_user and not pode_excluir %}<span style="color:#ccc">—</span>{% endif %}
+              </div>
+            </td>
+          </tr>
+        {% else %}<tr><td colspan="10" class="empty-row">Nenhum ajuste financeiro no período.</td></tr>{% endfor %}
         </tbody></table>
       </div>
     </main>
+  </div>
+</div>
+
+<!-- Modal Editar Ajuste -->
+<div id="modalEditar" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,.6);z-index:9999;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:#fff;border-radius:14px;max-width:480px;width:100%;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="font-size:16px;font-weight:800;color:#1a1a2e;margin-bottom:18px">Editar Ajuste Financeiro</div>
+    <form method="POST" id="formEditar" class="aj-form">
+      <div class="aj-field"><label>Data</label><input type="date" name="data_ajuste" id="editData" required></div>
+      <div class="aj-field"><label>Tipo</label><select name="tipo_ajuste" id="editTipo" required>{% for v,l in tipos_ajuste %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+      <div class="aj-field full"><label>Descrição</label><input name="descricao" id="editDescricao" required></div>
+      <div class="aj-field"><label>Forma de pagamento</label><select name="forma_pagamento" id="editForma" required>{% for v,l in formas_pagamento %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+      <div class="aj-field"><label>Valor</label><input name="valor" id="editValor" placeholder="0,00" required></div>
+      <div class="aj-field full"><label>Observação</label><textarea name="observacao" id="editObs" placeholder="Opcional"></textarea></div>
+      <div class="aj-field full" style="display:flex;gap:10px">
+        <button type="submit" class="aj-btn" style="flex:1">Salvar alterações</button>
+        <button type="button" onclick="document.getElementById('modalEditar').style.display='none'" style="flex:1;padding:12px 18px;background:#f4f4f6;border:none;border-radius:9px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;color:#555">Cancelar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -107,6 +147,17 @@ function atalhoAj(tipo){
     fim.value = localISODate(hoje);
   }
   document.getElementById('formFiltroAjustes').submit();
+}
+
+function abrirEditar(id, data, tipo, descricao, forma, valor, obs){
+  document.getElementById('editData').value = data;
+  document.getElementById('editTipo').value = tipo;
+  document.getElementById('editDescricao').value = descricao;
+  document.getElementById('editForma').value = forma;
+  document.getElementById('editValor').value = String(valor).replace('.', ',');
+  document.getElementById('editObs').value = obs || '';
+  document.getElementById('formEditar').action = '/ajustes/' + id + '/editar';
+  document.getElementById('modalEditar').style.display = 'flex';
 }
 </script>
 {% endblock %}

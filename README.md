@@ -1,4 +1,10 @@
-# CD Gestão Empresarial — v117
+# CD Gestão Empresarial — v120
+
+## Novidades da v120 (2026-06-17) — Ajustes: sidebar consistente, edição e valores líquidos
+
+- **Sidebar consistente:** o link **Ajustes** aparece na barra lateral de todas as páginas (entre Caixa e Crediários), eliminando o salto visual ao navegar para a aba Ajustes.
+- **Botão Editar:** administradores N1 e N2 podem corrigir data, tipo, descrição, forma de pagamento, valor e observação de qualquer ajuste financeiro. A entrada no caixa é atualizada junto.
+- **Valor Bruto · Desc. Taxa · Líquido:** a tabela agora mostra o valor lançado (bruto), o desconto da taxa da maquininha (quando aplicável) e o valor líquido que efetivamente entra no caixa.
 
 ## Novidades da v117 (2026-06-16) — Despesas: painel de gráficos simplificado
 - **Dois gráficos apenas:** a aba Despesas exibe somente **Fechamento do mês · Pagas × A pagar** e **Despesa fixa × avulsa**, lado a lado em colunas iguais, sem espaço em branco.

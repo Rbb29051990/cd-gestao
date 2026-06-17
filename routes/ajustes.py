@@ -1,4 +1,4 @@
-"""Rotas de Ajustes Financeiros (V118).
+"""Rotas de Ajustes Financeiros (V120).
 
 Permite lançar entradas avulsas no caixa, principalmente para saldo inicial de
 implantação, ajuste de caixa, recebimento avulso, aporte dos sócios,
@@ -9,7 +9,7 @@ from flask import render_template, request, redirect, url_for, session, flash
 from db import get_db, close_db
 from config import hoje_app
 from auth import login_required, get_ctx, pode_excluir
-from utils import parse_brl, audit_log
+from utils import parse_brl, audit_log, get_taxa_vigente, calcular_liquido
 
 TIPOS_AJUSTE = [
     ('saldo_inicial', 'Saldo Inicial'),
@@ -47,6 +47,23 @@ def _timestamp_do_ajuste(data_ajuste):
     return datetime.combine(data_ajuste, agora)
 
 
+def _enriquecer_liquido(lista):
+    """Calcula valor_bruto, desconto_taxa e valor_liquido para cada ajuste."""
+    taxas_cache = {}
+    for a in lista:
+        data = a.get('data_ajuste')
+        data_key = data.strftime('%Y-%m-%d') if hasattr(data, 'strftime') else str(data or '')
+        if data_key not in taxas_cache:
+            taxas_cache[data_key] = get_taxa_vigente(data)
+        taxa = taxas_cache[data_key]
+        bruto = float(a.get('valor') or 0)
+        liquido, desconto, taxa_pct = calcular_liquido(bruto, a.get('forma_pagamento'), taxa)
+        a['valor_bruto'] = bruto
+        a['desconto_taxa'] = desconto
+        a['valor_liquido'] = liquido
+        a['taxa_pct'] = taxa_pct
+
+
 @login_required
 def ajustes():
     conn = get_db(); cur = conn.cursor()
@@ -75,6 +92,8 @@ def ajustes():
         WHERE DATE(data_ajuste) BETWEEN %s AND %s""", (data_inicio, data_fim))
     totais = dict(cur.fetchone())
     cur.close(); close_db(conn)
+
+    _enriquecer_liquido(lista)
 
     ctx = get_ctx()
     ctx.update(lista=lista, totais=totais, tipos_ajuste=TIPOS_AJUSTE,
@@ -136,6 +155,67 @@ def novo_ajuste():
 
 
 @login_required
+def editar_ajuste(ajuste_id):
+    if session.get('perfil') not in ('admin_n1', 'admin_n2'):
+        flash('Apenas administradores podem editar ajustes financeiros.', 'erro')
+        return redirect(url_for('ajustes'))
+
+    data_ajuste = _parse_iso_date(request.form.get('data_ajuste'), hoje_app())
+    tipo_ajuste = request.form.get('tipo_ajuste') or ''
+    forma_pagamento = request.form.get('forma_pagamento') or ''
+    descricao = (request.form.get('descricao') or '').strip()
+    observacao = (request.form.get('observacao') or '').strip()
+    valor = parse_brl(request.form.get('valor'))
+
+    if tipo_ajuste not in TIPOS_DICT:
+        flash('Tipo de ajuste inválido.', 'erro')
+        return redirect(url_for('ajustes'))
+    if forma_pagamento not in FORMAS_DICT:
+        flash('Forma de pagamento inválida.', 'erro')
+        return redirect(url_for('ajustes'))
+    if valor <= 0:
+        flash('Informe um valor maior que zero.', 'erro')
+        return redirect(url_for('ajustes'))
+    if not descricao:
+        descricao = TIPOS_DICT.get(tipo_ajuste, 'Ajuste financeiro')
+
+    criado_em = _timestamp_do_ajuste(data_ajuste)
+    desc_caixa = f"Ajuste Financeiro - {TIPOS_DICT[tipo_ajuste]}: {descricao}"
+
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute('SELECT * FROM ajustes_financeiros WHERE id=%s', (ajuste_id,))
+        ajuste = cur.fetchone()
+        if not ajuste:
+            flash('Ajuste não encontrado.', 'erro')
+            return redirect(url_for('ajustes'))
+
+        cur.execute("""UPDATE ajustes_financeiros
+            SET data_ajuste=%s, tipo_ajuste=%s, descricao=%s, forma_pagamento=%s,
+                valor=%s, observacao=%s, criado_em=%s
+            WHERE id=%s""",
+            (data_ajuste, tipo_ajuste, descricao, forma_pagamento, valor,
+             observacao or None, criado_em, ajuste_id))
+
+        caixa_id = ajuste.get('caixa_id')
+        if caixa_id:
+            cur.execute("""UPDATE caixa SET descricao=%s, valor=%s, forma_pagamento=%s, criado_em=%s
+                WHERE id=%s""",
+                (desc_caixa, valor, forma_pagamento, criado_em, caixa_id))
+
+        audit_log(cur, 'EDITAR_AJUSTE_FINANCEIRO', 'ajustes_financeiros', ajuste_id,
+                  {'tipo': tipo_ajuste, 'forma': forma_pagamento, 'valor': valor, 'caixa_id': caixa_id})
+        conn.commit()
+        flash('Ajuste financeiro atualizado.', 'sucesso')
+    except Exception as exc:
+        conn.rollback()
+        flash(f'Erro ao atualizar ajuste: {exc}', 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('ajustes'))
+
+
+@login_required
 def excluir_ajuste(ajuste_id):
     if not pode_excluir():
         flash('Apenas Administrador N1 pode excluir ajustes financeiros.', 'erro')
@@ -165,4 +245,5 @@ def excluir_ajuste(ajuste_id):
 def register(app):
     app.add_url_rule('/ajustes', 'ajustes', ajustes)
     app.add_url_rule('/ajustes/novo', 'novo_ajuste', novo_ajuste, methods=['POST'])
+    app.add_url_rule('/ajustes/<int:ajuste_id>/editar', 'editar_ajuste', editar_ajuste, methods=['POST'])
     app.add_url_rule('/ajustes/excluir/<int:ajuste_id>', 'excluir_ajuste', excluir_ajuste, methods=['POST'])

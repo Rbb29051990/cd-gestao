@@ -52,12 +52,16 @@
                      text-transform:uppercase; letter-spacing:.3px;
                      position:sticky; bottom:0; z-index:1; }
 
-/* ── METRIC CARDS 3×2 ── */
-.mg-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(3,1fr); gap:14px; }
+/* ── METRIC CARDS: 3 linhas de 2 + Lucro Líquido full-width (4ª linha) ── */
+.mg-grid { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(4,1fr); gap:12px; }
 .mg-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:13px;
-           padding:16px 18px; box-shadow:0 3px 12px rgba(0,0,0,.05); position:relative;
+           padding:13px 18px; box-shadow:0 3px 12px rgba(0,0,0,.05); position:relative;
            overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;
            text-decoration:none; transition:box-shadow .18s, transform .18s; }
+.mg-card.mg-wide { grid-column:1 / -1; flex-direction:row; align-items:center; justify-content:space-between; }
+.mg-card.mg-wide > div { display:flex; align-items:center; gap:16px; }
+.mg-card.mg-wide .mg-top { margin-bottom:0; }
+.mg-card.mg-wide .mg-sub { margin-top:0; }
 .mg-card:hover { box-shadow:0 8px 26px rgba(0,0,0,.1); transform:translateY(-2px); }
 .mg-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:13px 13px 0 0; }
 .mg-card.c-azul::before    { background:#1565c0; }
@@ -246,12 +250,12 @@
             <div class="mg-link">Ver despesas →</div>
           </a>
 
-          <div class="mg-card c-ouro">
+          <div class="mg-card c-ouro mg-wide">
             <div>
               <div class="mg-top"><span class="mg-icon">🏆</span><span class="mg-label">Lucro líquido</span></div>
-              <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}">{{ brl(lucro_liquido) }}</div>
               <div class="mg-sub">Entradas líquidas − despesas</div>
             </div>
+            <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}">{{ brl(lucro_liquido) }}</div>
           </div>
 
         </div><!-- /mg-grid -->

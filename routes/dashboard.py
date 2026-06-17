@@ -51,41 +51,43 @@ def dashboard_view():
         try: conn.rollback()
         except Exception: pass
 
-    # ── 1. Resultado do período: receita bruta/líquida e desconto de taxas ──
-    receita_bruta = receita_liquida = desconto_taxas = 0.0
+    # ── 1. Resultado do período (PIZZA): entradas líquidas × despesas ──
+    # "Entradas líquidas" = entradas do caixa menos a taxa do cartão (mesma base
+    # do saldo_bruto da aba Caixa). A origem é detalhada por forma de pagamento.
+    FORMA_LABEL = {'dinheiro': 'Dinheiro', 'pix': 'PIX', 'debito': 'Débito',
+                   'credito_vista': 'Crédito à vista', 'credito_parcelado': 'Crédito parcelado',
+                   'link': 'Link', 'transferencia': 'Transferência', 'crediario': 'Crediário',
+                   'outros': 'Outros'}
+    FORMA_COR = {'dinheiro': '#2e7d32', 'pix': '#00838f', 'debito': '#1565c0',
+                 'credito_vista': '#5e35b1', 'credito_parcelado': '#6a1b9a',
+                 'link': '#f9a825', 'transferencia': '#0277bd', 'crediario': '#c0396b',
+                 'outros': '#90a4ae'}
+    entradas_liquidas = 0.0
+    por_forma = {}
     try:
-        cur.execute("""SELECT forma_pagamento, valor_total, criado_em FROM vendas
-                       WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
+        cur.execute("""SELECT forma_pagamento, valor, criado_em FROM caixa
+                       WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
         taxa_cache = {}
         for r in cur.fetchall():
-            bruto = float(r['valor_total'] or 0)
-            receita_bruta += bruto
-            f = r['forma_pagamento'] or ''
+            bruto = float(r['valor'] or 0)
+            f = r['forma_pagamento'] or 'outros'
             if f in FORMAS_COM_TAXA:
                 d = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
                 key = d.isoformat()
                 if key not in taxa_cache:
                     taxa_cache[key] = get_taxa_vigente(d)
-                liq, desc, _pct = calcular_liquido(bruto, f, taxa_cache[key])
-                receita_liquida += liq; desconto_taxas += desc
+                liq, _desc, _pct = calcular_liquido(bruto, f, taxa_cache[key])
             else:
-                receita_liquida += bruto
+                liq = bruto
+            entradas_liquidas += liq
+            por_forma[f] = por_forma.get(f, 0.0) + liq
     except Exception:
         rollback()
-    receita_bruta = round(receita_bruta, 2)
-    receita_liquida = round(receita_liquida, 2)
-    desconto_taxas = round(desconto_taxas, 2)
-
-    # CMV — custo dos produtos vendidos (custo atual do estoque × qtd vendida)
-    cmv = 0.0
-    try:
-        cur.execute("""SELECT COALESCE(SUM(vi.quantidade*COALESCE(e.custo_unitario,0)),0) AS cmv
-                       FROM venda_itens vi JOIN vendas v ON v.id=vi.venda_id
-                       LEFT JOIN estoque e ON e.id=vi.produto_id
-                       WHERE DATE(v.criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
-        cmv = round(float(cur.fetchone()['cmv'] or 0), 2)
-    except Exception:
-        rollback()
+    entradas_liquidas = round(entradas_liquidas, 2)
+    entradas_origem = [{'label': FORMA_LABEL.get(f, f.title()), 'valor': round(v, 2),
+                        'cor': FORMA_COR.get(f, '#90a4ae')}
+                       for f, v in sorted(por_forma.items(), key=lambda kv: kv[1], reverse=True)
+                       if round(v, 2) != 0]
 
     # Despesas do período por vencimento (fixa + avulsa) — mesmo critério das demais abas
     despesas_fixas = despesas_avulsas = 0.0
@@ -99,18 +101,31 @@ def dashboard_view():
             else: despesas_avulsas += float(r['t'])
     except Exception:
         rollback()
+    despesas_fixas = round(despesas_fixas, 2)
+    despesas_avulsas = round(despesas_avulsas, 2)
     despesas_total = round(despesas_fixas + despesas_avulsas, 2)
 
-    lucro_bruto = round(receita_liquida - cmv, 2)
-    lucro_liquido = round(lucro_bruto - despesas_total, 2)
-    margem_pct = round(lucro_liquido / receita_bruta * 100, 1) if receita_bruta else 0
-    res_base = receita_bruta or 1
+    lucro_liquido = round(entradas_liquidas - despesas_total, 2)
+    margem_pct = round(lucro_liquido / entradas_liquidas * 100, 1) if entradas_liquidas else 0
+
+    # Pizza com 3 fatias: entradas líquidas, despesas fixas, despesas avulsas
+    pie_segments = [
+        {'label': 'Entradas líquidas', 'valor': entradas_liquidas, 'cor': '#2e7d32'},
+        {'label': 'Despesas fixas', 'valor': despesas_fixas, 'cor': '#e65100'},
+        {'label': 'Despesas avulsas', 'valor': despesas_avulsas, 'cor': '#c62828'},
+    ]
+    pie_base = sum(s['valor'] for s in pie_segments) or 1
+    ang = 0.0; stops = []
+    for s in pie_segments:
+        s['pct'] = round(s['valor'] / pie_base * 100, 1)
+        ini = round(ang, 2); ang += s['valor'] / pie_base * 360; fim = round(ang, 2)
+        stops.append(f"{s['cor']} {ini}deg {fim}deg")
+    pie_conic = ('conic-gradient(' + ', '.join(stops) + ')') if pie_base > 1 else 'conic-gradient(#eee 0deg 360deg)'
+
     resultado = {
-        'receita_bruta': receita_bruta, 'desconto_taxas': desconto_taxas,
-        'receita_liquida': receita_liquida, 'cmv': cmv,
-        'lucro_bruto': lucro_bruto, 'despesas': despesas_total,
-        'despesas_fixas': round(despesas_fixas, 2), 'despesas_avulsas': round(despesas_avulsas, 2),
-        'lucro_liquido': lucro_liquido, 'margem_pct': margem_pct,
+        'entradas_liquidas': entradas_liquidas,
+        'despesas_fixas': despesas_fixas, 'despesas_avulsas': despesas_avulsas,
+        'despesas': despesas_total, 'lucro_liquido': lucro_liquido, 'margem_pct': margem_pct,
     }
 
     # ── 2. Tendência dos últimos 6 meses (faturamento × lucro aprox.) ──
@@ -344,7 +359,7 @@ def dashboard_view():
 
     # ── Cartões de insight automáticos ──
     insights = []
-    if receita_bruta > 0:
+    if entradas_liquidas > 0 or despesas_total > 0:
         insights.append({'ic': '💡', 'tom': 'bom' if lucro_liquido >= 0 else 'ruim',
                          'tx': f"Lucro líquido do período: {_brl(lucro_liquido)} (margem {margem_pct}%)."})
     if len(tendencia) >= 2 and tendencia[-2]['fat'] > 0:
@@ -377,7 +392,8 @@ def dashboard_view():
         data_inicio=data_inicio, data_fim=data_fim, periodo_label=periodo_label,
         hoje=hoje.strftime('%A, %d de %B de %Y').capitalize(),
         mes_atual=hoje.strftime('%B / %Y').capitalize(),
-        resultado=resultado, res_base=res_base,
+        resultado=resultado, entradas_origem=entradas_origem,
+        pie_segments=pie_segments, pie_conic=pie_conic,
         tendencia=tendencia, fat_max_trend=fat_max_trend,
         fluxo=fluxo, fluxo_pts=fluxo_pts, fluxo_zero_y=fluxo_zero_y,
         top_produtos=top_produtos, rec_max=rec_max,

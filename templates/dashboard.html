@@ -1,67 +1,110 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-.dashx{--bg:#f5f7fb;--card:#fff;--bd:#e7edf6;--ink:#0f172a;--mut:#64748b;--mut2:#94a3b8;
-  background:var(--bg);padding:16px 18px 22px;font-family:'Outfit',system-ui,-apple-system,sans-serif;color:var(--ink)}
-.dashx *{box-sizing:border-box}
-.dx-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:14px}
-.dx-title{font-size:22px;font-weight:700;letter-spacing:-.5px;margin:0;color:var(--ink)}
-.dx-sub{font-size:12.5px;color:var(--mut);margin-top:3px;font-weight:500}
-.dx-filter{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
-.dx-filter .fld label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut2);font-weight:800;margin-bottom:4px}
-.dx-filter input{height:36px;border:1px solid var(--bd);border-radius:10px;background:#fff;padding:0 11px;font-size:13px;font-family:inherit;color:var(--ink)}
-.dx-btn{height:36px;border:1px solid var(--bd);border-radius:10px;padding:0 13px;background:#fff;color:#334155;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit}
-.dx-btn:hover{background:#eef2fb}
-.dx-kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:14px}
-.kc{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:12px 13px;display:flex;flex-direction:column;gap:5px;box-shadow:0 1px 2px rgba(15,23,42,.04);min-height:96px}
-.kc-t{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);line-height:1.25}
-.kc-v{font-size:19px;font-weight:800;letter-spacing:-.6px;line-height:1.05;color:var(--ink)}
-.kc-s{font-size:10.5px;color:var(--mut);line-height:1.25;min-height:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kc-f{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:auto}
-.badge{font-size:10px;font-weight:800;border-radius:999px;padding:2px 7px;background:#f1f5f9;color:#64748b}
-.badge.pos{background:#dcfce7;color:#15803d}.badge.neg{background:#fee2e2;color:#b91c1c}.badge.alerta{background:#fef3c7;color:#b45309}
-.health{height:6px;flex:1;background:#eef2f7;border-radius:999px;overflow:hidden}
-.health i{display:block;height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e)}
-.dx-grid{display:grid;grid-template-columns:1fr 1fr .82fr;gap:12px;margin-bottom:12px}
-.dx-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
-.col{display:flex;flex-direction:column;gap:12px}
-.pnl{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:13px 14px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.dx{--bg:#f6f8fb;--card:#fff;--bd:#e9edf4;--ink:#0f172a;--mut:#64748b;--mut2:#94a3b8;
+  background:var(--bg);padding:14px 16px 18px;font-family:'Outfit',system-ui,-apple-system,sans-serif;color:var(--ink)}
+.dx *{box-sizing:border-box}
+.dx-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.dx-brand{display:flex;align-items:center;gap:12px}
+.dx-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#0891b2);display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto}
+.dx-h1{font-size:21px;font-weight:800;letter-spacing:-.5px;line-height:1.05}
+.dx-h2{font-size:12px;color:var(--mut);font-weight:600;margin-top:1px}
+.dx-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dx-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--bd);background:#fff;border-radius:11px;padding:6px 11px;font-size:13px;font-weight:600;color:#334155}
+.dx-pill input{border:0;font-family:inherit;font-size:12.5px;font-weight:600;color:#334155;background:transparent;width:92px;padding:0;outline:none}
+.dx-cmp{display:flex;align-items:center;gap:7px;border:1px solid var(--bd);background:#fff;border-radius:11px;padding:6px 11px;font-size:12px;color:var(--mut)}
+.dx-cmp select{border:0;font-family:inherit;font-size:12.5px;font-weight:700;color:#334155;background:transparent;outline:none}
+.dx-refresh{width:38px;height:38px;border-radius:11px;border:1px solid var(--bd);background:#fff;cursor:pointer;color:#334155;display:flex;align-items:center;justify-content:center}
+.dx-chip{height:30px;border:1px solid var(--bd);border-radius:9px;padding:0 10px;background:#fff;color:#475569;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.dx-chip:hover{background:#eef2fb}
+.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:15px;padding:12px 13px;box-shadow:0 1px 2px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:7px;min-height:120px}
+.kpi-top{display:flex;align-items:center;gap:8px}
+.kpi-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.kpi-ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.kpi-tt{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.2px;color:var(--mut);line-height:1.15}
+.kpi-v{font-size:20px;font-weight:800;letter-spacing:-.6px;line-height:1}
+.kpi-s{font-size:10px;color:var(--mut);line-height:1.3;min-height:12px}
+.kpi-foot{margin-top:auto;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut2);font-weight:600}
+.tri{font-size:9px}.tri.up,.kpi-foot b.up{color:#16a34a}.tri.down,.kpi-foot b.down{color:#dc2626}
+.kpi-foot b{font-weight:800}
+.brk{display:flex;align-items:center;gap:6px;font-size:10px;color:#475569;margin:1px 0}
+.brk .d{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.brk b{margin-left:auto;font-weight:700;color:#334155}
+.hwrap{margin:1px 0 2px}
+.hbar{height:7px;border-radius:999px;background:linear-gradient(90deg,#dc2626,#eab308 50%,#16a34a);position:relative}
+.hbar i{position:absolute;top:-4px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #0f172a;transform:translateX(-50%)}
+.hlbl{font-size:9px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+.row{display:grid;gap:12px;margin-bottom:12px}
+.row.g3a{grid-template-columns:1fr 1fr .82fr}
+.row.g3{grid-template-columns:1fr 1fr 1fr}
+.pnl{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:13px 15px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
 .pnl-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
-.pnl-t{font-size:13px;font-weight:800;letter-spacing:-.2px;color:var(--ink)}
-.pnl-m{font-size:11px;color:var(--mut2);font-weight:700;white-space:nowrap}
-.bars{height:92px;display:flex;align-items:flex-end;gap:5px;padding-top:6px}
+.pnl-t{font-size:12px;font-weight:800;letter-spacing:.1px;text-transform:uppercase;color:#334155}
+.pnl-sel{font-size:10.5px;color:var(--mut);font-weight:700;border:1px solid var(--bd);border-radius:8px;padding:3px 8px}
+.chart{display:flex;gap:8px;height:152px}
+.yax{display:flex;flex-direction:column;justify-content:space-between;font-size:9px;color:var(--mut2);font-weight:700;text-align:right;width:26px;padding:2px 0 16px}
+.plot{flex:1;position:relative}
+.grid{position:absolute;left:0;right:0;top:2px;bottom:16px;display:flex;flex-direction:column;justify-content:space-between}
+.grid span{border-top:1px dashed #eef2f7}
+.cols{position:absolute;inset:2px 0 16px 0;display:flex;align-items:flex-end;gap:4px}
 .bcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
-.bbar{width:62%;border-radius:5px 5px 2px 2px;min-height:3px;background:#2563eb}
-.bbar.liq{background:#16a34a}
-.blbl{font-size:8.5px;color:var(--mut2);margin-top:4px;white-space:nowrap}
-.svgbox{width:100%;height:96px;display:block}
-.lg{display:flex;gap:14px;margin-top:6px;font-size:11px;color:var(--mut);font-weight:700}
-.dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
-.donutflex{display:flex;gap:12px;align-items:center}
-.donut{width:94px;height:94px;border-radius:50%;flex:0 0 auto;position:relative}
-.donut::after{content:'';position:absolute;inset:25px;background:#fff;border-radius:50%}
-.tlist{flex:1;min-width:0}
-.trow{display:flex;align-items:center;gap:8px;font-size:11.5px;margin:6px 0;color:#334155}
-.trow .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.trow .vv{font-weight:800;color:var(--ink)}
-.lrow{display:grid;align-items:center;gap:8px;font-size:11.5px;color:#334155;margin:7px 0}
-.lrow.cat{grid-template-columns:1fr 90px auto}
-.lrow .nmx{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
-.track{height:8px;background:#eef2f7;border-radius:999px;overflow:hidden}
-.track i{display:block;height:100%;border-radius:999px;background:#7c3aed}
-.num{text-align:right;font-weight:800;color:var(--ink);white-space:nowrap}
-.tbl{width:100%;font-size:11.5px;border-collapse:collapse}
-.tbl th{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut2);font-weight:800;text-align:right;padding:0 0 7px;border-bottom:1px solid #eef2f7}
-.tbl th:nth-child(2),.tbl td:nth-child(2){text-align:left}
-.tbl td{padding:6px 0;border-bottom:1px solid #f4f7fb;color:#334155;text-align:right}
-.tbl td.nmc{font-weight:700;color:var(--ink);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bval{font-size:8.5px;font-weight:800;color:#475569;margin-bottom:2px;white-space:nowrap}
+.bar{width:58%;border-radius:4px 4px 0 0;min-height:2px}
+.lplot{position:absolute;inset:2px 0 16px 0}
+.lsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.lpt{position:absolute;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px currentColor;transform:translate(-50%,-50%)}
+.lval{position:absolute;font-size:8px;font-weight:800;transform:translate(-50%,-150%);white-space:nowrap}
+.xlbls{position:absolute;left:0;right:0;bottom:0;height:14px;display:flex;gap:4px}
+.xlbls span{flex:1;text-align:center;font-size:8px;color:var(--mut2);white-space:nowrap}
+.leg{display:flex;gap:16px;justify-content:center;font-size:10.5px;color:var(--mut);font-weight:700;margin-bottom:4px}
+.leg i{width:14px;height:3px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:5px}
+.dn-flex{display:flex;gap:14px;align-items:center}
+.dn{width:118px;height:118px;border-radius:50%;position:relative;flex:0 0 auto}
+.dn::after{content:'';position:absolute;inset:29px;background:#fff;border-radius:50%}
+.dn b{position:absolute;font-size:10px;font-weight:800;color:#fff;transform:translate(-50%,-50%)}
+.dn-leg{flex:1;min-width:0}
+.dn-row{display:grid;grid-template-columns:10px 1fr auto auto;gap:8px;align-items:center;font-size:11px;margin:7px 0;color:#334155}
+.dn-row .d{width:10px;height:10px;border-radius:3px}
+.dn-row .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dn-row .pc{font-weight:800;color:var(--ink)}
+.dn-row .vl{color:var(--mut);font-weight:700}
+.dn-tot{display:flex;align-items:center;gap:8px;border-top:1px solid #eef2f7;margin-top:8px;padding-top:9px;font-size:10px}
+.dn-tot .a{font-weight:800;text-transform:uppercase;color:#334155}
+.dn-tot .b{font-weight:800;color:#f59e0b;font-size:14px}
+.dn-tot .c{color:var(--mut);font-weight:600;margin-left:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.tbl th{font-size:8.5px;text-transform:uppercase;letter-spacing:.2px;color:var(--mut2);font-weight:800;padding:0 5px 8px;border-bottom:1px solid #eef2f7;text-align:right;white-space:nowrap}
+.tbl th.l,.tbl td.l{text-align:left}
+.tbl td{padding:6px 5px;border-bottom:1px solid #f4f7fb;color:#334155;text-align:right;white-space:nowrap;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
 .rk{display:inline-flex;width:19px;height:19px;border-radius:6px;background:#eef2ff;color:#2563eb;font-weight:800;font-size:10px;align-items:center;justify-content:center}
-.dx-ins{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
-.ins{background:var(--card);border:1px solid var(--bd);border-left-width:4px;border-radius:12px;padding:10px 13px;font-size:12px;color:#334155;font-weight:600}
-.ins.bom{border-left-color:#16a34a}.ins.alerta{border-left-color:#f59e0b}.ins.ruim{border-left-color:#dc2626}
-.empty{height:88px;display:grid;place-items:center;color:var(--mut2);font-size:12px;background:#f8fafc;border-radius:12px}
-@media(max-width:1180px){.dx-kpis{grid-template-columns:repeat(4,1fr)}.dx-grid,.dx-row3{grid-template-columns:1fr}}
-@media(max-width:640px){.dx-kpis{grid-template-columns:1fr 1fr}}
+.av{display:inline-flex;align-items:center;gap:8px}
+.av .ini{width:25px;height:25px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-weight:800;font-size:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.nm{font-weight:700;color:var(--ink);max-width:118px;overflow:hidden;text-overflow:ellipsis}
+.minib{display:inline-block;vertical-align:middle;height:6px;border-radius:999px;margin-right:6px}
+.mt{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #eef2f7;margin-top:4px;padding-top:10px;font-size:12px}
+.mt .a{font-weight:800;text-transform:uppercase;font-size:10px;color:#334155}
+.mt .b{font-weight:800;color:#2563eb;background:#eff4ff;padding:4px 12px;border-radius:8px}
+.ag{display:grid;grid-template-columns:13px 92px 1fr auto 46px;gap:9px;align-items:center;font-size:11.5px;margin:10px 0;color:#334155}
+.ag .d{width:9px;height:9px;border-radius:50%}
+.ag .fx{font-weight:600}
+.ag .vl{font-weight:800;color:var(--ink);text-align:right}
+.ag .pc{color:var(--mut);font-weight:700;text-align:right}
+.cap{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fef2f2;border:1px solid #fde0e0;border-radius:12px;padding:11px 15px;margin-top:8px}
+.cap .a{font-size:10px;font-weight:800;text-transform:uppercase;color:#b91c1c;line-height:1.2}
+.cap .r{text-align:right}
+.cap .v{font-size:18px;font-weight:800;color:#dc2626}
+.cap .s{font-size:9.5px;color:#e07a7a;font-weight:700}
+.foot{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.fc{background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:10px 12px;display:flex;gap:9px;align-items:center;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.fc-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.fc-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fc-t{font-size:11px;font-weight:800;color:#334155;line-height:1.15}
+.fc-s{font-size:9.5px;color:var(--mut);line-height:1.25;margin-top:2px}
+.empty{padding:26px;text-align:center;color:var(--mut2);font-size:12px;background:#f8fafc;border-radius:12px}
+@media(max-width:1200px){.kpis{grid-template-columns:repeat(4,1fr)}.row.g3a,.row.g3{grid-template-columns:1fr}.foot{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:640px){.kpis,.foot{grid-template-columns:1fr 1fr}}
 </style>
 
 <div class="dash-wrap">
@@ -74,107 +117,216 @@
   </div>
   <div class="dash-layout">
     {% include "_sidebar.html" %}
-    <main class="main-content dashx">
+    <main class="main-content dx">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
 
-      <div class="dx-head">
-        <div>
-          <h1 class="dx-title">Dashboard executivo</h1>
-          <div class="dx-sub">📅 {{ periodo_label }}</div>
+      <div class="dx-bar">
+        <div class="dx-brand">
+          <div class="dx-logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><rect x="3" y="11" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="17" rx="1"/></svg></div>
+          <div><div class="dx-h1">Dashboard executivo</div><div class="dx-h2">Visão geral do negócio</div></div>
         </div>
-        <form class="dx-filter" method="GET" id="formFiltro">
-          <div class="fld"><label>De</label><input type="date" name="data_inicio" value="{{ data_inicio }}" onchange="this.form.submit()"></div>
-          <div class="fld"><label>Até</label><input type="date" name="data_fim" value="{{ data_fim }}" onchange="this.form.submit()"></div>
-          <button type="button" class="dx-btn" onclick="atalho('hoje')">Hoje</button>
-          <button type="button" class="dx-btn" onclick="atalho('semana')">7 dias</button>
-          <button type="button" class="dx-btn" onclick="atalho('mes')">Mês</button>
+        <form class="dx-tools" method="GET" id="formFiltro">
+          <button type="button" class="dx-chip" onclick="atalho('hoje')">Hoje</button>
+          <button type="button" class="dx-chip" onclick="atalho('semana')">7 dias</button>
+          <button type="button" class="dx-chip" onclick="atalho('mes')">Mês</button>
+          <div class="dx-pill">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></svg>
+            <input type="date" name="data_inicio" value="{{ data_inicio }}" onchange="this.form.submit()">
+            <span style="color:#94a3b8">até</span>
+            <input type="date" name="data_fim" value="{{ data_fim }}" onchange="this.form.submit()">
+          </div>
+          <div class="dx-cmp">Comparar com:<select disabled><option>Mês anterior</option></select></div>
+          <button type="button" class="dx-refresh" title="Atualizar" onclick="location.reload()"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 4v4h-4"/></svg></button>
         </form>
       </div>
 
       <!-- KPIs -->
-      <section class="dx-kpis">
-        {% for k in kpis %}
-        <div class="kc">
-          <div class="kc-t">{{ k.titulo }}</div>
-          <div class="kc-v">{{ k.valor }}</div>
-          <div class="kc-s">{{ k.sub }}</div>
-          <div class="kc-f">
-            {% if k.saude is defined %}<span class="health"><i style="width:{{ k.saude }}%"></i></span>{% else %}<span style="flex:1"></span>{% endif %}
-            {% if k.var %}<span class="badge {{ k.tom }}">{{ k.var }}</span>{% endif %}
+      <section class="kpis">
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-ic" style="background:#e8f0fe;color:#2563eb"><svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h2l2.4 12h11L20 7H6"/></svg></span><span class="kpi-tt">1. Faturamento bruto</span></div>
+          <div class="kpi-v" style="color:#2563eb">{{ kpi.fat_bruto }}</div>
+          <div class="kpi-s">Antes das taxas</div>
+          {% if kpi.d_fat_bruto %}<div class="kpi-foot"><span class="tri {{ kpi.d_fat_bruto.dir }}">{{ '▲' if kpi.d_fat_bruto.dir=='up' else '▼' }}</span><b class="{{ kpi.d_fat_bruto.cls }}">{{ kpi.d_fat_bruto.txt }}</b><span>vs mês anterior</span></div>{% endif %}
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-ic" style="background:#fff1e2;color:#ea580c"><svg viewBox="0 0 24 24"><path d="M19 5 5 19"/><circle cx="7.5" cy="7.5" r="2.2"/><circle cx="16.5" cy="16.5" r="2.2"/></svg></span><span class="kpi-tt">2. Total de taxas</span></div>
+          <div class="kpi-v" style="color:#ea580c">{{ kpi.taxas }}</div>
+          <div class="kpi-s">{{ kpi.taxa_pct }}</div>
+          {% if kpi.d_taxas %}<div class="kpi-foot"><span class="tri {{ kpi.d_taxas.dir }}">{{ '▲' if kpi.d_taxas.dir=='up' else '▼' }}</span><b class="{{ kpi.d_taxas.cls }}">{{ kpi.d_taxas.txt }}</b><span>vs mês anterior</span></div>{% endif %}
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-ic" style="background:#e3f7ec;color:#16a34a"><svg viewBox="0 0 24 24"><path d="M12 2v20M16 6.5H10a3 3 0 0 0 0 6h4a3 3 0 0 1 0 6H8"/></svg></span><span class="kpi-tt">3. Faturamento líquido</span></div>
+          <div class="kpi-v" style="color:#16a34a">{{ kpi.fat_liquido }}</div>
+          <div class="kpi-s">Após as taxas</div>
+          {% if kpi.d_fat_liquido %}<div class="kpi-foot"><span class="tri {{ kpi.d_fat_liquido.dir }}">{{ '▲' if kpi.d_fat_liquido.dir=='up' else '▼' }}</span><b class="{{ kpi.d_fat_liquido.cls }}">{{ kpi.d_fat_liquido.txt }}</b><span>vs mês anterior</span></div>{% endif %}
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-ic" style="background:#fdeaec;color:#dc2626"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h3"/></svg></span><span class="kpi-tt">4. Total de despesas</span></div>
+          <div class="kpi-v" style="color:#dc2626">{{ kpi.despesas }}</div>
+          <div class="brk"><span class="d" style="background:#2563eb"></span>Fixas<b>{{ kpi.desp_fixas }}</b></div>
+          <div class="brk"><span class="d" style="background:#dc2626"></span>Avulsas<b>{{ kpi.desp_avulsas }}</b></div>
+          {% if kpi.d_despesas %}<div class="kpi-foot"><span class="tri {{ kpi.d_despesas.dir }}">{{ '▲' if kpi.d_despesas.dir=='up' else '▼' }}</span><b class="{{ kpi.d_despesas.cls }}">{{ kpi.d_despesas.txt }}</b><span>vs mês anterior</span></div>{% endif %}
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-ic" style="background:#e6f6f4;color:#0d9488"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-3 3 2 5-6"/></svg></span><span class="kpi-tt">5. Lucro líquido</span></div>
+          <div class="kpi-v" style="color:#2563eb">{{ kpi.lucro }}</div>
+          <div class="kpi-s">Líquido − despesas</div>
+          {% if kpi.d_lucro %}<div class="kpi-foot"><span class="tri {{ kpi.d_lucro.dir }}">{{ '▲' if kpi.d_lucro.dir=='up' else '▼' }}</span><b class="{{ kpi.d_lucro.cls }}">{{ kpi.d_lucro.txt }}</b><span>vs mês anterior</span></div>{% endif %}
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-ic" style="background:#e6f6f4;color:#0d9488"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span><span class="kpi-tt">6. Margem líquida</span></div>
+          <div class="kpi-v" style="color:#16a34a">{{ kpi.margem }}</div>
+          <div class="hwrap">
+            <div class="kpi-s" style="margin-bottom:3px">Saúde financeira</div>
+            <div class="hbar"><i style="left:{{ kpi.saude_pos }}%"></i></div>
+            <div class="hlbl">{{ kpi.saude_label }}</div>
           </div>
+          {% if kpi.d_margem %}<div class="kpi-foot"><span class="tri {{ kpi.d_margem.dir }}">{{ '▲' if kpi.d_margem.dir=='up' else '▼' }}</span><b class="{{ kpi.d_margem.cls }}">{{ kpi.d_margem.txt }}</b><span>vs mês anterior</span></div>{% endif %}
+        </div>
+
+        <div class="kpi">
+          <div class="kpi-top"><span class="kpi-ic" style="background:#fff1e2;color:#ea580c"><svg viewBox="0 0 24 24"><path d="M20.5 12.5 12 21l-8-8V4h8z"/><circle cx="8" cy="8" r="1.4"/></svg></span><span class="kpi-tt">7. Ticket médio</span></div>
+          <div class="kpi-v" style="color:#ea580c">{{ kpi.ticket }}</div>
+          <div class="kpi-s">{{ kpi.qtd_vendas }} vendas realizadas</div>
+          {% if kpi.d_ticket %}<div class="kpi-foot"><span class="tri {{ kpi.d_ticket.dir }}">{{ '▲' if kpi.d_ticket.dir=='up' else '▼' }}</span><b class="{{ kpi.d_ticket.cls }}">{{ kpi.d_ticket.txt }}</b><span>vs mês anterior</span></div>{% endif %}
+        </div>
+      </section>
+
+      <!-- Linha 2: faturamento bruto · despesas · taxas -->
+      <section class="row g3a">
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Faturamento bruto</div><div class="pnl-sel">12 meses</div></div>
+          {% if trend %}<div class="chart">
+            <div class="yax">{% for tk in eixo_fat_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
+            <div class="plot">
+              <div class="grid">{% for _ in eixo_fat_ticks %}<span></span>{% endfor %}</div>
+              <div class="cols">{% for t in trend %}<div class="bcol"><span class="bval">{{ t.bruto_k }}</span><div class="bar" style="height:{{ t.bruto_h }}%;background:#2563eb"></div></div>{% endfor %}</div>
+              <div class="xlbls">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+            </div>
+          </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
+        </div>
+
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Evolução das despesas</div><div class="pnl-sel">12 meses</div></div>
+          <div class="leg"><span><i style="background:#2563eb"></i>Despesas fixas</span><span><i style="background:#dc2626"></i>Despesas avulsas</span></div>
+          {% if trend %}<div class="chart">
+            <div class="yax">{% for tk in eixo_desp_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
+            <div class="plot">
+              <div class="grid">{% for _ in eixo_desp_ticks %}<span></span>{% endfor %}</div>
+              <div class="lplot">
+                <svg class="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="{{ fix_poly }}" fill="none" stroke="#2563eb" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/><polyline points="{{ avul_poly }}" fill="none" stroke="#dc2626" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% for t in trend %}<i class="lpt" style="left:{{ t.xp }}%;top:{{ t.fixas_yp }}%;color:#2563eb"></i><i class="lpt" style="left:{{ t.xp }}%;top:{{ t.avulsas_yp }}%;color:#dc2626"></i>{% endfor %}
+                {% for t in trend %}{% if loop.index is odd %}<span class="lval" style="left:{{ t.xp }}%;top:{{ t.fixas_yp }}%;color:#1d4ed8">{{ t.fixas_k }}</span>{% endif %}{% endfor %}
+              </div>
+              <div class="xlbls">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+            </div>
+          </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
+        </div>
+
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Taxas por forma de pagamento</div></div>
+          <div class="dn-flex">
+            <div class="dn" style="background:{{ taxas_conic }}">{% for l in donut_labels %}<b style="left:{{ l.x }}%;top:{{ l.y }}%">{{ l.pct }}</b>{% endfor %}</div>
+            <div class="dn-leg">{% for t in taxas_formas[:5] %}<div class="dn-row"><span class="d" style="background:{{ t.cor }}"></span><span class="nm">{{ t.label }}</span><span class="pc">{{ t.pct }}%</span><span class="vl">{{ brl(t.valor) }}</span></div>{% endfor %}</div>
+          </div>
+          <div class="dn-tot"><span class="a">Total de taxas</span><span class="b">{{ taxas_total }}</span><span class="c">{{ taxa_pct_fat }}</span></div>
+        </div>
+      </section>
+
+      <!-- Linha 3: faturamento líquido · lucro · top categorias -->
+      <section class="row g3a">
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Faturamento líquido</div><div class="pnl-sel">12 meses</div></div>
+          {% if trend %}<div class="chart">
+            <div class="yax">{% for tk in eixo_fat_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
+            <div class="plot">
+              <div class="grid">{% for _ in eixo_fat_ticks %}<span></span>{% endfor %}</div>
+              <div class="cols">{% for t in trend %}<div class="bcol"><span class="bval">{{ t.liquido_k }}</span><div class="bar" style="height:{{ t.liquido_h }}%;background:#16a34a"></div></div>{% endfor %}</div>
+              <div class="xlbls">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+            </div>
+          </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
+        </div>
+
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Evolução do lucro líquido</div><div class="pnl-sel">12 meses</div></div>
+          {% if trend %}<div class="chart">
+            <div class="yax">{% for tk in eixo_lucro_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
+            <div class="plot">
+              <div class="grid">{% for _ in eixo_lucro_ticks %}<span></span>{% endfor %}</div>
+              <div class="lplot">
+                <svg class="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="0" y1="{{ lucro_zero_yp }}" x2="100" y2="{{ lucro_zero_yp }}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/><polyline points="{{ lucro_poly }}" fill="none" stroke="#16a34a" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                {% for t in trend %}<i class="lpt" style="left:{{ t.xp }}%;top:{{ t.lucro_yp }}%;color:{{ '#dc2626' if t.lucro < 0 else '#16a34a' }}"></i>{% endfor %}
+                {% for t in trend %}{% if loop.index is odd %}<span class="lval" style="left:{{ t.xp }}%;top:{{ t.lucro_yp }}%;color:{{ '#dc2626' if t.lucro < 0 else '#15803d' }}">{{ t.lucro_k }}</span>{% endif %}{% endfor %}
+              </div>
+              <div class="xlbls">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+            </div>
+          </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
+        </div>
+
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Top 5 categorias</div></div>
+          {% if top_categorias %}<table class="tbl no-sort">
+            <thead><tr><th class="l">#</th><th class="l">Categoria</th><th class="l">Valor líquido (R$)</th><th>% do fat.</th></tr></thead>
+            <tbody>{% for c in top_categorias %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.categoria }}</td><td class="l"><span class="minib" style="width:{{ (c.bar*0.5)|round }}px;background:#2563eb"></span>{{ brl(c.receita) }}</td><td>{{ c.pct_fat }}%</td></tr>{% endfor %}</tbody>
+          </table>
+          <div class="mt"><span class="a">Total</span><span class="b">{{ brl(cat_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
+        </div>
+      </section>
+
+      <!-- Linha 4: vendedoras · estoque parado · clientes -->
+      <section class="row g3">
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Ranking de vendedoras</div><div class="pnl-sel">venda líquida</div></div>
+          {% if vendedoras %}<table class="tbl no-sort">
+            <thead><tr><th class="l">#</th><th class="l">Vendedora</th><th>Venda líq.</th><th>Qtd</th><th>Ticket</th><th>Cli.</th></tr></thead>
+            <tbody>{% for v in vendedoras %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l"><span class="av"><span class="ini">{{ v.ini }}</span><span class="nm">{{ v.nome }}</span></span></td><td>{{ brl(v.liquido) }}</td><td>{{ v.vendas }}</td><td>{{ brl(v.ticket) }}</td><td>{{ v.clientes }}</td></tr>{% endfor %}</tbody>
+          </table>
+          <div class="mt"><span class="a">Total venda líquida</span><span class="b">{{ brl(vend_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
+        </div>
+
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Estoque parado</div><div class="pnl-sel">por tempo</div></div>
+          {% if aging %}{% for a in aging %}<div class="ag"><span class="d" style="background:{{ a.cor }}"></span><span class="fx">{{ a.faixa }}</span><span style="color:#94a3b8;font-size:10px">{{ a.pecas }} pç</span><span class="vl">{{ brl(a.valor) }}</span><span class="pc">{{ a.pct }}%</span></div>{% endfor %}
+          <div class="cap"><div><div class="a">Capital parado<br>+60 dias</div></div><div class="r"><div class="v">{{ brl(estoque_parado_60) }}</div><div class="s">{{ estoque_parado_60_pct }}% do estoque total</div></div></div>{% else %}<div class="empty">Sem estoque.</div>{% endif %}
+        </div>
+
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Top 5 clientes</div><div class="pnl-sel">valor líquido</div></div>
+          {% if top_clientes %}<table class="tbl no-sort">
+            <thead><tr><th class="l">#</th><th class="l">Cliente</th><th>Valor líq.</th><th>Peças</th><th>Última</th></tr></thead>
+            <tbody>{% for c in top_clientes %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td><span class="minib" style="width:{{ (c.bar*0.4)|round }}px;background:#2563eb"></span>{{ brl(c.liquido) }}</td><td>{{ c.pecas }}</td><td style="color:#94a3b8">{{ c.ultima_fmt }}</td></tr>{% endfor %}</tbody>
+          </table>
+          <div class="mt"><span class="a">Total valor líquido</span><span class="b">{{ brl(cli_total) }}</span></div>{% else %}<div class="empty">Sem clientes no período.</div>{% endif %}
+        </div>
+      </section>
+
+      <!-- Rodapé: alertas inteligentes -->
+      <section class="foot">
+        {% for i in insights %}
+        <div class="fc">
+          <span class="fc-ic" style="background:{{ '#e3f7ec' if i.cls=='bom' else '#fff4e2' }};color:{{ '#16a34a' if i.cls=='bom' else '#d97706' }}">
+            {% if i.icon=='fat' %}<svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 14l3-3 3 2 5-6"/></svg>
+            {% elif i.icon=='lucro' %}<svg viewBox="0 0 24 24"><path d="M12 2v20M16 6.5H10a3 3 0 0 0 0 6h4a3 3 0 0 1 0 6H8"/></svg>
+            {% elif i.icon=='ticket' %}<svg viewBox="0 0 24 24"><path d="M20.5 12.5 12 21l-8-8V4h8z"/><circle cx="8" cy="8" r="1.4"/></svg>
+            {% else %}<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 19c0-3 2.7-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.4"/></svg>{% endif %}
+          </span>
+          <div><div class="fc-t">{{ i.titulo }}</div><div class="fc-s">{{ i.txt }}</div></div>
         </div>
         {% endfor %}
-      </section>
-
-      <!-- Gráficos -->
-      <section class="dx-grid">
-        <div class="col">
-          <div class="pnl">
-            <div class="pnl-h"><div class="pnl-t">Faturamento bruto · 12 meses</div><div class="pnl-m">{{ brl(resultado.faturamento_bruto) }}</div></div>
-            {% if trend %}<div class="bars">{% for t in trend %}<div class="bcol" title="{{ t.label }} · {{ brl(t.bruto) }}"><div class="bbar" style="height:{{ t.bruto_h }}%"></div><div class="blbl">{{ t.label }}</div></div>{% endfor %}</div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
-          </div>
-          <div class="pnl">
-            <div class="pnl-h"><div class="pnl-t">Faturamento líquido · 12 meses</div><div class="pnl-m">após taxas</div></div>
-            {% if trend %}<div class="bars">{% for t in trend %}<div class="bcol" title="{{ t.label }} · {{ brl(t.liquido) }}"><div class="bbar liq" style="height:{{ t.liquido_h }}%"></div><div class="blbl">{{ t.label }}</div></div>{% endfor %}</div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
-          </div>
+        <div class="fc">
+          <span class="fc-ic" style="background:{{ '#e3f7ec' if todos_subindo else '#eef2fb' }};color:{{ '#16a34a' if todos_subindo else '#2563eb' }}"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 14l3-3 3 2 5-6"/></svg></span>
+          <div><div class="fc-t">Resumo</div><div class="fc-s">{{ insights_resumo }}</div></div>
         </div>
-
-        <div class="col">
-          <div class="pnl">
-            <div class="pnl-h"><div class="pnl-t">Despesas fixas × avulsas</div><div class="pnl-m">{{ brl(resultado.despesas) }}</div></div>
-            {% if trend %}<svg class="svgbox" viewBox="0 0 300 104" preserveAspectRatio="none">
-              <line x1="24" y1="91" x2="276" y2="91" stroke="#eef2f7"/>
-              <polyline points="{{ fix_poly }}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <polyline points="{{ avul_poly }}" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              {% for t in trend %}<circle cx="{{ t.x }}" cy="{{ t.fixas_y }}" r="2.6" fill="#2563eb"><title>{{ t.label }} fixas: {{ brl(t.fixas) }}</title></circle><circle cx="{{ t.x }}" cy="{{ t.avulsas_y }}" r="2.6" fill="#dc2626"><title>{{ t.label }} avulsas: {{ brl(t.avulsas) }}</title></circle>{% endfor %}
-            </svg><div class="lg"><span><i class="dot" style="background:#2563eb"></i>Fixas</span><span><i class="dot" style="background:#dc2626"></i>Avulsas</span></div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
-          </div>
-          <div class="pnl">
-            <div class="pnl-h"><div class="pnl-t">Evolução do lucro líquido</div><div class="pnl-m">{{ brl(resultado.lucro_liquido) }}</div></div>
-            {% if trend %}<svg class="svgbox" viewBox="0 0 300 104" preserveAspectRatio="none">
-              <line x1="24" y1="52" x2="276" y2="52" stroke="#e5e7eb" stroke-dasharray="4 3"/>
-              <polyline points="{{ lucro_poly }}" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              {% for t in trend %}<circle cx="{{ t.x }}" cy="{{ t.lucro_y }}" r="2.8" fill="{{ '#dc2626' if t.lucro < 0 else '#16a34a' }}"><title>{{ t.label }} lucro: {{ brl(t.lucro) }}</title></circle>{% endfor %}
-            </svg>{% else %}<div class="empty">Sem dados.</div>{% endif %}
-          </div>
-        </div>
-
-        <div class="col">
-          <div class="pnl">
-            <div class="pnl-h"><div class="pnl-t">Taxas por forma</div><div class="pnl-m">{{ brl(resultado.taxas_total) }}</div></div>
-            <div class="donutflex">
-              <div class="donut" style="background:{{ taxas_conic }}"></div>
-              <div class="tlist">{% for t in taxas_formas[:5] %}<div class="trow"><span class="dot" style="background:{{ t.cor }}"></span><span class="nm">{{ t.label }}</span><span class="vv">{{ t.pct }}%</span></div>{% endfor %}</div>
-            </div>
-          </div>
-          <div class="pnl">
-            <div class="pnl-h"><div class="pnl-t">Top 5 categorias</div><div class="pnl-m">mais vendidas</div></div>
-            {% if top_categorias %}{% for c in top_categorias %}<div class="lrow cat"><span class="nmx">{{ c.categoria }}</span><span class="track"><i style="width:{{ c.pct }}%"></i></span><span class="num">{{ brl(c.receita) }}</span></div>{% endfor %}{% else %}<div class="empty">Sem vendas.</div>{% endif %}
-          </div>
+        <div class="fc">
+          <span class="fc-ic" style="background:#eef2f7;color:#64748b"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16.5" r=".6" fill="currentColor"/></svg></span>
+          <div><div class="fc-t">Dados atualizados</div><div class="fc-s">{{ atualizado }}</div></div>
         </div>
       </section>
-
-      <!-- Rankings -->
-      <section class="dx-row3">
-        <div class="pnl">
-          <div class="pnl-h"><div class="pnl-t">Ranking de vendedoras</div><div class="pnl-m">venda líquida</div></div>
-          {% if vendedoras %}<table class="tbl no-sort"><thead><tr><th>#</th><th>Vendedora</th><th>Líquido</th><th>Peças</th><th>Ticket</th></tr></thead><tbody>
-          {% for v in vendedoras %}<tr><td><span class="rk">{{ loop.index }}</span></td><td class="nmc">{{ v.nome }}</td><td class="num">{{ brl(v.liquido) }}</td><td>{{ v.pecas }}</td><td class="num">{{ brl(v.ticket) }}</td></tr>{% endfor %}
-          </tbody></table>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
-        </div>
-        <div class="pnl">
-          <div class="pnl-h"><div class="pnl-t">Estoque parado</div><div class="pnl-m">+60 dias: {{ brl(estoque_parado_60) }}</div></div>
-          {% if aging %}{% for a in aging %}<div class="lrow" style="grid-template-columns:78px 1fr auto auto"><span class="nmx">{{ a.faixa }}</span><span class="track"><i style="width:{{ (a.valor / aging_max * 100)|round(1) }}%;background:{{ a.cor }}"></i></span><span class="num">{{ brl(a.valor) }}</span><span class="num" style="color:#94a3b8">{{ a.pecas }}pç</span></div>{% endfor %}{% else %}<div class="empty">Sem estoque.</div>{% endif %}
-        </div>
-        <div class="pnl">
-          <div class="pnl-h"><div class="pnl-t">Top 5 clientes</div><div class="pnl-m">valor líquido</div></div>
-          {% if top_clientes %}<table class="tbl no-sort"><thead><tr><th style="text-align:left">Cliente</th><th>Líquido</th><th>Peças</th><th>Última</th></tr></thead><tbody>
-          {% for c in top_clientes %}<tr><td class="nmc" style="text-align:left">{{ c.nome }}</td><td class="num">{{ brl(c.liquido) }}</td><td>{{ c.pecas }}</td><td class="num" style="color:#94a3b8">{{ c.ultima_fmt }}</td></tr>{% endfor %}
-          </tbody></table>{% else %}<div class="empty">Sem clientes no período.</div>{% endif %}
-        </div>
-      </section>
-
-      {% if insights %}<section class="dx-ins">{% for i in insights[:5] %}<div class="ins {{ i.tom }}">{{ i.tx }}</div>{% endfor %}</section>{% endif %}
     </main>
   </div>
 </div>

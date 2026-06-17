@@ -2,6 +2,7 @@
 
 ## Novidades da v121 (2026-06-17) — Visão Geral: 8 quadrantes compactos e despesas fixa × avulsa
 
+- **Menu lateral unificado:** o menu agora vem de um único arquivo compartilhado (`templates/_sidebar.html`) usado por todas as telas. Isso elimina o bug em que os ícones de algumas abas mudavam ao navegar — antes cada página tinha sua própria cópia do menu com ícones ligeiramente diferentes. O item ativo é destacado automaticamente pela URL.
 - **Período do mês em todas as abas:** os filtros de data de **todas** as telas (Visão Geral, Vendas, Caixa, Ajustes, Crediários, Condicional e Despesas) agora abrem pré-preenchidos do **1º ao último dia do mês corrente**, em vez de terminar no dia de hoje.
 - **Mobile/tablet da Visão Geral:** o layout de altura fixa passou a valer apenas no desktop; no celular e no tablet a tela flui naturalmente como as demais, sem destoar.
 

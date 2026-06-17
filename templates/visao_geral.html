@@ -3,15 +3,21 @@
 {% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
 <style>
 /*
-  ESTRATÉGIA: não toca no .dash-layout (grid 220px 1fr) nem no .sidebar.
-  Apenas faz o dash-wrap ocupar 100vh e propaga a altura para main-content.
+  LAYOUT DE ALTURA FIXA = SÓ DESKTOP (≥901px): trava o dash-wrap em 100vh e
+  usa 2 colunas (tabela à esquerda, 8 quadrantes à direita).
+  No celular/tablet (≤900px) NADA disso se aplica — a tela flui naturalmente
+  como todas as outras páginas, sem depender de regras !important no main.css.
 */
-.vg-wrap                { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
-.vg-wrap .dash-layout   { flex:1; min-height:0; overflow:hidden; }
-.vg-wrap .main-content  { height:100%; overflow:hidden; display:flex; flex-direction:column;
-                           padding:18px 26px 14px; box-sizing:border-box; }
-.vg-body                { flex:1; min-height:0; display:grid;
-                           grid-template-columns:1.15fr 1fr; gap:18px; align-items:start; }
+.vg-body { display:flex; flex-direction:column; gap:14px; }
+
+@media (min-width: 901px) {
+  .vg-wrap                { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  .vg-wrap .dash-layout   { flex:1; min-height:0; overflow:hidden; }
+  .vg-wrap .main-content  { height:100%; overflow:hidden; display:flex; flex-direction:column;
+                            padding:18px 26px 14px; box-sizing:border-box; }
+  .vg-body                { flex:1; min-height:0; display:grid;
+                            grid-template-columns:1.15fr 1fr; gap:18px; align-items:start; }
+}
 
 /* ── CONTROLE DE ENTRADAS ── */
 .ce-card { background:#fff; border:1.5px solid var(--cor-borda); border-radius:13px;

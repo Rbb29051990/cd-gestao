@@ -1,4 +1,4 @@
-"""Dashboard Executivo V129 — layout moderno em uma página só (estende base.html).
+"""Dashboard Executivo V130 — layout moderno em uma página só (estende base.html).
 
 Estrutura:
   • Cabeçalho com período e comparação
@@ -24,13 +24,14 @@ FORMA_LABEL = {
     'link': 'Link', 'transferencia': 'Transferência', 'crediario': 'Crediário', 'outros': 'Outros'
 }
 FORMA_COR = {
-    # Paleta V128: formas de pagamento visualmente distintas
-    'credito_parcelado': '#2563eb',  # azul
-    'credito_vista': '#7c3aed',      # roxo
+    # Paleta V130 (definida pelo cliente): cores por forma de pagamento
+    'credito_parcelado': '#dc2626',  # vermelho
+    'credito_vista': '#eab308',      # amarelo
     'debito': '#16a34a',             # verde
-    'pix': '#f97316',                # laranja
-    'dinheiro': '#eab308',           # amarelo/ouro
-    'link': '#0891b2', 'transferencia': '#0284c7', 'crediario': '#db2777', 'outros': '#94a3b8'
+    'link': '#2563eb',               # azul
+    'pix': '#f97316',                # laranja (não citado pelo cliente)
+    'dinheiro': '#a855f7',           # roxo (não citado pelo cliente)
+    'transferencia': '#0284c7', 'crediario': '#db2777', 'outros': '#94a3b8'
 }
 PALETA = ['#2563eb', '#16a34a', '#7c3aed', '#f59e0b', '#db2777', '#0891b2', '#64748b']
 
@@ -44,6 +45,12 @@ def _kbrl(v):
     if a >= 1000:
         return s + f"{a/1000:.1f}".replace('.', ',') + 'k'
     return s + f"{a:.0f}"
+
+
+def _brl0(v):
+    """Moeda BR arredondada sem centavos, para rótulos de gráfico (ex.: 'R$ 9.500')."""
+    n = round(float(v or 0))
+    return "R$ " + f"{n:,}".replace(",", ".")
 
 
 def _add_months(y, m, delta):
@@ -70,13 +77,13 @@ def _delta(atual, anterior):
     p = _pct(atual, anterior)
     if p is None:
         return None
-    return {'txt': f"{abs(p):.1f}".replace('.', ',') + '%', 'dir': 'up' if p >= 0 else 'down',
+    return {'txt': f"{abs(p):.0f}%", 'dir': 'up' if p >= 0 else 'down',
             'cls': 'pos' if p >= 0 else 'neg'}
 
 
 def _delta_pp(atual_pp, anterior_pp):
     diff = round(float(atual_pp or 0) - float(anterior_pp or 0), 1)
-    return {'txt': f"{abs(diff):.1f}".replace('.', ',') + ' p.p.', 'dir': 'up' if diff >= 0 else 'down',
+    return {'txt': f"{abs(diff):.0f} p.p.", 'dir': 'up' if diff >= 0 else 'down',
             'cls': 'pos' if diff >= 0 else 'neg'}
 
 
@@ -191,50 +198,30 @@ def dashboard_view():
 
     kpi = {
         'fat_bruto': _brl(fat_bruto), 'd_fat_bruto': _delta(fat_bruto, fat_bruto_a),
-        'taxas': _brl(taxas_total), 'taxa_pct': f"{taxa_pct}".replace('.', ',') + '% do faturamento',
+        'taxas': _brl(taxas_total), 'taxa_pct': f"{round(taxa_pct)}% do faturamento",
         'd_taxas': _delta(taxas_total, taxas_a),
         'fat_liquido': _brl(fat_liquido), 'd_fat_liquido': _delta(fat_liquido, fat_liquido_a),
         'despesas': _brl(desp_total), 'desp_fixas': _brl(desp_fixas), 'desp_avulsas': _brl(desp_avulsas),
         'd_despesas': _delta(desp_total, desp_total_a),
         'lucro': _brl(lucro), 'd_lucro': _delta(lucro, lucro_a),
-        'margem': f"{margem}".replace('.', ',') + '%', 'saude_label': saude_label, 'saude_pos': saude_pos,
+        'margem': f"{round(margem)}%", 'saude_label': saude_label, 'saude_pos': saude_pos,
         'd_margem': _delta_pp(margem, margem_a),
         'ticket': _brl(ticket), 'qtd_vendas': qtd_vendas, 'd_ticket': _delta(ticket, ticket_a),
     }
 
-    # ── Tendência DIRIGIDA PELO PERÍODO selecionado (dia/semana/mês) ──
-    # A empresa pode ter sido implantada há pouco, sem histórico de meses
-    # anteriores. Por isso os gráficos refletem o PERÍODO escolhido, com
-    # granularidade automática, para ficarem cheios e integrados ao filtro:
-    #   • até 45 dias → por dia   • até 180 dias → por semana   • acima → por mês
-    # Selecionando um intervalo de 12 meses, volta a ser a visão executiva mensal.
-    if dias <= 45:
-        gran, gran_label = 'dia', 'Por dia'
-    elif dias <= 180:
-        gran, gran_label = 'semana', 'Por semana'
-    else:
-        gran, gran_label = 'mes', 'Por mês'
+    # ── Tendência: VALOR TOTAL POR MÊS dentro do período selecionado ──
+    # O cliente pediu o total do mês (não dia a dia / semana a semana), mesmo
+    # com o mês ainda em aberto. Cada barra/ponto = total consolidado do mês.
+    gran_label = 'Por mês'
     trend = []
     buckets = []
-    if gran == 'dia':
-        d = data_inicio
-        while d <= data_fim:
-            buckets.append({'ini': d, 'fim': d, 'label': d.strftime('%d/%m')})
-            d += timedelta(days=1)
-    elif gran == 'semana':
-        d = data_inicio
-        while d <= data_fim:
-            fb = min(d + timedelta(days=6), data_fim)
-            buckets.append({'ini': d, 'fim': fb, 'label': d.strftime('%d/%m')})
-            d = fb + timedelta(days=1)
-    else:
-        y, m = data_inicio.year, data_inicio.month
-        while (y, m) <= (data_fim.year, data_fim.month):
-            ny, nm = _add_months(y, m, 1)
-            fim_mes = min(date(ny, nm, 1) - timedelta(days=1), data_fim)
-            buckets.append({'ini': max(date(y, m, 1), data_inicio), 'fim': fim_mes, 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}'})
-            y, m = ny, nm
-        buckets = buckets[-12:]
+    y, m = data_inicio.year, data_inicio.month
+    while (y, m) <= (data_fim.year, data_fim.month):
+        ny, nm = _add_months(y, m, 1)
+        fim_mes = min(date(ny, nm, 1) - timedelta(days=1), data_fim)
+        buckets.append({'ini': max(date(y, m, 1), data_inicio), 'fim': fim_mes, 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}'})
+        y, m = ny, nm
+    buckets = buckets[-12:]
 
     trend_ini, trend_fim = buckets[0]['ini'].isoformat(), buckets[-1]['fim'].isoformat()
 
@@ -319,13 +306,14 @@ def dashboard_view():
 
     for i, t in enumerate(trend):
         t['show_lbl'] = (i % passo_lbl == 0) or (i == len(trend) - 1)
-        t['bruto_k'] = _kbrl(t.get('bruto'))
-        t['liquido_k'] = _kbrl(t.get('liquido'))
-        t['fixas_k'] = _kbrl(t.get('fixas'))
-        t['avulsas_k'] = _kbrl(t.get('avulsas'))
-        t['lucro_k'] = _kbrl(t.get('lucro'))
-        t['bruto_h'] = round((float(t.get('bruto', 0) or 0) / top_fat) * 88, 2) if top_fat else 0
-        t['liquido_h'] = round((float(t.get('liquido', 0) or 0) / top_fat) * 88, 2) if top_fat else 0
+        # rótulos de dados em moeda BR (R$), para leitura fácil
+        t['bruto_k'] = _brl0(t.get('bruto'))
+        t['liquido_k'] = _brl0(t.get('liquido'))
+        t['fixas_k'] = _brl0(t.get('fixas'))
+        t['avulsas_k'] = _brl0(t.get('avulsas'))
+        t['lucro_k'] = _brl0(t.get('lucro'))
+        t['bruto_h'] = round((float(t.get('bruto', 0) or 0) / top_fat) * 62, 2) if top_fat else 0
+        t['liquido_h'] = round((float(t.get('liquido', 0) or 0) / top_fat) * 62, 2) if top_fat else 0
 
     fix_poly = _line_points('fixas', 0, top_desp)
     avul_poly = _line_points('avulsas', 0, top_desp)
@@ -336,7 +324,7 @@ def dashboard_view():
     base_taxas = sum(taxas_por_forma.values()) or 1
     for i, (forma, valor) in enumerate(sorted(taxas_por_forma.items(), key=lambda kv: kv[1], reverse=True)):
         taxas_formas.append({'label': FORMA_LABEL.get(forma, forma.title()), 'valor': round(valor, 2),
-                             'pct': round(valor / base_taxas * 100, 1), 'cor': FORMA_COR.get(forma, PALETA[i % len(PALETA)])})
+                             'pct': round(valor / base_taxas * 100), 'cor': FORMA_COR.get(forma, PALETA[i % len(PALETA)])})
     if not taxas_formas:
         taxas_formas = [{'label': 'Sem taxas no período', 'valor': 0, 'pct': 100, 'cor': '#e2e8f0'}]
     ang = 0.0; stops = []; donut_labels = []
@@ -366,13 +354,12 @@ def dashboard_view():
                            'pecas': int(r['pecas'] or 0), 'custo': round(float(r['custo'] or 0), 2)} for r in cur.fetchall()]
     except Exception:
         rollback()
-    cat_max = max([c['receita'] for c in top_categorias] + [1])
     cat_total = round(sum(c['receita'] for c in top_categorias), 2)
     for c in top_categorias:
-        c['bar'] = round(c['receita'] / cat_max * 100, 1)
-        c['pct_fat'] = round(c['receita'] / fat_liquido * 100, 1) if fat_liquido else 0
-        c['margem'] = round(((c['receita'] - c.get('custo', 0)) / c['receita']) * 100, 1) if c['receita'] else 0
-    cat_total_pct = round(cat_total / fat_liquido * 100, 1) if fat_liquido else 0
+        c['pct_fat'] = round(c['receita'] / fat_liquido * 100) if fat_liquido else 0
+        c['margem'] = round(((c['receita'] - c.get('custo', 0)) / c['receita']) * 100) if c['receita'] else 0
+        c['markup'] = round(((c['receita'] - c.get('custo', 0)) / c['custo']) * 100) if c.get('custo') else 0
+    cat_total_pct = round(cat_total / fat_liquido * 100) if fat_liquido else 0
 
     # ── Estoque parado (aging) ──
     aging = []; aging_total = estoque_parado_60 = 0.0
@@ -401,12 +388,16 @@ def dashboard_view():
         rollback()
     base_ag = aging_total or 1
     for a in aging:
-        a['pct'] = round(a['valor'] / base_ag * 100, 1)
-    estoque_parado_60_pct = round(estoque_parado_60 / base_ag * 100, 1)
+        a['pct'] = round(a['valor'] / base_ag * 100)
+    estoque_parado_60_pct = round(estoque_parado_60 / base_ag * 100)
 
     # ── Ranking de vendedoras (líquido) ──
+    # "Qtd de clientes" = clientes distintos atendidos; "Qtd de clientes cadastrados"
+    # = quantos desses foram cadastrados dentro do período (clientes novos atendidos).
     vendedoras = []
     try:
+        cur.execute("SELECT id FROM clientes WHERE DATE(criado_em) BETWEEN %s AND %s", (di, df))
+        novos_ids = {row['id'] for row in cur.fetchall()}
         cur.execute("""SELECT v.id, v.vendedora_nome, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id,
                        COALESCE(SUM(vi.quantidade),0) pecas, MAX(u.foto) AS foto
                        FROM vendas v
@@ -419,7 +410,7 @@ def dashboard_view():
             nome = r['vendedora_nome'] or '—'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
             liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache)
-            o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
+            o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'cli_novos': set(), 'foto': None})
             if r.get('foto') and not o.get('foto'):
                 foto = r['foto']
                 # fotos de usuário são salvas como data URI; manter fallback para iniciais no template
@@ -427,12 +418,13 @@ def dashboard_view():
             o['liquido'] += liq; o['vendas'] += 1; o['pecas'] += int(r['pecas'] or 0)
             if r['cliente_id']:
                 o['cli'].add(r['cliente_id'])
+                if r['cliente_id'] in novos_ids:
+                    o['cli_novos'].add(r['cliente_id'])
         vendedoras = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]
-        vmax = max([v['liquido'] for v in vendedoras] + [1])
         for v in vendedoras:
             v['clientes'] = len(v['cli'])
+            v['clientes_cad'] = len(v['cli_novos'])
             v['ticket'] = round(v['liquido'] / v['vendas'], 2) if v['vendas'] else 0
-            v['bar'] = round(v['liquido'] / vmax * 100, 1)
             v['ini'] = ''.join([p[0] for p in v['nome'].split()[:2]]).upper() or '—'
             v['liquido'] = round(v['liquido'], 2)
     except Exception:
@@ -455,10 +447,8 @@ def dashboard_view():
             o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'compras': 0, 'pecas': 0, 'ultima': dt})
             o['liquido'] += liq; o['compras'] += 1; o['pecas'] += int(r['pecas'] or 0); o['ultima'] = max(o['ultima'], dt)
         top_clientes = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]
-        cmax = max([c['liquido'] for c in top_clientes] + [1])
         for c in top_clientes:
             c['ticket'] = round(c['liquido'] / c['compras'], 2) if c['compras'] else 0
-            c['bar'] = round(c['liquido'] / cmax * 100, 1)
             c['ultima_fmt'] = c['ultima'].strftime('%d/%m/%Y')
             c['liquido'] = round(c['liquido'], 2)
     except Exception:
@@ -492,7 +482,7 @@ def dashboard_view():
         kpi=kpi, trend=trend, gran_label=gran_label, dense=dense,
         eixo_fat_ticks=eixo_fat_ticks, eixo_desp_ticks=eixo_desp_ticks, eixo_lucro_ticks=eixo_lucro_ticks,
         fix_poly=fix_poly, avul_poly=avul_poly, lucro_poly=lucro_poly, lucro_zero_yp=lucro_zero_yp,
-        taxas_total=_brl(taxas_total), taxa_pct_fat=f"{taxa_pct}".replace('.', ',') + '% do faturamento bruto',
+        taxas_total=_brl(taxas_total), taxa_pct_fat=f"{round(taxa_pct)}% do faturamento bruto",
         taxas_formas=taxas_formas, taxas_conic=taxas_conic, donut_labels=donut_labels,
         top_categorias=top_categorias, cat_total=cat_total, cat_total_pct=cat_total_pct,
         aging=aging, estoque_parado_60=estoque_parado_60, estoque_parado_60_pct=estoque_parado_60_pct,

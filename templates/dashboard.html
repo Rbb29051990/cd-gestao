@@ -42,19 +42,19 @@
 .pnl-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .pnl-t{font-size:12px;font-weight:800;letter-spacing:.1px;text-transform:uppercase;color:#334155}
 .pnl-sel{font-size:10.5px;color:var(--mut);font-weight:700;border:1px solid var(--bd);border-radius:8px;padding:3px 8px}
-.chart{display:flex;gap:8px;height:128px}
+.chart{display:flex;gap:8px;height:150px}
 .yax{display:flex;flex-direction:column;justify-content:space-between;font-size:9px;color:var(--mut2);font-weight:700;text-align:right;width:26px;padding:2px 0 16px}
 .plot{flex:1;position:relative}
 .grid{position:absolute;left:0;right:0;top:2px;bottom:16px;display:flex;flex-direction:column;justify-content:space-between}
 .grid span{border-top:1px dashed #eef2f7}
 .cols{position:absolute;inset:2px 0 16px 0;display:flex;align-items:flex-end;gap:2px}
 .bcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
-.bval{font-size:8.5px;font-weight:800;color:#475569;margin-bottom:2px;white-space:nowrap;min-height:11px}
+.bval{font-size:8px;font-weight:800;color:#475569;margin-bottom:2px;white-space:nowrap;min-height:11px;transform:rotate(-45deg);transform-origin:center bottom}
 .bar{width:68%;border-radius:3px 3px 0 0;min-height:2px}
 .lplot{position:absolute;inset:2px 0 16px 0}
 .lsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .lpt{position:absolute;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px currentColor;transform:translate(-50%,-50%)}
-.lval{position:absolute;font-size:8px;font-weight:800;transform:translate(-50%,-150%);white-space:nowrap}
+.lval{position:absolute;font-size:8px;font-weight:800;transform:translate(-50%,-150%) rotate(-45deg);white-space:nowrap}
 .xlbls{position:absolute;left:0;right:0;bottom:0;height:14px;display:flex;gap:4px}
 .xlbls span{flex:1;text-align:center;font-size:8px;color:var(--mut2);white-space:nowrap}
 .leg{display:flex;gap:16px;justify-content:center;font-size:10.5px;color:var(--mut);font-weight:700;margin-bottom:4px}
@@ -103,6 +103,8 @@
 .fc-t{font-size:11px;font-weight:800;color:#334155;line-height:1.15}
 .fc-s{font-size:9.5px;color:var(--mut);line-height:1.25;margin-top:2px}
 
+.tbl-vend th{white-space:normal;line-height:1.05;vertical-align:bottom;font-size:7.6px}
+.tbl-vend td{font-size:10px;padding:5px 3px}
 .tbl-clientes th:nth-child(2),.tbl-clientes td:nth-child(2){width:36%;max-width:170px}
 .tbl-clientes th:nth-child(3),.tbl-clientes td:nth-child(3){width:27%}
 .tbl-clientes th:nth-child(4),.tbl-clientes td:nth-child(4),.tbl-clientes th:nth-child(5),.tbl-clientes td:nth-child(5){width:10%}
@@ -273,8 +275,8 @@
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Top 5 categorias</div></div>
           {% if top_categorias %}<table class="tbl no-sort">
-            <thead><tr><th class="l">#</th><th class="l">Categoria</th><th class="l">Receita líquida</th><th>Margem</th></tr></thead>
-            <tbody>{% for c in top_categorias %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.categoria }}</td><td class="l"><span class="minib" style="width:{{ (c.bar*0.5)|round }}px;background:#2563eb"></span>{{ brl(c.receita) }}</td><td>{{ c.margem }}%</td></tr>{% endfor %}</tbody>
+            <thead><tr><th class="l">#</th><th class="l">Categoria</th><th>Receita líquida</th><th>Mark-up</th><th>Margem</th></tr></thead>
+            <tbody>{% for c in top_categorias %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.categoria }}</td><td>{{ brl(c.receita) }}</td><td>{{ c.markup }}%</td><td>{{ c.margem }}%</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total</span><span class="b">{{ brl(cat_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
         </div>
@@ -284,9 +286,9 @@
       <section class="row g3">
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Ranking de vendedoras</div><div class="pnl-sel">venda líquida</div></div>
-          {% if vendedoras %}<table class="tbl no-sort">
-            <thead><tr><th class="l">#</th><th class="l">Vendedora</th><th>Venda líquida (R$)</th><th>Qtd. vendida</th><th>Ticket médio</th><th>Clientes</th></tr></thead>
-            <tbody>{% for v in vendedoras %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l"><span class="av">{% if v.foto %}<img src="{{ v.foto }}" alt="{{ v.nome }}">{% else %}<span class="ini">{{ v.ini }}</span>{% endif %}<span class="nm">{{ v.nome }}</span></span></td><td>{{ brl(v.liquido) }}</td><td>{{ v.pecas }}</td><td>{{ brl(v.ticket) }}</td><td>{{ v.clientes }}</td></tr>{% endfor %}</tbody>
+          {% if vendedoras %}<table class="tbl tbl-vend no-sort">
+            <thead><tr><th class="l">#</th><th class="l">Vendedora</th><th>Venda líquida (R$)</th><th>Qtd de produtos vendidos</th><th>Ticket médio</th><th>Qtd de clientes</th><th>Qtd de clientes cadastrados</th></tr></thead>
+            <tbody>{% for v in vendedoras %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l"><span class="av">{% if v.foto %}<img src="{{ v.foto }}" alt="{{ v.nome }}">{% else %}<span class="ini">{{ v.ini }}</span>{% endif %}<span class="nm">{{ v.nome }}</span></span></td><td>{{ brl(v.liquido) }}</td><td>{{ v.pecas }}</td><td>{{ brl(v.ticket) }}</td><td>{{ v.clientes }}</td><td>{{ v.clientes_cad }}</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total venda líquida</span><span class="b">{{ brl(vend_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
         </div>
@@ -301,7 +303,7 @@
           <div class="pnl-h"><div class="pnl-t">Top 5 clientes</div><div class="pnl-sel">valor líquido</div></div>
           {% if top_clientes %}<table class="tbl tbl-clientes no-sort">
             <thead><tr><th class="l">#</th><th class="l">Cliente</th><th>Valor líquido (R$)</th><th>Compras</th><th>Peças</th><th>Ticket médio</th></tr></thead>
-            <tbody>{% for c in top_clientes %}<tr title="Última compra: {{ c.ultima_fmt }}"><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td><span class="minib" style="width:{{ (c.bar*0.45)|round }}px;background:#2563eb"></span>{{ brl(c.liquido) }}</td><td>{{ c.compras }}</td><td>{{ c.pecas }}</td><td>{{ brl(c.ticket) }}</td></tr>{% endfor %}</tbody>
+            <tbody>{% for c in top_clientes %}<tr title="Última compra: {{ c.ultima_fmt }}"><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td>{{ brl(c.liquido) }}</td><td>{{ c.compras }}</td><td>{{ c.pecas }}</td><td>{{ brl(c.ticket) }}</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total valor líquido</span><span class="b">{{ brl(cli_total) }}</span></div>{% else %}<div class="empty">Sem clientes no período.</div>{% endif %}
         </div>

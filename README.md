@@ -1,4 +1,15 @@
-# CD Gestão Empresarial — v129
+# CD Gestão Empresarial — v130
+
+## Novidades da v130 (2026-06-18) — Ajustes finos do dashboard
+
+1. **Gráficos por valor total do mês:** barras e linhas deixam de mostrar dia a dia / semana a semana e passam a exibir o **total consolidado de cada mês** dentro do período (mesmo com o mês ainda em aberto). Os **rótulos de dados** ficam na **diagonal** e em **moeda brasileira (R$)**, para leitura fácil.
+2. **Arredondamento:** todos os percentuais do dashboard são exibidos **sem casas decimais** (ex.: 79,9% → 80%).
+3. **Cores do donut (taxas):** Crédito parcelado = **vermelho**, Crédito à vista = **amarelo**, Débito = **verde**, Link = **azul**.
+4. **Top 5 categorias:** inclui a coluna **Mark-up** de cada categoria e remove a barrinha azul (a ordem dos números já indica a posição).
+5. **Ranking de vendedoras:** colunas renomeadas para **Qtd de produtos vendidos** e **Qtd de clientes**, e nova coluna **Qtd de clientes cadastrados** (clientes novos atendidos no período). Títulos quebram em linhas para caber sem aumentar o quadrante.
+6. **Top 5 clientes:** removida a barrinha azul.
+
+> As tabelas de Top categorias e Top clientes mostram **até** 5 linhas — exibem a quantidade que existir de dados no período (com a empresa recém-aberta, podem aparecer menos de 5).
 
 ## Novidades da v129 (2026-06-18) — Dashboard integrado ao período
 

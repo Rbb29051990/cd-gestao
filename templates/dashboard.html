@@ -47,10 +47,10 @@
 .plot{flex:1;position:relative}
 .grid{position:absolute;left:0;right:0;top:2px;bottom:16px;display:flex;flex-direction:column;justify-content:space-between}
 .grid span{border-top:1px dashed #eef2f7}
-.cols{position:absolute;inset:2px 0 16px 0;display:flex;align-items:flex-end;gap:4px}
+.cols{position:absolute;inset:2px 0 16px 0;display:flex;align-items:flex-end;gap:2px}
 .bcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
-.bval{font-size:8.5px;font-weight:800;color:#475569;margin-bottom:2px;white-space:nowrap}
-.bar{width:58%;border-radius:4px 4px 0 0;min-height:2px}
+.bval{font-size:8.5px;font-weight:800;color:#475569;margin-bottom:2px;white-space:nowrap;min-height:11px}
+.bar{width:68%;border-radius:3px 3px 0 0;min-height:2px}
 .lplot{position:absolute;inset:2px 0 16px 0}
 .lsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .lpt{position:absolute;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px currentColor;transform:translate(-50%,-50%)}
@@ -200,19 +200,19 @@
       <!-- Linha 2: faturamento bruto · despesas · taxas -->
       <section class="row g3a">
         <div class="pnl">
-          <div class="pnl-h"><div class="pnl-t">Faturamento bruto</div><div class="pnl-sel">12 meses</div></div>
+          <div class="pnl-h"><div class="pnl-t">Faturamento bruto</div><div class="pnl-sel">{{ gran_label }}</div></div>
           {% if trend %}<div class="chart">
             <div class="yax">{% for tk in eixo_fat_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
             <div class="plot">
               <div class="grid">{% for _ in eixo_fat_ticks %}<span></span>{% endfor %}</div>
-              <div class="cols">{% for t in trend %}<div class="bcol"><span class="bval">{{ t.bruto_k }}</span><div class="bar" style="height:{{ t.bruto_h }}%;background:#2563eb"></div></div>{% endfor %}</div>
-              <div class="xlbls">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+              <div class="cols">{% for t in trend %}<div class="bcol"><span class="bval">{{ t.bruto_k if t.show_lbl else '' }}</span><div class="bar" style="height:{{ t.bruto_h }}%;background:#2563eb"></div></div>{% endfor %}</div>
+              <div class="xlbls">{% for t in trend %}<span>{{ t.label if t.show_lbl else '' }}</span>{% endfor %}</div>
             </div>
           </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
         </div>
 
         <div class="pnl">
-          <div class="pnl-h"><div class="pnl-t">Evolução das despesas</div><div class="pnl-sel">12 meses</div></div>
+          <div class="pnl-h"><div class="pnl-t">Evolução das despesas</div><div class="pnl-sel">{{ gran_label }}</div></div>
           <div class="leg"><span><i style="background:#2563eb"></i>Despesas fixas</span><span><i style="background:#dc2626"></i>Despesas avulsas</span></div>
           {% if trend %}<div class="chart">
             <div class="yax">{% for tk in eixo_desp_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
@@ -221,9 +221,9 @@
               <div class="lplot">
                 <svg class="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="{{ fix_poly }}" fill="none" stroke="#2563eb" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/><polyline points="{{ avul_poly }}" fill="none" stroke="#dc2626" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 {% for t in trend %}<i class="lpt" style="left:{{ t.xp }}%;top:{{ t.fixas_yp }}%;color:#2563eb"></i><i class="lpt" style="left:{{ t.xp }}%;top:{{ t.avulsas_yp }}%;color:#dc2626"></i>{% endfor %}
-                {% for t in trend %}{% if loop.index is odd %}<span class="lval" style="left:{{ t.xp }}%;top:{{ t.fixas_yp }}%;color:#1d4ed8">{{ t.fixas_k }}</span>{% endif %}{% endfor %}
+                {% for t in trend %}{% if t.show_lbl %}<span class="lval" style="left:{{ t.xp }}%;top:{{ t.fixas_yp }}%;color:#1d4ed8">{{ t.fixas_k }}</span>{% endif %}{% endfor %}
               </div>
-              <div class="xlbls">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+              <div class="xlbls">{% for t in trend %}<span>{{ t.label if t.show_lbl else '' }}</span>{% endfor %}</div>
             </div>
           </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
         </div>
@@ -241,19 +241,19 @@
       <!-- Linha 3: faturamento líquido · lucro · top categorias -->
       <section class="row g3a">
         <div class="pnl">
-          <div class="pnl-h"><div class="pnl-t">Faturamento líquido</div><div class="pnl-sel">12 meses</div></div>
+          <div class="pnl-h"><div class="pnl-t">Faturamento líquido</div><div class="pnl-sel">{{ gran_label }}</div></div>
           {% if trend %}<div class="chart">
             <div class="yax">{% for tk in eixo_fat_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
             <div class="plot">
               <div class="grid">{% for _ in eixo_fat_ticks %}<span></span>{% endfor %}</div>
-              <div class="cols">{% for t in trend %}<div class="bcol"><span class="bval">{{ t.liquido_k }}</span><div class="bar" style="height:{{ t.liquido_h }}%;background:#16a34a"></div></div>{% endfor %}</div>
-              <div class="xlbls">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+              <div class="cols">{% for t in trend %}<div class="bcol"><span class="bval">{{ t.liquido_k if t.show_lbl else '' }}</span><div class="bar" style="height:{{ t.liquido_h }}%;background:#16a34a"></div></div>{% endfor %}</div>
+              <div class="xlbls">{% for t in trend %}<span>{{ t.label if t.show_lbl else '' }}</span>{% endfor %}</div>
             </div>
           </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
         </div>
 
         <div class="pnl">
-          <div class="pnl-h"><div class="pnl-t">Evolução do lucro líquido</div><div class="pnl-sel">12 meses</div></div>
+          <div class="pnl-h"><div class="pnl-t">Evolução do lucro líquido</div><div class="pnl-sel">{{ gran_label }}</div></div>
           {% if trend %}<div class="chart">
             <div class="yax">{% for tk in eixo_lucro_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
             <div class="plot">
@@ -261,9 +261,9 @@
               <div class="lplot">
                 <svg class="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="0" y1="{{ lucro_zero_yp }}" x2="100" y2="{{ lucro_zero_yp }}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/><polyline points="{{ lucro_poly }}" fill="none" stroke="#16a34a" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 {% for t in trend %}<i class="lpt" style="left:{{ t.xp }}%;top:{{ t.lucro_yp }}%;color:{{ '#dc2626' if t.lucro < 0 else '#16a34a' }}"></i>{% endfor %}
-                {% for t in trend %}{% if loop.index is odd %}<span class="lval" style="left:{{ t.xp }}%;top:{{ t.lucro_yp }}%;color:{{ '#dc2626' if t.lucro < 0 else '#15803d' }}">{{ t.lucro_k }}</span>{% endif %}{% endfor %}
+                {% for t in trend %}{% if t.show_lbl %}<span class="lval" style="left:{{ t.xp }}%;top:{{ t.lucro_yp }}%;color:{{ '#dc2626' if t.lucro < 0 else '#15803d' }}">{{ t.lucro_k }}</span>{% endif %}{% endfor %}
               </div>
-              <div class="xlbls">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+              <div class="xlbls">{% for t in trend %}<span>{{ t.label if t.show_lbl else '' }}</span>{% endfor %}</div>
             </div>
           </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
         </div>

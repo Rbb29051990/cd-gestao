@@ -198,42 +198,75 @@ def dashboard_view():
         'ticket': _brl(ticket), 'qtd_vendas': qtd_vendas, 'd_ticket': _delta(ticket, ticket_a),
     }
 
-    # ── Tendência: 12 meses ──
-    meses = []
-    for back in range(11, -1, -1):
-        y, m = _add_months(data_fim.year, data_fim.month, -back)
-        meses.append({'ym': f'{y:04d}-{m:02d}', 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}'})
+    # ── Tendência DIRIGIDA PELO PERÍODO (dia/semana/mês conforme a duração) ──
+    # Empresa recém-implantada não tem histórico: em vez de 12 meses fixos
+    # (quase vazios), os gráficos refletem o período selecionado.
+    if dias <= 31:
+        gran, gran_label = 'dia', 'Por dia'
+    elif dias <= 93:
+        gran, gran_label = 'semana', 'Por semana'
+    else:
+        gran, gran_label = 'mes', 'Por mês'
+    buckets = []
+    if gran == 'dia':
+        d = data_inicio
+        while d <= data_fim:
+            buckets.append({'ini': d, 'fim': d, 'label': d.strftime('%d/%m')})
+            d += timedelta(days=1)
+    elif gran == 'semana':
+        d = data_inicio
+        while d <= data_fim:
+            fb = min(d + timedelta(days=6), data_fim)
+            buckets.append({'ini': d, 'fim': fb, 'label': d.strftime('%d/%m')})
+            d = fb + timedelta(days=1)
+    else:
+        y, m = data_inicio.year, data_inicio.month
+        while (y, m) <= (data_fim.year, data_fim.month):
+            ny, nm = _add_months(y, m, 1)
+            fm = min(date(ny, nm, 1) - timedelta(days=1), data_fim)
+            buckets.append({'ini': max(date(y, m, 1), data_inicio), 'fim': fm, 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}'})
+            y, m = ny, nm
+
+    def _bidx(dt):
+        for i, b in enumerate(buckets):
+            if b['ini'] <= dt <= b['fim']:
+                return i
+        return None
+
     trend = []
     try:
-        ini_trend = date.fromisoformat(meses[0]['ym'] + '-01')
-        mensal = {mm['ym']: {'bruto': 0.0, 'liquido': 0.0, 'fixas': 0.0, 'avulsas': 0.0} for mm in meses}
+        agg = [{'bruto': 0.0, 'liquido': 0.0, 'fixas': 0.0, 'avulsas': 0.0} for _ in buckets]
         cache = {}
-        cur.execute("SELECT forma_pagamento, valor, criado_em FROM caixa WHERE tipo='entrada' AND criado_em >= %s", (ini_trend,))
+        cur.execute("SELECT forma_pagamento, valor, criado_em FROM caixa WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s", (di, df))
         for r in cur.fetchall():
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-            ym = dt.strftime('%Y-%m')
-            if ym not in mensal: continue
+            i = _bidx(dt)
+            if i is None: continue
             b = float(r['valor'] or 0)
             liq, _d, _p = _liquido_com_taxa(b, r['forma_pagamento'] or 'outros', dt, cache)
-            mensal[ym]['bruto'] += b; mensal[ym]['liquido'] += liq
-        cur.execute("""SELECT to_char(date_trunc('month',p.data_vencimento),'YYYY-MM') ym,
-                       LOWER(COALESCE(d.tipo,'')) tp, COALESCE(SUM(p.valor),0) total
+            agg[i]['bruto'] += b; agg[i]['liquido'] += liq
+        cur.execute("""SELECT p.data_vencimento dv, LOWER(COALESCE(d.tipo,'')) tp, p.valor v
                        FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
-                       WHERE p.data_vencimento >= %s GROUP BY 1,2""", (ini_trend,))
+                       WHERE DATE(p.data_vencimento) BETWEEN %s AND %s""", (di, df))
         for r in cur.fetchall():
-            ym = r['ym']
-            if ym not in mensal: continue
+            i = _bidx(r['dv']) if r['dv'] else None
+            if i is None: continue
+            v = float(r['v'] or 0)
             if (r['tp'] or '') in ('fixa', 'fixo'):
-                mensal[ym]['fixas'] += float(r['total'] or 0)
+                agg[i]['fixas'] += v
             else:
-                mensal[ym]['avulsas'] += float(r['total'] or 0)
-        for mm in meses:
-            d = mensal[mm['ym']]
-            trend.append({'label': mm['label'], 'bruto': round(d['bruto'], 2), 'liquido': round(d['liquido'], 2),
-                          'fixas': round(d['fixas'], 2), 'avulsas': round(d['avulsas'], 2),
-                          'lucro': round(d['liquido'] - d['fixas'] - d['avulsas'], 2)})
+                agg[i]['avulsas'] += v
+        for i, b in enumerate(buckets):
+            a = agg[i]
+            trend.append({'label': b['label'], 'bruto': round(a['bruto'], 2), 'liquido': round(a['liquido'], 2),
+                          'fixas': round(a['fixas'], 2), 'avulsas': round(a['avulsas'], 2),
+                          'lucro': round(a['liquido'] - a['fixas'] - a['avulsas'], 2)})
     except Exception:
         rollback()
+    dense = len(trend) > 14
+    passo_lbl = max(1, (len(trend) + 7) // 8) if dense else 1
+    for i, t in enumerate(trend):
+        t['show_lbl'] = (i % passo_lbl == 0) or (i == len(trend) - 1)
 
     # Eixos + alturas + rótulos
     eixo_fat = _nice_top(max([t['bruto'] for t in trend] + [t['liquido'] for t in trend] + [1]))
@@ -406,7 +439,7 @@ def dashboard_view():
     ctx = get_ctx()
     ctx.update(
         data_inicio=di, data_fim=df, periodo_label=periodo_label, atualizado=atualizado,
-        kpi=kpi, trend=trend,
+        kpi=kpi, trend=trend, gran_label=gran_label, dense=dense,
         eixo_fat_ticks=eixo_fat_ticks, eixo_desp_ticks=eixo_desp_ticks, eixo_lucro_ticks=eixo_lucro_ticks,
         fix_poly=fix_poly, avul_poly=avul_poly, lucro_poly=lucro_poly, lucro_zero_yp=lucro_zero_yp,
         taxas_total=_brl(taxas_total), taxa_pct_fat=f"{taxa_pct}".replace('.', ',') + '% do faturamento bruto',

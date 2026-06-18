@@ -2,12 +2,12 @@
 {% block content %}
 <style>
 .dx{--bg:#f6f8fb;--card:#fff;--bd:#e9edf4;--ink:#0f172a;--mut:#64748b;--mut2:#94a3b8;
-  background:var(--bg);padding:14px 16px 18px;font-family:'Outfit',system-ui,-apple-system,sans-serif;color:var(--ink)}
+  background:var(--bg);padding:10px 14px 12px;font-family:'Outfit',system-ui,-apple-system,sans-serif;color:var(--ink)}
 .dx *{box-sizing:border-box}
-.dx-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.dx-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
 .dx-brand{display:flex;align-items:center;gap:12px}
-.dx-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#0891b2);display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto}
-.dx-h1{font-size:21px;font-weight:800;letter-spacing:-.5px;line-height:1.05}
+.dx-logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#2563eb,#0891b2);display:flex;align-items:center;justify-content:center;color:#fff;flex:0 0 auto}
+.dx-h1{font-size:19px;font-weight:800;letter-spacing:-.5px;line-height:1.05}
 .dx-h2{font-size:12px;color:var(--mut);font-weight:600;margin-top:1px}
 .dx-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dx-pill{display:flex;align-items:center;gap:7px;border:1px solid var(--bd);background:#fff;border-radius:11px;padding:6px 11px;font-size:13px;font-weight:600;color:#334155}
@@ -15,15 +15,15 @@
 .dx-cmp{display:flex;align-items:center;gap:7px;border:1px solid var(--bd);background:#fff;border-radius:11px;padding:6px 11px;font-size:12px;color:var(--mut)}
 .dx-cmp select{border:0;font-family:inherit;font-size:12.5px;font-weight:700;color:#334155;background:transparent;outline:none}
 .dx-refresh{width:38px;height:38px;border-radius:11px;border:1px solid var(--bd);background:#fff;cursor:pointer;color:#334155;display:flex;align-items:center;justify-content:center}
-.dx-chip{height:30px;border:1px solid var(--bd);border-radius:9px;padding:0 10px;background:#fff;color:#475569;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit}
+.dx-chip{height:30px;border:1px solid var(--bd);border-radius:9px;padding:0 10px;background:#fff;color:#475569;font-size:10.7px;font-weight:700;cursor:pointer;font-family:inherit}
 .dx-chip:hover{background:#eef2fb}
-.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:12px}
-.kpi{background:var(--card);border:1px solid var(--bd);border-radius:15px;padding:12px 13px;box-shadow:0 1px 2px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:7px;min-height:120px}
+.kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:8px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:15px;padding:8px 10px;box-shadow:0 1px 2px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:6px;min-height:108px}
 .kpi-top{display:flex;align-items:center;gap:8px}
-.kpi-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.kpi-ic{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .kpi-ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .kpi-tt{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.2px;color:var(--mut);line-height:1.15}
-.kpi-v{font-size:20px;font-weight:800;letter-spacing:-.6px;line-height:1}
+.kpi-v{font-size:19px;font-weight:800;letter-spacing:-.6px;line-height:1}
 .kpi-s{font-size:10px;color:var(--mut);line-height:1.3;min-height:12px}
 .kpi-foot{margin-top:auto;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut2);font-weight:600}
 .tri{font-size:9px}.tri.up,.kpi-foot b.up{color:#16a34a}.tri.down,.kpi-foot b.down{color:#dc2626}
@@ -35,14 +35,14 @@
 .hbar{height:7px;border-radius:999px;background:linear-gradient(90deg,#dc2626,#eab308 50%,#16a34a);position:relative}
 .hbar i{position:absolute;top:-4px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #0f172a;transform:translateX(-50%)}
 .hlbl{font-size:9px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
-.row{display:grid;gap:12px;margin-bottom:12px}
-.row.g3a{grid-template-columns:1fr 1fr .82fr}
+.row{display:grid;gap:10px;margin-bottom:8px}
+.row.g3a{grid-template-columns:1.04fr 1.04fr .82fr}
 .row.g3{grid-template-columns:1fr 1fr 1fr}
-.pnl{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:13px 15px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-.pnl-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.pnl{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:11px 13px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.pnl-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .pnl-t{font-size:12px;font-weight:800;letter-spacing:.1px;text-transform:uppercase;color:#334155}
 .pnl-sel{font-size:10.5px;color:var(--mut);font-weight:700;border:1px solid var(--bd);border-radius:8px;padding:3px 8px}
-.chart{display:flex;gap:8px;height:152px}
+.chart{display:flex;gap:8px;height:128px}
 .yax{display:flex;flex-direction:column;justify-content:space-between;font-size:9px;color:var(--mut2);font-weight:700;text-align:right;width:26px;padding:2px 0 16px}
 .plot{flex:1;position:relative}
 .grid{position:absolute;left:0;right:0;top:2px;bottom:16px;display:flex;flex-direction:column;justify-content:space-between}
@@ -60,8 +60,8 @@
 .leg{display:flex;gap:16px;justify-content:center;font-size:10.5px;color:var(--mut);font-weight:700;margin-bottom:4px}
 .leg i{width:14px;height:3px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:5px}
 .dn-flex{display:flex;gap:14px;align-items:center}
-.dn{width:118px;height:118px;border-radius:50%;position:relative;flex:0 0 auto}
-.dn::after{content:'';position:absolute;inset:29px;background:#fff;border-radius:50%}
+.dn{width:98px;height:98px;border-radius:50%;position:relative;flex:0 0 auto}
+.dn::after{content:'';position:absolute;inset:25px;background:#fff;border-radius:50%}
 .dn b{position:absolute;font-size:10px;font-weight:800;color:#fff;transform:translate(-50%,-50%)}
 .dn-leg{flex:1;min-width:0}
 .dn-row{display:grid;grid-template-columns:10px 1fr auto auto;gap:8px;align-items:center;font-size:11px;margin:7px 0;color:#334155}
@@ -73,10 +73,10 @@
 .dn-tot .a{font-weight:800;text-transform:uppercase;color:#334155}
 .dn-tot .b{font-weight:800;color:#f59e0b;font-size:14px}
 .dn-tot .c{color:var(--mut);font-weight:600;margin-left:auto}
-.tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.tbl{width:100%;border-collapse:collapse;font-size:10.7px}
 .tbl th{font-size:8.5px;text-transform:uppercase;letter-spacing:.2px;color:var(--mut2);font-weight:800;padding:0 5px 8px;border-bottom:1px solid #eef2f7;text-align:right;white-space:nowrap}
 .tbl th.l,.tbl td.l{text-align:left}
-.tbl td{padding:6px 5px;border-bottom:1px solid #f4f7fb;color:#334155;text-align:right;white-space:nowrap;vertical-align:middle}
+.tbl td{padding:5px 5px;border-bottom:1px solid #f4f7fb;color:#334155;text-align:right;white-space:nowrap;vertical-align:middle}
 .tbl tr:last-child td{border-bottom:0}
 .rk{display:inline-flex;width:19px;height:19px;border-radius:6px;background:#eef2ff;color:#2563eb;font-weight:800;font-size:10px;align-items:center;justify-content:center}
 .av{display:inline-flex;align-items:center;gap:8px}
@@ -86,19 +86,19 @@
 .mt{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #eef2f7;margin-top:4px;padding-top:10px;font-size:12px}
 .mt .a{font-weight:800;text-transform:uppercase;font-size:10px;color:#334155}
 .mt .b{font-weight:800;color:#2563eb;background:#eff4ff;padding:4px 12px;border-radius:8px}
-.ag{display:grid;grid-template-columns:13px 92px 1fr auto 46px;gap:9px;align-items:center;font-size:11.5px;margin:10px 0;color:#334155}
+.ag{display:grid;grid-template-columns:13px 92px 1fr auto 46px;gap:9px;align-items:center;font-size:10.7px;margin:8px 0;color:#334155}
 .ag .d{width:9px;height:9px;border-radius:50%}
 .ag .fx{font-weight:600}
 .ag .vl{font-weight:800;color:var(--ink);text-align:right}
 .ag .pc{color:var(--mut);font-weight:700;text-align:right}
-.cap{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fef2f2;border:1px solid #fde0e0;border-radius:12px;padding:11px 15px;margin-top:8px}
+.cap{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fef2f2;border:1px solid #fde0e0;border-radius:12px;padding:9px 13px;margin-top:8px}
 .cap .a{font-size:10px;font-weight:800;text-transform:uppercase;color:#b91c1c;line-height:1.2}
 .cap .r{text-align:right}
-.cap .v{font-size:18px;font-weight:800;color:#dc2626}
+.cap .v{font-size:16px;font-weight:800;color:#dc2626}
 .cap .s{font-size:9.5px;color:#e07a7a;font-weight:700}
 .foot{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
-.fc{background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:10px 12px;display:flex;gap:9px;align-items:center;box-shadow:0 1px 2px rgba(15,23,42,.04)}
-.fc-ic{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.fc{background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:8px 10px;display:flex;gap:9px;align-items:center;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.fc-ic{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .fc-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .fc-t{font-size:11px;font-weight:800;color:#334155;line-height:1.15}
 .fc-s{font-size:9.5px;color:var(--mut);line-height:1.25;margin-top:2px}
@@ -145,7 +145,6 @@
         <div class="kpi">
           <div class="kpi-top"><span class="kpi-ic" style="background:#e8f0fe;color:#2563eb"><svg viewBox="0 0 24 24"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h2l2.4 12h11L20 7H6"/></svg></span><span class="kpi-tt">1. Faturamento bruto</span></div>
           <div class="kpi-v" style="color:#2563eb">{{ kpi.fat_bruto }}</div>
-          <div class="kpi-s">Antes das taxas</div>
           {% if kpi.d_fat_bruto %}<div class="kpi-foot"><span class="tri {{ kpi.d_fat_bruto.dir }}">{{ '▲' if kpi.d_fat_bruto.dir=='up' else '▼' }}</span><b class="{{ kpi.d_fat_bruto.cls }}">{{ kpi.d_fat_bruto.txt }}</b><span>vs mês anterior</span></div>{% endif %}
         </div>
 
@@ -159,7 +158,6 @@
         <div class="kpi">
           <div class="kpi-top"><span class="kpi-ic" style="background:#e3f7ec;color:#16a34a"><svg viewBox="0 0 24 24"><path d="M12 2v20M16 6.5H10a3 3 0 0 0 0 6h4a3 3 0 0 1 0 6H8"/></svg></span><span class="kpi-tt">3. Faturamento líquido</span></div>
           <div class="kpi-v" style="color:#16a34a">{{ kpi.fat_liquido }}</div>
-          <div class="kpi-s">Após as taxas</div>
           {% if kpi.d_fat_liquido %}<div class="kpi-foot"><span class="tri {{ kpi.d_fat_liquido.dir }}">{{ '▲' if kpi.d_fat_liquido.dir=='up' else '▼' }}</span><b class="{{ kpi.d_fat_liquido.cls }}">{{ kpi.d_fat_liquido.txt }}</b><span>vs mês anterior</span></div>{% endif %}
         </div>
 
@@ -174,7 +172,6 @@
         <div class="kpi">
           <div class="kpi-top"><span class="kpi-ic" style="background:#e6f6f4;color:#0d9488"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-3 3 2 5-6"/></svg></span><span class="kpi-tt">5. Lucro líquido</span></div>
           <div class="kpi-v" style="color:#2563eb">{{ kpi.lucro }}</div>
-          <div class="kpi-s">Líquido − despesas</div>
           {% if kpi.d_lucro %}<div class="kpi-foot"><span class="tri {{ kpi.d_lucro.dir }}">{{ '▲' if kpi.d_lucro.dir=='up' else '▼' }}</span><b class="{{ kpi.d_lucro.cls }}">{{ kpi.d_lucro.txt }}</b><span>vs mês anterior</span></div>{% endif %}
         </div>
 
@@ -197,7 +194,7 @@
         </div>
       </section>
 
-      <!-- Linha 2: faturamento bruto · despesas · taxas -->
+      <!-- Linha 2A: Faturamento bruto · Despesas · Taxas por forma de pagamento -->
       <section class="row g3a">
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Faturamento bruto</div><div class="pnl-sel">{{ gran_label }}</div></div>
@@ -238,7 +235,7 @@
         </div>
       </section>
 
-      <!-- Linha 3: faturamento líquido · lucro · top categorias -->
+      <!-- Linha 2B: Faturamento líquido · Lucro líquido · Top 5 categorias -->
       <section class="row g3a">
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Faturamento líquido</div><div class="pnl-sel">{{ gran_label }}</div></div>
@@ -271,20 +268,20 @@
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Top 5 categorias</div></div>
           {% if top_categorias %}<table class="tbl no-sort">
-            <thead><tr><th class="l">#</th><th class="l">Categoria</th><th class="l">Valor líquido (R$)</th><th>% do fat.</th></tr></thead>
+            <thead><tr><th class="l">#</th><th class="l">Categoria</th><th class="l">Valor líquido (R$)</th><th>% do faturamento</th></tr></thead>
             <tbody>{% for c in top_categorias %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.categoria }}</td><td class="l"><span class="minib" style="width:{{ (c.bar*0.5)|round }}px;background:#2563eb"></span>{{ brl(c.receita) }}</td><td>{{ c.pct_fat }}%</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total</span><span class="b">{{ brl(cat_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
         </div>
       </section>
 
-      <!-- Linha 4: vendedoras · estoque parado · clientes -->
+      <!-- Linha 3: Ranking de vendedoras · Estoque parado · Top 5 clientes -->
       <section class="row g3">
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Ranking de vendedoras</div><div class="pnl-sel">venda líquida</div></div>
           {% if vendedoras %}<table class="tbl no-sort">
-            <thead><tr><th class="l">#</th><th class="l">Vendedora</th><th>Venda líq.</th><th>Qtd</th><th>Ticket</th><th>Cli.</th></tr></thead>
-            <tbody>{% for v in vendedoras %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l"><span class="av"><span class="ini">{{ v.ini }}</span><span class="nm">{{ v.nome }}</span></span></td><td>{{ brl(v.liquido) }}</td><td>{{ v.vendas }}</td><td>{{ brl(v.ticket) }}</td><td>{{ v.clientes }}</td></tr>{% endfor %}</tbody>
+            <thead><tr><th class="l">#</th><th class="l">Vendedora</th><th>Venda líquida (R$)</th><th>Qtd. vendida</th><th>Ticket médio</th><th>Clientes</th></tr></thead>
+            <tbody>{% for v in vendedoras %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l"><span class="av"><span class="ini">{{ v.ini }}</span><span class="nm">{{ v.nome }}</span></span></td><td>{{ brl(v.liquido) }}</td><td>{{ v.pecas }}</td><td>{{ brl(v.ticket) }}</td><td>{{ v.clientes }}</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total venda líquida</span><span class="b">{{ brl(vend_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
         </div>
@@ -298,8 +295,8 @@
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Top 5 clientes</div><div class="pnl-sel">valor líquido</div></div>
           {% if top_clientes %}<table class="tbl no-sort">
-            <thead><tr><th class="l">#</th><th class="l">Cliente</th><th>Valor líq.</th><th>Peças</th><th>Última</th></tr></thead>
-            <tbody>{% for c in top_clientes %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td><span class="minib" style="width:{{ (c.bar*0.4)|round }}px;background:#2563eb"></span>{{ brl(c.liquido) }}</td><td>{{ c.pecas }}</td><td style="color:#94a3b8">{{ c.ultima_fmt }}</td></tr>{% endfor %}</tbody>
+            <thead><tr><th class="l">#</th><th class="l">Cliente</th><th>Valor líquido (R$)</th><th>Qtd. de peças</th><th>Ticket médio</th><th>Última compra</th></tr></thead>
+            <tbody>{% for c in top_clientes %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td><span class="minib" style="width:{{ (c.bar*0.4)|round }}px;background:#2563eb"></span>{{ brl(c.liquido) }}</td><td>{{ c.pecas }}</td><td>{{ brl(c.ticket) }}</td><td style="color:#94a3b8">{{ c.ultima_fmt }}</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total valor líquido</span><span class="b">{{ brl(cli_total) }}</span></div>{% else %}<div class="empty">Sem clientes no período.</div>{% endif %}
         </div>

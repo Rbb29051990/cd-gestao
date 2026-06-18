@@ -1,4 +1,12 @@
-# CD Gestão Empresarial — v126
+# CD Gestão Empresarial — v129
+
+## Novidades da v129 (2026-06-18) — Dashboard integrado ao período
+
+- **Gráficos cheios mesmo sem histórico:** os gráficos de evolução (faturamento bruto/líquido, despesas fixas × avulsas, lucro líquido) voltaram a **seguir o período selecionado** com granularidade automática — **por dia** num mês, por semana até ~6 meses, por mês acima disso. A versão anterior usava "últimos 12 meses fixos", que ficavam praticamente vazios numa empresa implantada há pouco (só junho/2026 com dados).
+- **Visão executiva mensal preservada:** ao selecionar um intervalo longo (ex.: 12 meses), os gráficos voltam a consolidar por mês, idênticos ao layout da imagem aprovada.
+- **Rótulos espaçados** automaticamente quando há muitos pontos (ex.: ~30 dias), para não poluir.
+- **Versões unificadas:** `/healthz`, `/versao` e README agora apontam todos para v129.
+- O design (cabeçalho, 7 KPIs com ícones e tendência, donut de taxas, rankings, estoque parado, top clientes e rodapé de alertas) permanece fiel à imagem.
 
 ## Novidades da v126 (2026-06-17) — Dashboard executivo definitivo
 

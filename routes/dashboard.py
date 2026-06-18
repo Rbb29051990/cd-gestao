@@ -1,4 +1,4 @@
-"""Dashboard Executivo V128 — layout moderno em uma página só (estende base.html).
+"""Dashboard Executivo V129 — layout moderno em uma página só (estende base.html).
 
 Estrutura:
   • Cabeçalho com período e comparação
@@ -202,21 +202,39 @@ def dashboard_view():
         'ticket': _brl(ticket), 'qtd_vendas': qtd_vendas, 'd_ticket': _delta(ticket, ticket_a),
     }
 
-    # ── Tendência dos gráficos — últimos 12 meses consolidados por mês ──
-    # Os cards e rankings respeitam o período selecionado acima.
-    # Já os gráficos de evolução seguem a visão executiva aprovada: últimos 12 meses
-    # até o mês final do filtro, sempre consolidados por mês/ano.
-    gran_label = '12 meses'
+    # ── Tendência DIRIGIDA PELO PERÍODO selecionado (dia/semana/mês) ──
+    # A empresa pode ter sido implantada há pouco, sem histórico de meses
+    # anteriores. Por isso os gráficos refletem o PERÍODO escolhido, com
+    # granularidade automática, para ficarem cheios e integrados ao filtro:
+    #   • até 45 dias → por dia   • até 180 dias → por semana   • acima → por mês
+    # Selecionando um intervalo de 12 meses, volta a ser a visão executiva mensal.
+    if dias <= 45:
+        gran, gran_label = 'dia', 'Por dia'
+    elif dias <= 180:
+        gran, gran_label = 'semana', 'Por semana'
+    else:
+        gran, gran_label = 'mes', 'Por mês'
     trend = []
     buckets = []
-    start_y, start_m = _add_months(data_fim.year, data_fim.month, -11)
-    y, m = start_y, start_m
-    for _ in range(12):
-        ny, nm = _add_months(y, m, 1)
-        ini_mes = date(y, m, 1)
-        fim_mes = date(ny, nm, 1) - timedelta(days=1)
-        buckets.append({'ini': ini_mes, 'fim': fim_mes, 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}'})
-        y, m = ny, nm
+    if gran == 'dia':
+        d = data_inicio
+        while d <= data_fim:
+            buckets.append({'ini': d, 'fim': d, 'label': d.strftime('%d/%m')})
+            d += timedelta(days=1)
+    elif gran == 'semana':
+        d = data_inicio
+        while d <= data_fim:
+            fb = min(d + timedelta(days=6), data_fim)
+            buckets.append({'ini': d, 'fim': fb, 'label': d.strftime('%d/%m')})
+            d = fb + timedelta(days=1)
+    else:
+        y, m = data_inicio.year, data_inicio.month
+        while (y, m) <= (data_fim.year, data_fim.month):
+            ny, nm = _add_months(y, m, 1)
+            fim_mes = min(date(ny, nm, 1) - timedelta(days=1), data_fim)
+            buckets.append({'ini': max(date(y, m, 1), data_inicio), 'fim': fim_mes, 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}'})
+            y, m = ny, nm
+        buckets = buckets[-12:]
 
     trend_ini, trend_fim = buckets[0]['ini'].isoformat(), buckets[-1]['fim'].isoformat()
 
@@ -263,12 +281,9 @@ def dashboard_view():
     except Exception:
         rollback()
 
-    # V128: em 12 meses, não exibir meses totalmente zerados.
-    # O gráfico continua preparado para até 12 meses, mas mostra somente meses com dados reais.
-    trend = [t for t in trend if any(float(t.get(k, 0) or 0) != 0 for k in ('bruto', 'liquido', 'fixas', 'avulsas', 'lucro'))]
-
     # ── Preparação visual dos gráficos ──
-    dense = False
+    dense = len(trend) > 14
+    passo_lbl = max(1, (len(trend) + 7) // 8) if dense else 1
 
     def _ticks_0(maxv):
         top = _nice_top(maxv)
@@ -303,7 +318,7 @@ def dashboard_view():
     lucro_zero_yp = 50
 
     for i, t in enumerate(trend):
-        t['show_lbl'] = True
+        t['show_lbl'] = (i % passo_lbl == 0) or (i == len(trend) - 1)
         t['bruto_k'] = _kbrl(t.get('bruto'))
         t['liquido_k'] = _kbrl(t.get('liquido'))
         t['fixas_k'] = _kbrl(t.get('fixas'))

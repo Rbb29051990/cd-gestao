@@ -1,7 +1,7 @@
 """Rotas de Clientes: listagem, cadastro, verificação de duplicidade, ficha,
 edição e exclusão (exclusão só N1)."""
 import random
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from db import get_db, close_db
 from config import CORES
 from auth import login_required, get_ctx, pode_excluir
@@ -36,8 +36,8 @@ def novo_cliente():
     n = cur.fetchone()['m']
     try:
         cur.execute("""INSERT INTO clientes (codigo,nome,cpf,data_nascimento,telefone,telefone2,
-            cep,logradouro,numero,complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            cep,logradouro,numero,complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar,usuario_id,usuario_nome)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (f"C{n+1}", nome,
              request.form.get('cpf', '').strip() or None,
              request.form.get('data_nascimento') or None,
@@ -52,7 +52,8 @@ def novo_cliente():
              request.form.get('uf', '').strip() or None,
              request.form.get('promocoes', '0') == '1',
              request.form.get('crediario', '0') == '1',
-             random.choice(CORES)))
+             random.choice(CORES),
+             session.get('uid'), session.get('nome')))
         conn.commit(); flash('SUCESSO||Cliente cadastrado!', 'ok')
     except Exception as e: conn.rollback(); flash(str(e), 'erro')
     finally: cur.close(); close_db(conn)

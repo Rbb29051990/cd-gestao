@@ -160,6 +160,9 @@ def init_db():
     conn.commit()
     # ── MIGRAÇÕES — adiciona colunas novas em tabelas existentes ──
     migracoes = [
+        "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS usuario_id INTEGER",
+        "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS usuario_nome VARCHAR(200)",
+        "CREATE INDEX IF NOT EXISTS idx_clientes_usuario_criado ON clientes (usuario_id, criado_em)",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS reservado INTEGER DEFAULT 0",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS foto TEXT",
         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto TEXT",

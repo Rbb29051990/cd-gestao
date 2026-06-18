@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v130'})
+        return jsonify({'status': 'ok', 'version': 'v131'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,8 +155,9 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v130 — 2026-06-18</b><br>
-    v130: Dashboard — gráficos por VALOR TOTAL DO MÊS (não mais dia/semana), rótulos em R$ na diagonal; % arredondados (sem casas decimais); donut com cores definidas (parcelado vermelho, à vista amarelo, débito verde, link azul); Top categorias com Mark-up e sem barra; Ranking de vendedoras com Qtd de produtos / Qtd de clientes / Qtd de clientes cadastrados; Top clientes sem barra ✅<br>
+    Versão: <b style='color:green'>v131 — 2026-06-18</b><br>
+    v131: Dashboard — rótulos dos gráficos viram TOOLTIP ao passar o mouse (R$ 0,00), sem poluir; "Qtd de clientes cadastrados" passa a contar clientes que cada funcionária CADASTROU (clientes.usuario_id), independente de venda; tabelas com rolagem própria no celular (não quebram mais a tela) ✅<br>
+    v130: Dashboard — gráficos por VALOR TOTAL DO MÊS; % arredondados; donut com cores definidas; Top categorias com Mark-up; Ranking de vendedoras renomeado; Top clientes sem barra ✅<br>
     v129: Dashboard — gráficos refletem o período selecionado; versões unificadas (healthz/README) ✅<br>
     v125: Dashboard executivo definitivo conforme imagem aprovada — corrigido o bug que renderizava a aba sem estilo (faltava estender o base.html); KPIs com ícones/tendência, gráficos com rótulos e eixos, donut de taxas, rankings e alertas ✅<br>
     v122: Dashboards — 11 gráficos estratégicos (resultado, tendência 6 meses, fluxo acumulado, top produtos ABC, mix, tamanhos, estoque parado, inadimplência do crediário, conversão de condicional, vendedoras, desconto × margem) + cartões de insight automáticos e filtro de período ✅<br>

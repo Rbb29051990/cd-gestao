@@ -1,4 +1,4 @@
-"""Dashboard Executivo V130 — layout moderno em uma página só (estende base.html).
+"""Dashboard Executivo V131 — layout moderno em uma página só (estende base.html).
 
 Estrutura:
   • Cabeçalho com período e comparação
@@ -306,14 +306,14 @@ def dashboard_view():
 
     for i, t in enumerate(trend):
         t['show_lbl'] = (i % passo_lbl == 0) or (i == len(trend) - 1)
-        # rótulos de dados em moeda BR (R$), para leitura fácil
-        t['bruto_k'] = _brl0(t.get('bruto'))
-        t['liquido_k'] = _brl0(t.get('liquido'))
-        t['fixas_k'] = _brl0(t.get('fixas'))
-        t['avulsas_k'] = _brl0(t.get('avulsas'))
-        t['lucro_k'] = _brl0(t.get('lucro'))
-        t['bruto_h'] = round((float(t.get('bruto', 0) or 0) / top_fat) * 62, 2) if top_fat else 0
-        t['liquido_h'] = round((float(t.get('liquido', 0) or 0) / top_fat) * 62, 2) if top_fat else 0
+        # valores em R$ (com centavos) exibidos no tooltip ao passar o mouse
+        t['bruto_k'] = _brl(t.get('bruto'))
+        t['liquido_k'] = _brl(t.get('liquido'))
+        t['fixas_k'] = _brl(t.get('fixas'))
+        t['avulsas_k'] = _brl(t.get('avulsas'))
+        t['lucro_k'] = _brl(t.get('lucro'))
+        t['bruto_h'] = round((float(t.get('bruto', 0) or 0) / top_fat) * 100, 2) if top_fat else 0
+        t['liquido_h'] = round((float(t.get('liquido', 0) or 0) / top_fat) * 100, 2) if top_fat else 0
 
     fix_poly = _line_points('fixas', 0, top_desp)
     avul_poly = _line_points('avulsas', 0, top_desp)
@@ -392,25 +392,26 @@ def dashboard_view():
     estoque_parado_60_pct = round(estoque_parado_60 / base_ag * 100)
 
     # ── Ranking de vendedoras (líquido) ──
-    # "Qtd de clientes" = clientes distintos atendidos; "Qtd de clientes cadastrados"
-    # = quantos desses foram cadastrados dentro do período (clientes novos atendidos).
+    # "Qtd de clientes" = clientes distintos atendidos no período.
+    # "Qtd de clientes cadastrados" = clientes que a funcionária CADASTROU na aba
+    #   Clientes dentro do período (clientes.usuario_id), independente de venda.
     vendedoras = []
     try:
-        cur.execute("SELECT id FROM clientes WHERE DATE(criado_em) BETWEEN %s AND %s", (di, df))
-        novos_ids = {row['id'] for row in cur.fetchall()}
-        cur.execute("""SELECT v.id, v.vendedora_nome, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id,
+        cur.execute("""SELECT v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id,
                        COALESCE(SUM(vi.quantidade),0) pecas, MAX(u.foto) AS foto
                        FROM vendas v
                        LEFT JOIN venda_itens vi ON vi.venda_id=v.id
                        LEFT JOIN usuarios u ON u.id=v.usuario_id
                        WHERE DATE(v.criado_em) BETWEEN %s AND %s
-                       GROUP BY v.id, v.vendedora_nome, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id""", (di, df))
+                       GROUP BY v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id""", (di, df))
         tmp = {}; cache = {}
         for r in cur.fetchall():
             nome = r['vendedora_nome'] or '—'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
             liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache)
-            o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'cli_novos': set(), 'foto': None})
+            o = tmp.setdefault(nome, {'nome': nome, 'uid': None, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
+            if r['usuario_id'] and not o['uid']:
+                o['uid'] = r['usuario_id']
             if r.get('foto') and not o.get('foto'):
                 foto = r['foto']
                 # fotos de usuário são salvas como data URI; manter fallback para iniciais no template
@@ -418,12 +419,15 @@ def dashboard_view():
             o['liquido'] += liq; o['vendas'] += 1; o['pecas'] += int(r['pecas'] or 0)
             if r['cliente_id']:
                 o['cli'].add(r['cliente_id'])
-                if r['cliente_id'] in novos_ids:
-                    o['cli_novos'].add(r['cliente_id'])
+        # Quantos clientes cada usuário CADASTROU no período (independe de venda)
+        cur.execute("""SELECT usuario_id, COUNT(*) c FROM clientes
+                       WHERE DATE(criado_em) BETWEEN %s AND %s AND usuario_id IS NOT NULL
+                       GROUP BY usuario_id""", (di, df))
+        cad_por_uid = {row['usuario_id']: int(row['c'] or 0) for row in cur.fetchall()}
         vendedoras = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]
         for v in vendedoras:
             v['clientes'] = len(v['cli'])
-            v['clientes_cad'] = len(v['cli_novos'])
+            v['clientes_cad'] = cad_por_uid.get(v['uid'], 0)
             v['ticket'] = round(v['liquido'] / v['vendas'], 2) if v['vendas'] else 0
             v['ini'] = ''.join([p[0] for p in v['nome'].split()[:2]]).upper() or '—'
             v['liquido'] = round(v['liquido'], 2)

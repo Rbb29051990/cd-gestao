@@ -38,7 +38,8 @@
 .row{display:grid;gap:10px;margin-bottom:8px}
 .row.g3a{grid-template-columns:1.04fr 1.04fr .82fr}
 .row.g3{grid-template-columns:1fr 1fr 1fr}
-.pnl{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:11px 13px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.pnl{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:11px 13px;box-shadow:0 1px 2px rgba(15,23,42,.04);min-width:0}
+.dx .table-wrap{border:0;box-shadow:none;border-radius:0;background:transparent;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 .pnl-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
 .pnl-t{font-size:12px;font-weight:800;letter-spacing:.1px;text-transform:uppercase;color:#334155}
 .pnl-sel{font-size:10.5px;color:var(--mut);font-weight:700;border:1px solid var(--bd);border-radius:8px;padding:3px 8px}
@@ -49,8 +50,10 @@
 .grid span{border-top:1px dashed #eef2f7}
 .cols{position:absolute;inset:2px 0 16px 0;display:flex;align-items:flex-end;gap:2px}
 .bcol{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
-.bval{font-size:8px;font-weight:800;color:#475569;margin-bottom:2px;white-space:nowrap;min-height:11px;transform:rotate(-45deg);transform-origin:center bottom}
-.bar{width:68%;border-radius:3px 3px 0 0;min-height:2px}
+.bar{width:68%;border-radius:3px 3px 0 0;min-height:2px;position:relative;cursor:pointer}
+.tip{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;font-size:11px;font-weight:800;padding:4px 9px;border-radius:7px;white-space:nowrap;opacity:0;visibility:hidden;transition:opacity .12s;z-index:40;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#0f172a}
+.bar:hover .tip,.lpt:hover .tip{opacity:1;visibility:visible}
 .lplot{position:absolute;inset:2px 0 16px 0}
 .lsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .lpt{position:absolute;width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px currentColor;transform:translate(-50%,-50%)}
@@ -110,8 +113,8 @@
 .tbl-clientes th:nth-child(4),.tbl-clientes td:nth-child(4),.tbl-clientes th:nth-child(5),.tbl-clientes td:nth-child(5){width:10%}
 .tbl-clientes th:nth-child(6),.tbl-clientes td:nth-child(6){width:14%}
 .empty{padding:26px;text-align:center;color:var(--mut2);font-size:12px;background:#f8fafc;border-radius:12px}
-@media(max-width:1200px){.kpis{grid-template-columns:repeat(4,1fr)}.row.g3a,.row.g3{grid-template-columns:1fr}.foot{grid-template-columns:1fr 1fr 1fr}}
-@media(max-width:640px){.kpis,.foot{grid-template-columns:1fr 1fr}}
+@media(max-width:1200px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}.row.g3a,.row.g3{grid-template-columns:minmax(0,1fr)}.foot{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:640px){.kpis,.foot{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 
 <div class="dash-wrap">
@@ -209,7 +212,7 @@
             <div class="yax">{% for tk in eixo_fat_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
             <div class="plot">
               <div class="grid">{% for _ in eixo_fat_ticks %}<span></span>{% endfor %}</div>
-              <div class="cols">{% for t in trend %}<div class="bcol"><span class="bval">{{ t.bruto_k if t.show_lbl else '' }}</span><div class="bar" style="height:{{ t.bruto_h }}%;background:#2563eb"></div></div>{% endfor %}</div>
+              <div class="cols">{% for t in trend %}<div class="bcol"><div class="bar" style="height:{{ t.bruto_h }}%;background:#2563eb"><span class="tip">{{ t.bruto_k }}</span></div></div>{% endfor %}</div>
               <div class="xlbls">{% for t in trend %}<span>{{ t.label if t.show_lbl else '' }}</span>{% endfor %}</div>
             </div>
           </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
@@ -224,8 +227,7 @@
               <div class="grid">{% for _ in eixo_desp_ticks %}<span></span>{% endfor %}</div>
               <div class="lplot">
                 <svg class="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none"><polyline points="{{ fix_poly }}" fill="none" stroke="#2563eb" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/><polyline points="{{ avul_poly }}" fill="none" stroke="#dc2626" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                {% for t in trend %}<i class="lpt" style="left:{{ t.xp }}%;top:{{ t.fixas_yp }}%;color:#2563eb"></i><i class="lpt" style="left:{{ t.xp }}%;top:{{ t.avulsas_yp }}%;color:#dc2626"></i>{% endfor %}
-                {% for t in trend %}{% if t.show_lbl %}<span class="lval" style="left:{{ t.xp }}%;top:{{ t.fixas_yp }}%;color:#1d4ed8">{{ t.fixas_k }}</span>{% endif %}{% endfor %}
+                {% for t in trend %}<i class="lpt" style="left:{{ t.xp }}%;top:{{ t.fixas_yp }}%;color:#2563eb"><span class="tip">Fixas {{ t.fixas_k }}</span></i><i class="lpt" style="left:{{ t.xp }}%;top:{{ t.avulsas_yp }}%;color:#dc2626"><span class="tip">Avulsas {{ t.avulsas_k }}</span></i>{% endfor %}
               </div>
               <div class="xlbls">{% for t in trend %}<span>{{ t.label if t.show_lbl else '' }}</span>{% endfor %}</div>
             </div>
@@ -250,7 +252,7 @@
             <div class="yax">{% for tk in eixo_fat_ticks %}<span>{{ tk }}</span>{% endfor %}</div>
             <div class="plot">
               <div class="grid">{% for _ in eixo_fat_ticks %}<span></span>{% endfor %}</div>
-              <div class="cols">{% for t in trend %}<div class="bcol"><span class="bval">{{ t.liquido_k if t.show_lbl else '' }}</span><div class="bar" style="height:{{ t.liquido_h }}%;background:#16a34a"></div></div>{% endfor %}</div>
+              <div class="cols">{% for t in trend %}<div class="bcol"><div class="bar" style="height:{{ t.liquido_h }}%;background:#16a34a"><span class="tip">{{ t.liquido_k }}</span></div></div>{% endfor %}</div>
               <div class="xlbls">{% for t in trend %}<span>{{ t.label if t.show_lbl else '' }}</span>{% endfor %}</div>
             </div>
           </div>{% else %}<div class="empty">Sem dados.</div>{% endif %}
@@ -264,8 +266,7 @@
               <div class="grid">{% for _ in eixo_lucro_ticks %}<span></span>{% endfor %}</div>
               <div class="lplot">
                 <svg class="lsvg" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="0" y1="{{ lucro_zero_yp }}" x2="100" y2="{{ lucro_zero_yp }}" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/><polyline points="{{ lucro_poly }}" fill="none" stroke="#16a34a" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                {% for t in trend %}<i class="lpt" style="left:{{ t.xp }}%;top:{{ t.lucro_yp }}%;color:{{ '#dc2626' if t.lucro < 0 else '#16a34a' }}"></i>{% endfor %}
-                {% for t in trend %}{% if t.show_lbl %}<span class="lval" style="left:{{ t.xp }}%;top:{{ t.lucro_yp }}%;color:{{ '#dc2626' if t.lucro < 0 else '#15803d' }}">{{ t.lucro_k }}</span>{% endif %}{% endfor %}
+                {% for t in trend %}<i class="lpt" style="left:{{ t.xp }}%;top:{{ t.lucro_yp }}%;color:{{ '#dc2626' if t.lucro < 0 else '#16a34a' }}"><span class="tip">Lucro {{ t.lucro_k }}</span></i>{% endfor %}
               </div>
               <div class="xlbls">{% for t in trend %}<span>{{ t.label if t.show_lbl else '' }}</span>{% endfor %}</div>
             </div>

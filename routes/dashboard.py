@@ -259,9 +259,55 @@ def dashboard_view():
     except Exception:
         rollback()
 
+    # ── Preparação visual dos gráficos ──
     dense = False
+
+    def _ticks_0(maxv):
+        top = _nice_top(maxv)
+        return [_kbrl(top), _kbrl(top * 0.75), _kbrl(top * 0.50), _kbrl(top * 0.25), '0']
+
+    def _line_points(key, minv, maxv):
+        pts = []
+        n = max(len(trend) - 1, 1)
+        span = (maxv - minv) or 1
+        for i, t in enumerate(trend):
+            xp = round(i / n * 100, 2)
+            yp = round(100 - ((float(t.get(key, 0) or 0) - minv) / span * 100), 2)
+            t[key + '_yp'] = max(0, min(100, yp))
+            t['xp'] = xp
+            pts.append(f"{xp},{t[key + '_yp']}")
+        return ' '.join(pts)
+
+    max_fat = max([float(t.get('bruto', 0) or 0) for t in trend] + [float(t.get('liquido', 0) or 0) for t in trend] + [1])
+    top_fat = _nice_top(max_fat)
+    eixo_fat_ticks = _ticks_0(max_fat)
+
+    max_desp = max([float(t.get('fixas', 0) or 0) for t in trend] + [float(t.get('avulsas', 0) or 0) for t in trend] + [1])
+    top_desp = _nice_top(max_desp)
+    eixo_desp_ticks = _ticks_0(max_desp)
+
+    luc_vals = [float(t.get('lucro', 0) or 0) for t in trend] or [0]
+    luc_min = min(luc_vals + [0])
+    luc_max = max(luc_vals + [0])
+    luc_span = max(abs(luc_min), abs(luc_max), 1)
+    luc_min, luc_max = -luc_span, luc_span
+    eixo_lucro_ticks = [_kbrl(luc_max), _kbrl(luc_max/2), '0', _kbrl(luc_min/2), _kbrl(luc_min)]
+    lucro_zero_yp = 50
+
     for i, t in enumerate(trend):
         t['show_lbl'] = True
+        t['bruto_k'] = _kbrl(t.get('bruto'))
+        t['liquido_k'] = _kbrl(t.get('liquido'))
+        t['fixas_k'] = _kbrl(t.get('fixas'))
+        t['avulsas_k'] = _kbrl(t.get('avulsas'))
+        t['lucro_k'] = _kbrl(t.get('lucro'))
+        t['bruto_h'] = round((float(t.get('bruto', 0) or 0) / top_fat) * 88, 2) if top_fat else 0
+        t['liquido_h'] = round((float(t.get('liquido', 0) or 0) / top_fat) * 88, 2) if top_fat else 0
+
+    fix_poly = _line_points('fixas', 0, top_desp)
+    avul_poly = _line_points('avulsas', 0, top_desp)
+    lucro_poly = _line_points('lucro', luc_min, luc_max)
+
     # ── Taxas por forma (donut + rótulos internos) ──
     taxas_formas = []
     base_taxas = sum(taxas_por_forma.values()) or 1

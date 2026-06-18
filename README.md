@@ -386,3 +386,7 @@ Isso cria as tabelas e usuários padrão.
 - Ranking de Vendedoras usa venda líquida e quantidade vendida.
 - Top 5 Clientes inclui valor líquido, peças, ticket médio e última compra.
 - Ajustes de altura, espaçamento e proporção para reduzir rolagem.
+
+## V127 - hotfix dashboard
+- Corrige erro interno do dashboard causado por variáveis de eixo/polilinhas não geradas.
+- Mantém layout V126 e consolidação mensal dos gráficos.

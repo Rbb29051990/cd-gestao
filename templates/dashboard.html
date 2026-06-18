@@ -18,23 +18,23 @@
 .dx-chip{height:30px;border:1px solid var(--bd);border-radius:9px;padding:0 10px;background:#fff;color:#475569;font-size:10.7px;font-weight:700;cursor:pointer;font-family:inherit}
 .dx-chip:hover{background:#eef2fb}
 .kpis{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-bottom:8px}
-.kpi{background:var(--card);border:1px solid var(--bd);border-radius:15px;padding:8px 10px;box-shadow:0 1px 2px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:6px;min-height:108px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:15px;padding:7px 10px;box-shadow:0 1px 2px rgba(15,23,42,.04);display:flex;flex-direction:column;gap:3px;min-height:92px;justify-content:center}
 .kpi-top{display:flex;align-items:center;gap:8px}
-.kpi-ic{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-.kpi-ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.kpi-ic{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.kpi-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .kpi-tt{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.2px;color:var(--mut);line-height:1.15}
-.kpi-v{font-size:19px;font-weight:800;letter-spacing:-.6px;line-height:1}
+.kpi-v{font-size:18px;font-weight:800;letter-spacing:-.6px;line-height:1.05}
 .kpi-s{font-size:10px;color:var(--mut);line-height:1.3;min-height:12px}
-.kpi-foot{margin-top:auto;display:flex;align-items:center;gap:5px;font-size:10px;color:var(--mut2);font-weight:600}
+.kpi-foot{margin-top:2px;display:flex;align-items:center;gap:5px;font-size:9.5px;color:var(--mut2);font-weight:600}
 .tri{font-size:9px}.tri.up,.kpi-foot b.up{color:#16a34a}.tri.down,.kpi-foot b.down{color:#dc2626}
 .kpi-foot b{font-weight:800}
-.brk{display:flex;align-items:center;gap:6px;font-size:10px;color:#475569;margin:1px 0}
+.brk{display:flex;align-items:center;gap:5px;font-size:9.5px;color:#475569;margin:0}
 .brk .d{width:7px;height:7px;border-radius:50%;display:inline-block;flex:0 0 auto}
 .brk b{margin-left:auto;font-weight:700;color:#334155}
-.hwrap{margin:1px 0 2px}
-.hbar{height:7px;border-radius:999px;background:linear-gradient(90deg,#dc2626,#eab308 50%,#16a34a);position:relative}
+.hwrap{margin:0 0 1px}
+.hbar{height:6px;border-radius:999px;background:linear-gradient(90deg,#dc2626,#eab308 50%,#16a34a);position:relative}
 .hbar i{position:absolute;top:-4px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #0f172a;transform:translateX(-50%)}
-.hlbl{font-size:9px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+.hlbl{font-size:8.8px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
 .row{display:grid;gap:10px;margin-bottom:8px}
 .row.g3a{grid-template-columns:1.04fr 1.04fr .82fr}
 .row.g3{grid-template-columns:1fr 1fr 1fr}
@@ -73,16 +73,16 @@
 .dn-tot .a{font-weight:800;text-transform:uppercase;color:#334155}
 .dn-tot .b{font-weight:800;color:#f59e0b;font-size:14px}
 .dn-tot .c{color:var(--mut);font-weight:600;margin-left:auto}
-.tbl{width:100%;border-collapse:collapse;font-size:10.7px}
-.tbl th{font-size:8.5px;text-transform:uppercase;letter-spacing:.2px;color:var(--mut2);font-weight:800;padding:0 5px 8px;border-bottom:1px solid #eef2f7;text-align:right;white-space:nowrap}
+.tbl{width:100%;border-collapse:collapse;font-size:10.3px;table-layout:auto}
+.tbl th{font-size:8.1px;text-transform:uppercase;letter-spacing:.2px;color:var(--mut2);font-weight:800;padding:0 4px 7px;border-bottom:1px solid #eef2f7;text-align:right;white-space:nowrap}
 .tbl th.l,.tbl td.l{text-align:left}
-.tbl td{padding:5px 5px;border-bottom:1px solid #f4f7fb;color:#334155;text-align:right;white-space:nowrap;vertical-align:middle}
+.tbl td{padding:5px 4px;border-bottom:1px solid #f4f7fb;color:#334155;text-align:right;white-space:nowrap;vertical-align:middle}
 .tbl tr:last-child td{border-bottom:0}
 .rk{display:inline-flex;width:19px;height:19px;border-radius:6px;background:#eef2ff;color:#2563eb;font-weight:800;font-size:10px;align-items:center;justify-content:center}
 .av{display:inline-flex;align-items:center;gap:8px}
 .av .ini{width:25px;height:25px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-weight:800;font-size:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}.av img{width:25px;height:25px;border-radius:50%;object-fit:cover;flex:0 0 auto}
-.nm{font-weight:700;color:var(--ink);max-width:118px;overflow:hidden;text-overflow:ellipsis}
-.minib{display:inline-block;vertical-align:middle;height:6px;border-radius:999px;margin-right:6px}
+.nm{font-weight:700;color:var(--ink);max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.minib{display:inline-block;vertical-align:middle;height:6px;border-radius:999px;margin-right:6px;max-width:72px}
 .mt{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #eef2f7;margin-top:4px;padding-top:10px;font-size:12px}
 .mt .a{font-weight:800;text-transform:uppercase;font-size:10px;color:#334155}
 .mt .b{font-weight:800;color:#2563eb;background:#eff4ff;padding:4px 12px;border-radius:8px}
@@ -96,12 +96,17 @@
 .cap .r{text-align:right}
 .cap .v{font-size:16px;font-weight:800;color:#dc2626}
 .cap .s{font-size:9.5px;color:#e07a7a;font-weight:700}
-.foot{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.foot{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:2px}
 .fc{background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:8px 10px;display:flex;gap:9px;align-items:center;box-shadow:0 1px 2px rgba(15,23,42,.04)}
 .fc-ic{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
 .fc-ic svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .fc-t{font-size:11px;font-weight:800;color:#334155;line-height:1.15}
 .fc-s{font-size:9.5px;color:var(--mut);line-height:1.25;margin-top:2px}
+
+.tbl-clientes th:nth-child(2),.tbl-clientes td:nth-child(2){width:36%;max-width:170px}
+.tbl-clientes th:nth-child(3),.tbl-clientes td:nth-child(3){width:27%}
+.tbl-clientes th:nth-child(4),.tbl-clientes td:nth-child(4),.tbl-clientes th:nth-child(5),.tbl-clientes td:nth-child(5){width:10%}
+.tbl-clientes th:nth-child(6),.tbl-clientes td:nth-child(6){width:14%}
 .empty{padding:26px;text-align:center;color:var(--mut2);font-size:12px;background:#f8fafc;border-radius:12px}
 @media(max-width:1200px){.kpis{grid-template-columns:repeat(4,1fr)}.row.g3a,.row.g3{grid-template-columns:1fr}.foot{grid-template-columns:1fr 1fr 1fr}}
 @media(max-width:640px){.kpis,.foot{grid-template-columns:1fr 1fr}}
@@ -294,9 +299,9 @@
 
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Top 5 clientes</div><div class="pnl-sel">valor líquido</div></div>
-          {% if top_clientes %}<table class="tbl no-sort">
-            <thead><tr><th class="l">#</th><th class="l">Cliente</th><th>Valor líquido (R$)</th><th>Compras</th><th>Qtd. de peças</th><th>Ticket médio</th><th>Última compra</th></tr></thead>
-            <tbody>{% for c in top_clientes %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td><span class="minib" style="width:{{ (c.bar*0.4)|round }}px;background:#2563eb"></span>{{ brl(c.liquido) }}</td><td>{{ c.compras }}</td><td>{{ c.pecas }}</td><td>{{ brl(c.ticket) }}</td><td style="color:#94a3b8">{{ c.ultima_fmt }}</td></tr>{% endfor %}</tbody>
+          {% if top_clientes %}<table class="tbl tbl-clientes no-sort">
+            <thead><tr><th class="l">#</th><th class="l">Cliente</th><th>Valor líquido (R$)</th><th>Compras</th><th>Peças</th><th>Ticket médio</th></tr></thead>
+            <tbody>{% for c in top_clientes %}<tr title="Última compra: {{ c.ultima_fmt }}"><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td><span class="minib" style="width:{{ (c.bar*0.45)|round }}px;background:#2563eb"></span>{{ brl(c.liquido) }}</td><td>{{ c.compras }}</td><td>{{ c.pecas }}</td><td>{{ brl(c.ticket) }}</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total valor líquido</span><span class="b">{{ brl(cli_total) }}</span></div>{% else %}<div class="empty">Sem clientes no período.</div>{% endif %}
         </div>

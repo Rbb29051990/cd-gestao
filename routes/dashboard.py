@@ -1,4 +1,4 @@
-"""Dashboard Executivo V125 — layout moderno em uma página só (estende base.html).
+"""Dashboard Executivo V128 — layout moderno em uma página só (estende base.html).
 
 Estrutura:
   • Cabeçalho com período e comparação
@@ -24,8 +24,12 @@ FORMA_LABEL = {
     'link': 'Link', 'transferencia': 'Transferência', 'crediario': 'Crediário', 'outros': 'Outros'
 }
 FORMA_COR = {
-    'dinheiro': '#f59e0b', 'pix': '#7c3aed', 'debito': '#16a34a',
-    'credito_vista': '#2563eb', 'credito_parcelado': '#3b82f6',
+    # Paleta V128: formas de pagamento visualmente distintas
+    'credito_parcelado': '#2563eb',  # azul
+    'credito_vista': '#7c3aed',      # roxo
+    'debito': '#16a34a',             # verde
+    'pix': '#f97316',                # laranja
+    'dinheiro': '#eab308',           # amarelo/ouro
     'link': '#0891b2', 'transferencia': '#0284c7', 'crediario': '#db2777', 'outros': '#94a3b8'
 }
 PALETA = ['#2563eb', '#16a34a', '#7c3aed', '#f59e0b', '#db2777', '#0891b2', '#64748b']
@@ -259,6 +263,10 @@ def dashboard_view():
     except Exception:
         rollback()
 
+    # V128: em 12 meses, não exibir meses totalmente zerados.
+    # O gráfico continua preparado para até 12 meses, mas mostra somente meses com dados reais.
+    trend = [t for t in trend if any(float(t.get(k, 0) or 0) != 0 for k in ('bruto', 'liquido', 'fixas', 'avulsas', 'lucro'))]
+
     # ── Preparação visual dos gráficos ──
     dense = False
 
@@ -398,7 +406,9 @@ def dashboard_view():
             liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache)
             o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
             if r.get('foto') and not o.get('foto'):
-                o['foto'] = r['foto']
+                foto = r['foto']
+                # fotos de usuário são salvas como data URI; manter fallback para iniciais no template
+                o['foto'] = foto if isinstance(foto, str) and foto.startswith('data:image/') else None
             o['liquido'] += liq; o['vendas'] += 1; o['pecas'] += int(r['pecas'] or 0)
             if r['cliente_id']:
                 o['cli'].add(r['cliente_id'])

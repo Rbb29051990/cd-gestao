@@ -80,7 +80,7 @@
 .tbl tr:last-child td{border-bottom:0}
 .rk{display:inline-flex;width:19px;height:19px;border-radius:6px;background:#eef2ff;color:#2563eb;font-weight:800;font-size:10px;align-items:center;justify-content:center}
 .av{display:inline-flex;align-items:center;gap:8px}
-.av .ini{width:25px;height:25px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-weight:800;font-size:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.av .ini{width:25px;height:25px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-weight:800;font-size:9px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}.av img{width:25px;height:25px;border-radius:50%;object-fit:cover;flex:0 0 auto}
 .nm{font-weight:700;color:var(--ink);max-width:118px;overflow:hidden;text-overflow:ellipsis}
 .minib{display:inline-block;vertical-align:middle;height:6px;border-radius:999px;margin-right:6px}
 .mt{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #eef2f7;margin-top:4px;padding-top:10px;font-size:12px}
@@ -268,8 +268,8 @@
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Top 5 categorias</div></div>
           {% if top_categorias %}<table class="tbl no-sort">
-            <thead><tr><th class="l">#</th><th class="l">Categoria</th><th class="l">Valor líquido (R$)</th><th>% do faturamento</th></tr></thead>
-            <tbody>{% for c in top_categorias %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.categoria }}</td><td class="l"><span class="minib" style="width:{{ (c.bar*0.5)|round }}px;background:#2563eb"></span>{{ brl(c.receita) }}</td><td>{{ c.pct_fat }}%</td></tr>{% endfor %}</tbody>
+            <thead><tr><th class="l">#</th><th class="l">Categoria</th><th class="l">Receita líquida</th><th>Margem</th></tr></thead>
+            <tbody>{% for c in top_categorias %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.categoria }}</td><td class="l"><span class="minib" style="width:{{ (c.bar*0.5)|round }}px;background:#2563eb"></span>{{ brl(c.receita) }}</td><td>{{ c.margem }}%</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total</span><span class="b">{{ brl(cat_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
         </div>
@@ -281,7 +281,7 @@
           <div class="pnl-h"><div class="pnl-t">Ranking de vendedoras</div><div class="pnl-sel">venda líquida</div></div>
           {% if vendedoras %}<table class="tbl no-sort">
             <thead><tr><th class="l">#</th><th class="l">Vendedora</th><th>Venda líquida (R$)</th><th>Qtd. vendida</th><th>Ticket médio</th><th>Clientes</th></tr></thead>
-            <tbody>{% for v in vendedoras %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l"><span class="av"><span class="ini">{{ v.ini }}</span><span class="nm">{{ v.nome }}</span></span></td><td>{{ brl(v.liquido) }}</td><td>{{ v.pecas }}</td><td>{{ brl(v.ticket) }}</td><td>{{ v.clientes }}</td></tr>{% endfor %}</tbody>
+            <tbody>{% for v in vendedoras %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l"><span class="av">{% if v.foto %}<img src="{{ v.foto }}" alt="{{ v.nome }}">{% else %}<span class="ini">{{ v.ini }}</span>{% endif %}<span class="nm">{{ v.nome }}</span></span></td><td>{{ brl(v.liquido) }}</td><td>{{ v.pecas }}</td><td>{{ brl(v.ticket) }}</td><td>{{ v.clientes }}</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total venda líquida</span><span class="b">{{ brl(vend_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
         </div>
@@ -295,8 +295,8 @@
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Top 5 clientes</div><div class="pnl-sel">valor líquido</div></div>
           {% if top_clientes %}<table class="tbl no-sort">
-            <thead><tr><th class="l">#</th><th class="l">Cliente</th><th>Valor líquido (R$)</th><th>Qtd. de peças</th><th>Ticket médio</th><th>Última compra</th></tr></thead>
-            <tbody>{% for c in top_clientes %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td><span class="minib" style="width:{{ (c.bar*0.4)|round }}px;background:#2563eb"></span>{{ brl(c.liquido) }}</td><td>{{ c.pecas }}</td><td>{{ brl(c.ticket) }}</td><td style="color:#94a3b8">{{ c.ultima_fmt }}</td></tr>{% endfor %}</tbody>
+            <thead><tr><th class="l">#</th><th class="l">Cliente</th><th>Valor líquido (R$)</th><th>Compras</th><th>Qtd. de peças</th><th>Ticket médio</th><th>Última compra</th></tr></thead>
+            <tbody>{% for c in top_clientes %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l nm">{{ c.nome }}</td><td><span class="minib" style="width:{{ (c.bar*0.4)|round }}px;background:#2563eb"></span>{{ brl(c.liquido) }}</td><td>{{ c.compras }}</td><td>{{ c.pecas }}</td><td>{{ brl(c.ticket) }}</td><td style="color:#94a3b8">{{ c.ultima_fmt }}</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total valor líquido</span><span class="b">{{ brl(cli_total) }}</span></div>{% else %}<div class="empty">Sem clientes no período.</div>{% endif %}
         </div>

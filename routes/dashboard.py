@@ -198,59 +198,54 @@ def dashboard_view():
         'ticket': _brl(ticket), 'qtd_vendas': qtd_vendas, 'd_ticket': _delta(ticket, ticket_a),
     }
 
-    # ── Tendência DIRIGIDA PELO PERÍODO (dia/semana/mês conforme a duração) ──
-    # Empresa recém-implantada não tem histórico: em vez de 12 meses fixos
-    # (quase vazios), os gráficos refletem o período selecionado.
-    if dias <= 31:
-        gran, gran_label = 'dia', 'Por dia'
-    elif dias <= 93:
-        gran, gran_label = 'semana', 'Por semana'
-    else:
-        gran, gran_label = 'mes', 'Por mês'
+    # ── Tendência dos gráficos — últimos 12 meses consolidados por mês ──
+    # Os cards e rankings respeitam o período selecionado acima.
+    # Já os gráficos de evolução seguem a visão executiva aprovada: últimos 12 meses
+    # até o mês final do filtro, sempre consolidados por mês/ano.
+    gran_label = '12 meses'
+    trend = []
     buckets = []
-    if gran == 'dia':
-        d = data_inicio
-        while d <= data_fim:
-            buckets.append({'ini': d, 'fim': d, 'label': d.strftime('%d/%m')})
-            d += timedelta(days=1)
-    elif gran == 'semana':
-        d = data_inicio
-        while d <= data_fim:
-            fb = min(d + timedelta(days=6), data_fim)
-            buckets.append({'ini': d, 'fim': fb, 'label': d.strftime('%d/%m')})
-            d = fb + timedelta(days=1)
-    else:
-        y, m = data_inicio.year, data_inicio.month
-        while (y, m) <= (data_fim.year, data_fim.month):
-            ny, nm = _add_months(y, m, 1)
-            fm = min(date(ny, nm, 1) - timedelta(days=1), data_fim)
-            buckets.append({'ini': max(date(y, m, 1), data_inicio), 'fim': fm, 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}'})
-            y, m = ny, nm
+    start_y, start_m = _add_months(data_fim.year, data_fim.month, -11)
+    y, m = start_y, start_m
+    for _ in range(12):
+        ny, nm = _add_months(y, m, 1)
+        ini_mes = date(y, m, 1)
+        fim_mes = date(ny, nm, 1) - timedelta(days=1)
+        buckets.append({'ini': ini_mes, 'fim': fim_mes, 'label': f'{MESES_PT[m-1]}/{str(y)[2:]}'})
+        y, m = ny, nm
+
+    trend_ini, trend_fim = buckets[0]['ini'].isoformat(), buckets[-1]['fim'].isoformat()
 
     def _bidx(dt):
+        if hasattr(dt, 'date'):
+            dt = dt.date()
+        if not isinstance(dt, date):
+            return None
         for i, b in enumerate(buckets):
             if b['ini'] <= dt <= b['fim']:
                 return i
         return None
 
-    trend = []
     try:
         agg = [{'bruto': 0.0, 'liquido': 0.0, 'fixas': 0.0, 'avulsas': 0.0} for _ in buckets]
         cache = {}
-        cur.execute("SELECT forma_pagamento, valor, criado_em FROM caixa WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s", (di, df))
+        cur.execute("SELECT forma_pagamento, valor, criado_em FROM caixa WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s", (trend_ini, trend_fim))
         for r in cur.fetchall():
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
             i = _bidx(dt)
-            if i is None: continue
+            if i is None:
+                continue
             b = float(r['valor'] or 0)
             liq, _d, _p = _liquido_com_taxa(b, r['forma_pagamento'] or 'outros', dt, cache)
-            agg[i]['bruto'] += b; agg[i]['liquido'] += liq
+            agg[i]['bruto'] += b
+            agg[i]['liquido'] += liq
         cur.execute("""SELECT p.data_vencimento dv, LOWER(COALESCE(d.tipo,'')) tp, p.valor v
                        FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
-                       WHERE DATE(p.data_vencimento) BETWEEN %s AND %s""", (di, df))
+                       WHERE DATE(p.data_vencimento) BETWEEN %s AND %s""", (trend_ini, trend_fim))
         for r in cur.fetchall():
             i = _bidx(r['dv']) if r['dv'] else None
-            if i is None: continue
+            if i is None:
+                continue
             v = float(r['v'] or 0)
             if (r['tp'] or '') in ('fixa', 'fixo'):
                 agg[i]['fixas'] += v
@@ -263,36 +258,10 @@ def dashboard_view():
                           'lucro': round(a['liquido'] - a['fixas'] - a['avulsas'], 2)})
     except Exception:
         rollback()
-    dense = len(trend) > 14
-    passo_lbl = max(1, (len(trend) + 7) // 8) if dense else 1
-    for i, t in enumerate(trend):
-        t['show_lbl'] = (i % passo_lbl == 0) or (i == len(trend) - 1)
 
-    # Eixos + alturas + rótulos
-    eixo_fat = _nice_top(max([t['bruto'] for t in trend] + [t['liquido'] for t in trend] + [1]))
-    eixo_desp = _nice_top(max([max(t['fixas'], t['avulsas']) for t in trend] + [1]))
-    lucros = [t['lucro'] for t in trend] or [0]
-    lhi = _nice_top(max(lucros + [0]))
-    llo = -_nice_top(-min(lucros + [0])) if min(lucros + [0]) < 0 else 0
-    lrng = (lhi - llo) or 1
-    n = len(trend)
+    dense = False
     for i, t in enumerate(trend):
-        t['xp'] = round(i / max(n - 1, 1) * 100, 2)
-        t['bruto_h'] = round(t['bruto'] / eixo_fat * 100, 1)
-        t['liquido_h'] = round(t['liquido'] / eixo_fat * 100, 1)
-        t['fixas_yp'] = round((eixo_desp - t['fixas']) / eixo_desp * 100, 2)
-        t['avulsas_yp'] = round((eixo_desp - t['avulsas']) / eixo_desp * 100, 2)
-        t['lucro_yp'] = round((lhi - t['lucro']) / lrng * 100, 2)
-        t['bruto_k'] = _kbrl(t['bruto']); t['liquido_k'] = _kbrl(t['liquido'])
-        t['fixas_k'] = _kbrl(t['fixas']); t['avulsas_k'] = _kbrl(t['avulsas']); t['lucro_k'] = _kbrl(t['lucro'])
-    fix_poly = ' '.join(f"{t['xp']},{t['fixas_yp']}" for t in trend)
-    avul_poly = ' '.join(f"{t['xp']},{t['avulsas_yp']}" for t in trend)
-    lucro_poly = ' '.join(f"{t['xp']},{t['lucro_yp']}" for t in trend)
-    lucro_zero_yp = round((lhi - 0) / lrng * 100, 2)
-    eixo_fat_ticks = [_kbrl(eixo_fat * i / 4) for i in (4, 3, 2, 1, 0)]
-    eixo_desp_ticks = [_kbrl(eixo_desp * i / 4) for i in (4, 3, 2, 1, 0)]
-    eixo_lucro_ticks = [_kbrl(lhi - (lhi - llo) * i / 4) for i in range(5)]
-
+        t['show_lbl'] = True
     # ── Taxas por forma (donut + rótulos internos) ──
     taxas_formas = []
     base_taxas = sum(taxas_por_forma.values()) or 1
@@ -312,23 +281,29 @@ def dashboard_view():
         ang += sweep
     taxas_conic = 'conic-gradient(' + ', '.join(stops) + ')'
 
-    # ── Top 5 categorias (modelo) ──
+    # ── Top 5 categorias (modelo) com margem estimada ──
     top_categorias = []
     try:
         cur.execute("""SELECT COALESCE(NULLIF(vi.modelo,''),'Sem categoria') categoria,
-                       COALESCE(SUM(vi.valor_total),0) receita, COALESCE(SUM(vi.quantidade),0) pecas
-                       FROM venda_itens vi JOIN vendas v ON v.id=vi.venda_id
-                       WHERE DATE(v.criado_em) BETWEEN %s AND %s GROUP BY 1 ORDER BY receita DESC LIMIT 5""", (di, df))
+                       COALESCE(SUM(vi.valor_total),0) receita,
+                       COALESCE(SUM(vi.quantidade),0) pecas,
+                       COALESCE(SUM(COALESCE(e.custo_unitario,0) * COALESCE(vi.quantidade,0)),0) custo
+                       FROM venda_itens vi
+                       JOIN vendas v ON v.id=vi.venda_id
+                       LEFT JOIN estoque e ON e.id=vi.produto_id
+                       WHERE DATE(v.criado_em) BETWEEN %s AND %s
+                       GROUP BY 1 ORDER BY receita DESC LIMIT 5""", (di, df))
         top_categorias = [{'categoria': r['categoria'], 'receita': round(float(r['receita'] or 0), 2),
-                           'pecas': int(r['pecas'] or 0)} for r in cur.fetchall()]
+                           'pecas': int(r['pecas'] or 0), 'custo': round(float(r['custo'] or 0), 2)} for r in cur.fetchall()]
     except Exception:
         rollback()
     cat_max = max([c['receita'] for c in top_categorias] + [1])
     cat_total = round(sum(c['receita'] for c in top_categorias), 2)
     for c in top_categorias:
         c['bar'] = round(c['receita'] / cat_max * 100, 1)
-        c['pct_fat'] = round(c['receita'] / fat_bruto * 100, 1) if fat_bruto else 0
-    cat_total_pct = round(cat_total / fat_bruto * 100, 1) if fat_bruto else 0
+        c['pct_fat'] = round(c['receita'] / fat_liquido * 100, 1) if fat_liquido else 0
+        c['margem'] = round(((c['receita'] - c.get('custo', 0)) / c['receita']) * 100, 1) if c['receita'] else 0
+    cat_total_pct = round(cat_total / fat_liquido * 100, 1) if fat_liquido else 0
 
     # ── Estoque parado (aging) ──
     aging = []; aging_total = estoque_parado_60 = 0.0
@@ -364,8 +339,10 @@ def dashboard_view():
     vendedoras = []
     try:
         cur.execute("""SELECT v.id, v.vendedora_nome, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id,
-                       COALESCE(SUM(vi.quantidade),0) pecas
-                       FROM vendas v LEFT JOIN venda_itens vi ON vi.venda_id=v.id
+                       COALESCE(SUM(vi.quantidade),0) pecas, MAX(u.foto) AS foto
+                       FROM vendas v
+                       LEFT JOIN venda_itens vi ON vi.venda_id=v.id
+                       LEFT JOIN usuarios u ON u.id=v.usuario_id
                        WHERE DATE(v.criado_em) BETWEEN %s AND %s
                        GROUP BY v.id, v.vendedora_nome, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id""", (di, df))
         tmp = {}; cache = {}
@@ -373,7 +350,9 @@ def dashboard_view():
             nome = r['vendedora_nome'] or '—'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
             liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache)
-            o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set()})
+            o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
+            if r.get('foto') and not o.get('foto'):
+                o['foto'] = r['foto']
             o['liquido'] += liq; o['vendas'] += 1; o['pecas'] += int(r['pecas'] or 0)
             if r['cliente_id']:
                 o['cli'].add(r['cliente_id'])

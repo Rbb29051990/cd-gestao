@@ -77,9 +77,9 @@
 .dn-tot .b{font-weight:800;color:#f59e0b;font-size:14px}
 .dn-tot .c{color:var(--mut);font-weight:600;margin-left:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:10.3px;table-layout:auto}
-.tbl th{font-size:8.1px;text-transform:uppercase;letter-spacing:.2px;color:var(--mut2);font-weight:800;padding:0 4px 7px;border-bottom:1px solid #eef2f7;text-align:right;white-space:nowrap}
+.tbl th{font-size:8.1px;text-transform:uppercase;letter-spacing:.2px;color:var(--mut2);font-weight:800;padding:0 4px 7px;border-bottom:1px solid #eef2f7;text-align:center;white-space:nowrap}
 .tbl th.l,.tbl td.l{text-align:left}
-.tbl td{padding:5px 4px;border-bottom:1px solid #f4f7fb;color:#334155;text-align:right;white-space:nowrap;vertical-align:middle}
+.tbl td{padding:5px 4px;border-bottom:1px solid #f4f7fb;color:#334155;text-align:center;white-space:nowrap;vertical-align:middle}
 .tbl tr:last-child td{border-bottom:0}
 .rk{display:inline-flex;width:19px;height:19px;border-radius:6px;background:#eef2ff;color:#2563eb;font-weight:800;font-size:10px;align-items:center;justify-content:center}
 .av{display:inline-flex;align-items:center;gap:8px}
@@ -89,7 +89,7 @@
 .mt{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #eef2f7;margin-top:4px;padding-top:10px;font-size:12px}
 .mt .a{font-weight:800;text-transform:uppercase;font-size:10px;color:#334155}
 .mt .b{font-weight:800;color:#2563eb;background:#eff4ff;padding:4px 12px;border-radius:8px}
-.ag{display:grid;grid-template-columns:13px 92px 1fr auto 46px;gap:9px;align-items:center;font-size:10.7px;margin:8px 0;color:#334155}
+.ag{display:grid;grid-template-columns:11px 80px 1fr auto 38px;gap:5px;align-items:center;font-size:10px;margin:5px 0;color:#334155}
 .ag .d{width:9px;height:9px;border-radius:50%}
 .ag .fx{font-weight:600}
 .ag .vl{font-weight:800;color:var(--ink);text-align:right}
@@ -181,7 +181,7 @@
 
         <div class="kpi">
           <div class="kpi-top"><span class="kpi-ic" style="background:#e6f6f4;color:#0d9488"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-3 3 2 5-6"/></svg></span><span class="kpi-tt">5. Lucro líquido</span></div>
-          <div class="kpi-v" style="color:#2563eb">{{ kpi.lucro }}</div>
+          <div class="kpi-v" style="color:{{ '#dc2626' if kpi.lucro_neg else '#16a34a' }}">{{ kpi.lucro }}</div>
           {% if kpi.d_lucro %}<div class="kpi-foot"><span class="tri {{ kpi.d_lucro.dir }}">{{ '▲' if kpi.d_lucro.dir=='up' else '▼' }}</span><b class="{{ kpi.d_lucro.cls }}">{{ kpi.d_lucro.txt }}</b><span>vs mês anterior</span></div>{% endif %}
         </div>
 
@@ -283,8 +283,14 @@
         </div>
       </section>
 
-      <!-- Linha 3: Ranking de vendedoras · Estoque parado · Top 5 clientes -->
+      <!-- Linha 3: Estoque parado · Ranking de vendedoras · Top 5 clientes -->
       <section class="row g3">
+        <div class="pnl">
+          <div class="pnl-h"><div class="pnl-t">Estoque parado</div><div class="pnl-sel">por tempo</div></div>
+          {% if aging %}{% for a in aging %}<div class="ag"><span class="d" style="background:{{ a.cor }}"></span><span class="fx">{{ a.faixa }}</span><span style="color:#94a3b8;font-size:10px">{{ a.pecas }} pç</span><span class="vl">{{ brl(a.valor) }}</span><span class="pc">{{ a.pct }}%</span></div>{% endfor %}
+          <div class="cap"><div><div class="a">Capital parado<br>+60 dias</div></div><div class="r"><div class="v">{{ brl(estoque_parado_60) }}</div><div class="s">{{ estoque_parado_60_pct }}% do estoque total</div></div></div>{% else %}<div class="empty">Sem estoque.</div>{% endif %}
+        </div>
+
         <div class="pnl">
           <div class="pnl-h"><div class="pnl-t">Ranking de vendedoras</div><div class="pnl-sel">venda líquida</div></div>
           {% if vendedoras %}<table class="tbl tbl-vend no-sort">
@@ -292,12 +298,6 @@
             <tbody>{% for v in vendedoras %}<tr><td class="l"><span class="rk">{{ loop.index }}</span></td><td class="l"><span class="av">{% if v.foto %}<img src="{{ v.foto }}" alt="{{ v.nome }}">{% else %}<span class="ini">{{ v.ini }}</span>{% endif %}<span class="nm">{{ v.nome }}</span></span></td><td>{{ brl(v.liquido) }}</td><td>{{ v.pecas }}</td><td>{{ brl(v.ticket) }}</td><td>{{ v.clientes }}</td><td>{{ v.clientes_cad }}</td></tr>{% endfor %}</tbody>
           </table>
           <div class="mt"><span class="a">Total venda líquida</span><span class="b">{{ brl(vend_total) }}</span></div>{% else %}<div class="empty">Sem vendas.</div>{% endif %}
-        </div>
-
-        <div class="pnl">
-          <div class="pnl-h"><div class="pnl-t">Estoque parado</div><div class="pnl-sel">por tempo</div></div>
-          {% if aging %}{% for a in aging %}<div class="ag"><span class="d" style="background:{{ a.cor }}"></span><span class="fx">{{ a.faixa }}</span><span style="color:#94a3b8;font-size:10px">{{ a.pecas }} pç</span><span class="vl">{{ brl(a.valor) }}</span><span class="pc">{{ a.pct }}%</span></div>{% endfor %}
-          <div class="cap"><div><div class="a">Capital parado<br>+60 dias</div></div><div class="r"><div class="v">{{ brl(estoque_parado_60) }}</div><div class="s">{{ estoque_parado_60_pct }}% do estoque total</div></div></div>{% else %}<div class="empty">Sem estoque.</div>{% endif %}
         </div>
 
         <div class="pnl">

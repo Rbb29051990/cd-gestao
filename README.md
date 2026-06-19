@@ -1,4 +1,11 @@
-# CD Gestão Empresarial — v130
+# CD Gestão Empresarial — v131
+
+## Novidades da v131 (2026-06-18) — Tooltips, clientes cadastrados e mobile
+
+1. **Rótulos viram tooltip no hover:** as barras e os pontos das linhas não mostram mais o valor fixado em cima (poluindo o gráfico). Agora o valor aparece num **balão ao passar o mouse**, em **R$ 0,00** (moeda brasileira), com fonte um pouco maior. As barras voltaram à altura cheia (proporcional ao eixo).
+2. **"Qtd de clientes cadastrados" corrigido:** passa a contar os clientes que **cada funcionária cadastrou na aba Clientes** dentro do período (via novo campo `clientes.usuario_id`), **independente de ter havido venda**. Antes contava, por engano, clientes novos atendidos em vendas.
+   - *Observação:* vale para clientes cadastrados **a partir desta versão** (os antigos não têm o registro de quem os cadastrou, então contam como 0 nessa atribuição).
+3. **Mobile sem quebra de tela:** as tabelas do dashboard (categorias, vendedoras, clientes) passam a **rolar horizontalmente dentro do próprio quadrante** no celular, em vez de estourar a largura da tela (grades com `minmax(0,1fr)` e `min-width:0` nos painéis).
 
 ## Novidades da v130 (2026-06-18) — Ajustes finos do dashboard
 

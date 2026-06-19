@@ -162,6 +162,49 @@ def corrigir_forma_parcela(cid, pid):
 
 
 @login_required
+def estornar_parcela(cid, pid):
+    """Desfaz o pagamento de uma parcela: volta pago=FALSE, restaura saldo e remove do caixa."""
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM crediario_parcelas WHERE id=%s AND crediario_id=%s", (pid, cid))
+        p = cur.fetchone()
+        if not p or not p['pago']:
+            flash('Parcela não encontrada ou já está em aberto.', 'erro')
+            return redirect(url_for('crediarios'))
+
+        valor_estorno = float(p['valor'] or 0)
+
+        # Reverte a parcela
+        cur.execute("""UPDATE crediario_parcelas SET pago=FALSE, data_pagamento=NULL
+                       WHERE id=%s""", (pid,))
+
+        # Restaura saldo devedor e reabre o crediário se estava quitado
+        cur.execute("""UPDATE crediarios
+                       SET saldo_devedor = saldo_devedor + %s, status = 'aberto'
+                       WHERE id=%s""", (valor_estorno, cid))
+
+        # Remove lançamento do caixa (prioriza o marcado com parcela_id)
+        cur.execute("""DELETE FROM caixa WHERE id = (
+            SELECT id FROM caixa
+            WHERE crediario_id=%s AND parcela_id=%s AND venda_id IS NULL
+            ORDER BY criado_em DESC LIMIT 1)""", (cid, pid))
+        if cur.rowcount == 0:
+            # Legado: sem parcela_id gravado — remove a entrada mais recente do crediário
+            cur.execute("""DELETE FROM caixa WHERE id = (
+                SELECT id FROM caixa
+                WHERE crediario_id=%s AND venda_id IS NULL AND parcela_id IS NULL
+                ORDER BY criado_em DESC LIMIT 1)""", (cid,))
+
+        conn.commit()
+        flash('Pagamento estornado com sucesso.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('crediarios'))
+
+
+@login_required
 def novo_crediario_avulso():
     cliente_nome = request.form.get('cliente_nome', '').strip()
     observacao   = request.form.get('observacao', '').strip()
@@ -216,5 +259,6 @@ def novo_crediario_avulso():
 def register(app):
     app.add_url_rule('/crediarios', 'crediarios', crediarios)
     app.add_url_rule('/crediarios/avulso/novo', 'novo_crediario_avulso', novo_crediario_avulso, methods=['POST'])
+    app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/estornar', 'estornar_parcela', estornar_parcela, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/pagar', 'pagar_parcela', pagar_parcela, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/corrigir-forma', 'corrigir_forma_parcela', corrigir_forma_parcela, methods=['POST'])

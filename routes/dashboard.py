@@ -204,7 +204,7 @@ def dashboard_view():
         'despesas': _brl(desp_total), 'desp_fixas': _brl(desp_fixas), 'desp_avulsas': _brl(desp_avulsas),
         'd_despesas': _delta(desp_total, desp_total_a),
         'lucro': _brl(lucro), 'd_lucro': _delta(lucro, lucro_a), 'lucro_neg': lucro < 0,
-        'margem': f"{round(margem)}%", 'saude_label': saude_label, 'saude_pos': saude_pos,
+        'margem': f"{round(margem)}%", 'margem_neg': margem < 0, 'saude_label': saude_label, 'saude_pos': saude_pos,
         'd_margem': _delta_pp(margem, margem_a),
         'ticket': _brl(ticket), 'qtd_vendas': qtd_vendas, 'd_ticket': _delta(ticket, ticket_a),
     }

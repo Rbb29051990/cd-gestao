@@ -37,7 +37,7 @@
 .hlbl{font-size:8.8px;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
 .row{display:grid;gap:10px;margin-bottom:8px}
 .row.g3a{grid-template-columns:1.04fr 1.04fr .82fr}
-.row.g3{grid-template-columns:1fr 1fr 1fr}
+.row.g3{grid-template-columns:0.6fr 1.2fr 1.2fr}
 .pnl{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:11px 13px;box-shadow:0 1px 2px rgba(15,23,42,.04);min-width:0}
 .dx .table-wrap{border:0;box-shadow:none;border-radius:0;background:transparent;overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 .pnl-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
@@ -89,7 +89,7 @@
 .mt{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #eef2f7;margin-top:4px;padding-top:10px;font-size:12px}
 .mt .a{font-weight:800;text-transform:uppercase;font-size:10px;color:#334155}
 .mt .b{font-weight:800;color:#2563eb;background:#eff4ff;padding:4px 12px;border-radius:8px}
-.ag{display:grid;grid-template-columns:11px 80px 1fr auto 38px;gap:5px;align-items:center;font-size:10px;margin:5px 0;color:#334155}
+.ag{display:grid;grid-template-columns:11px auto auto auto auto;gap:8px;align-items:center;font-size:10px;margin:5px 0;color:#334155}
 .ag .d{width:9px;height:9px;border-radius:50%}
 .ag .fx{font-weight:600}
 .ag .vl{font-weight:800;color:var(--ink);text-align:right}
@@ -187,7 +187,7 @@
 
         <div class="kpi">
           <div class="kpi-top"><span class="kpi-ic" style="background:#e6f6f4;color:#0d9488"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></span><span class="kpi-tt">6. Margem líquida</span></div>
-          <div class="kpi-v" style="color:#16a34a">{{ kpi.margem }}</div>
+          <div class="kpi-v" style="color:{{ '#dc2626' if kpi.margem_neg else '#16a34a' }}">{{ kpi.margem }}</div>
           <div class="hwrap">
             <div class="kpi-s" style="margin-bottom:3px">Saúde financeira</div>
             <div class="hbar"><i style="left:{{ kpi.saude_pos }}%"></i></div>
@@ -197,8 +197,8 @@
         </div>
 
         <div class="kpi">
-          <div class="kpi-top"><span class="kpi-ic" style="background:#fff1e2;color:#ea580c"><svg viewBox="0 0 24 24"><path d="M20.5 12.5 12 21l-8-8V4h8z"/><circle cx="8" cy="8" r="1.4"/></svg></span><span class="kpi-tt">7. Ticket médio</span></div>
-          <div class="kpi-v" style="color:#ea580c">{{ kpi.ticket }}</div>
+          <div class="kpi-top"><span class="kpi-ic" style="background:#e8f0fe;color:#2563eb"><svg viewBox="0 0 24 24"><path d="M20.5 12.5 12 21l-8-8V4h8z"/><circle cx="8" cy="8" r="1.4"/></svg></span><span class="kpi-tt">7. Ticket médio</span></div>
+          <div class="kpi-v" style="color:#2563eb">{{ kpi.ticket }}</div>
           <div class="kpi-s">{{ kpi.qtd_vendas }} vendas realizadas</div>
           {% if kpi.d_ticket %}<div class="kpi-foot"><span class="tri {{ kpi.d_ticket.dir }}">{{ '▲' if kpi.d_ticket.dir=='up' else '▼' }}</span><b class="{{ kpi.d_ticket.cls }}">{{ kpi.d_ticket.txt }}</b><span>vs mês anterior</span></div>{% endif %}
         </div>

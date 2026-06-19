@@ -204,6 +204,7 @@
               <div class="cred-venda-valores" style="display:flex;align-items:center;gap:14px">
                 <span class="cred-venda-label" style="font-size:10px;color:#aaa;font-weight:700">TOTAL</span><span class="cred-venda-valor" style="font-weight:700;color:#1a1a2e;font-size:13px">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
                 <span class="cred-venda-label" style="font-size:10px;color:#aaa;font-weight:700">SALDO</span><span class="cred-venda-valor" style="font-weight:700;color:{% if c.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:13px">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+                <button onclick="event.stopPropagation();abrirEditarCred({{ c.id }},{{ c.valor_total }},{{ c.saldo_devedor }})" title="Editar valores do crediário" style="padding:5px 10px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✏️ Editar</button>
               </div>
             </div>
             <div id="vd_{{ c.id }}" style="display:none;padding:10px 14px 12px;flex-direction:column;gap:8px">
@@ -219,6 +220,7 @@
                   {% if not p.pago %}
                   <button onclick="event.stopPropagation();abrirPagamento({{ c.id }},{{ p.id }},'{{ p.data_vencimento.strftime('%d/%m/%Y') }}',{{ p.valor }})"
                     style="padding:6px 12px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">💰 Receber</button>
+                  <button onclick="event.stopPropagation();abrirExcluirParcela({{ c.id }},{{ p.id }},{{ p.numero_parcela }},{{ p.valor }})" title="Excluir esta parcela" style="padding:6px 10px;background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">🗑️</button>
                   {% else %}<span style="font-size:11px;font-weight:700;color:#2e7d32">✅ Pago</span>
                   <button onclick="event.stopPropagation();abrirCorrigirForma({{ c.id }},{{ p.id }})" title="Corrigir a forma de pagamento desta parcela no caixa" style="padding:5px 10px;background:#fff;color:#5b6175;border:1.5px solid #e0e0e8;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✏️ Forma</button>
                   <button onclick="event.stopPropagation();abrirEstorno({{ c.id }},{{ p.id }},{{ p.numero_parcela }},{{ p.valor }})" title="Estornar este pagamento" style="padding:5px 10px;background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">🗑️ Estornar</button>{% endif %}
@@ -312,6 +314,47 @@
     </form>
   </div>
 </div>
+<!-- MODAL EDITAR CREDIÁRIO -->
+<div class="modal-overlay" id="modalEditarCred" style="display:none">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="document.getElementById('modalEditarCred').style.display='none'">✕</button>
+    <div class="modal-title">Editar crediário</div>
+    <div class="modal-sub">Ajuste o valor total e o saldo devedor. As parcelas em aberto serão redistribuídas automaticamente.</div>
+    <form method="POST" id="formEditarCred">
+      <div class="form-field">
+        <label class="form-label">Valor total (R$) *</label>
+        <input class="form-input" type="number" step="0.01" min="0.01" name="valor_total" id="editCredTotal" required>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Saldo devedor (R$) *</label>
+        <input class="form-input" type="number" step="0.01" min="0" name="saldo_devedor" id="editCredSaldo" required>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalEditarCred').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#3949ab">💾 Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL EXCLUIR PARCELA -->
+<div class="modal-overlay" id="modalExcluirParcela" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <button class="modal-close" onclick="document.getElementById('modalExcluirParcela').style.display='none'">✕</button>
+    <div class="modal-title">Excluir parcela</div>
+    <div class="modal-sub" id="subExcluirParcela"></div>
+    <div style="background:#fef2f2;border:1.5px solid #fde0e0;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#b91c1c;font-weight:600">
+      ⚠️ A parcela será removida. O saldo devedor será redistribuído entre as parcelas restantes.
+    </div>
+    <form method="POST" id="formExcluirParcela">
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalExcluirParcela').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#c62828">🗑️ Excluir parcela</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- MODAL ESTORNAR PAGAMENTO -->
 <div class="modal-overlay" id="modalEstorno" style="display:none">
   <div class="modal" style="max-width:400px">
@@ -440,6 +483,20 @@ function atualizarPreviewTaxa() {
   } else {
     info.style.display = 'none';
   }
+}
+
+function abrirEditarCred(cid, total, saldo){
+  document.getElementById('editCredTotal').value = parseFloat(total).toFixed(2);
+  document.getElementById('editCredSaldo').value = parseFloat(saldo).toFixed(2);
+  document.getElementById('formEditarCred').action = '/crediarios/'+cid+'/editar';
+  document.getElementById('modalEditarCred').style.display = 'flex';
+}
+
+function abrirExcluirParcela(cid, pid, num, valor){
+  var v = parseFloat(valor).toFixed(2).replace('.',',');
+  document.getElementById('subExcluirParcela').textContent = 'Parcela '+num+' — R$ '+v;
+  document.getElementById('formExcluirParcela').action = '/crediarios/'+cid+'/parcela/'+pid+'/excluir';
+  document.getElementById('modalExcluirParcela').style.display = 'flex';
 }
 
 function abrirEstorno(cid, pid, num, valor){

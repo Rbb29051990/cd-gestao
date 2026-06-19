@@ -162,6 +162,64 @@ def corrigir_forma_parcela(cid, pid):
 
 
 @login_required
+def editar_crediario(cid):
+    valor_total  = float(request.form.get('valor_total', 0) or 0)
+    saldo_devedor = float(request.form.get('saldo_devedor', 0) or 0)
+    if valor_total <= 0:
+        flash('Valor total inválido.', 'erro')
+        return redirect(url_for('crediarios'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        status = 'aberto' if saldo_devedor > 0.01 else 'quitado'
+        cur.execute("UPDATE crediarios SET valor_total=%s, saldo_devedor=%s, status=%s WHERE id=%s",
+                    (valor_total, saldo_devedor, status, cid))
+        if saldo_devedor > 0.01:
+            cur.execute("SELECT id FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE ORDER BY numero_parcela", (cid,))
+            rest = cur.fetchall()
+            if rest:
+                n = len(rest)
+                vp = round(saldo_devedor / n, 2)
+                for i, p in enumerate(rest):
+                    v = round(saldo_devedor - vp * (n - 1), 2) if i == n - 1 else vp
+                    cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (v, p['id']))
+        conn.commit()
+        flash('Crediário atualizado!', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('crediarios'))
+
+
+@login_required
+def excluir_parcela(cid, pid):
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM crediario_parcelas WHERE id=%s AND crediario_id=%s AND pago=FALSE", (pid, cid))
+        if not cur.fetchone():
+            flash('Parcela não encontrada ou já está paga.', 'erro')
+            return redirect(url_for('crediarios'))
+        cur.execute("DELETE FROM crediario_parcelas WHERE id=%s", (pid,))
+        cur.execute("SELECT saldo_devedor FROM crediarios WHERE id=%s", (cid,))
+        saldo = float(cur.fetchone()['saldo_devedor'])
+        cur.execute("SELECT id FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE ORDER BY numero_parcela", (cid,))
+        rest = cur.fetchall()
+        if rest and saldo > 0.01:
+            n = len(rest)
+            vp = round(saldo / n, 2)
+            for i, p in enumerate(rest):
+                v = round(saldo - vp * (n - 1), 2) if i == n - 1 else vp
+                cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (v, p['id']))
+        conn.commit()
+        flash('Parcela excluída.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('crediarios'))
+
+
+@login_required
 def estornar_parcela(cid, pid):
     """Desfaz o pagamento de uma parcela: volta pago=FALSE, restaura saldo e remove do caixa."""
     conn = get_db(); cur = conn.cursor()
@@ -259,6 +317,8 @@ def novo_crediario_avulso():
 def register(app):
     app.add_url_rule('/crediarios', 'crediarios', crediarios)
     app.add_url_rule('/crediarios/avulso/novo', 'novo_crediario_avulso', novo_crediario_avulso, methods=['POST'])
+    app.add_url_rule('/crediarios/<int:cid>/editar', 'editar_crediario', editar_crediario, methods=['POST'])
+    app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/excluir', 'excluir_parcela', excluir_parcela, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/estornar', 'estornar_parcela', estornar_parcela, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/pagar', 'pagar_parcela', pagar_parcela, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/corrigir-forma', 'corrigir_forma_parcela', corrigir_forma_parcela, methods=['POST'])

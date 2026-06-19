@@ -50,6 +50,7 @@
           <div class="page-title">Crediários</div>
           <div class="page-date">Total em aberto: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total_aberto)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong></div>
         </div>
+        <button type="button" onclick="document.getElementById('modalNovoCredAvulso').style.display='flex'" style="height:40px;padding:0 18px;background:#1a1a2e;color:#fff;border:none;border-radius:9px;font-family:Outfit,sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px">➕ Novo crediário</button>
         <form method="GET" id="formFiltroCred" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
@@ -195,8 +196,9 @@
             <div onclick="event.stopPropagation();toggleAcc('vd_{{ c.id }}')" class="cred-venda-head" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;background:#f8f8fc;transition:background .15s;user-select:none" onmouseover="this.style.background='#f0f0f8'" onmouseout="this.style.background='#f8f8fc'">
               <div class="cred-venda-info" style="display:flex;align-items:center;gap:8px">
                 <span id="arrow_vd_{{ c.id }}" style="font-size:12px;color:#aaa;transition:transform .2s;display:inline-block">▶</span>
-                <span style="font-size:12px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:2px 8px;border-radius:5px">{{ c.codigo_venda }}</span>
-                <span style="font-size:12px;font-weight:600;color:#1a1a2e">{{ c.data_venda.strftime('%d/%m/%Y') }}</span>
+                <span style="font-size:12px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:2px 8px;border-radius:5px">{{ c.codigo_venda or 'AVULSO' }}</span>
+                <span style="font-size:12px;font-weight:600;color:#1a1a2e">{{ c.data_venda.strftime('%d/%m/%Y') if c.data_venda else '—' }}</span>
+                {% if c.observacao %}<span style="font-size:11px;color:#888;font-style:italic">· {{ c.observacao }}</span>{% endif %}
                 <span class="badge {% if c.status == 'quitado' %}badge-hab{% else %}badge-fiado{% endif %}" style="font-size:9px;padding:2px 6px">{% if c.status == 'quitado' %}✅ Quitado{% else %}⏳ Aberto{% endif %}</span>
               </div>
               <div class="cred-venda-valores" style="display:flex;align-items:center;gap:14px">
@@ -309,6 +311,49 @@
     </form>
   </div>
 </div>
+<!-- MODAL NOVO CREDIÁRIO AVULSO -->
+<div class="modal-overlay" id="modalNovoCredAvulso" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="document.getElementById('modalNovoCredAvulso').style.display='none'">✕</button>
+    <div class="modal-title">Novo crediário</div>
+    <div class="modal-sub">Lance uma dívida existente antes do sistema. Nenhum lançamento de caixa será gerado.</div>
+    <form method="POST" action="/crediarios/avulso/novo">
+      <div class="form-field">
+        <label class="form-label">Cliente *</label>
+        <input class="form-input" type="text" name="cliente_nome" placeholder="Nome do cliente" required autocomplete="off">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Observação</label>
+        <input class="form-input" type="text" name="observacao" placeholder="Ex: Dívida anterior ao sistema">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label class="form-label">Valor total (R$) *</label>
+          <input class="form-input" type="number" step="0.01" min="0.01" name="valor_total" placeholder="0,00" required>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Entrada já paga (R$)</label>
+          <input class="form-input" type="number" step="0.01" min="0" name="entrada" placeholder="0,00" value="0">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-field">
+          <label class="form-label">Nº de parcelas *</label>
+          <input class="form-input" type="number" min="1" max="60" name="num_parcelas" value="1" required>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Vencimento 1ª parcela *</label>
+          <input class="form-input" type="date" name="data_primeira" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalNovoCredAvulso').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#1a1a2e">✅ Lançar crediário</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 function toggleAcc(id) {
   const el = document.getElementById(id);

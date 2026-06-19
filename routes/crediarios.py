@@ -1,12 +1,22 @@
 """Rotas de Crediários: dashboard agrupado por cliente (em dia × atraso, faixas,
 top devedores) e pagamento de parcela com forma de pagamento real no caixa."""
 import math
+import calendar
+from datetime import date as date_type
 from collections import OrderedDict
 from flask import render_template, request, redirect, url_for, flash
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx
 from utils import get_taxa_vigente
+
+
+def _add_months(d, m):
+    month = d.month - 1 + m
+    year = d.year + month // 12
+    month = month % 12 + 1
+    day = min(d.day, calendar.monthrange(year, month)[1])
+    return date_type(year, month, day)
 
 
 @login_required
@@ -18,12 +28,12 @@ def crediarios():
     conn = get_db(); cur = conn.cursor()
     if data_inicio and data_fim:
         cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda
-            FROM crediarios c JOIN vendas v ON v.id=c.venda_id
-            WHERE DATE(v.criado_em) BETWEEN %s AND %s
+            FROM crediarios c LEFT JOIN vendas v ON v.id=c.venda_id
+            WHERE (c.venda_id IS NULL OR DATE(v.criado_em) BETWEEN %s AND %s)
             ORDER BY c.status,c.criado_em DESC""", (data_inicio, data_fim))
     else:
         cur.execute("""SELECT c.*,v.codigo as codigo_venda,v.criado_em as data_venda
-            FROM crediarios c JOIN vendas v ON v.id=c.venda_id ORDER BY c.status,c.criado_em DESC""")
+            FROM crediarios c LEFT JOIN vendas v ON v.id=c.venda_id ORDER BY c.status,c.criado_em DESC""")
     raw = [dict(c) for c in cur.fetchall()]
     for c in raw:
         cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela", (c['id'],))
@@ -151,7 +161,60 @@ def corrigir_forma_parcela(cid, pid):
     return redirect(url_for('crediarios'))
 
 
+@login_required
+def novo_crediario_avulso():
+    cliente_nome = request.form.get('cliente_nome', '').strip()
+    observacao   = request.form.get('observacao', '').strip()
+    valor_total  = float(request.form.get('valor_total', 0) or 0)
+    entrada      = float(request.form.get('entrada', 0) or 0)
+    num_parcelas = max(1, int(request.form.get('num_parcelas', 1) or 1))
+    data_primeira = request.form.get('data_primeira', '').strip()
+
+    if not cliente_nome or valor_total <= 0:
+        flash('Informe o cliente e o valor total.', 'erro')
+        return redirect(url_for('crediarios'))
+
+    saldo = round(valor_total - entrada, 2)
+    if saldo <= 0:
+        flash('A entrada já cobre o valor total — nada a lançar como devedor.', 'erro')
+        return redirect(url_for('crediarios'))
+
+    try:
+        primeira = date_type.fromisoformat(data_primeira) if data_primeira else hoje_app()
+    except ValueError:
+        primeira = hoje_app()
+
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM clientes WHERE LOWER(nome)=LOWER(%s) LIMIT 1", (cliente_nome,))
+        row = cur.fetchone()
+        cliente_id = row['id'] if row else None
+
+        cur.execute("""INSERT INTO crediarios
+            (venda_id,cliente_id,cliente_nome,valor_total,entrada,saldo_devedor,status,observacao)
+            VALUES (NULL,%s,%s,%s,%s,%s,'aberto',%s) RETURNING id""",
+            (cliente_id, cliente_nome, valor_total, entrada, saldo, observacao or None))
+        cred_id = cur.fetchone()['id']
+
+        valor_parcela = round(saldo / num_parcelas, 2)
+        for i in range(num_parcelas):
+            venc = _add_months(primeira, i)
+            v = round(saldo - valor_parcela * (num_parcelas - 1), 2) if i == num_parcelas - 1 else valor_parcela
+            cur.execute("""INSERT INTO crediario_parcelas
+                (crediario_id,numero_parcela,data_vencimento,valor,pago)
+                VALUES (%s,%s,%s,%s,FALSE)""", (cred_id, i + 1, venc, v))
+
+        conn.commit()
+        flash('Crediário lançado com sucesso!', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('crediarios'))
+
+
 def register(app):
     app.add_url_rule('/crediarios', 'crediarios', crediarios)
+    app.add_url_rule('/crediarios/avulso/novo', 'novo_crediario_avulso', novo_crediario_avulso, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/pagar', 'pagar_parcela', pagar_parcela, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/corrigir-forma', 'corrigir_forma_parcela', corrigir_forma_parcela, methods=['POST'])

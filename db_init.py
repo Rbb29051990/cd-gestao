@@ -192,6 +192,7 @@ def init_db():
         "ALTER TABLE ajustes_financeiros ADD COLUMN IF NOT EXISTS usuario_nome VARCHAR(200)",
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50)",
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS obs_pagamento TEXT",
+        "ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS observacao TEXT",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em ON auditoria (criado_em DESC)",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_tabela_registro ON auditoria (tabela, registro_id)",
         "CREATE INDEX IF NOT EXISTS idx_estoque_codigo ON estoque (codigo)",

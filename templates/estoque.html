@@ -39,10 +39,11 @@
 /* Contêiner exclusivo de impressão (fora do fluxo na tela) */
 #printRoot{display:none}
 @media print{
-  @page{size:A4 portrait;margin:1.15cm 0.8cm 1.45cm 0.8cm}
+  @page{size:A4 portrait;margin:1.4cm 0.8cm 1.2cm 0.8cm}
   body>*:not(#printRoot){display:none!important}
   #printRoot{display:block!important}
-  #printRoot .folha{box-shadow:none;width:19.4cm;height:27cm;overflow:hidden;column-gap:0.3167cm;row-gap:0}
+  /* translateY sobe o conteúdo ~2,5 mm sem mexer na geometria da página (preserva o alinhamento horizontal) */
+  #printRoot .folha{box-shadow:none;width:19.4cm;height:27cm;overflow:hidden;column-gap:0.3167cm;row-gap:0;transform:translateY(-0.25cm)}
   #printRoot .etq-num{display:none!important}
   #printRoot .etq-cell{border:0!important}
   #printRoot .etq-cell.inicio{outline:0!important}

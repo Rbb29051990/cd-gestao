@@ -24,8 +24,8 @@
 .etq-status.alerta{color:#c62828}
 .etq-folha-wrap{overflow:auto;max-height:70vh;background:#e9e9ef;border-radius:12px;padding:14px;display:flex;justify-content:center}
 .btn-print-final{margin-top:14px;width:100%;background:#00838f;color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer}
-/* A folha em tamanho real (A4 retrato útil = 17,5 × 27 cm) */
-.folha{width:17.5cm;display:grid;grid-template-columns:repeat(7,2.5cm);grid-auto-rows:1.5cm;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.12)}
+/* A folha em tamanho real — 7 col × 18 lin, etiqueta 2,5×1,5 cm, gap-col 0,2 cm */
+.folha{width:18.7cm;display:grid;grid-template-columns:repeat(7,2.5cm);column-gap:0.2cm;row-gap:0;grid-auto-rows:1.5cm;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.12)}
 .etq-cell{width:2.5cm;height:1.5cm;border:1px dashed #d8d8e0;box-sizing:border-box;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1px;position:relative;cursor:pointer}
 .etq-cell:hover{background:#f0fbfb}
 .etq-num{font-size:8px;color:#cfcfda;font-weight:700;user-select:none}
@@ -38,10 +38,10 @@
 /* Contêiner exclusivo de impressão (fora do fluxo na tela) */
 #printRoot{display:none}
 @media print{
-  @page{size:A4 portrait;margin:1.35cm 1.75cm}
+  @page{size:A4 portrait;margin:1.4cm 0.8cm 1.2cm 0.8cm}
   body>*:not(#printRoot){display:none!important}
   #printRoot{display:block!important}
-  #printRoot .folha{box-shadow:none;width:17.5cm;height:27cm;overflow:hidden}
+  #printRoot .folha{box-shadow:none;width:18.7cm;height:27cm;overflow:hidden;column-gap:0.2cm;row-gap:0}
   #printRoot .etq-num{display:none!important}
   #printRoot .etq-cell{border:0!important}
   #printRoot .etq-cell.inicio{outline:0!important}
@@ -260,7 +260,7 @@
       <div class="etela" id="eEtiquetas">
         <button type="button" class="voltar-btn no-print" onclick="mostrarPainel('eEstoque')" style="background:none;border:none;cursor:pointer;font-family:'Outfit',sans-serif">← Voltar ao estoque</button>
         <div class="page-title no-print" style="font-size:20px;margin-bottom:4px">Impressão de etiquetas</div>
-        <div class="page-date no-print" style="font-size:12px;color:#aaa;margin-bottom:18px">Folha adesiva A4 retrato · 7 colunas × 18 linhas = 126 etiquetas (2,5 × 1,5 cm)</div>
+        <div class="page-date no-print" style="font-size:12px;color:#aaa;margin-bottom:18px">Folha adesiva A4 retrato · 7 colunas × 18 linhas = 126 etiquetas · 2,5×1,5 cm · gap col 0,2 cm · margens: sup 1,4 / inf 1,2 / lat 0,8 cm</div>
 
         <div class="etq-cols no-print">
           <!-- COLUNA ESQUERDA: montar a fila -->

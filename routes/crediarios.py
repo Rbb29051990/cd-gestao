@@ -192,6 +192,27 @@ def editar_crediario(cid):
 
 
 @login_required
+def excluir_crediario(cid):
+    """Exclui o crediário inteiro (e suas parcelas em cascata). Para lançamentos
+    feitos por engano. Lançamentos de caixa já recebidos NÃO são apagados."""
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM crediarios WHERE id=%s", (cid,))
+        if not cur.fetchone():
+            flash('Crediário não encontrado.', 'erro')
+            return redirect(url_for('crediarios'))
+        # crediario_parcelas tem ON DELETE CASCADE -> some junto
+        cur.execute("DELETE FROM crediarios WHERE id=%s", (cid,))
+        conn.commit()
+        flash('Crediário excluído.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('crediarios'))
+
+
+@login_required
 def excluir_parcela(cid, pid):
     conn = get_db(); cur = conn.cursor()
     try:
@@ -318,6 +339,7 @@ def register(app):
     app.add_url_rule('/crediarios', 'crediarios', crediarios)
     app.add_url_rule('/crediarios/avulso/novo', 'novo_crediario_avulso', novo_crediario_avulso, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/editar', 'editar_crediario', editar_crediario, methods=['POST'])
+    app.add_url_rule('/crediarios/<int:cid>/excluir', 'excluir_crediario', excluir_crediario, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/excluir', 'excluir_parcela', excluir_parcela, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/estornar', 'estornar_parcela', estornar_parcela, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/parcela/<int:pid>/pagar', 'pagar_parcela', pagar_parcela, methods=['POST'])

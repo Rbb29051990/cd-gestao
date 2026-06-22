@@ -205,6 +205,7 @@
                 <span class="cred-venda-label" style="font-size:10px;color:#aaa;font-weight:700">TOTAL</span><span class="cred-venda-valor" style="font-weight:700;color:#1a1a2e;font-size:13px">R$ {{ "{:,.2f}".format(c.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
                 <span class="cred-venda-label" style="font-size:10px;color:#aaa;font-weight:700">SALDO</span><span class="cred-venda-valor" style="font-weight:700;color:{% if c.saldo_devedor > 0 %}#c62828{% else %}#2e7d32{% endif %};font-size:13px">R$ {{ "{:,.2f}".format(c.saldo_devedor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
                 <button onclick="event.stopPropagation();abrirEditarCred({{ c.id }},{{ c.valor_total }},{{ c.saldo_devedor }})" title="Editar valores do crediário" style="padding:5px 10px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✏️ Editar</button>
+                <button onclick="event.stopPropagation();abrirExcluirCred({{ c.id }},'{{ c.cliente_nome|replace("'","\\'") }}',{{ c.saldo_devedor }})" title="Excluir o crediário inteiro" style="padding:5px 10px;background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">🗑️ Excluir</button>
               </div>
             </div>
             <div id="vd_{{ c.id }}" style="display:none;padding:10px 14px 12px;flex-direction:column;gap:8px">
@@ -332,6 +333,24 @@
       <div class="modal-footer">
         <button type="button" class="btn-cancelar" onclick="document.getElementById('modalEditarCred').style.display='none'">Cancelar</button>
         <button type="submit" class="btn-salvar" style="background:#3949ab">💾 Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL EXCLUIR CREDIÁRIO INTEIRO -->
+<div class="modal-overlay" id="modalExcluirCred" style="display:none">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="document.getElementById('modalExcluirCred').style.display='none'">✕</button>
+    <div class="modal-title">Excluir crediário</div>
+    <div class="modal-sub" id="subExcluirCred"></div>
+    <div style="background:#fef2f2;border:1.5px solid #fde0e0;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#b91c1c;font-weight:600">
+      ⚠️ O crediário e todas as suas parcelas serão removidos definitivamente, deixando de contar no total em aberto. Use para lançamentos feitos por engano.
+    </div>
+    <form method="POST" id="formExcluirCred">
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalExcluirCred').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#c62828">🗑️ Excluir crediário</button>
       </div>
     </form>
   </div>
@@ -490,6 +509,13 @@ function abrirEditarCred(cid, total, saldo){
   document.getElementById('editCredSaldo').value = parseFloat(saldo).toFixed(2);
   document.getElementById('formEditarCred').action = '/crediarios/'+cid+'/editar';
   document.getElementById('modalEditarCred').style.display = 'flex';
+}
+
+function abrirExcluirCred(cid, nome, saldo){
+  var v = parseFloat(saldo).toFixed(2).replace('.',',');
+  document.getElementById('subExcluirCred').textContent = nome + ' — saldo devedor R$ ' + v;
+  document.getElementById('formExcluirCred').action = '/crediarios/'+cid+'/excluir';
+  document.getElementById('modalExcluirCred').style.display = 'flex';
 }
 
 function abrirExcluirParcela(cid, pid, num, valor){

@@ -1,4 +1,10 @@
-# CD Gestão Empresarial — v131
+# CD Gestão Empresarial — v133
+
+## Novidades da v133 (2026-06-20) — Etiquetas, dashboard e crediários
+
+1. **Etiquetas — impressão calibrada:** alinhamento horizontal e vertical acertado para a folha adesiva A4 (7×18, 2,5×1,5 cm). Gap entre colunas de **0,3167 cm** (fecha a largura do A4 e evita o desalinhamento cumulativo que cortava o "R$"); centralização vertical via **`transform:translateY(-0.25cm)`** na impressão, compensando o deslocamento de registro da impressora **sem** mexer nas margens (que reescalavam a página e quebravam o horizontal). Conteúdo centralizado na célula com `grid` + `place-items:center`. **Regra:** horizontal = margens/gap; vertical = translateY.
+2. **Dashboard:** números das tabelas centralizados nas colunas; painel "Estoque parado" compactado (sem barras de rolagem nos vizinhos); linha 3 reordenada para **Estoque parado · Ranking de vendedoras · Top 5 clientes**; cores condicionais nos KPIs — **Lucro** e **Margem** ficam vermelhos quando negativos e verdes quando positivos; **Ticket médio** em azul.
+3. **Crediários:** botão **Novo crediário** para lançar dívidas anteriores ao sistema (avulsas, sem gerar caixa); **Estornar** pagamento de parcela (restaura saldo e remove do caixa); **Editar** valor total/saldo do crediário; **Excluir** parcela individual em aberto.
 
 ## Novidades da v131 (2026-06-18) — Tooltips, clientes cadastrados e mobile
 

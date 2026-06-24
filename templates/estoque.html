@@ -22,8 +22,11 @@
 .etq-mini-btn{background:#f4f4f6;border:1.5px solid #e0e0e8;border-radius:6px;padding:6px 12px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;color:#555;cursor:pointer}
 .etq-status{font-size:12px;font-weight:700;color:#00838f}
 .etq-status.alerta{color:#c62828}
-.etq-folha-wrap{overflow:auto;max-height:70vh;background:#e9e9ef;border-radius:12px;padding:14px;display:flex;justify-content:center}
+.etq-folha-wrap{overflow:auto;max-height:70vh;background:#e9e9ef;border-radius:12px;padding:14px;display:flex;justify-content:center;align-items:flex-start}
 .btn-print-final{margin-top:14px;width:100%;background:#00838f;color:#fff;border:none;border-radius:10px;padding:14px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;cursor:pointer}
+/* Empilhamento de várias folhas na pré-visualização (quando passa de 126 etiquetas) */
+.folha-stack{display:flex;flex-direction:column;align-items:center;gap:8px}
+.folha-pagelabel{font-size:11px;font-weight:700;color:#00838f;text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
 /* A folha em tamanho real — 7 col × 18 lin, etiqueta 2,5×1,5 cm, gap-col 0,3167 cm (fecha 21cm) */
 .folha{width:19.4cm;display:grid;grid-template-columns:repeat(7,2.5cm);column-gap:0.3167cm;row-gap:0;grid-auto-rows:1.5cm;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.12)}
 .etq-cell{width:2.5cm;height:1.5cm;border:1px dashed #d8d8e0;box-sizing:border-box;overflow:hidden;display:grid;place-items:center;padding:0;position:relative;cursor:pointer}
@@ -44,6 +47,8 @@
   #printRoot{display:block!important}
   /* translateY sobe o conteúdo ~2,5 mm sem mexer na geometria da página (preserva o alinhamento horizontal) */
   #printRoot .folha{box-shadow:none;width:19.4cm;height:27cm;overflow:hidden;column-gap:0.3167cm;row-gap:0;transform:translateY(-0.25cm)}
+  /* cada folha adicional começa numa página nova (sem página em branco no fim) */
+  #printRoot .folha + .folha{break-before:page;page-break-before:always}
   #printRoot .etq-num{display:none!important}
   #printRoot .etq-cell{border:0!important}
   #printRoot .etq-cell.inicio{outline:0!important}
@@ -312,10 +317,10 @@
                 <button type="button" class="etq-mini-btn" onclick="etqInicioReset()">↺ Início (pos. 1)</button>
                 <span class="etq-status" id="etqStatus"></span>
               </div>
-              <div style="font-size:11px;color:#888;margin:6px 0 12px">💡 Clique numa célula para escolher onde a impressão começa. As etiquetas preenchem a partir dali — assim você aproveita 100% de uma folha já usada pela metade.</div>
+              <div style="font-size:11px;color:#888;margin:6px 0 12px">💡 Clique numa célula para escolher onde a impressão começa (aproveita uma folha usada pela metade). Se passar de 126 etiquetas, o sistema gera <b>folhas extras automaticamente</b> e imprime todas de uma vez — as folhas seguintes começam na posição 1.</div>
             </div>
             <div class="etq-folha-wrap">
-              <div class="folha" id="folha"></div>
+              <div id="folha" class="folha-stack"></div>
             </div>
             <button class="btn-print-final no-print" type="button" onclick="etqImprimir()">🖨️ Imprimir folha</button>
           </div>
@@ -700,42 +705,81 @@ function etqAplicarInicio(){
 function etqInicioReset(){ etqInicioIdx=0; etqRenderFolha(); }
 function etqSetInicio(idx){ etqInicioIdx=idx; etqRenderFolha(); }
 
+/* Monta as folhas necessárias (126 etiquetas por folha). A 1ª folha respeita a
+   posição de início escolhida; as seguintes começam na posição 1 (folhas novas). */
+function etqBuildPages(){
+  const labels = etqLabels();
+  const total = labels.length;
+  const pages = [];
+  let ptr = 0, primeira = true;
+  do {
+    const startIdx = primeira ? etqInicioIdx : 0;
+    const cells = new Array(ETQ_TOTAL).fill(null);
+    for(let pos = startIdx; pos < ETQ_TOTAL && ptr < total; pos++){
+      cells[pos] = labels[ptr++];
+    }
+    pages.push({startIdx: startIdx, cells: cells});
+    primeira = false;
+  } while(ptr < total);
+  return pages;
+}
+
+function etqCellHTML(L, idx, isInicio, clickable){
+  const inicioCls = isInicio ? ' inicio' : '';
+  const onclick = clickable ? ' onclick="etqSetInicio('+idx+')"' : '';
+  if(L){
+    return '<div class="etq-cell ativa'+inicioCls+'"'+onclick+'>'+
+      '<div class="etq-inner">'+
+      '<div class="c-cod">'+L.codigo+'</div>'+
+      '<div class="c-mod">'+((L.modelo||'')+' · '+(L.tamanho||'ÚNICO'))+'</div>'+
+      '<div class="c-preco">'+etqMoeda(L.valor_venda)+'</div>'+
+      '</div></div>';
+  }
+  return '<div class="etq-cell'+inicioCls+'"'+onclick+'><span class="etq-num">'+(idx+1)+'</span></div>';
+}
+
 function etqRenderFolha(){
-  const folha=document.getElementById('folha');
-  if(!folha) return;
-  const labels=etqLabels();
-  const n=labels.length;
+  const cont=document.getElementById('folha');
+  if(!cont) return;
+  etqInicioIdx = Math.min(ETQ_TOTAL-1, Math.max(0, etqInicioIdx));
+  const pages = etqBuildPages();
+  const total = etqTotalLabels();
   document.getElementById('etqInicio').value = etqInicioIdx+1;
   let html='';
-  for(let idx=0; idx<ETQ_TOTAL; idx++){
-    const pos = idx - etqInicioIdx;
-    const inicioCls = (idx===etqInicioIdx ? ' inicio' : '');
-    if(pos>=0 && pos<n){
-      const L=labels[pos];
-      html += '<div class="etq-cell ativa'+inicioCls+'" onclick="etqSetInicio('+idx+')">'+
-        '<div class="etq-inner">'+
-        '<div class="c-cod">'+L.codigo+'</div>'+
-        '<div class="c-mod">'+((L.modelo||'')+' · '+(L.tamanho||'ÚNICO'))+'</div>'+
-        '<div class="c-preco">'+etqMoeda(L.valor_venda)+'</div>'+
-        '</div></div>';
-    } else {
-      html += '<div class="etq-cell'+inicioCls+'" onclick="etqSetInicio('+idx+')"><span class="etq-num">'+(idx+1)+'</span></div>';
+  pages.forEach(function(pg, p){
+    if(pages.length>1) html += '<div class="folha-pagelabel">Folha '+(p+1)+' de '+pages.length+'</div>';
+    html += '<div class="folha">';
+    for(let idx=0; idx<ETQ_TOTAL; idx++){
+      const isInicio = (p===0 && idx===etqInicioIdx);
+      html += etqCellHTML(pg.cells[idx], idx, isInicio, p===0);
     }
-  }
-  folha.innerHTML=html;
+    html += '</div>';
+  });
+  cont.innerHTML = html;
   const st=document.getElementById('etqStatus');
-  const fim=etqInicioIdx+n;
-  if(n===0){ st.className='etq-status'; st.textContent='Fila vazia — adicione etiquetas.'; }
-  else if(fim>ETQ_TOTAL){ st.className='etq-status alerta'; st.textContent='⚠️ '+(fim-ETQ_TOTAL)+' etiqueta(s) não cabem a partir da posição '+(etqInicioIdx+1)+'. Comece antes ou imprima outra folha.'; }
-  else { st.className='etq-status'; st.textContent=n+' etiqueta(s) · posições '+(etqInicioIdx+1)+' a '+fim; }
+  if(total===0){
+    st.className='etq-status'; st.textContent='Fila vazia — adicione etiquetas.';
+  } else if(pages.length===1){
+    st.className='etq-status';
+    st.textContent=total+' etiqueta(s) · posições '+(etqInicioIdx+1)+' a '+(etqInicioIdx+total);
+  } else {
+    st.className='etq-status';
+    st.textContent=total+' etiqueta(s) · '+pages.length+' folhas (126 por folha)';
+  }
 }
 
 function etqImprimir(){
   if(etqTotalLabels()===0){ alert('Adicione etiquetas à fila antes de imprimir.'); return; }
-  const fim = etqInicioIdx + etqTotalLabels();
-  if(fim > ETQ_TOTAL && !confirm('Atenção: '+(fim-ETQ_TOTAL)+' etiqueta(s) não cabem nesta folha a partir da posição '+(etqInicioIdx+1)+' e não serão impressas. Deseja continuar?')) return;
-  // Clona a folha (somente as posições visíveis) para o contêiner de impressão
-  document.getElementById('printRoot').innerHTML = '<div class="folha">' + document.getElementById('folha').innerHTML + '</div>';
+  const pages = etqBuildPages();
+  let html='';
+  pages.forEach(function(pg){
+    html += '<div class="folha">';
+    for(let idx=0; idx<ETQ_TOTAL; idx++){
+      html += etqCellHTML(pg.cells[idx], idx, false, false);
+    }
+    html += '</div>';
+  });
+  document.getElementById('printRoot').innerHTML = html;
   window.print();
 }
 

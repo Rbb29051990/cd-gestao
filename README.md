@@ -1,7 +1,8 @@
 # CD Gestão Empresarial — v134
 
-## Novidades da v134 (2026-06-24) — Vigência retroativa das taxas
+## Novidades da v134 (2026-06-24) — Vigência retroativa das taxas e impressão multi-folha
 
+0. **Etiquetas — impressão de mais de 126:** quando a fila passa de 126 etiquetas (uma folha A4), o sistema agora gera **folhas extras automaticamente** (126 por folha) e imprime **todas de uma vez**, com quebra de página entre elas. A 1ª folha respeita a posição de início escolhida; as seguintes começam na posição 1. Também corrigido o fundo branco/cinza da pré-visualização (a folha branca agora cobre as 18 linhas — era um efeito de `align-items:stretch` do flex).
 1. **Data de vigência retroativa:** o cadastro de uma nova tabela de taxas (aba **Taxas**) deixa de exigir data futura. Agora a vigência **pode ser retroativa** (ex.: 22/06/2026), e as taxas passam a valer para as vendas **daquela data em diante** — recalculando o valor líquido no Caixa, Dashboard e Visão Geral. Períodos anteriores à data informada continuam usando a tabela vigente na época.
 2. **Backfill do nº de parcelas no caixa:** uma migração idempotente preenche o número de parcelas nos lançamentos de caixa **já existentes** de crédito parcelado (a partir da venda correspondente), para que a **taxa por parcela** também valha **retroativamente** nos relatórios baseados no caixa, e não só nos baseados na tabela de vendas.
 

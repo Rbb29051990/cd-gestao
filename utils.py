@@ -21,17 +21,37 @@ def get_taxa_vigente(data=None):
     cur.close(); close_db(conn)
     if row:
         return dict(row)
-    return {'credito_vista': 2.06, 'credito_parcelado': 2.70, 'debito': 1.59, 'link': 0.0, 'antecipacao': 0.0}
+    base = {'credito_vista': 2.06, 'credito_parcelado': 2.70, 'debito': 1.59, 'link': 0.0, 'antecipacao': 0.0}
+    for n in range(2, 11):
+        base[f'credito_{n}x'] = None
+    return base
 
 
-def calcular_liquido(valor_bruto, forma_pagamento, taxa):
-    """Calcula valor líquido após taxas da operadora + antecipação."""
+def taxa_parcelado(taxa, num_parcelas=None):
+    """Taxa do crédito parcelado para o nº de parcelas informado.
+    Usa a taxa específica (credito_2x..credito_10x) se cadastrada; senão cai
+    na taxa padrão 'credito_parcelado'."""
+    if num_parcelas:
+        try:
+            n = int(num_parcelas)
+            if n >= 2:
+                v = taxa.get(f'credito_{n}x')
+                if v is not None and str(v) != '':
+                    return float(v)
+        except (ValueError, TypeError):
+            pass
+    return float(taxa.get('credito_parcelado', 0) or 0)
+
+
+def calcular_liquido(valor_bruto, forma_pagamento, taxa, num_parcelas=None):
+    """Calcula valor líquido após taxas da operadora + antecipação.
+    Para crédito parcelado, usa a taxa da parcela correspondente (se cadastrada)."""
     if not taxa:
         return valor_bruto, 0, 0
     taxa_op = 0
     fp = forma_pagamento or ''
     if fp == 'credito_vista':       taxa_op = float(taxa.get('credito_vista', 0))
-    elif fp == 'credito_parcelado': taxa_op = float(taxa.get('credito_parcelado', 0))
+    elif fp == 'credito_parcelado': taxa_op = taxa_parcelado(taxa, num_parcelas)
     elif fp == 'debito':            taxa_op = float(taxa.get('debito', 0))
     elif fp == 'link':              taxa_op = float(taxa.get('link', 0))
     taxa_ant = float(taxa.get('antecipacao', 0))

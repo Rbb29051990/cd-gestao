@@ -25,7 +25,7 @@ def _fin_venda(v, taxa_cache):
         chave = d.date().isoformat() if hasattr(d, 'date') else 'hoje'
         if chave not in taxa_cache:
             taxa_cache[chave] = get_taxa_vigente(d.date() if hasattr(d, 'date') else None)
-        liq, desc_taxa, _ = calcular_liquido(pago, forma, taxa_cache[chave])
+        liq, desc_taxa, _ = calcular_liquido(pago, forma, taxa_cache[chave], v.get('parcelas'))
         return bruto, desconto, desc_taxa, liq
     return bruto, desconto, 0.0, pago
 
@@ -136,10 +136,12 @@ def nova_venda():
         # Registrar no caixa conforme forma de pagamento
         formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
         if forma in formas_a_vista:
-            # Entra tudo no caixa no dia
-            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
-                VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
-                (f"Venda {cod} - {cliente_nome}", valor_final, forma, venda_id, usuario_id or None, vendedora_nome))
+            # Entra tudo no caixa no dia. Guarda o nº de parcelas só p/ crédito parcelado
+            # (usado no cálculo do líquido com a taxa da parcela correspondente).
+            parcelas_caixa = parcelas if forma == 'credito_parcelado' else None
+            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas)
+                VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
+                (f"Venda {cod} - {cliente_nome}", valor_final, forma, venda_id, usuario_id or None, vendedora_nome, parcelas_caixa))
         elif forma == 'crediario':
             # Só registra a entrada paga (se houver) — com a forma de pagamento REAL da entrada
             if entrada > 0:
@@ -232,9 +234,10 @@ def editar_venda(vid):
             # de crediário (que têm a própria forma de pagamento).
             formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
             if forma_pagamento in formas_a_vista:
-                cur.execute("""UPDATE caixa SET forma_pagamento=%s
+                parcelas_caixa = parcelas if forma_pagamento == 'credito_parcelado' else None
+                cur.execute("""UPDATE caixa SET forma_pagamento=%s, parcelas=%s
                                WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada'""",
-                            (forma_pagamento, vid))
+                            (forma_pagamento, parcelas_caixa, vid))
             audit_log(cur, 'ALTERAR_VENDA', 'vendas', vid,
                       {'forma_pagamento': forma_pagamento, 'cliente': cliente_nome})
             conn.commit()

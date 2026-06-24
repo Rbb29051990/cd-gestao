@@ -27,7 +27,7 @@ def visao_geral():
     fat     = {f: 0.0 for f in formas}   # bruto por forma
     fat_liq = {f: 0.0 for f in formas}   # líquido por forma (após taxas de cartão)
     try:
-        cur.execute("""SELECT forma_pagamento, valor, criado_em FROM caixa
+        cur.execute("""SELECT forma_pagamento, valor, criado_em, parcelas FROM caixa
                        WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
         for r in cur.fetchall():
             f = r['forma_pagamento'] or ''
@@ -36,7 +36,7 @@ def visao_geral():
             fat[f] += bruto
             if f in formas_com_taxa:
                 taxa_data = get_taxa_vigente(r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje_app())
-                liq, _d, _p = calcular_liquido(bruto, f, taxa_data)
+                liq, _d, _p = calcular_liquido(bruto, f, taxa_data, r.get('parcelas'))
                 fat_liq[f] += liq
             else:
                 fat_liq[f] += bruto

@@ -100,6 +100,10 @@ def pagar_parcela(cid, pid):
     vendedora_nome = request.form.get('vendedora_nome', '').strip()
     valor_pago = float(request.form.get('valor_pago', 0) or 0)
     forma_pg = request.form.get('forma_pagamento', 'dinheiro').strip()
+    parcelas_caixa = None
+    if forma_pg == 'credito_parcelado':
+        try: parcelas_caixa = int(request.form.get('parcelas_cartao', 0) or 0) or None
+        except ValueError: parcelas_caixa = None
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM crediarios WHERE id=%s", (cid,))
@@ -120,8 +124,8 @@ def pagar_parcela(cid, pid):
             cur.execute("UPDATE crediarios SET saldo_devedor=%s WHERE id=%s", (novo_saldo, cid))
         # Gravar no caixa com a forma de pagamento real (para taxas serem aplicadas corretamente)
         descr = f"Crediário - {cred['cliente_nome']} ({forma_pg.replace('_',' ')})"
-        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,parcela_id,vendedora_nome) VALUES (%s,%s,'entrada',%s,%s,%s,%s)",
-            (descr, valor_pago, forma_pg, cid, pid, vendedora_nome))
+        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,parcela_id,vendedora_nome,parcelas) VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)",
+            (descr, valor_pago, forma_pg, cid, pid, vendedora_nome, parcelas_caixa))
         conn.commit(); flash('Pagamento registrado!', 'ok')
     except Exception as e: conn.rollback(); flash(str(e), 'erro')
     finally: cur.close(); close_db(conn)

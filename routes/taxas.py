@@ -14,16 +14,25 @@ def taxas():
     conn = get_db(); cur = conn.cursor()
     if request.method == 'POST':
         try:
+            def _opt(name):
+                """Taxa opcional por parcela: em branco vira NULL (cai na taxa padrão)."""
+                raw = (request.form.get(name) or '').strip()
+                return parse_brl(raw) if raw else None
             cv  = parse_brl(request.form.get('credito_vista', '0'))
             cp  = parse_brl(request.form.get('credito_parcelado', '0'))
             deb = parse_brl(request.form.get('debito', '0'))
             lnk = parse_brl(request.form.get('link', '0'))
             ant = parse_brl(request.form.get('antecipacao', '0'))
+            parc = {n: _opt(f'credito_{n}x') for n in range(2, 11)}
             vig = request.form.get('vigencia_em', str(hoje_app()))
             cur.execute("""INSERT INTO taxas_pagamento
-                (vigencia_em,credito_vista,credito_parcelado,debito,link,antecipacao,usuario_id)
-                VALUES (%s,%s,%s,%s,%s,%s,%s)""",
-                (vig, cv, cp, deb, lnk, ant, session.get('uid')))
+                (vigencia_em,credito_vista,credito_parcelado,debito,link,antecipacao,
+                 credito_2x,credito_3x,credito_4x,credito_5x,credito_6x,credito_7x,credito_8x,credito_9x,credito_10x,
+                 usuario_id)
+                VALUES (%s,%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s,%s,%s, %s)""",
+                (vig, cv, cp, deb, lnk, ant,
+                 parc[2], parc[3], parc[4], parc[5], parc[6], parc[7], parc[8], parc[9], parc[10],
+                 session.get('uid')))
             conn.commit()
             flash('Taxas atualizadas com sucesso!', 'ok')
         except Exception as e:

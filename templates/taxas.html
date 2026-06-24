@@ -70,6 +70,12 @@
               <option value="link">Link de pagamento</option>
             </select>
           </div>
+          <div class="form-field" id="simParcelasWrap" style="width:120px;display:none">
+            <span class="form-label">Parcelas</span>
+            <select class="form-input" id="simParcelas" onchange="simular()" style="cursor:pointer">
+              {% for n in range(2, 11) %}<option value="{{ n }}">{{ n }}x</option>{% endfor %}
+            </select>
+          </div>
           <div id="simResultado" style="display:none;padding:16px 24px;background:#f8f8fc;border:1.5px solid #e8e8f0;border-radius:10px;min-width:280px">
             <div style="display:flex;gap:32px">
               <div>
@@ -93,14 +99,14 @@
         <form method="POST" action="/taxas">
           <div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:20px 24px;margin-bottom:20px">
             <div style="font-size:12px;font-weight:600;color:#f57f17;margin-bottom:4px">⚠️ Atenção</div>
-            <div style="font-size:13px;color:#555">As novas taxas só serão aplicadas às vendas a partir da data de vigência informada. Vendas anteriores mantêm as taxas do período.</div>
+            <div style="font-size:13px;color:#555">As taxas valem para as vendas a partir da <b>data de vigência</b> informada. A data <b>pode ser retroativa</b> (ex.: início do mês), e nesse caso recalcula o líquido das vendas daquele período em diante. Períodos anteriores a essa data mantêm a tabela vigente na época.</div>
           </div>
           <div class="form-grid">
             <div class="form-field">
               <span class="form-label">Data de vigência *</span>
               <input class="form-input" type="date" name="vigencia_em" required
-                     value="{{ today }}" min="{{ today }}">
-              <div class="campo-hint">Não pode ser retroativa</div>
+                     value="{{ today }}">
+              <div class="campo-hint">Pode ser retroativa — as taxas valem para vendas a partir desta data</div>
             </div>
             <div class="form-field">
               <span class="form-label">Antecipação (%)</span>
@@ -113,9 +119,10 @@
                      value="{{ '{:,.2f}'.format(taxa_atual.credito_vista|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
             </div>
             <div class="form-field">
-              <span class="form-label">Crédito parcelado (%)</span>
+              <span class="form-label">Crédito parcelado — padrão (%)</span>
               <input class="form-input" type="text" name="credito_parcelado" placeholder="0,00"
                      value="{{ '{:,.2f}'.format(taxa_atual.credito_parcelado|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
+              <div class="campo-hint">Usada quando a parcela não tiver taxa própria abaixo</div>
             </div>
             <div class="form-field">
               <span class="form-label">Débito (%)</span>
@@ -128,7 +135,21 @@
                      value="{{ '{:,.2f}'.format(taxa_atual.link|float)|replace(',','X')|replace('.',',')|replace('X','.') }}">
             </div>
           </div>
-          <div class="modal-footer" style="margin-top:8px">
+
+          <!-- TAXAS POR PARCELA (crédito parcelado) -->
+          <div class="section-sep" style="margin:24px 0 8px">Crédito parcelado — taxa por parcela (%)</div>
+          <div style="font-size:12px;color:#888;margin-bottom:14px">Preencha a taxa de cada parcela. Deixe em branco para usar a taxa padrão acima.</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px">
+            {% for n in range(2, 11) %}
+            <div class="form-field">
+              <span class="form-label">{{ n }}x</span>
+              <input class="form-input parc-input" type="text" name="credito_{{ n }}x" placeholder="0,00"
+                     value="{% if taxa_atual['credito_' ~ n ~ 'x'] is not none %}{{ '{:,.2f}'.format(taxa_atual['credito_' ~ n ~ 'x']|float)|replace(',','X')|replace('.',',')|replace('X','.') }}{% endif %}">
+            </div>
+            {% endfor %}
+          </div>
+
+          <div class="modal-footer" style="margin-top:16px">
             <button type="submit" class="btn-salvar" style="display:inline-flex;align-items:center;gap:8px">
               <svg width="14" height="14" viewBox="0 0 22 22" fill="none"><path d="M4 4h10l4 4v10a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.8"/><path d="M8 21v-7h6v7M8 4v4h6V4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
               Salvar nova tabela de taxas
@@ -191,6 +212,15 @@ const taxas = {
   link:              {{ taxa_atual.link|float }},
   antecipacao:       {{ taxa_atual.antecipacao|float }}
 };
+/* Taxa específica por parcela (null = usa a padrão credito_parcelado) */
+const taxasParc = {
+  {% for n in range(2, 11) %}{{ n }}: {% if taxa_atual['credito_' ~ n ~ 'x'] is not none %}{{ taxa_atual['credito_' ~ n ~ 'x']|float }}{% else %}null{% endif %}{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
+function taxaParcelada(n) {
+  const t = taxasParc[n];
+  return (t === null || t === undefined) ? taxas.credito_parcelado : t;
+}
 
 function parseMoeda(s) {
   if (!s) return 0;
@@ -207,8 +237,16 @@ function simular() {
   const valor = parseMoeda(document.getElementById('simValor').value);
   const forma = document.getElementById('simForma').value;
   const res   = document.getElementById('simResultado');
+  // Mostra o seletor de parcelas só no crédito parcelado
+  document.getElementById('simParcelasWrap').style.display = (forma === 'credito_parcelado') ? 'block' : 'none';
   if (!valor || !forma) { res.style.display='none'; return; }
-  const taxaOp  = taxas[forma] || 0;
+  let taxaOp;
+  if (forma === 'credito_parcelado') {
+    const n = parseInt(document.getElementById('simParcelas').value) || 2;
+    taxaOp = taxaParcelada(n);
+  } else {
+    taxaOp = taxas[forma] || 0;
+  }
   const taxaAnt = taxas.antecipacao || 0;
   const taxaTot = taxaOp + taxaAnt;
   const desconto = Math.round(valor * taxaTot / 100 * 100) / 100;
@@ -221,7 +259,7 @@ function simular() {
 }
 
 /* Máscara percentual nos inputs */
-document.querySelectorAll('input[name=credito_vista],input[name=credito_parcelado],input[name=debito],input[name=link],input[name=antecipacao]').forEach(el => {
+document.querySelectorAll('input[name=credito_vista],input[name=credito_parcelado],input[name=debito],input[name=link],input[name=antecipacao],input.parc-input').forEach(el => {
   el.addEventListener('input', function() {
     let v = this.value.replace(/[^0-9,]/g,'');
     this.value = v;

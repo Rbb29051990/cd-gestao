@@ -1,10 +1,16 @@
-# CD Gestão Empresarial — v133
+# CD Gestão Empresarial — v134
+
+## Novidades da v134 (2026-06-24) — Vigência retroativa das taxas
+
+1. **Data de vigência retroativa:** o cadastro de uma nova tabela de taxas (aba **Taxas**) deixa de exigir data futura. Agora a vigência **pode ser retroativa** (ex.: 22/06/2026), e as taxas passam a valer para as vendas **daquela data em diante** — recalculando o valor líquido no Caixa, Dashboard e Visão Geral. Períodos anteriores à data informada continuam usando a tabela vigente na época.
+2. **Backfill do nº de parcelas no caixa:** uma migração idempotente preenche o número de parcelas nos lançamentos de caixa **já existentes** de crédito parcelado (a partir da venda correspondente), para que a **taxa por parcela** também valha **retroativamente** nos relatórios baseados no caixa, e não só nos baseados na tabela de vendas.
 
 ## Novidades da v133 (2026-06-20) — Etiquetas, dashboard e crediários
 
 1. **Etiquetas — impressão calibrada:** alinhamento horizontal e vertical acertado para a folha adesiva A4 (7×18, 2,5×1,5 cm). Gap entre colunas de **0,3167 cm** (fecha a largura do A4 e evita o desalinhamento cumulativo que cortava o "R$"); centralização vertical via **`transform:translateY(-0.25cm)`** na impressão, compensando o deslocamento de registro da impressora **sem** mexer nas margens (que reescalavam a página e quebravam o horizontal). Conteúdo centralizado na célula com `grid` + `place-items:center`. **Regra:** horizontal = margens/gap; vertical = translateY.
 2. **Dashboard:** números das tabelas centralizados nas colunas; painel "Estoque parado" compactado (sem barras de rolagem nos vizinhos); linha 3 reordenada para **Estoque parado · Ranking de vendedoras · Top 5 clientes**; cores condicionais nos KPIs — **Lucro** e **Margem** ficam vermelhos quando negativos e verdes quando positivos; **Ticket médio** em azul.
-3. **Crediários:** botão **Novo crediário** para lançar dívidas anteriores ao sistema (avulsas, sem gerar caixa); **Estornar** pagamento de parcela (restaura saldo e remove do caixa); **Editar** valor total/saldo do crediário; **Excluir** parcela individual em aberto.
+3. **Crediários:** botão **Novo crediário** para lançar dívidas anteriores ao sistema (avulsas, sem gerar caixa); **Estornar** pagamento de parcela (restaura saldo e remove do caixa); **Editar** valor total/saldo do crediário; **Excluir** parcela individual em aberto; **Excluir** o crediário inteiro (para lançamentos errados).
+4. **Taxas por parcela:** o crédito parcelado passa a ter uma taxa **para cada nº de parcelas** (2x a 10x), com taxa "padrão" como fallback. A taxa correta é aplicada no cálculo do valor líquido em **Vendas, Caixa, Dashboard e Visão Geral** (lendo o nº de parcelas gravado em cada lançamento do caixa). Simulador da aba Taxas ganhou seletor de parcelas. Vendas antigas seguem usando a taxa padrão.
 
 ## Novidades da v131 (2026-06-18) — Tooltips, clientes cadastrados e mobile
 

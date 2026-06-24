@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v133'})
+        return jsonify({'status': 'ok', 'version': 'v134'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,8 +155,9 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v133 — 2026-06-20</b><br>
-    v133: Etiquetas — alinhamento de impressão calibrado (gap col 0,3167cm; translateY p/ centralizar na vertical sem afetar o horizontal). Dashboard — colunas centralizadas, estoque parado compacto, linha 3 reordenada, cores condicionais nos KPIs (lucro/margem vermelho-verde, ticket azul). Crediários — lançamento avulso + estornar/editar/excluir parcela ✅<br>
+    Versão: <b style='color:green'>v134 — 2026-06-24</b><br>
+    v134: Taxas — data de vigência pode ser RETROATIVA (aplica as taxas a vendas de uma data passada em diante). Backfill: lançamentos de caixa antigos de crédito parcelado recebem o nº de parcelas da venda, p/ a taxa por parcela valer retroativamente também nos relatórios do caixa ✅<br>
+    v133: Etiquetas — alinhamento de impressão calibrado (gap col 0,3167cm; translateY p/ centralizar na vertical sem afetar o horizontal). Dashboard — colunas centralizadas, estoque parado compacto, linha 3 reordenada, cores condicionais nos KPIs (lucro/margem vermelho-verde, ticket azul). Crediários — lançamento avulso + estornar/editar/excluir parcela + excluir crediário inteiro. Taxas — taxa por parcela no crédito parcelado (2x a 10x), aplicada no líquido de vendas/caixa/dashboard/visão geral ✅<br>
     v131: Dashboard — rótulos dos gráficos viram TOOLTIP ao passar o mouse (R$ 0,00), sem poluir; "Qtd de clientes cadastrados" passa a contar clientes que cada funcionária CADASTROU (clientes.usuario_id), independente de venda; tabelas com rolagem própria no celular (não quebram mais a tela) ✅<br>
     v130: Dashboard — gráficos por VALOR TOTAL DO MÊS; % arredondados; donut com cores definidas; Top categorias com Mark-up; Ranking de vendedoras renomeado; Top clientes sem barra ✅<br>
     v129: Dashboard — gráficos refletem o período selecionado; versões unificadas (healthz/README) ✅<br>

@@ -1,4 +1,4 @@
-"""Dashboard Executivo V133 — layout moderno em uma página só (estende base.html).
+"""Dashboard Executivo V134 — layout moderno em uma página só (estende base.html).
 
 Estrutura:
   • Cabeçalho com período e comparação
@@ -100,13 +100,13 @@ def _nice_top(maxv):
     return 10 * mag * 4
 
 
-def _liquido_com_taxa(bruto, forma, dt, taxa_cache):
+def _liquido_com_taxa(bruto, forma, dt, taxa_cache, parcelas=None):
     bruto = float(bruto or 0); forma = forma or 'outros'
     if forma in FORMAS_COM_TAXA:
         k = dt.isoformat()
         if k not in taxa_cache:
             taxa_cache[k] = get_taxa_vigente(dt)
-        liq, desc, pct = calcular_liquido(bruto, forma, taxa_cache[k])
+        liq, desc, pct = calcular_liquido(bruto, forma, taxa_cache[k], parcelas)
         return float(liq or 0), float(desc or 0), float(pct or 0)
     return bruto, 0.0, 0.0
 
@@ -135,13 +135,13 @@ def dashboard_view():
         por_forma = {}
         cache = {}
         try:
-            cur.execute("""SELECT forma_pagamento, valor, criado_em FROM caixa
+            cur.execute("""SELECT forma_pagamento, valor, criado_em, parcelas FROM caixa
                            WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s""", (ini, fim))
             for r in cur.fetchall():
                 b = float(r['valor'] or 0)
                 forma = r['forma_pagamento'] or 'outros'
                 dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-                liq, desc, _ = _liquido_com_taxa(b, forma, dt, cache)
+                liq, desc, _ = _liquido_com_taxa(b, forma, dt, cache, r.get('parcelas'))
                 bruto += b; liquido += liq; taxas += desc
                 if desc:
                     por_forma[forma] = por_forma.get(forma, 0.0) + desc
@@ -238,14 +238,14 @@ def dashboard_view():
     try:
         agg = [{'bruto': 0.0, 'liquido': 0.0, 'fixas': 0.0, 'avulsas': 0.0} for _ in buckets]
         cache = {}
-        cur.execute("SELECT forma_pagamento, valor, criado_em FROM caixa WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s", (trend_ini, trend_fim))
+        cur.execute("SELECT forma_pagamento, valor, criado_em, parcelas FROM caixa WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s", (trend_ini, trend_fim))
         for r in cur.fetchall():
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
             i = _bidx(dt)
             if i is None:
                 continue
             b = float(r['valor'] or 0)
-            liq, _d, _p = _liquido_com_taxa(b, r['forma_pagamento'] or 'outros', dt, cache)
+            liq, _d, _p = _liquido_com_taxa(b, r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
             agg[i]['bruto'] += b
             agg[i]['liquido'] += liq
         cur.execute("""SELECT p.data_vencimento dv, LOWER(COALESCE(d.tipo,'')) tp, p.valor v
@@ -397,18 +397,18 @@ def dashboard_view():
     #   Clientes dentro do período (clientes.usuario_id), independente de venda.
     vendedoras = []
     try:
-        cur.execute("""SELECT v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id,
+        cur.execute("""SELECT v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.parcelas, v.criado_em, v.cliente_id,
                        COALESCE(SUM(vi.quantidade),0) pecas, MAX(u.foto) AS foto
                        FROM vendas v
                        LEFT JOIN venda_itens vi ON vi.venda_id=v.id
                        LEFT JOIN usuarios u ON u.id=v.usuario_id
                        WHERE DATE(v.criado_em) BETWEEN %s AND %s
-                       GROUP BY v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.criado_em, v.cliente_id""", (di, df))
+                       GROUP BY v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.parcelas, v.criado_em, v.cliente_id""", (di, df))
         tmp = {}; cache = {}
         for r in cur.fetchall():
             nome = r['vendedora_nome'] or '—'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-            liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache)
+            liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
             o = tmp.setdefault(nome, {'nome': nome, 'uid': None, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
             if r['usuario_id'] and not o['uid']:
                 o['uid'] = r['usuario_id']
@@ -438,16 +438,16 @@ def dashboard_view():
     # ── Top 5 clientes (líquido) ──
     top_clientes = []
     try:
-        cur.execute("""SELECT v.cliente_nome nome, v.valor_total, v.forma_pagamento, v.criado_em, v.id,
+        cur.execute("""SELECT v.cliente_nome nome, v.valor_total, v.forma_pagamento, v.parcelas, v.criado_em, v.id,
                        COALESCE(SUM(vi.quantidade),0) pecas
                        FROM vendas v LEFT JOIN venda_itens vi ON vi.venda_id=v.id
                        WHERE DATE(v.criado_em) BETWEEN %s AND %s AND COALESCE(v.cliente_nome,'')<>''
-                       GROUP BY v.id, v.cliente_nome, v.valor_total, v.forma_pagamento, v.criado_em""", (di, df))
+                       GROUP BY v.id, v.cliente_nome, v.valor_total, v.forma_pagamento, v.parcelas, v.criado_em""", (di, df))
         tmp = {}; cache = {}
         for r in cur.fetchall():
             nome = r['nome'] or 'Cliente'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-            liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache)
+            liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
             o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'compras': 0, 'pecas': 0, 'ultima': dt})
             o['liquido'] += liq; o['compras'] += 1; o['pecas'] += int(r['pecas'] or 0); o['ultima'] = max(o['ultima'], dt)
         top_clientes = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]

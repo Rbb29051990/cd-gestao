@@ -193,6 +193,24 @@ def init_db():
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50)",
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS obs_pagamento TEXT",
         "ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS observacao TEXT",
+        "ALTER TABLE caixa ADD COLUMN IF NOT EXISTS parcelas INTEGER",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_2x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_3x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_4x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_5x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_6x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_7x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_8x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_9x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_10x NUMERIC(5,2)",
+        # Backfill (idempotente): preenche o nº de parcelas nos lançamentos de caixa
+        # antigos de vendas no crédito parcelado, p/ a taxa por parcela valer retroativamente.
+        """UPDATE caixa c SET parcelas = v.parcelas
+             FROM vendas v
+            WHERE c.venda_id = v.id
+              AND c.forma_pagamento = 'credito_parcelado'
+              AND c.parcelas IS NULL
+              AND COALESCE(v.parcelas,0) >= 2""",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_criado_em ON auditoria (criado_em DESC)",
         "CREATE INDEX IF NOT EXISTS idx_auditoria_tabela_registro ON auditoria (tabela, registro_id)",
         "CREATE INDEX IF NOT EXISTS idx_estoque_codigo ON estoque (codigo)",

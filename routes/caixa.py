@@ -49,7 +49,7 @@ def caixa():
     for m in movs:
         if m['tipo'] == 'entrada' and m.get('forma_pagamento') in ['credito_vista', 'credito_parcelado', 'debito', 'link']:
             taxa_data = get_taxa_vigente(m['criado_em'].date() if hasattr(m.get('criado_em', ''), 'date') else hoje_app())
-            liq, desc, ptc = calcular_liquido(float(m['valor']), m['forma_pagamento'], taxa_data)
+            liq, desc, ptc = calcular_liquido(float(m['valor']), m['forma_pagamento'], taxa_data, m.get('parcelas'))
             m['valor_liquido'] = liq
             m['desconto_taxa'] = desc
             m['taxa_total_pct'] = ptc

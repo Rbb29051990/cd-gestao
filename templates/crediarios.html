@@ -266,7 +266,7 @@
       </div>
       <div class="form-field" id="secParcelasCred" style="display:none">
         <label class="form-label">Parcelas do cartão</label>
-        <select name="parcelas_cartao" class="form-input" style="cursor:pointer;width:140px">
+        <select name="parcelas_cartao" id="parcelasCartaoCred" class="form-input" style="cursor:pointer;width:140px" onchange="atualizarPreviewTaxa()">
           {% for i in range(2,11) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
         </select>
       </div>
@@ -481,6 +481,11 @@ const TAXAS_CRED = {
   debito: {{ taxa_vigente.debito|default(1.59) }},
   link: {{ taxa_vigente.link|default(0) }}
 };
+/* Taxa por parcela do crédito parcelado (null = usa a padrão) */
+const TAXAS_CRED_PARC = {
+  {% for n in range(2, 11) %}{{ n }}: {% if taxa_vigente['credito_' ~ n ~ 'x'] is defined and taxa_vigente['credito_' ~ n ~ 'x'] is not none %}{{ taxa_vigente['credito_' ~ n ~ 'x']|float }}{% else %}null{% endif %}{% if not loop.last %},{% endif %}
+  {% endfor %}
+};
 
 function toggleParcelasCred(fp) {
   document.getElementById('secParcelasCred').style.display = fp==='credito_parcelado' ? 'block' : 'none';
@@ -490,7 +495,12 @@ function toggleParcelasCred(fp) {
 function atualizarPreviewTaxa() {
   const fp = document.getElementById('formaPgCred').value;
   const valor = parseFloat(document.getElementById('valorPago').value) || 0;
-  const taxa = TAXAS_CRED[fp] || 0;
+  let taxa = TAXAS_CRED[fp] || 0;
+  if (fp === 'credito_parcelado') {
+    const n = parseInt(document.getElementById('parcelasCartaoCred').value) || 2;
+    const tp = TAXAS_CRED_PARC[n];
+    taxa = (tp === null || tp === undefined) ? TAXAS_CRED.credito_parcelado : tp;
+  }
   const info = document.getElementById('infoTaxaCred');
   if (taxa > 0 && valor > 0) {
     const desc = Math.round(valor * taxa / 100 * 100) / 100;

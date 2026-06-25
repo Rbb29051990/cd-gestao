@@ -1,7 +1,7 @@
 """Consulta de mercadoria: busca rápida (código ou descrição), somente leitura.
 Mostra foto, preço original, preço promocional e saldo em estoque — útil no balcão
-quando a etiqueta se perdeu. Acessível a todos os usuários logados (não é controlada
-por permissão de aba, pois não está em SEG_ABA)."""
+quando a etiqueta se perdeu. É uma aba controlável por permissão (consta em ABAS/
+SEG_ABA): admins têm acesso total; vendedores só com a aba 'consulta' marcada."""
 import base64
 from flask import render_template, request, jsonify, Response
 from db import get_db, close_db

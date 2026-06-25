@@ -24,9 +24,11 @@ ABAS = [
     ('visao_geral', 'Visão Geral'),
     ('clientes',    'Clientes'),
     ('estoque',     'Estoque'),
+    ('consulta',    'Consulta'),
     ('vendas',      'Vendas'),
     ('condicionais', 'Condicional'),
     ('caixa',       'Caixa'),
+    ('ajustes',     'Ajustes'),
     ('crediarios',  'Crediários'),
     ('despesas',    'Despesas'),
     ('taxas',       'Taxas'),
@@ -35,16 +37,16 @@ ABAS = [
 ABAS_DICT = dict(ABAS)
 # Primeiro segmento da URL -> aba
 SEG_ABA = {
-    'visao-geral': 'visao_geral', 'clientes': 'clientes', 'estoque': 'estoque',
-    'vendas': 'vendas', 'condicionais': 'condicionais', 'caixa': 'caixa',
-    'crediarios': 'crediarios', 'despesas': 'despesas', 'ajustes': 'caixa', 'taxas': 'taxas',
+    'visao-geral': 'visao_geral', 'clientes': 'clientes', 'estoque': 'estoque', 'consulta': 'consulta',
+    'vendas': 'vendas', 'condicionais': 'condicionais', 'caixa': 'caixa', 'ajustes': 'ajustes',
+    'crediarios': 'crediarios', 'despesas': 'despesas', 'taxas': 'taxas',
     'dashboard': 'dashboards', 'usuarios': 'usuarios',
 }
 # aba -> endpoint (para montar a home dinâmica)
 ABA_ROUTE = {
-    'visao_geral': 'visao_geral', 'clientes': 'clientes', 'estoque': 'estoque',
-    'vendas': 'vendas', 'condicionais': 'condicionais', 'caixa': 'caixa',
-    'crediarios': 'crediarios', 'despesas': 'despesas', 'ajustes': 'caixa', 'taxas': 'taxas',
+    'visao_geral': 'visao_geral', 'clientes': 'clientes', 'estoque': 'estoque', 'consulta': 'consulta',
+    'vendas': 'vendas', 'condicionais': 'condicionais', 'caixa': 'caixa', 'ajustes': 'ajustes',
+    'crediarios': 'crediarios', 'despesas': 'despesas', 'taxas': 'taxas',
     'dashboards': 'dashboard_view',
 }
 # Endpoints liberados para qualquer logado (helpers e utilitários compartilhados)

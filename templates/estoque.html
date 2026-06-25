@@ -2,6 +2,8 @@
 {% block content %}
 <style>
 .etable thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+/* Coluna Cód (2ª) compacta — sobrepõe o min-width:150px global da 2ª coluna */
+#tabelaEstoque td:nth-child(2),#tabelaEstoque th:nth-child(2){min-width:0!important;width:1%;white-space:nowrap!important}
 /* ── ETIQUETAS ── */
 .etq-cols{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:20px;align-items:start}
 @media (max-width:1100px){.etq-cols{grid-template-columns:1fr}}

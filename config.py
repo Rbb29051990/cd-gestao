@@ -48,11 +48,13 @@ def fim_mes_app():
 
 
 # ── Identidade visual ──
+# Cada loja pode ter sua identidade definindo estas variáveis de ambiente no
+# Render (LOJA_NOME, LOJA_SUB, LOJA_SIGLA, LOJA_TAGLINE). Sem elas, usa o padrão.
 CLIENTE = {
-    'nome': 'CD Gestao Empresarial',
-    'loja': 'By Carol Duarte',
-    'sigla': 'CD GESTAO',
-    'tagline': 'Gestao inteligente para sua loja.',
+    'nome': os.environ.get('LOJA_NOME', 'CD Gestao Empresarial'),
+    'loja': os.environ.get('LOJA_SUB', 'By Carol Duarte'),
+    'sigla': os.environ.get('LOJA_SIGLA', 'CD · GESTÃO'),
+    'tagline': os.environ.get('LOJA_TAGLINE', 'Gestao inteligente para sua loja.'),
     'cor_primaria': '#1a1a2e',
     'cor_secundaria': '#f4f4f6',
     'cor_botao': '#2e7d32'

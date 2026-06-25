@@ -42,7 +42,7 @@
 </style>
 <div class="dash-wrap">
   <div class="topbar">
-    <div class="topbar-logo"><span class="topbar-logo-main">CD · GESTÃO</span><span class="topbar-logo-sub">Empresarial</span></div>
+    <div class="topbar-logo"><span class="topbar-logo-main">{{ cliente.sigla }}</span><span class="topbar-logo-sub">Empresarial</span></div>
     <div class="topbar-right">
       <span class="topbar-user">{{ nome }}</span>
       <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>

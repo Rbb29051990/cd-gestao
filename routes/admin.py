@@ -156,6 +156,7 @@ def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
     Versão: <b style='color:green'>v134 — 2026-06-24</b><br>
+    v134: Multi-loja — a identidade (nome na barra/login) agora vem de variáveis de ambiente (LOJA_SIGLA, LOJA_NOME, LOJA_SUB, LOJA_TAGLINE), permitindo rodar o MESMO código para várias lojas, cada uma com seu nome e seu banco ✅<br>
     v134: Etiquetas — impressão de MAIS DE 126 etiquetas gera folhas extras automaticamente (126 por folha) e imprime todas de uma vez, com quebra de página; corrigido o fundo branco/cinza da pré-visualização (folha cobre as 18 linhas) ✅<br>
     v134: Taxas — data de vigência pode ser RETROATIVA (aplica as taxas a vendas de uma data passada em diante). Backfill: lançamentos de caixa antigos de crédito parcelado recebem o nº de parcelas da venda, p/ a taxa por parcela valer retroativamente também nos relatórios do caixa ✅<br>
     v133: Etiquetas — alinhamento de impressão calibrado (gap col 0,3167cm; translateY p/ centralizar na vertical sem afetar o horizontal). Dashboard — colunas centralizadas, estoque parado compacto, linha 3 reordenada, cores condicionais nos KPIs (lucro/margem vermelho-verde, ticket azul). Crediários — lançamento avulso + estornar/editar/excluir parcela + excluir crediário inteiro. Taxas — taxa por parcela no crédito parcelado (2x a 10x), aplicada no líquido de vendas/caixa/dashboard/visão geral ✅<br>

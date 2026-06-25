@@ -1,5 +1,6 @@
 """Rotas de Condicional / Transferência: dashboard com período, nova, ficha,
 gerar venda (peças que ficaram), devolução, confirmação de transferência e exclusão."""
+import os
 import json
 from datetime import date
 from flask import render_template, request, redirect, url_for, flash
@@ -8,7 +9,10 @@ from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import parse_brl
 
-LOJA_TRANSFERENCIA = 'CD By Carol Duarte'
+# Destinos possíveis de uma transferência (as lojas do grupo). Configurável por
+# env LOJAS_TRANSFERENCIA (separado por vírgula); padrão = as duas lojas atuais.
+LOJAS_TRANSFERENCIA = [s.strip() for s in os.environ.get(
+    'LOJAS_TRANSFERENCIA', 'CD Plus Size,CD Slim').split(',') if s.strip()]
 
 
 @login_required
@@ -64,7 +68,7 @@ def condicionais():
                data_inicio=data_inicio, data_fim=data_fim, next_cod=f"C{next_n}",
                total_aberto=total_aberto, n_abertas=n_abertas, n_pecas=n_pecas,
                cond_aberto=cond_aberto, transf_aberto=transf_aberto, n_cond=n_cond, n_transf=n_transf,
-               aging=aging, maiores=maiores, loja_transf=LOJA_TRANSFERENCIA)
+               aging=aging, maiores=maiores, lojas_transf=LOJAS_TRANSFERENCIA)
     return render_template('condicionais.html', **ctx)
 
 
@@ -77,7 +81,10 @@ def nova_condicional():
         usuario_id = request.form.get('usuario_id')
         vendedora_nome = request.form.get('vendedora_nome', '').strip()
         if tipo == 'transferencia':
-            cliente_id = None; cliente_nome = LOJA_TRANSFERENCIA
+            destino = request.form.get('destino_transf', '').strip()
+            if destino not in LOJAS_TRANSFERENCIA:
+                destino = LOJAS_TRANSFERENCIA[0] if LOJAS_TRANSFERENCIA else 'Outra loja'
+            cliente_id = None; cliente_nome = destino
         else:
             cliente_id = request.form.get('cliente_id') or None
             cliente_nome = request.form.get('cliente_nome', '').strip()
@@ -261,7 +268,7 @@ def confirmar_transferencia(cid):
                 cur.execute("UPDATE estoque SET reservado=GREATEST(0,COALESCE(reservado,0)-%s) WHERE id=%s", (it['quantidade'], it['produto_id']))
         cur.execute("UPDATE condicional_itens SET status='transferido' WHERE condicional_id=%s", (cid,))
         cur.execute("UPDATE condicionais SET status='finalizada', finalizado_em=CURRENT_TIMESTAMP WHERE id=%s", (cid,))
-        conn.commit(); flash(f'Transferência {cond["codigo"]} confirmada. Peças baixadas (enviadas à {LOJA_TRANSFERENCIA}).', 'ok')
+        conn.commit(); flash(f'Transferência {cond["codigo"]} confirmada. Peças baixadas (enviadas à {cond["cliente_nome"]}).', 'ok')
     except Exception as e:
         conn.rollback(); flash(str(e), 'erro')
     finally: cur.close(); close_db(conn)

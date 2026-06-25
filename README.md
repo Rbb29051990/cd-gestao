@@ -1,4 +1,10 @@
-# CD Gestão Empresarial — v134
+# CD Gestão Empresarial — v135
+
+## Novidades da v135 (2026-06-24) — Ajustes de texto e destino da transferência
+
+1. **Login:** "Bem-vinda" → **"Bem-vindo"** (igual para as duas lojas).
+2. **Barra superior:** o subtítulo "Empresarial" virou **"Gestão Empresarial"** em todas as telas. O nome grande continua vindo da variável `LOJA_SIGLA` (ex.: `CD · Plus Size`, `CD · Slim`) — como o estilo não força maiúsculas, aparece exatamente como digitado.
+3. **Condicional / Transferência:** ao escolher **Transferência**, a vendedora agora **seleciona o destino** entre as lojas (**CD Plus Size** / **CD Slim**), em vez do destino fixo "CD By Carol Duarte". A lista de destinos é configurável pela variável de ambiente `LOJAS_TRANSFERENCIA` (separada por vírgula; padrão = as duas lojas).
 
 ## Novidades da v134 (2026-06-24) — Vigência retroativa das taxas, impressão multi-folha e multi-loja
 

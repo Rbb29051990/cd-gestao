@@ -107,7 +107,7 @@
         <!-- BARRA DE PROMOÇÃO -->
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;padding:10px 14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
           <span style="font-size:13px;font-weight:700;color:#1a1a2e">🏷️ Promoção</span>
-          <span style="font-size:12px;color:#888">Marque os produtos (coluna à direita), defina o % e aplique. O preço original não muda.</span>
+          <span style="font-size:12px;color:#888">Marque os produtos na coluna 🏷️ Promo, defina o % e aplique. O preço original não muda.</span>
           <span id="promoSelCount" style="font-size:12px;font-weight:700;color:#00838f">0 selecionado(s)</span>
           <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
             <input type="number" id="promoPctInput" min="1" max="99" placeholder="%" style="width:72px;padding:8px 10px;border:1.5px solid #e0e0e8;border-radius:8px;font-family:'Outfit',sans-serif;text-align:center;font-weight:700">
@@ -125,25 +125,26 @@
             <thead><tr>
               <th onclick="ordenarE(0)">Data entrada</th>
               <th onclick="ordenarE(1)">Cód</th>
-              <th>Foto</th>
-              <th onclick="ordenarE(2)">Modelo</th>
-              <th>Descrição</th>
-              <th onclick="ordenarE(4)">TAM</th>
-              <th onclick="ordenarE(5)" title="Estoque inicial cadastrado">Inicial</th>
-              <th title="Novas entradas adicionadas">Entradas</th>
-              <th onclick="ordenarE(6)" title="Unidades vendidas">Saídas</th>
-              <th onclick="ordenarE(7)" title="Saldo atual em estoque">Saldo</th>
-              <th onclick="ordenarE(8)">Custo</th>
-              <th onclick="ordenarE(9)">Venda</th>
-              <th onclick="ordenarE(10)">Dias estoque</th>
-              <th>Última venda</th>
               <th style="width:40px" title="Marcar para promoção">🏷️ Promo</th>
+              <th>Foto</th>
+              <th onclick="ordenarE(3)">Modelo</th>
+              <th>Descrição</th>
+              <th onclick="ordenarE(5)">TAM</th>
+              <th onclick="ordenarE(6)" title="Estoque inicial cadastrado">Inicial</th>
+              <th title="Novas entradas adicionadas">Entradas</th>
+              <th onclick="ordenarE(7)" title="Unidades vendidas">Saídas</th>
+              <th onclick="ordenarE(8)" title="Saldo atual em estoque">Saldo</th>
+              <th onclick="ordenarE(9)">Custo</th>
+              <th onclick="ordenarE(10)">Venda</th>
+              <th onclick="ordenarE(11)">Dias estoque</th>
+              <th>Última venda</th>
             </tr></thead>
             <tbody id="tbodyEstoque">
               {% for item in itens %}
               <tr onclick="window.location='/estoque/{{ item.id }}'" style="cursor:pointer" data-saldo="{{ item.quantidade }}" data-dias="{{ item.dias_estoque }}">
                 <td>{{ item.criado_em.strftime('%d/%m/%Y') }}</td>
                 <td><span class="ref-code">{{ item.codigo }}</span></td>
+                <td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="promo-check" value="{{ item.id }}" onclick="updatePromoCount()"></td>
                 <td style="padding:4px 8px">
                   {% if item.foto %}
                   <img src="{{ item.foto }}" onclick="event.stopPropagation();abrirLightbox('{{ item.foto }}')"
@@ -179,7 +180,6 @@
                   {% else %}<span class="badge-dias badge-alerta">🔴 {{ item.dias_estoque }} dias</span>{% endif %}
                 </td>
                 <td>{{ item.ultima_venda.strftime('%d/%m/%Y') if item.ultima_venda else '—' }}</td>
-                <td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="promo-check" value="{{ item.id }}" onclick="updatePromoCount()"></td>
               </tr>
               {% else %}
               <tr><td colspan="15" class="empty-row">Nenhum item cadastrado ainda.</td></tr>
@@ -629,7 +629,7 @@ function updatePromoCount(){
 }
 function aplicarPromo(acao){
   const ids = Array.from(document.querySelectorAll('.promo-check:checked')).map(c=>c.value);
-  if(!ids.length){ alert('Marque ao menos um produto na coluna 🏷️ Promo (à direita da tabela).'); return; }
+  if(!ids.length){ alert('Marque ao menos um produto na coluna 🏷️ Promo (após o código).'); return; }
   if(acao==='aplicar'){
     const pct = parseFloat(document.getElementById('promoPctInput').value);
     if(!pct || pct<=0 || pct>=100){ alert('Informe um % de desconto entre 1 e 99.'); return; }

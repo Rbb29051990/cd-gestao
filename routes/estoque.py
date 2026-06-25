@@ -29,6 +29,8 @@ def estoque():
         i['dias_estoque'] = (hoje - i['criado_em'].date()).days
         i['entradas_adicionais'] = entradas_map.get(i['id'], 0)
         i['saidas'] = max(0, (i['estoque_inicial'] or 0) + i['entradas_adicionais'] - i['quantidade'])
+        dp = float(i.get('desconto_promo') or 0)
+        i['valor_promo'] = round(float(i['valor_venda'] or 0) * (1 - dp / 100), 2) if dp > 0 else None
     ctx = get_ctx()
     ctx.update(itens=itens, modelos=modelos, tamanhos=tamanhos,
                custo_total=float(tots['ct']), valor_total=float(tots['vt']),
@@ -198,6 +200,38 @@ def editar_estoque(eid):
 
 
 @login_required
+def aplicar_promocao():
+    """Aplica ou remove o % de desconto promocional em vários produtos de uma vez.
+    O preço original (valor_venda) NÃO é alterado — a promoção é só uma camada."""
+    ids_raw = request.form.get('ids', '')
+    ids = [int(x) for x in ids_raw.split(',') if x.strip().isdigit()]
+    acao = request.form.get('acao', 'aplicar')
+    if not ids:
+        flash('Selecione ao menos um produto.', 'erro')
+        return redirect(url_for('estoque'))
+    if acao == 'remover':
+        pct = 0.0
+    else:
+        pct = parse_brl(request.form.get('percentual', '0'))
+        if pct <= 0 or pct >= 100:
+            flash('Informe um percentual de desconto entre 1 e 99.', 'erro')
+            return redirect(url_for('estoque'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("UPDATE estoque SET desconto_promo=%s WHERE id = ANY(%s)", (pct, ids))
+        conn.commit()
+        if acao == 'remover':
+            flash(f'Promoção removida de {len(ids)} produto(s).', 'ok')
+        else:
+            flash(f'Desconto de {pct:.0f}% aplicado em {len(ids)} produto(s).', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('estoque'))
+
+
+@login_required
 def excluir_estoque(eid):
     if not pode_excluir():
         flash('Apenas o Administrador N1 pode excluir dados.', 'erro'); return redirect(url_for('estoque'))
@@ -219,6 +253,7 @@ def register(app):
     app.add_url_rule('/estoque/tamanho/novo', 'novo_tamanho', novo_tamanho, methods=['POST'])
     app.add_url_rule('/estoque/etiquetas', 'etiquetas', etiquetas)
     app.add_url_rule('/estoque/etiqueta-busca', 'etiqueta_busca', etiqueta_busca)
+    app.add_url_rule('/estoque/promocao', 'aplicar_promocao', aplicar_promocao, methods=['POST'])
     app.add_url_rule('/estoque/<int:eid>', 'ficha_estoque', ficha_estoque)
     app.add_url_rule('/estoque/<int:eid>/editar', 'editar_estoque', editar_estoque, methods=['GET', 'POST'])
     app.add_url_rule('/estoque/<int:eid>/excluir', 'excluir_estoque', excluir_estoque, methods=['POST'])

@@ -475,7 +475,12 @@ async function buscarRef(v) {
     document.getElementById('rModelo').textContent = d.item.modelo || '—';
     document.getElementById('rDesc').textContent = (d.item.descricao || '—') + ' / ' + (d.item.tamanho || '—');
     document.getElementById('rTam').textContent = d.item.tamanho || '—';
-    document.getElementById('rVal').textContent = 'R$ ' + parseFloat(d.item.valor_venda).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    var vf = parseFloat(d.item.valor_final != null ? d.item.valor_final : d.item.valor_venda);
+    if (d.item.desconto_promo > 0) {
+      document.getElementById('rVal').innerHTML = '<span style="text-decoration:line-through;color:#aaa;font-size:12px">R$ ' + parseFloat(d.item.valor_original).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span> <b style="color:#c62828">R$ ' + vf.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</b> <span style="background:#fdecef;color:#c62828;font-weight:700;font-size:11px;padding:1px 6px;border-radius:5px">🏷️ -' + Math.round(d.item.desconto_promo) + '%</span>';
+    } else {
+      document.getElementById('rVal').textContent = 'R$ ' + vf.toLocaleString('pt-BR',{minimumFractionDigits:2});
+    }
     document.getElementById('rSaldo').textContent = d.item.quantidade + ' unidade(s) em estoque';
     document.getElementById('rSaldoWrap').style.color = d.item.quantidade <= 0 ? '#c62828' : d.item.quantidade <= 2 ? '#f57f17' : '#2e7d32';
     document.getElementById('refInfo').style.display = 'block';
@@ -508,7 +513,7 @@ function addItemCarrinho() {
     modelo: refAtual.modelo,
     descricao: refAtual.descricao,
     tamanho: refAtual.tamanho,
-    valor_unitario: parseFloat(refAtual.valor_venda),
+    valor_unitario: parseFloat(refAtual.valor_final != null ? refAtual.valor_final : refAtual.valor_venda),
     quantidade: qtd
   });
   renderCarrinho();

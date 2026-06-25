@@ -302,9 +302,15 @@ def buscar_ref():
     ref = request.args.get('ref', '').strip().upper()
     busca = ref if ref.startswith('P') else f"P{ref}"
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT id as produto_id,codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE codigo=%s AND ativo=TRUE AND quantidade>0", (busca,))
+    cur.execute("SELECT id as produto_id,codigo,modelo,descricao,tamanho,valor_venda,desconto_promo,quantidade FROM estoque WHERE codigo=%s AND ativo=TRUE AND quantidade>0", (busca,))
     item = cur.fetchone(); cur.close(); close_db(conn)
-    if item: return jsonify({'ok': True, 'item': dict(item)})
+    if item:
+        it = dict(item)
+        dp = float(it.get('desconto_promo') or 0)
+        it['valor_original'] = float(it['valor_venda'] or 0)
+        it['desconto_promo'] = dp
+        it['valor_final'] = round(it['valor_original'] * (1 - dp / 100), 2) if dp > 0 else it['valor_original']
+        return jsonify({'ok': True, 'item': it})
     return jsonify({'ok': False})
 
 

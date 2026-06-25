@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.cons-busca-wrap{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:18px}
+.cons-busca{display:flex;align-items:center;gap:10px;border:1.5px solid #e0e0e8;border-radius:10px;padding:4px 14px;background:#f8f8fc}
+.cons-busca input{border:0;background:transparent;outline:none;font-family:'Outfit',sans-serif;font-size:16px;color:#1a1a2e;padding:12px 0;width:100%;font-weight:500}
+.cons-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.cons-card{display:flex;gap:14px;background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:14px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.cons-foto{width:84px;height:84px;border-radius:10px;object-fit:cover;flex-shrink:0;cursor:zoom-in;background:#f4f4f8}
+.cons-foto-vazia{display:flex;align-items:center;justify-content:center;font-size:30px;color:#cfcfda;cursor:default}
+.cons-info{min-width:0;flex:1}
+.cons-cod{display:inline-block;font-size:12px;font-weight:800;color:#3949ab;background:#e8eaf6;padding:2px 9px;border-radius:6px;letter-spacing:1px}
+.cons-nome{font-size:14px;font-weight:700;color:#1a1a2e;margin-top:6px;line-height:1.25}
+.cons-tam{font-size:12px;color:#888;margin-top:3px}
+.cons-preco{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cons-normal{font-size:20px;font-weight:800;color:#1a1a2e}
+.cons-orig{font-size:13px;color:#aaa;text-decoration:line-through}
+.cons-promo{font-size:20px;font-weight:800;color:#c62828}
+.cons-badge{background:#fdecef;color:#c62828;font-weight:800;font-size:11px;padding:2px 8px;border-radius:6px}
+.cons-sempromo{font-size:11px;color:#bbb;font-style:italic}
+.cons-empty{padding:34px;text-align:center;color:#aaa;font-size:14px;font-style:italic;background:#f8f8fc;border-radius:12px}
+</style>
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">{{ cliente.sigla }}</span><span class="topbar-logo-sub">Gestão Empresarial</span></div>
+    <div class="topbar-right">
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
+    </div>
+  </div>
+  <div class="dash-layout">
+    {% include "_sidebar.html" %}
+    <main class="main-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Consulta de mercadoria</div>
+          <div class="page-date">Busque por código (ex: P125) ou descrição (ex: vestido) — preço, promoção e estoque</div>
+        </div>
+      </div>
+
+      <div class="cons-busca-wrap">
+        <div class="cons-busca">
+          <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="10" cy="10" r="6" stroke="#aaa" stroke-width="2"/><path d="M15 15l4 4" stroke="#aaa" stroke-width="2" stroke-linecap="round"/></svg>
+          <input type="text" id="consInput" autocomplete="off" autofocus placeholder="Digite o código ou a descrição do produto..." oninput="consBuscar(this.value)">
+        </div>
+      </div>
+
+      <div id="consResultados">
+        <div class="cons-empty">Digite um código (ex: P125) ou parte da descrição (ex: vestido) para consultar.</div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div id="consLightbox" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out;padding:20px">
+  <img id="consLightImg" src="" style="max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain">
+</div>
+
+<script>
+let consTimer;
+function brlC(v){ return 'R$ ' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function consBuscar(q){
+  clearTimeout(consTimer);
+  const box = document.getElementById('consResultados');
+  if(!q || !q.trim()){ box.innerHTML = '<div class="cons-empty">Digite um código (ex: P125) ou parte da descrição (ex: vestido) para consultar.</div>'; return; }
+  consTimer = setTimeout(()=>{
+    fetch('/consulta/buscar?q=' + encodeURIComponent(q.trim()))
+      .then(r=>r.json()).then(d=>{
+        const itens = d.itens||[];
+        if(!itens.length){ box.innerHTML = '<div class="cons-empty">Nenhum produto encontrado para "'+q.trim()+'".</div>'; return; }
+        box.innerHTML = '<div class="cons-grid">' + itens.map(consCard).join('') + '</div>';
+      }).catch(()=>{ box.innerHTML='<div class="cons-empty">Erro ao buscar. Tente novamente.</div>'; });
+  }, 250);
+}
+
+function consCard(it){
+  const foto = it.tem_foto
+    ? '<img src="/consulta/foto/'+it.id+'" class="cons-foto" onclick="consAmpliar(this.src)">'
+    : '<div class="cons-foto cons-foto-vazia">📷</div>';
+  let preco;
+  if(it.valor_promo != null){
+    preco = '<div class="cons-preco"><span class="cons-orig">'+brlC(it.valor_venda)+'</span>'
+          + '<span class="cons-promo">'+brlC(it.valor_promo)+'</span>'
+          + '<span class="cons-badge">🏷️ -'+Math.round(it.desconto_promo)+'%</span></div>';
+  } else {
+    preco = '<div class="cons-preco"><span class="cons-normal">'+brlC(it.valor_venda)+'</span><span class="cons-sempromo">sem promoção</span></div>';
+  }
+  const saldo = it.quantidade>0
+    ? '<span style="color:#2e7d32;font-weight:700">'+it.quantidade+' em estoque</span>'
+    : '<span style="color:#c62828;font-weight:700">Esgotado</span>';
+  const desc = it.descricao ? (' · ' + it.descricao) : '';
+  return '<div class="cons-card">' + foto
+    + '<div class="cons-info">'
+    + '<span class="cons-cod">'+it.codigo+'</span>'
+    + '<div class="cons-nome">'+((it.modelo||'—')+desc)+'</div>'
+    + '<div class="cons-tam">Tam: '+(it.tamanho||'ÚNICO')+' · '+saldo+'</div>'
+    + preco
+    + '</div></div>';
+}
+
+function consAmpliar(src){
+  document.getElementById('consLightImg').src = src;
+  document.getElementById('consLightbox').style.display = 'flex';
+}
+</script>
+{% endblock %}

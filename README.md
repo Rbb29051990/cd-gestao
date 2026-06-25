@@ -1,4 +1,9 @@
-# CD Gestão Empresarial — v135
+# CD Gestão Empresarial — v136
+
+## Novidades da v136 (2026-06-24) — Promoções e aba de Consulta
+
+1. **Promoções (desconto por produto):** na aba **Estoque**, marque vários produtos na coluna **🏷️ Promo** (à direita), informe o **%** e clique em **Aplicar desconto** — ou **Remover** para voltar ao normal. O **preço original (`valor_venda`) nunca é alterado** (a promoção é uma camada por cima, no novo campo `desconto_promo`), então ligar/desligar é instantâneo e **as etiquetas físicas não precisam ser reimpressas**. O produto em promoção aparece com preço riscado + preço promocional + selo `-X%`. Na **venda**, o produto em promoção entra automaticamente com o preço com desconto, e os relatórios (caixa/dashboard) refletem o valor real recebido.
+2. **Nova aba "Consulta de mercadoria":** busca rápida e somente leitura, por **código** (ex: P125) **ou descrição** (ex: "vestido"), mostrando **foto**, **preço original**, **preço promocional** (se houver) e **quantidade em estoque**. Pensada para o balcão quando a etiqueta se perdeu; funciona bem no celular. Liberada para **todos os usuários logados** (não depende de permissão de aba). A foto é servida por endpoint próprio (`/consulta/foto/<id>`) para a busca ficar leve.
 
 ## Novidades da v135 (2026-06-24) — Ajustes de texto e destino da transferência
 

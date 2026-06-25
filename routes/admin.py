@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v135'})
+        return jsonify({'status': 'ok', 'version': 'v136'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v135 — 2026-06-24</b><br>
+    Versão: <b style='color:green'>v136 — 2026-06-24</b><br>
+    v136: Promoções — selecionar vários produtos na aba Estoque e aplicar/remover um % de desconto (o preço original não muda; volta sozinho ao remover); o desconto entra automático na venda e nos relatórios. Nova aba CONSULTA — busca por código ou descrição mostrando foto, preço original, preço promocional e estoque (ideal p/ balcão quando a etiqueta se perdeu) ✅<br>
     v135: Login "Bem-vinda" → "Bem-vindo"; subtítulo da barra superior "Empresarial" → "Gestão Empresarial" (nas duas lojas); Condicional — na Transferência a vendedora escolhe o destino entre as lojas (CD Plus Size / CD Slim) em vez do destino fixo ✅<br>
     v134: Multi-loja — a identidade (nome na barra/login) agora vem de variáveis de ambiente (LOJA_SIGLA, LOJA_NOME, LOJA_SUB, LOJA_TAGLINE), permitindo rodar o MESMO código para várias lojas, cada uma com seu nome e seu banco ✅<br>
     v134: Etiquetas — impressão de MAIS DE 126 etiquetas gera folhas extras automaticamente (126 por folha) e imprime todas de uma vez, com quebra de página; corrigido o fundo branco/cinza da pré-visualização (folha cobre as 18 linhas) ✅<br>

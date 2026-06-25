@@ -194,6 +194,7 @@ def init_db():
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS obs_pagamento TEXT",
         "ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS observacao TEXT",
         "ALTER TABLE caixa ADD COLUMN IF NOT EXISTS parcelas INTEGER",
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS desconto_promo NUMERIC(5,2) DEFAULT 0",
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_2x NUMERIC(5,2)",
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_3x NUMERIC(5,2)",
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_4x NUMERIC(5,2)",

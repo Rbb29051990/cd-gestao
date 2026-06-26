@@ -364,7 +364,7 @@
           </div>
           <div class="form-field">
             <label class="form-label">Forma da entrada *</label>
-            <select class="form-select" name="entrada_forma" id="entradaForma">
+            <select class="form-select" name="entrada_forma" id="entradaForma" onchange="toggleEntradaParcelas()">
               <option value="">Selecione...</option>
               <option value="dinheiro">💵 Dinheiro</option>
               <option value="pix">⚡ Pix</option>
@@ -374,6 +374,12 @@
               <option value="link">🔗 Link</option>
             </select>
             <div style="font-size:11px;color:#aaa;margin-top:2px">Aplica a taxa no caixa, se for cartão.</div>
+          </div>
+          <div class="form-field" id="entradaParcelasWrap" style="display:none">
+            <label class="form-label">Parcelas do cartão (entrada)</label>
+            <select class="form-select" name="entrada_parcelas" id="entradaParcelas">
+              {% for i in range(2,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
+            </select>
           </div>
           <div class="form-field">
             <label class="form-label">Qtd de parcelas</label>
@@ -551,6 +557,12 @@ function renderCarrinho() {
 
 function updateQtd(idx, val) { carrinhoItens[idx].quantidade = parseInt(val)||1; renderCarrinho(); }
 function removerItem(idx) { carrinhoItens.splice(idx,1); renderCarrinho(); }
+
+/* Mostra o nº de parcelas do cartão só quando a entrada do crediário for crédito parcelado */
+function toggleEntradaParcelas() {
+  var f = document.getElementById('entradaForma').value;
+  document.getElementById('entradaParcelasWrap').style.display = (f === 'credito_parcelado') ? 'block' : 'none';
+}
 
 function selPg(tipo, btn) {
   document.querySelectorAll('.pg-opt').forEach(b=>b.classList.remove('active'));

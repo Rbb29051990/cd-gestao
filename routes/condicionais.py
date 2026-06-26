@@ -201,9 +201,10 @@ def gerar_venda_condicional(cid):
         # Caixa / crediário
         formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
         if forma in formas_a_vista:
-            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome)
-                VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
-                (f"Venda {vcod} - {cliente_nome} (condicional {cond['codigo']})", valor_final, forma, venda_id, usuario_id or None, vendedora_nome))
+            parcelas_caixa = parcelas if forma == 'credito_parcelado' else None
+            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas)
+                VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
+                (f"Venda {vcod} - {cliente_nome} (condicional {cond['codigo']})", valor_final, forma, venda_id, usuario_id or None, vendedora_nome, parcelas_caixa))
         elif forma == 'crediario':
             entrada = parse_brl(request.form.get('entrada', '0'))
             saldo = round(valor_final - entrada, 2)
@@ -217,9 +218,10 @@ def gerar_venda_condicional(cid):
             if entrada > 0:
                 entrada_forma = request.form.get('entrada_forma', 'dinheiro').strip() or 'dinheiro'
                 if entrada_forma not in formas_a_vista: entrada_forma = 'dinheiro'
-                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome)
-                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
-                    (f"Entrada crediário - {cliente_nome} (condicional {cond['codigo']}, {entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome))
+                ent_parc = int(request.form.get('entrada_parcelas', 0) or 0) or None if entrada_forma == 'credito_parcelado' else None
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome,parcelas)
+                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)""",
+                    (f"Entrada crediário - {cliente_nome} (condicional {cond['codigo']}, {entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome, ent_parc))
         cur.execute("UPDATE condicionais SET status='finalizada', venda_id=%s, finalizado_em=CURRENT_TIMESTAMP WHERE id=%s", (venda_id, cid))
         conn.commit(); flash(f'Venda {vcod} gerada da condicional {cond["codigo"]}! Peças não retiradas voltaram ao estoque.', 'ok')
     except Exception as e:

@@ -147,9 +147,10 @@ def nova_venda():
             if entrada > 0:
                 entrada_forma = request.form.get('entrada_forma', 'dinheiro').strip() or 'dinheiro'
                 if entrada_forma not in formas_a_vista: entrada_forma = 'dinheiro'
-                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome)
-                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
-                    (f"Entrada crediário - {cliente_nome} ({entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome))
+                ent_parc = int(request.form.get('entrada_parcelas', 0) or 0) or None if entrada_forma == 'credito_parcelado' else None
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome,parcelas)
+                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)""",
+                    (f"Entrada crediário - {cliente_nome} ({entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome, ent_parc))
 
         audit_log(cur, 'CRIAR_VENDA', 'vendas', venda_id, {'codigo': cod, 'cliente': cliente_nome, 'valor_final': valor_final, 'forma_pagamento': forma, 'qtd_itens': len(itens)})
         conn.commit(); flash('Venda registrada!', 'ok')

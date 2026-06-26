@@ -16,7 +16,7 @@ def get_taxa_vigente(data=None):
         data = hoje_app()
     cur.execute("""SELECT * FROM taxas_pagamento
                    WHERE vigencia_em <= %s
-                   ORDER BY vigencia_em DESC LIMIT 1""", (data,))
+                   ORDER BY vigencia_em DESC, id DESC LIMIT 1""", (data,))
     row = cur.fetchone()
     cur.close(); close_db(conn)
     if row:
@@ -49,9 +49,10 @@ def calcular_liquido(valor_bruto, forma_pagamento, taxa, num_parcelas=None):
     """Líquido após taxas — modelo Taxa Flex (v137):
       • crédito à vista   -> taxa de 1x
       • crédito parcelado -> taxa do nº de parcelas (2x..12x)
-      • débito            -> taxa do débito + ANTECIPAÇÃO (antecipação só entra no débito)
+      • débito            -> taxa do débito (a taxa já é o total da operação)
       • link              -> taxa do link (legado; novas vendas não usam link)
-    As taxas por parcela já são o desconto total; nada é somado no crédito."""
+    A ANTECIPAÇÃO é apenas informativa — NÃO entra em nenhum cálculo (evita duplicar,
+    pois as taxas por parcela / do débito já são o desconto total)."""
     if not taxa:
         return valor_bruto, 0, 0
     fp = forma_pagamento or ''
@@ -61,7 +62,7 @@ def calcular_liquido(valor_bruto, forma_pagamento, taxa, num_parcelas=None):
     elif fp == 'credito_parcelado':
         taxa_op = taxa_flex(taxa, num_parcelas or 2)
     elif fp == 'debito':
-        taxa_op = float(taxa.get('debito', 0) or 0) + float(taxa.get('antecipacao', 0) or 0)
+        taxa_op = float(taxa.get('debito', 0) or 0)
     elif fp == 'link':
         taxa_op = float(taxa.get('link', 0) or 0)
     desconto = round(valor_bruto * taxa_op / 100, 2)

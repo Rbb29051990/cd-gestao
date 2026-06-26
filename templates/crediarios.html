@@ -494,7 +494,7 @@ function atualizarPreviewTaxa() {
   let taxa = 0;
   if (fp === 'credito_vista') { taxa = taxaFlexCred(1); }
   else if (fp === 'credito_parcelado') { const n = parseInt(document.getElementById('parcelasCartaoCred').value) || 2; taxa = taxaFlexCred(n); }
-  else if (fp === 'debito') { taxa = (TAXAS_CRED.debito||0) + (TAXAS_CRED.antecipacao||0); }
+  else if (fp === 'debito') { taxa = (TAXAS_CRED.debito||0); }
   const info = document.getElementById('infoTaxaCred');
   if (taxa > 0 && valor > 0) {
     const desc = Math.round(valor * taxa / 100 * 100) / 100;

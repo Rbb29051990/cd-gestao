@@ -45,7 +45,7 @@ def taxas():
     taxa_atual = get_taxa_vigente()
     cur.execute("""SELECT t.*,u.nome as usuario_nome FROM taxas_pagamento t
                    LEFT JOIN usuarios u ON t.usuario_id=u.id
-                   ORDER BY t.vigencia_em DESC LIMIT 20""")
+                   ORDER BY t.vigencia_em DESC, t.id DESC LIMIT 20""")
     historico = [dict(r) for r in cur.fetchall()]
     cur.close(); close_db(conn)
     ctx = get_ctx()

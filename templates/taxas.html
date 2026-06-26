@@ -27,21 +27,16 @@
         <div class="section-sep" style="margin-bottom:20px">Taxas vigentes hoje</div>
 
         <!-- CARDS resumo -->
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px">
-          <div class="fin-card" style="background:#fff8e1;border-color:#ffe082;text-align:center">
-            <div class="fin-label">Crédito à vista (1x)</div>
-            <div class="fin-valor" style="font-size:26px;color:#f57f17">{{ pct(taxa_atual.credito_1x if taxa_atual.credito_1x is not none else taxa_atual.credito_vista) }}</div>
-            <div class="fin-hint">taxa da parcela 1x</div>
-          </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:28px">
           <div class="fin-card" style="background:#e8f5e9;border-color:#c5e1a5;text-align:center">
             <div class="fin-label">Débito</div>
-            <div class="fin-valor" style="font-size:26px;color:#2e7d32">{{ pct((taxa_atual.debito or 0)|float + (taxa_atual.antecipacao or 0)|float) }}</div>
-            <div class="fin-hint">débito {{ pct(taxa_atual.debito) }} + antecipação {{ pct(taxa_atual.antecipacao) }}</div>
+            <div class="fin-valor" style="font-size:26px;color:#2e7d32">{{ pct(taxa_atual.debito) }}</div>
+            <div class="fin-hint">taxa do débito</div>
           </div>
           <div class="fin-card" style="background:#fce4ec;border-color:#f48fb1;text-align:center">
             <div class="fin-label">Antecipação</div>
             <div class="fin-valor" style="font-size:26px;color:#c0396b">{{ pct(taxa_atual.antecipacao) }}</div>
-            <div class="fin-hint">somada apenas no débito</div>
+            <div class="fin-hint">apenas informativo — não entra no cálculo</div>
           </div>
         </div>
 
@@ -103,7 +98,7 @@
         <form method="POST" action="/taxas">
           <div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:20px 24px;margin-bottom:20px">
             <div style="font-size:12px;font-weight:600;color:#f57f17;margin-bottom:4px">⚠️ Atenção</div>
-            <div style="font-size:13px;color:#555">As taxas valem para as vendas a partir da <b>data de vigência</b> informada (<b>pode ser retroativa</b>, recalculando o líquido daquele período em diante). Preencha a <b>Taxa Flex de cada parcela</b> (1x = crédito à vista). A <b>antecipação</b> é somada <b>só no débito</b>.</div>
+            <div style="font-size:13px;color:#555">As taxas valem para as vendas a partir da <b>data de vigência</b> informada (<b>pode ser retroativa</b>, recalculando o líquido daquele período em diante). Preencha a <b>Taxa Flex de cada parcela</b> (1x = crédito à vista). A <b>antecipação</b> é <b>apenas informativa</b> — não entra em nenhum cálculo.</div>
           </div>
           <div class="form-grid">
             <div class="form-field">
@@ -118,7 +113,7 @@
             <div class="form-field">
               <span class="form-label">Antecipação (%)</span>
               <input class="form-input" type="text" name="antecipacao" placeholder="0,00" value="{{ pctval(taxa_atual.antecipacao) }}">
-              <div class="campo-hint">Somada apenas no débito</div>
+              <div class="campo-hint">Apenas informativo — não entra no cálculo</div>
             </div>
           </div>
 
@@ -208,7 +203,7 @@ function simular(){
   let taxaOp = 0;
   if(forma === 'credito_vista'){ taxaOp = taxaFlexN(1); }
   else if(forma === 'credito_parcelado'){ const n = parseInt(document.getElementById('simParcelas').value) || 2; taxaOp = taxaFlexN(n); }
-  else if(forma === 'debito'){ taxaOp = (taxas.debito||0) + (taxas.antecipacao||0); }
+  else if(forma === 'debito'){ taxaOp = (taxas.debito||0); }
   const desconto = Math.round(valor * taxaOp / 100 * 100) / 100;
   const liquido  = Math.round((valor - desconto) * 100) / 100;
   const p        = valor > 0 ? (desconto/valor*100) : 0;

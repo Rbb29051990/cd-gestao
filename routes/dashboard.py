@@ -1,4 +1,4 @@
-"""Dashboard Executivo V138 — layout moderno em uma página só (estende base.html).
+"""Dashboard Executivo V139 — layout moderno em uma página só (estende base.html).
 
 Estrutura:
   • Cabeçalho com período e comparação
@@ -14,7 +14,7 @@ from flask import render_template, request
 from db import get_db, close_db
 from config import hoje_app, agora_app, inicio_mes_app, fim_mes_app
 from auth import login_required, get_ctx
-from utils import get_taxa_vigente, calcular_liquido
+from utils import get_taxa_vigente, calcular_liquido, liquido_caixa_por_venda
 
 MESES_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 FORMAS_COM_TAXA = ('credito_vista', 'credito_parcelado', 'debito', 'link')
@@ -395,6 +395,12 @@ def dashboard_view():
     # "Qtd de clientes" = clientes distintos atendidos no período.
     # "Qtd de clientes cadastrados" = clientes que a funcionária CADASTROU na aba
     #   Clientes dentro do período (clientes.usuario_id), independente de venda.
+    # Vendas com pagamento dividido: líquido vem das linhas do caixa.
+    try:
+        cur.execute("SELECT id FROM vendas WHERE forma_pagamento='multiplo' AND DATE(criado_em) BETWEEN %s AND %s", (di, df))
+        split_map = liquido_caixa_por_venda(cur, [r['id'] for r in cur.fetchall()])
+    except Exception:
+        split_map = {}
     vendedoras = []
     try:
         cur.execute("""SELECT v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.parcelas, v.criado_em, v.cliente_id,
@@ -408,7 +414,10 @@ def dashboard_view():
         for r in cur.fetchall():
             nome = r['vendedora_nome'] or '—'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-            liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
+            if (r['forma_pagamento'] or '') == 'multiplo' and r['id'] in split_map:
+                liq = split_map[r['id']][2]
+            else:
+                liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
             o = tmp.setdefault(nome, {'nome': nome, 'uid': None, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
             if r['usuario_id'] and not o['uid']:
                 o['uid'] = r['usuario_id']
@@ -447,7 +456,10 @@ def dashboard_view():
         for r in cur.fetchall():
             nome = r['nome'] or 'Cliente'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-            liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
+            if (r['forma_pagamento'] or '') == 'multiplo' and r['id'] in split_map:
+                liq = split_map[r['id']][2]
+            else:
+                liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
             o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'compras': 0, 'pecas': 0, 'ultima': dt})
             o['liquido'] += liq; o['compras'] += 1; o['pecas'] += int(r['pecas'] or 0); o['ultima'] = max(o['ultima'], dt)
         top_clientes = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]

@@ -1,4 +1,17 @@
-# CD Gestão Empresarial — v138
+# CD Gestão Empresarial — v139
+
+## Novidades da v139 (2026-06-26) — Pagamento dividido (split) em Vendas
+
+Uma venda agora pode ser paga em **mais de uma forma**. Ex.: numa venda de R$100, R$50 no **débito** e R$50 no **crédito parcelado 5x** — cada forma calcula a **própria taxa** (Taxa Flex) no caixa, garantindo o **líquido correto** no Caixa, na Visão Geral e nos totais do Dashboard.
+
+**Como funciona:**
+- Na nova venda, em "Forma de pagamento", escolha **🔀 Dividido** e informe **valor + forma** de cada parte (com nº de parcelas quando for crédito parcelado). A soma precisa fechar com o total.
+- Também funciona na **entrada do crediário** (forma da entrada → 🔀 Dividido).
+- Cada parte vira **uma linha no caixa** (`venda.forma_pagamento = 'multiplo'`). O líquido das vendas divididas, na listagem de Vendas, nos rankings de vendedora/cliente e no Dashboard, é somado a partir dessas linhas.
+
+**Escopo desta versão:** Vendas (à vista) e entrada de crediário. **Condicional** e **recebimento de parcela de crediário** entram na próxima versão (v140).
+
+**Observação:** editar uma venda dividida mantém `multiplo` e não mexe nas linhas do caixa (trocar a forma colapsaria o split). Desconto não é aplicado junto do split (divide-se o total).
 
 ## Novidades da v138 (2026-06-26) — Correção do recebimento parcial no crediário
 

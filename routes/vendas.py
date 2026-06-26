@@ -6,20 +6,29 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from db import get_db, close_db
 from config import agora_app, hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
-from utils import parse_brl, bloquear_estoque_negativo, audit_log, get_taxa_vigente, calcular_liquido
+from utils import (parse_brl, bloquear_estoque_negativo, audit_log, get_taxa_vigente,
+                   calcular_liquido, parse_pagamentos, registrar_pagamentos_caixa,
+                   liquido_caixa_por_venda)
 
 # Formas de cartão (sofrem taxa da maquininha no momento da venda à vista).
 # Crediário/pix/dinheiro não têm taxa aqui — a taxa das parcelas aparece no Caixa.
 FORMAS_CARTAO = ('credito_vista', 'credito_parcelado', 'debito', 'link')
+# Formas à vista que entram direto no caixa (1 linha por venda).
+FORMAS_A_VISTA = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
 
 
-def _fin_venda(v, taxa_cache):
+def _fin_venda(v, taxa_cache, split_map=None):
     """Decompõe uma venda em (bruto, desconto, taxa, líquido).
-    Líquido = bruto - desconto - taxa do cartão (o que de fato entra na conta)."""
+    Líquido = bruto - desconto - taxa do cartão (o que de fato entra na conta).
+    Para pagamento dividido (forma='multiplo'), a taxa e o líquido vêm das linhas
+    de caixa daquela venda (split_map: {venda_id: (bruto, taxa, liquido)})."""
     bruto = float(v.get('valor_total') or 0)
     desconto = float(v.get('desconto') or 0)
     pago = round(bruto - desconto, 2)
     forma = v.get('forma_pagamento') or ''
+    if forma == 'multiplo' and split_map is not None and v.get('id') in split_map:
+        _b, taxa_split, liq_split = split_map[v['id']]
+        return bruto, desconto, round(taxa_split, 2), round(liq_split, 2)
     if forma in FORMAS_CARTAO:
         d = v.get('criado_em')
         chave = d.date().isoformat() if hasattr(d, 'date') else 'hoje'
@@ -50,6 +59,8 @@ def vendas():
             WHERE DATE(v.criado_em) BETWEEN %s AND %s
             GROUP BY v.id ORDER BY v.criado_em DESC""", (data_inicio, data_fim))
         lista_vendas = [dict(v) for v in cur.fetchall()]
+        # Líquido das vendas com pagamento dividido vem das linhas do caixa.
+        split_map = liquido_caixa_por_venda(cur, [v['id'] for v in lista_vendas if v.get('forma_pagamento') == 'multiplo'])
         cur.execute("""SELECT c.*,v.criado_em as data_venda FROM crediarios c
             JOIN vendas v ON v.id=c.venda_id ORDER BY c.criado_em DESC""")
         lista_crediarios = [dict(c) for c in cur.fetchall()]
@@ -67,7 +78,7 @@ def vendas():
         taxa_cache = {}
         tot_bruto = tot_desc = tot_taxa = tot_liq = 0.0
         for v in lista_vendas:
-            bruto, desc, taxa, liq = _fin_venda(v, taxa_cache)
+            bruto, desc, taxa, liq = _fin_venda(v, taxa_cache, split_map)
             v['taxa_valor'] = round(taxa, 2)
             v['valor_liquido'] = round(liq, 2)
             tot_bruto += bruto; tot_desc += desc; tot_taxa += taxa; tot_liq += liq
@@ -134,8 +145,18 @@ def nova_venda():
         valor_final = valor_final_form if valor_final_form > 0 else round(valor_total - desconto, 2)
 
         # Registrar no caixa conforme forma de pagamento
-        formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
-        if forma in formas_a_vista:
+        if forma == 'multiplo':
+            # Pagamento dividido à vista: cada forma escolhida vira uma entrada no caixa,
+            # com sua própria taxa (Taxa Flex) — garantindo o líquido correto no caixa.
+            pagamentos = parse_pagamentos(request.form.get('pagamentos'))
+            if not pagamentos:
+                raise ValueError('Pagamento dividido sem formas válidas.')
+            soma = round(sum(p['valor'] for p in pagamentos), 2)
+            if abs(soma - valor_final) > 0.02:
+                raise ValueError(f'A soma das formas (R$ {soma:.2f}) não bate com o valor da venda (R$ {valor_final:.2f}).')
+            registrar_pagamentos_caixa(cur, pagamentos, f"Venda {cod} - {cliente_nome}",
+                venda_id=venda_id, usuario_id=usuario_id or None, vendedora_nome=vendedora_nome)
+        elif forma in FORMAS_A_VISTA:
             # Entra tudo no caixa no dia. Guarda o nº de parcelas só p/ crédito parcelado
             # (usado no cálculo do líquido com a taxa da parcela correspondente).
             parcelas_caixa = parcelas if forma == 'credito_parcelado' else None
@@ -146,11 +167,22 @@ def nova_venda():
             # Só registra a entrada paga (se houver) — com a forma de pagamento REAL da entrada
             if entrada > 0:
                 entrada_forma = request.form.get('entrada_forma', 'dinheiro').strip() or 'dinheiro'
-                if entrada_forma not in formas_a_vista: entrada_forma = 'dinheiro'
-                ent_parc = int(request.form.get('entrada_parcelas', 0) or 0) or None if entrada_forma == 'credito_parcelado' else None
-                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome,parcelas)
-                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)""",
-                    (f"Entrada crediário - {cliente_nome} ({entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome, ent_parc))
+                if entrada_forma == 'multiplo':
+                    # Entrada dividida em várias formas (cada uma vira uma linha no caixa).
+                    ent_pgs = parse_pagamentos(request.form.get('entrada_pagamentos'))
+                    if not ent_pgs:
+                        raise ValueError('Entrada dividida sem formas válidas.')
+                    soma_e = round(sum(p['valor'] for p in ent_pgs), 2)
+                    if abs(soma_e - round(entrada, 2)) > 0.02:
+                        raise ValueError(f'A soma das formas da entrada (R$ {soma_e:.2f}) não bate com a entrada (R$ {entrada:.2f}).')
+                    registrar_pagamentos_caixa(cur, ent_pgs, f"Entrada crediário - {cliente_nome}",
+                        venda_id=venda_id, crediario_id=cred_id, usuario_id=usuario_id or None, vendedora_nome=vendedora_nome)
+                else:
+                    if entrada_forma not in FORMAS_A_VISTA: entrada_forma = 'dinheiro'
+                    ent_parc = int(request.form.get('entrada_parcelas', 0) or 0) or None if entrada_forma == 'credito_parcelado' else None
+                    cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome,parcelas)
+                        VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)""",
+                        (f"Entrada crediário - {cliente_nome} ({entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome, ent_parc))
 
         audit_log(cur, 'CRIAR_VENDA', 'vendas', venda_id, {'codigo': cod, 'cliente': cliente_nome, 'valor_final': valor_final, 'forma_pagamento': forma, 'qtd_itens': len(itens)})
         conn.commit(); flash('Venda registrada!', 'ok')
@@ -177,10 +209,16 @@ def ficha_venda(vid):
             crediario = dict(c)
             cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela", (crediario['id'],))
             crediario['parcelas'] = [dict(p) for p in cur.fetchall()]
+    # Formas do pagamento dividido (linhas do caixa à-vista desta venda)
+    pagamentos = []
+    if venda.get('forma_pagamento') == 'multiplo':
+        cur.execute("""SELECT forma_pagamento, valor, parcelas FROM caixa
+                       WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada' ORDER BY id""", (vid,))
+        pagamentos = [dict(p) for p in cur.fetchall()]
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u) for u in cur.fetchall()]
     cur.close(); close_db(conn)
-    ctx = get_ctx(); ctx.update(venda=venda, itens=itens, crediario=crediario, vendedoras=vendedoras)
+    ctx = get_ctx(); ctx.update(venda=venda, itens=itens, crediario=crediario, vendedoras=vendedoras, pagamentos=pagamentos)
     return render_template('ficha_venda.html', **ctx)
 
 
@@ -227,6 +265,13 @@ def editar_venda(vid):
             vendedora_nome = request.form.get('vendedora_nome', '').strip()
             forma_pagamento = request.form.get('forma_pagamento', '')
             parcelas = int(request.form.get('parcelas', 1) or 1)
+            # Venda com pagamento dividido: mantém 'multiplo' e NÃO mexe nas linhas do
+            # caixa (que têm cada uma sua forma). Trocar a forma colapsaria o split.
+            cur.execute("SELECT forma_pagamento FROM vendas WHERE id=%s", (vid,))
+            _r = cur.fetchone()
+            eh_dividido = bool(_r and _r['forma_pagamento'] == 'multiplo')
+            if eh_dividido:
+                forma_pagamento = 'multiplo'
             cur.execute("""UPDATE vendas SET cliente_nome=%s, vendedora_nome=%s,
                           forma_pagamento=%s, parcelas=%s WHERE id=%s""",
                        (cliente_nome, vendedora_nome, forma_pagamento, parcelas, vid))
@@ -234,7 +279,7 @@ def editar_venda(vid):
             # Atualiza só a entrada à-vista desta venda — não mexe na entrada/parcelas
             # de crediário (que têm a própria forma de pagamento).
             formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
-            if forma_pagamento in formas_a_vista:
+            if not eh_dividido and forma_pagamento in formas_a_vista:
                 parcelas_caixa = parcelas if forma_pagamento == 'credito_parcelado' else None
                 cur.execute("""UPDATE caixa SET forma_pagamento=%s, parcelas=%s
                                WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada'""",
@@ -271,16 +316,17 @@ def ranking_vendedoras():
     try: date.fromisoformat(data_fim)
     except: data_fim = fim_mes_app()
     conn = get_db(); cur = conn.cursor()
-    cur.execute("""SELECT vendedora_nome, valor_total, desconto, forma_pagamento, criado_em, cliente_id
+    cur.execute("""SELECT id, vendedora_nome, valor_total, desconto, forma_pagamento, criado_em, cliente_id
         FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
     vendas_periodo = [dict(r) for r in cur.fetchall()]
+    split_map = liquido_caixa_por_venda(cur, [v['id'] for v in vendas_periodo if v.get('forma_pagamento') == 'multiplo'])
     cur.close(); close_db(conn)
     # Agrega por vendedora calculando o líquido (bruto - desconto - taxa)
     taxa_cache = {}
     agg = {}
     for v in vendas_periodo:
         nome = v.get('vendedora_nome') or '—'
-        bruto, desc, taxa, liq = _fin_venda(v, taxa_cache)
+        bruto, desc, taxa, liq = _fin_venda(v, taxa_cache, split_map)
         a = agg.setdefault(nome, {'vendedora_nome': nome, 'bruto': 0.0, 'desconto': 0.0,
                                   'taxa': 0.0, 'liquido': 0.0, 'num_vendas': 0, '_clientes': set()})
         a['bruto'] += bruto; a['desconto'] += desc; a['taxa'] += taxa; a['liquido'] += liq

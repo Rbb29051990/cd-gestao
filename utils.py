@@ -70,6 +70,82 @@ def calcular_liquido(valor_bruto, forma_pagamento, taxa, num_parcelas=None):
     return liquido, desconto, taxa_op
 
 
+# Formas de pagamento "à vista" válidas para uma parcela de pagamento dividido.
+FORMAS_PAGAMENTO_VALIDAS = ('dinheiro', 'pix', 'debito', 'credito_vista', 'credito_parcelado', 'link')
+
+
+def parse_pagamentos(raw):
+    """Lê o JSON de um pagamento dividido vindo do formulário e devolve uma lista
+    normalizada de parcelas: [{'forma','valor','parcelas'}]. Ignora linhas inválidas
+    (forma desconhecida ou valor <= 0). 'parcelas' só é preenchido no crédito parcelado."""
+    try:
+        data = json.loads(raw or '[]')
+    except (ValueError, TypeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    out = []
+    for p in data:
+        if not isinstance(p, dict):
+            continue
+        forma = str(p.get('forma', '')).strip()
+        if forma not in FORMAS_PAGAMENTO_VALIDAS:
+            continue
+        valor = parse_brl(p.get('valor', 0))
+        if valor <= 0:
+            continue
+        parc = None
+        if forma == 'credito_parcelado':
+            try:
+                parc = int(p.get('parcelas') or 0) or None
+            except (ValueError, TypeError):
+                parc = None
+        out.append({'forma': forma, 'valor': round(valor, 2), 'parcelas': parc})
+    return out
+
+
+def registrar_pagamentos_caixa(cur, pagamentos, descricao, *, venda_id=None,
+                               crediario_id=None, parcela_id=None,
+                               usuario_id=None, vendedora_nome=None):
+    """Grava cada parcela de um pagamento dividido como UMA entrada no caixa, com a
+    forma e o nº de parcelas próprios — assim o líquido (Taxa Flex) é calculado certo
+    por linha no caixa, na Visão Geral e no Dashboard. Retorna o total bruto lançado."""
+    total = 0.0
+    for p in pagamentos:
+        desc = f"{descricao} ({p['forma'].replace('_', ' ')})"
+        cur.execute("""INSERT INTO caixa
+            (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,parcela_id,usuario_id,vendedora_nome,parcelas)
+            VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s,%s)""",
+            (desc, p['valor'], p['forma'], venda_id, crediario_id, parcela_id,
+             usuario_id, vendedora_nome, p['parcelas']))
+        total += p['valor']
+    return round(total, 2)
+
+
+def liquido_caixa_por_venda(cur, venda_ids):
+    """Para vendas com pagamento dividido (forma='multiplo'): soma o líquido (após
+    Taxa Flex) das linhas de caixa à-vista (sem crediario_id) de cada venda.
+    Retorna {venda_id: (bruto, taxa, liquido)}."""
+    ids = [int(v) for v in venda_ids if v is not None]
+    if not ids:
+        return {}
+    cur.execute("""SELECT venda_id, forma_pagamento, valor, criado_em, parcelas FROM caixa
+                   WHERE tipo='entrada' AND crediario_id IS NULL AND venda_id = ANY(%s)""", (ids,))
+    cache = {}
+    out = {}
+    for r in cur.fetchall():
+        vid = r['venda_id']
+        bruto = float(r['valor'] or 0)
+        dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje_app()
+        k = dt.isoformat()
+        if k not in cache:
+            cache[k] = get_taxa_vigente(dt)
+        liq, desc, _ = calcular_liquido(bruto, r['forma_pagamento'] or '', cache[k], r.get('parcelas'))
+        b, t, l = out.get(vid, (0.0, 0.0, 0.0))
+        out[vid] = (b + bruto, t + desc, l + liq)
+    return out
+
+
 def parse_brl(val, default=0):
     """Converte valor BRL (1.000,00) ou americano (1000.00) para float."""
     try:

@@ -32,7 +32,18 @@
                 {% elif venda.forma_pagamento == 'crediario' %}<span class="badge bp-crediario">📋 Crediário</span>
                 {% elif venda.forma_pagamento == 'credito_vista' %}<span class="badge bp-credito">💳 Crédito à vista</span>
                 {% elif venda.forma_pagamento == 'credito_parcelado' %}<span class="badge bp-credito">💳 Crédito {{ venda.parcelas }}x</span>
-                {% elif venda.forma_pagamento == 'link' %}<span class="badge bp-link">🔗 Link</span>{% endif %}
+                {% elif venda.forma_pagamento == 'link' %}<span class="badge bp-link">🔗 Link</span>
+                {% elif venda.forma_pagamento == 'multiplo' %}<span class="badge bp-credito">🔀 Dividido</span>{% endif %}
+                {% if pagamentos %}
+                <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+                  {% for p in pagamentos %}
+                  <span class="badge" style="background:#eef2ff;color:#3949ab;border:1px solid #c5cae9">
+                    {% if p.forma_pagamento=='dinheiro' %}💵{% elif p.forma_pagamento=='pix' %}⚡{% elif p.forma_pagamento=='debito' %}💳 Déb{% elif p.forma_pagamento=='credito_vista' %}💳 Cré 1x{% elif p.forma_pagamento=='credito_parcelado' %}💳 Cré {{ p.parcelas }}x{% elif p.forma_pagamento=='link' %}🔗{% else %}{{ p.forma_pagamento }}{% endif %}
+                    R$ {{ "{:,.2f}".format(p.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}
+                  </span>
+                  {% endfor %}
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>

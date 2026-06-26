@@ -201,6 +201,7 @@
                   {% elif v.forma_pagamento=='crediario' %}<span class="badge bp-crediario">📋 Crediário</span>
                   {% elif v.forma_pagamento in ['credito_vista','credito_parcelado'] %}<span class="badge bp-credito">💳 Crédito</span>
                   {% elif v.forma_pagamento=='link' %}<span class="badge bp-link">🔗 Link</span>
+                  {% elif v.forma_pagamento=='multiplo' %}<span class="badge bp-credito">🔀 Dividido</span>
                   {% else %}<span class="badge">{{ v.forma_pagamento }}</span>{% endif %}
                 </td>
                 <td>
@@ -243,6 +244,8 @@
       <input type="hidden" name="desconto_valor" id="descontoValorHidden" value="0">
       <input type="hidden" name="pct_desconto" id="pctDescontoHidden" value="0">
       <input type="hidden" name="valor_final" id="valorFinalHidden" value="0">
+      <input type="hidden" name="pagamentos" id="pagamentosJson" value="[]">
+      <input type="hidden" name="entrada_pagamentos" id="entradaPagamentosJson" value="[]">
 
       <div class="step-sep">1. Vendedor (a) e cliente</div>
       <div class="form-grid2">
@@ -310,6 +313,7 @@
         <button type="button" class="pg-opt" onclick="selPg('credito_vista',this)">💳 Crédito à vista</button>
         <button type="button" class="pg-opt" onclick="selPg('credito_parcelado',this)">💳 Crédito parc.</button>
         <button type="button" class="pg-opt" onclick="selPg('link',this)">🔗 Link</button>
+        <button type="button" class="pg-opt" onclick="selPg('multiplo',this)">🔀 Dividido</button>
         <button type="button" class="pg-opt" id="btnCrediario" onclick="selPg('crediario',this)" disabled style="opacity:0.4">📋 Crediário</button>
       </div>
 
@@ -356,6 +360,21 @@
         </div>
       </div>
 
+      <div id="secDividido" style="display:none;margin-bottom:14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:18px 20px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:6px">🔀 Pagamento dividido</div>
+        <div style="font-size:12px;color:#777;margin-bottom:12px">Informe o valor de cada forma. A soma precisa igualar o total da venda — cada forma calcula sua própria taxa no caixa.</div>
+        <div id="splitRows"></div>
+        <button type="button" id="btnAddSplit" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
+        <div class="conf-box" style="margin-top:14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Total da venda</div><div style="font-weight:700" id="splitAlvo">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="splitSoma">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="splitDif">—</div></div>
+          </div>
+          <div id="splitAlerta" style="display:none;margin-top:10px;background:#fce4ec;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ A soma das formas precisa fechar com o total da venda.</div>
+        </div>
+      </div>
+
       <div id="secCrediario" style="display:none">
         <div class="form-grid2" style="margin-bottom:12px">
           <div class="form-field">
@@ -372,6 +391,7 @@
               <option value="credito_vista">💳 Crédito à vista</option>
               <option value="credito_parcelado">💳 Crédito parcelado</option>
               <option value="link">🔗 Link</option>
+              <option value="multiplo">🔀 Dividido</option>
             </select>
             <div style="font-size:11px;color:#aaa;margin-top:2px">Aplica a taxa no caixa, se for cartão.</div>
           </div>
@@ -391,6 +411,20 @@
           <div class="form-field">
             <label class="form-label">Saldo devedor</label>
             <input class="form-input auto" type="text" id="saldoDevedor" readonly placeholder="Calculado automaticamente">
+          </div>
+        </div>
+        <div id="secEntradaDividido" style="display:none;margin-bottom:14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:16px 18px">
+          <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:6px">🔀 Entrada dividida</div>
+          <div style="font-size:12px;color:#777;margin-bottom:12px">A soma das formas precisa igualar o valor da entrada.</div>
+          <div id="entradaSplitRows"></div>
+          <button type="button" id="btnAddEntradaSplit" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
+          <div class="conf-box" style="margin-top:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
+              <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Entrada</div><div style="font-weight:700" id="entradaSplitAlvo">—</div></div>
+              <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="entradaSplitSoma">—</div></div>
+              <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="entradaSplitDif">—</div></div>
+            </div>
+            <div id="entradaSplitAlerta" style="display:none;margin-top:10px;background:#fce4ec;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ A soma das formas precisa fechar com a entrada.</div>
           </div>
         </div>
         <div id="parcelasCrediario"></div>
@@ -562,6 +596,11 @@ function removerItem(idx) { carrinhoItens.splice(idx,1); renderCarrinho(); }
 function toggleEntradaParcelas() {
   var f = document.getElementById('entradaForma').value;
   document.getElementById('entradaParcelasWrap').style.display = (f === 'credito_parcelado') ? 'block' : 'none';
+  document.getElementById('secEntradaDividido').style.display = (f === 'multiplo') ? 'block' : 'none';
+  if (f === 'multiplo' && entradaSplit) {
+    if (document.querySelectorAll('#entradaSplitRows .split-row').length === 0) { entradaSplit.addRow(); entradaSplit.addRow(); }
+    entradaSplit.recompute();
+  }
 }
 
 function selPg(tipo, btn) {
@@ -570,6 +609,11 @@ function selPg(tipo, btn) {
   document.getElementById('formaPagamento').value = tipo;
   document.getElementById('secParcelado').style.display = tipo==='credito_parcelado' ? 'block' : 'none';
   document.getElementById('secCrediario').style.display = tipo==='crediario' ? 'block' : 'none';
+  document.getElementById('secDividido').style.display = tipo==='multiplo' ? 'block' : 'none';
+  if (tipo==='multiplo' && vendaSplit) {
+    if (document.querySelectorAll('#splitRows .split-row').length === 0) { vendaSplit.addRow(); vendaSplit.addRow(); }
+    vendaSplit.recompute();
+  }
   // Mostrar seção de desconto só para pix e dinheiro
   const temDesconto = (tipo==='pix' || tipo==='dinheiro');
   document.getElementById('secDesconto').style.display = temDesconto ? 'block' : 'none';
@@ -580,6 +624,76 @@ function selPg(tipo, btn) {
     document.getElementById('pctDescontoHidden').value = '0';
   }
 }
+
+/* ── Editor de pagamento dividido (reutilizável: venda e entrada do crediário) ── */
+function fmtBRL(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function criarSplitEditor(cfg){
+  const rowsEl = document.getElementById(cfg.rowsId);
+  function formaOptions(){ return '<option value="">Forma...</option>'
+    + '<option value="dinheiro">💵 Dinheiro</option>'
+    + '<option value="pix">⚡ Pix</option>'
+    + '<option value="debito">💳 Débito</option>'
+    + '<option value="credito_vista">💳 Crédito à vista</option>'
+    + '<option value="credito_parcelado">💳 Crédito parcelado</option>'
+    + '<option value="link">🔗 Link</option>'; }
+  function parcOptions(){ let s='<option value="">Parc...</option>'; for(let i=2;i<=12;i++) s+='<option value="'+i+'">'+i+'x</option>'; return s; }
+  function recompute(){
+    let soma=0;
+    rowsEl.querySelectorAll('.split-row').forEach(function(row){ soma += parseMoeda(row.querySelector('.split-valor').value); });
+    soma = Math.round(soma*100)/100;
+    const alvo = Math.round((cfg.target()||0)*100)/100;
+    const dif = Math.round((alvo - soma)*100)/100;
+    document.getElementById(cfg.alvoId).textContent = fmtBRL(alvo);
+    document.getElementById(cfg.somaId).textContent = fmtBRL(soma);
+    const difEl = document.getElementById(cfg.difId);
+    difEl.textContent = fmtBRL(dif);
+    const ok = Math.abs(dif) < 0.005 && soma > 0;
+    difEl.style.color = ok ? '#2e7d32' : '#c62828';
+    const al = document.getElementById(cfg.alertaId);
+    if (al) al.style.display = ok ? 'none' : 'block';
+    return {soma:soma, dif:dif, ok:ok};
+  }
+  function addRow(){
+    const row = document.createElement('div');
+    row.className='split-row';
+    row.style.cssText='display:flex;gap:8px;align-items:flex-end;margin-bottom:8px';
+    row.innerHTML =
+      '<div class="form-field" style="flex:1;margin:0"><label class="form-label">Valor (R$)</label><input class="form-input split-valor" type="text" inputmode="numeric" placeholder="0,00"></div>'
+      + '<div class="form-field" style="flex:1.4;margin:0"><label class="form-label">Forma</label><select class="form-select split-forma">'+formaOptions()+'</select></div>'
+      + '<div class="form-field split-parc-wrap" style="width:110px;margin:0;display:none"><label class="form-label">Parcelas</label><select class="form-select split-parc">'+parcOptions()+'</select></div>'
+      + '<button type="button" class="btn-del-split" title="Remover" style="padding:9px 11px;background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">🗑️</button>';
+    rowsEl.appendChild(row);
+    initMoeda(row.querySelector('.split-valor'), recompute);
+    row.querySelector('.split-forma').addEventListener('change', function(){
+      row.querySelector('.split-parc-wrap').style.display = this.value==='credito_parcelado' ? 'block' : 'none';
+      recompute();
+    });
+    row.querySelector('.split-parc').addEventListener('change', recompute);
+    row.querySelector('.btn-del-split').addEventListener('click', function(){ row.remove(); recompute(); });
+    recompute();
+  }
+  document.getElementById(cfg.addBtnId).addEventListener('click', addRow);
+  return {
+    addRow: addRow,
+    recompute: recompute,
+    reset: function(){ rowsEl.innerHTML=''; },
+    serialize: function(){
+      const arr=[];
+      rowsEl.querySelectorAll('.split-row').forEach(function(row){
+        const valor = parseMoeda(row.querySelector('.split-valor').value);
+        const forma = row.querySelector('.split-forma').value;
+        if (valor>0 && forma){
+          const o = {forma:forma, valor: valor.toFixed(2)};
+          if (forma==='credito_parcelado') o.parcelas = parseInt(row.querySelector('.split-parc').value)||null;
+          arr.push(o);
+        }
+      });
+      return arr;
+    }
+  };
+}
+let vendaSplit = null, entradaSplit = null;
 
 /* ── MÁSCARA MOEDA ENTRADA (caixa registradora) ── */
 function parseMoeda(s) {
@@ -633,6 +747,8 @@ function calcSaldo() {
   const saldo = Math.max(0, Math.round((total-entrada)*100)/100);
   document.getElementById('saldoDevedor').value = 'R$ ' + saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
   gerarParcelas();
+  if (vendaSplit) vendaSplit.recompute();
+  if (entradaSplit) entradaSplit.recompute();
 }
 
 function gerarParcelas() {
@@ -700,6 +816,21 @@ function prepararEnvio() {
     }
   }
 
+  if (forma === 'multiplo') {
+    const pgs = vendaSplit.serialize();
+    if (pgs.length === 0) { alert('⚠️ Adicione ao menos uma forma de pagamento.'); return false; }
+    let faltaForma = false;
+    document.querySelectorAll('#splitRows .split-row').forEach(function(row){
+      const v = parseMoeda(row.querySelector('.split-valor').value);
+      const f = row.querySelector('.split-forma').value;
+      if (v > 0 && !f) faltaForma = true;
+      if (f === 'credito_parcelado' && !row.querySelector('.split-parc').value) faltaForma = true;
+    });
+    if (faltaForma) { alert('⚠️ Cada valor precisa de uma forma (e o nº de parcelas no crédito parcelado).'); return false; }
+    if (!vendaSplit.recompute().ok) { alert('⚠️ A soma das formas precisa fechar com o total da venda.'); return false; }
+    document.getElementById('pagamentosJson').value = JSON.stringify(pgs);
+  }
+
   if (forma === 'crediario') {
     const entradaEl = document.getElementById('entradaVal');
     if (!entradaEl || entradaEl.value.trim() === '') {
@@ -710,8 +841,23 @@ function prepararEnvio() {
       alert('⚠️ Informe o número de parcelas do crediário.'); return false;
     }
     const entradaValor = parseMoeda(entradaEl.value);
-    if (entradaValor > 0 && !document.getElementById('entradaForma').value) {
+    const entradaFormaVal = document.getElementById('entradaForma').value;
+    if (entradaValor > 0 && !entradaFormaVal) {
       alert('⚠️ Informe a forma de pagamento da entrada do crediário (para fechar o caixa corretamente).'); return false;
+    }
+    if (entradaValor > 0 && entradaFormaVal === 'multiplo') {
+      const epgs = entradaSplit.serialize();
+      if (epgs.length === 0) { alert('⚠️ Adicione as formas da entrada dividida.'); return false; }
+      let faltaE = false;
+      document.querySelectorAll('#entradaSplitRows .split-row').forEach(function(row){
+        const v = parseMoeda(row.querySelector('.split-valor').value);
+        const f = row.querySelector('.split-forma').value;
+        if (v > 0 && !f) faltaE = true;
+        if (f === 'credito_parcelado' && !row.querySelector('.split-parc').value) faltaE = true;
+      });
+      if (faltaE) { alert('⚠️ Cada valor da entrada precisa de uma forma (e parcelas no crédito parcelado).'); return false; }
+      if (!entradaSplit.recompute().ok) { alert('⚠️ A soma das formas da entrada precisa fechar com o valor da entrada.'); return false; }
+      document.getElementById('entradaPagamentosJson').value = JSON.stringify(epgs);
     }
   }
 
@@ -847,6 +993,13 @@ function calcResumo() {
 // Inicializar máscara de moeda no campo entrada
 document.addEventListener('DOMContentLoaded', function() {
   initMoeda(document.getElementById('entradaVal'), calcSaldo);
+  // Editores de pagamento dividido (venda e entrada do crediário)
+  vendaSplit = criarSplitEditor({rowsId:'splitRows', addBtnId:'btnAddSplit',
+    alvoId:'splitAlvo', somaId:'splitSoma', difId:'splitDif', alertaId:'splitAlerta',
+    target: function(){ return parseFloat(document.getElementById('valorTotalHidden').value||0); }});
+  entradaSplit = criarSplitEditor({rowsId:'entradaSplitRows', addBtnId:'btnAddEntradaSplit',
+    alvoId:'entradaSplitAlvo', somaId:'entradaSplitSoma', difId:'entradaSplitDif', alertaId:'entradaSplitAlerta',
+    target: function(){ return parseMoeda(document.getElementById('entradaVal').value); }});
   // Máscara no campo desconto valor
   const dvEl = document.getElementById('descontoValor');
   if (dvEl) {

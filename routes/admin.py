@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v138'})
+        return jsonify({'status': 'ok', 'version': 'v139'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v138 — 2026-06-26</b><br>
+    Versão: <b style='color:green'>v139 — 2026-06-26</b><br>
+    v139: Pagamento dividido (split) em Vendas — uma venda pode ser paga em VÁRIAS formas (ex.: R$50 no débito + R$50 no crédito 5x). Cada forma vira uma linha no caixa com sua própria taxa (Taxa Flex), garantindo o líquido correto no caixa, na Visão Geral e no Dashboard. Vale para a venda à vista e para a ENTRADA do crediário. (Condicional e recebimento de parcela do crediário virão na próxima.) ✅<br>
     v138: Crediário — TODO crediário com saldo em aberto agora sempre mostra o botão Receber. Antes, quando a última (ou única) parcela era recebida por um valor menor que o saldo, o restante ficava sem parcela em aberto e travava o recebimento. Agora, se sobra saldo e não há parcela aberta, o sistema cria uma automaticamente — ao abrir a aba Crediários (conserta sozinho os casos já travados), no recebimento parcial e ao Editar o crediário ✅<br>
     v137: Taxas REFEITAS (modelo Taxa Flex) — cada parcela tem sua própria taxa (1x a 12x); crédito à vista usa a taxa de 1x; crédito parcelado usa a taxa do nº de parcelas informado na venda. A ANTECIPAÇÃO virou APENAS INFORMATIVA (não entra em cálculo). Link removido. CORREÇÃO: condicional→venda e a entrada do crediário (paga no cartão parcelado) agora gravam o nº de parcelas no caixa, puxando a taxa certa (antes caíam em 2x). Tela de Taxas, simulador, venda/condicional/crediário (até 12x) e cálculo do líquido atualizados ✅<br>
     v136: Promoções — selecionar vários produtos na aba Estoque e aplicar/remover um % de desconto (o preço original não muda; volta sozinho ao remover); o desconto entra automático na venda e nos relatórios. Nova aba CONSULTA — busca por código ou descrição mostrando foto, preço original, preço promocional e estoque (ideal p/ balcão quando a etiqueta se perdeu) ✅<br>

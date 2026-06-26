@@ -4,9 +4,10 @@
 
 **Bug corrigido:** quando a **última (ou única) parcela** de um crediário era recebida por um valor **menor que o saldo devedor**, essa parcela era marcada como paga e o restante ia para o saldo — porém **sem nenhuma parcela em aberto** para recebê-lo. Resultado: o crediário ficava com saldo devedor mas o botão **💰 Receber** não aparecia (ele só existe em parcela em aberto), travando o recebimento do restante.
 
-**Correção:** sempre que sobra saldo e não há parcela em aberto, o sistema **cria automaticamente uma nova parcela** com o valor restante:
-- em `pagar_parcela` (recebimento parcial), e
-- em `editar_crediario` (ao salvar a edição com saldo > 0 e nenhuma parcela aberta) — isto também **destrava crediários já afetados**: basta abrir **✏️ Editar**, conferir/ajustar o saldo devedor e salvar; uma nova parcela em aberto aparece com o botão Receber.
+**Regra garantida:** **todo crediário com saldo em aberto sempre mostra o botão 💰 Receber.** Sempre que sobra saldo e não há parcela em aberto, o sistema **cria automaticamente uma nova parcela** com o valor restante. Isso acontece em três pontos:
+- na **listagem de crediários** (`crediarios`): ao carregar a aba, qualquer crediário com `saldo_devedor > 0` e sem parcela em aberto ganha uma parcela na hora — **conserta sozinho** todos os casos já travados, sem precisar editar nada;
+- em `pagar_parcela` (recebimento parcial que zera as parcelas mas deixa saldo); e
+- em `editar_crediario` (ao salvar com saldo > 0 e nenhuma parcela aberta).
 
 ## Novidades da v137 (2026-06-25) — Taxas refeitas (Taxa Flex por parcela)
 

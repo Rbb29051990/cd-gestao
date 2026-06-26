@@ -38,6 +38,18 @@ def crediarios():
     for c in raw:
         cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela", (c['id'],))
         c['parcelas'] = [dict(p) for p in cur.fetchall()]
+        # GARANTIA: todo crediário com saldo em aberto precisa ter uma parcela em
+        # aberto (senão o botão "Receber" não aparece). Se faltar, cria na hora —
+        # isto conserta sozinho qualquer crediário que ficou travado.
+        saldo_dev = float(c['saldo_devedor'] or 0)
+        tem_aberta = any(not p.get('pago') for p in c['parcelas'])
+        if saldo_dev > 0.01 and not tem_aberta:
+            prox = max([p['numero_parcela'] for p in c['parcelas']], default=0) + 1
+            cur.execute("""INSERT INTO crediario_parcelas
+                (crediario_id,numero_parcela,data_vencimento,valor,pago)
+                VALUES (%s,%s,%s,%s,FALSE) RETURNING *""", (c['id'], prox, hoje_app(), saldo_dev))
+            c['parcelas'].append(dict(cur.fetchone()))
+            conn.commit()
         # Forma de pagamento de cada parcela paga (gravada no caixa ao receber)
         cur.execute("""SELECT parcela_id, forma_pagamento, parcelas FROM caixa
                        WHERE crediario_id=%s AND parcela_id IS NOT NULL ORDER BY id""", (c['id'],))

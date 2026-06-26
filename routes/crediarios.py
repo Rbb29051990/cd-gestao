@@ -130,6 +130,14 @@ def pagar_parcela(cid, pid):
                 for i, p in enumerate(rest):
                     v = round(novo_saldo - vp * (len(rest) - 1), 2) if i == len(rest) - 1 else vp
                     cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (v, p['id']))
+            else:
+                # Recebimento parcial da última parcela em aberto: ainda sobra saldo,
+                # mas não há parcela para recebê-lo. Cria uma nova para o restante.
+                cur.execute("SELECT COALESCE(MAX(numero_parcela),0)+1 AS n FROM crediario_parcelas WHERE crediario_id=%s", (cid,))
+                prox = cur.fetchone()['n']
+                cur.execute("""INSERT INTO crediario_parcelas
+                    (crediario_id,numero_parcela,data_vencimento,valor,pago)
+                    VALUES (%s,%s,%s,%s,FALSE)""", (cid, prox, hoje_app(), novo_saldo))
             cur.execute("UPDATE crediarios SET saldo_devedor=%s WHERE id=%s", (novo_saldo, cid))
         # Gravar no caixa com a forma de pagamento real (para taxas serem aplicadas corretamente)
         descr = f"Crediário - {cred['cliente_nome']} ({forma_pg.replace('_',' ')})"
@@ -201,6 +209,15 @@ def editar_crediario(cid):
                 for i, p in enumerate(rest):
                     v = round(saldo_devedor - vp * (n - 1), 2) if i == n - 1 else vp
                     cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (v, p['id']))
+            else:
+                # Não há parcela em aberto para abrigar o saldo (ex.: a última foi
+                # recebida parcialmente). Cria uma nova parcela para o saldo informado,
+                # destravando o recebimento do restante.
+                cur.execute("SELECT COALESCE(MAX(numero_parcela),0)+1 AS n FROM crediario_parcelas WHERE crediario_id=%s", (cid,))
+                prox = cur.fetchone()['n']
+                cur.execute("""INSERT INTO crediario_parcelas
+                    (crediario_id,numero_parcela,data_vencimento,valor,pago)
+                    VALUES (%s,%s,%s,%s,FALSE)""", (cid, prox, hoje_app(), saldo_devedor))
         conn.commit()
         flash('Crediário atualizado!', 'ok')
     except Exception as e:

@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v137'})
+        return jsonify({'status': 'ok', 'version': 'v138'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v137 — 2026-06-25</b><br>
+    Versão: <b style='color:green'>v138 — 2026-06-26</b><br>
+    v138: Crediário — corrigido o recebimento parcial que travava. Quando a última (ou única) parcela era recebida em valor menor que o saldo, o restante ficava sem nenhuma parcela em aberto e não dava para receber. Agora o sistema cria automaticamente uma nova parcela com o saldo restante (no recebimento e também ao Editar o crediário), liberando o botão Receber ✅<br>
     v137: Taxas REFEITAS (modelo Taxa Flex) — cada parcela tem sua própria taxa (1x a 12x); crédito à vista usa a taxa de 1x; crédito parcelado usa a taxa do nº de parcelas informado na venda. A ANTECIPAÇÃO virou APENAS INFORMATIVA (não entra em cálculo). Link removido. CORREÇÃO: condicional→venda e a entrada do crediário (paga no cartão parcelado) agora gravam o nº de parcelas no caixa, puxando a taxa certa (antes caíam em 2x). Tela de Taxas, simulador, venda/condicional/crediário (até 12x) e cálculo do líquido atualizados ✅<br>
     v136: Promoções — selecionar vários produtos na aba Estoque e aplicar/remover um % de desconto (o preço original não muda; volta sozinho ao remover); o desconto entra automático na venda e nos relatórios. Nova aba CONSULTA — busca por código ou descrição mostrando foto, preço original, preço promocional e estoque (ideal p/ balcão quando a etiqueta se perdeu) ✅<br>
     v135: Login "Bem-vinda" → "Bem-vindo"; subtítulo da barra superior "Empresarial" → "Gestão Empresarial" (nas duas lojas); Condicional — na Transferência a vendedora escolhe o destino entre as lojas (CD Plus Size / CD Slim) em vez do destino fixo ✅<br>

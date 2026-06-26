@@ -195,6 +195,7 @@ def init_db():
         "ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS observacao TEXT",
         "ALTER TABLE caixa ADD COLUMN IF NOT EXISTS parcelas INTEGER",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS desconto_promo NUMERIC(5,2) DEFAULT 0",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_1x NUMERIC(5,2)",
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_2x NUMERIC(5,2)",
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_3x NUMERIC(5,2)",
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_4x NUMERIC(5,2)",
@@ -204,6 +205,8 @@ def init_db():
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_8x NUMERIC(5,2)",
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_9x NUMERIC(5,2)",
         "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_10x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_11x NUMERIC(5,2)",
+        "ALTER TABLE taxas_pagamento ADD COLUMN IF NOT EXISTS credito_12x NUMERIC(5,2)",
         # Backfill (idempotente): preenche o nº de parcelas nos lançamentos de caixa
         # antigos de vendas no crédito parcelado, p/ a taxa por parcela valer retroativamente.
         """UPDATE caixa c SET parcelas = v.parcelas

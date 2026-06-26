@@ -15,23 +15,25 @@ def taxas():
     if request.method == 'POST':
         try:
             def _opt(name):
-                """Taxa opcional por parcela: em branco vira NULL (cai na taxa padrão)."""
+                """Taxa opcional por parcela: em branco vira NULL."""
                 raw = (request.form.get(name) or '').strip()
                 return parse_brl(raw) if raw else None
-            cv  = parse_brl(request.form.get('credito_vista', '0'))
-            cp  = parse_brl(request.form.get('credito_parcelado', '0'))
+            # Taxa Flex: 1x a 12x (1x = crédito à vista; 2x..12x = crédito parcelado)
+            parc = {n: _opt(f'credito_{n}x') for n in range(1, 13)}
             deb = parse_brl(request.form.get('debito', '0'))
-            lnk = parse_brl(request.form.get('link', '0'))
             ant = parse_brl(request.form.get('antecipacao', '0'))
-            parc = {n: _opt(f'credito_{n}x') for n in range(2, 11)}
+            # Colunas antigas espelham a Taxa Flex (compatibilidade): à vista=1x, parcelado base=2x; link não é usado
+            cv, cp, lnk = parc[1], parc[2], 0
             vig = request.form.get('vigencia_em', str(hoje_app()))
             cur.execute("""INSERT INTO taxas_pagamento
                 (vigencia_em,credito_vista,credito_parcelado,debito,link,antecipacao,
-                 credito_2x,credito_3x,credito_4x,credito_5x,credito_6x,credito_7x,credito_8x,credito_9x,credito_10x,
+                 credito_1x,credito_2x,credito_3x,credito_4x,credito_5x,credito_6x,
+                 credito_7x,credito_8x,credito_9x,credito_10x,credito_11x,credito_12x,
                  usuario_id)
-                VALUES (%s,%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s,%s,%s, %s)""",
+                VALUES (%s,%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s, %s)""",
                 (vig, cv, cp, deb, lnk, ant,
-                 parc[2], parc[3], parc[4], parc[5], parc[6], parc[7], parc[8], parc[9], parc[10],
+                 parc[1], parc[2], parc[3], parc[4], parc[5], parc[6],
+                 parc[7], parc[8], parc[9], parc[10], parc[11], parc[12],
                  session.get('uid')))
             conn.commit()
             flash('Taxas atualizadas com sucesso!', 'ok')

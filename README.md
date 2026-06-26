@@ -1,4 +1,14 @@
-# CD Gestão Empresarial — v136
+# CD Gestão Empresarial — v137
+
+## Novidades da v137 (2026-06-25) — Taxas refeitas (Taxa Flex por parcela)
+
+O cálculo de taxas foi **refeito** porque o líquido não batia com o banco: cada parcela do cartão tem uma taxa diferente.
+
+1. **Taxa Flex por parcela (1x a 12x):** a tela de **Taxas** agora cadastra a taxa de **cada parcela** (conforme a tabela do banco). Cada % já é o **desconto total** da operação no crédito.
+2. **Crédito à vista = 1x:** ao informar "crédito à vista" na venda, usa a taxa de **1x**. Ao informar "crédito parcelado", usa a taxa do **nº de parcelas** escolhido.
+3. **Antecipação só no débito:** a antecipação deixou de ser somada no crédito; agora entra **apenas no débito** (líquido do débito = valor − (taxa do débito + antecipação)).
+4. **Link removido** (não usado).
+5. Atualizados: tela de Taxas (cadastro + simulador + quadro vigente + histórico), venda (parcelas até **12x**), recebimento de crediário no cartão, e o cálculo do líquido no **Caixa, Dashboard e Visão Geral**. Migração adiciona as colunas `credito_1x`, `credito_11x`, `credito_12x`.
 
 ## Novidades da v136 (2026-06-24) — Promoções e aba de Consulta
 

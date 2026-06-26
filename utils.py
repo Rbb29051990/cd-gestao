@@ -21,44 +21,52 @@ def get_taxa_vigente(data=None):
     cur.close(); close_db(conn)
     if row:
         return dict(row)
-    base = {'credito_vista': 2.06, 'credito_parcelado': 2.70, 'debito': 1.59, 'link': 0.0, 'antecipacao': 0.0}
-    for n in range(2, 11):
+    base = {'credito_vista': 0.0, 'credito_parcelado': 0.0, 'debito': 1.59, 'link': 0.0, 'antecipacao': 0.0}
+    for n in range(1, 13):
         base[f'credito_{n}x'] = None
     return base
 
 
-def taxa_parcelado(taxa, num_parcelas=None):
-    """Taxa do crédito parcelado para o nº de parcelas informado.
-    Usa a taxa específica (credito_2x..credito_10x) se cadastrada; senão cai
-    na taxa padrão 'credito_parcelado'."""
-    if num_parcelas:
-        try:
-            n = int(num_parcelas)
-            if n >= 2:
-                v = taxa.get(f'credito_{n}x')
-                if v is not None and str(v) != '':
-                    return float(v)
-        except (ValueError, TypeError):
-            pass
-    return float(taxa.get('credito_parcelado', 0) or 0)
+def taxa_flex(taxa, num_parcelas):
+    """Taxa Flex da parcela informada (1x..12x). Cada parcela tem sua própria taxa,
+    que JÁ é o desconto líquido total daquela operação no crédito (nada mais é somado).
+    Crédito à vista usa a taxa de 1x; parcelado usa a taxa do nº de parcelas."""
+    try:
+        n = int(num_parcelas)
+    except (ValueError, TypeError):
+        n = 1
+    if n < 1:
+        n = 1
+    v = taxa.get(f'credito_{n}x')
+    if v is not None and str(v) != '':
+        return float(v)
+    # Compatibilidade com tabelas antigas (antes da Taxa Flex): 1x≈à vista, demais≈parcelado padrão
+    leg = taxa.get('credito_vista') if n == 1 else taxa.get('credito_parcelado')
+    return float(leg or 0)
 
 
 def calcular_liquido(valor_bruto, forma_pagamento, taxa, num_parcelas=None):
-    """Calcula valor líquido após taxas da operadora + antecipação.
-    Para crédito parcelado, usa a taxa da parcela correspondente (se cadastrada)."""
+    """Líquido após taxas — modelo Taxa Flex (v137):
+      • crédito à vista   -> taxa de 1x
+      • crédito parcelado -> taxa do nº de parcelas (2x..12x)
+      • débito            -> taxa do débito + ANTECIPAÇÃO (antecipação só entra no débito)
+      • link              -> taxa do link (legado; novas vendas não usam link)
+    As taxas por parcela já são o desconto total; nada é somado no crédito."""
     if not taxa:
         return valor_bruto, 0, 0
-    taxa_op = 0
     fp = forma_pagamento or ''
-    if fp == 'credito_vista':       taxa_op = float(taxa.get('credito_vista', 0))
-    elif fp == 'credito_parcelado': taxa_op = taxa_parcelado(taxa, num_parcelas)
-    elif fp == 'debito':            taxa_op = float(taxa.get('debito', 0))
-    elif fp == 'link':              taxa_op = float(taxa.get('link', 0))
-    taxa_ant = float(taxa.get('antecipacao', 0))
-    taxa_total = taxa_op + taxa_ant
-    desconto = round(valor_bruto * taxa_total / 100, 2)
+    taxa_op = 0.0
+    if fp == 'credito_vista':
+        taxa_op = taxa_flex(taxa, 1)
+    elif fp == 'credito_parcelado':
+        taxa_op = taxa_flex(taxa, num_parcelas or 2)
+    elif fp == 'debito':
+        taxa_op = float(taxa.get('debito', 0) or 0) + float(taxa.get('antecipacao', 0) or 0)
+    elif fp == 'link':
+        taxa_op = float(taxa.get('link', 0) or 0)
+    desconto = round(valor_bruto * taxa_op / 100, 2)
     liquido = round(valor_bruto - desconto, 2)
-    return liquido, desconto, taxa_total
+    return liquido, desconto, taxa_op
 
 
 def parse_brl(val, default=0):

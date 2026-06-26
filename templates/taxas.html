@@ -53,6 +53,20 @@
           </div>
         </div>
 
+        <!-- TAXAS POR PARCELA VIGENTES (somente leitura) -->
+        <div class="section-sep" style="margin-bottom:10px">Crédito parcelado — taxa vigente por parcela</div>
+        <div style="font-size:12px;color:#888;margin-bottom:14px">Mostra quanto você paga em cada parcela hoje. Parcela sem taxa própria cadastrada usa a taxa padrão de crédito parcelado ({{ "{:,.2f}".format(taxa_atual.credito_parcelado|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%).</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-bottom:32px">
+          {% for n in range(2, 11) %}
+          {% set esp = taxa_atual['credito_' ~ n ~ 'x'] %}
+          <div style="background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:10px 8px;text-align:center">
+            <div style="font-size:11px;font-weight:800;color:#aaa;letter-spacing:1px">{{ n }}X</div>
+            <div style="font-size:19px;font-weight:800;color:#f57f17;margin:2px 0">{{ "{:,.2f}".format((esp if esp is not none else taxa_atual.credito_parcelado)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}%</div>
+            <div style="font-size:9.5px;font-weight:700;color:{{ '#2e7d32' if esp is not none else '#bbb' }}">{{ 'taxa própria' if esp is not none else 'padrão' }}</div>
+          </div>
+          {% endfor %}
+        </div>
+
         <!-- SIMULADOR -->
         <div class="section-sep" style="margin-bottom:20px">Simulador de desconto</div>
         <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">

@@ -149,20 +149,26 @@ def corrigir_forma_parcela(cid, pid):
     formas_validas = ['dinheiro', 'pix', 'debito', 'credito_vista', 'credito_parcelado', 'link']
     if forma not in formas_validas:
         flash('Forma de pagamento inválida.', 'erro'); return redirect(url_for('crediarios'))
+    # nº de parcelas do cartão — só faz sentido no crédito parcelado (puxa a taxa da parcela)
+    if forma == 'credito_parcelado':
+        try: parc = int(request.form.get('parcelas_cartao', 0) or 0) or None
+        except ValueError: parc = None
+    else:
+        parc = None
     conn = get_db(); cur = conn.cursor()
     try:
         # Caminho normal: lançamento marcado com este parcela_id
-        cur.execute("""UPDATE caixa SET forma_pagamento=%s
+        cur.execute("""UPDATE caixa SET forma_pagamento=%s, parcelas=%s
                        WHERE crediario_id=%s AND parcela_id=%s AND venda_id IS NULL""",
-                    (forma, cid, pid))
+                    (forma, parc, cid, pid))
         if cur.rowcount == 0:
             # Legado: pagamentos antigos não gravavam parcela_id — corrige a entrada
             # de parcela mais recente do crediário que ainda não tem parcela_id.
-            cur.execute("""UPDATE caixa SET forma_pagamento=%s
+            cur.execute("""UPDATE caixa SET forma_pagamento=%s, parcelas=%s
                            WHERE id = (SELECT id FROM caixa
                                        WHERE crediario_id=%s AND venda_id IS NULL AND parcela_id IS NULL
                                        ORDER BY criado_em DESC LIMIT 1)""",
-                        (forma, cid))
+                        (forma, parc, cid))
         if cur.rowcount == 0:
             flash('Não encontrei o lançamento desta parcela no caixa para corrigir.', 'erro')
         else:

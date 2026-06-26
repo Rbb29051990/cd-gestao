@@ -301,7 +301,7 @@
     <form method="POST" id="formCorrigirForma">
       <div class="form-field">
         <label class="form-label">Forma de pagamento correta</label>
-        <select name="forma_pagamento" class="form-input" style="cursor:pointer">
+        <select name="forma_pagamento" id="corrForma" class="form-input" style="cursor:pointer" onchange="toggleCorrParcelas(this.value)">
           <option value="dinheiro">💵 Dinheiro</option>
           <option value="pix">⚡ Pix</option>
           <option value="debito">💳 Débito</option>
@@ -309,6 +309,13 @@
           <option value="credito_parcelado">💳 Crédito parcelado</option>
           <option value="link">🔗 Link</option>
         </select>
+      </div>
+      <div class="form-field" id="corrParcelasWrap" style="display:none">
+        <label class="form-label">Parcelas do cartão</label>
+        <select name="parcelas_cartao" id="corrParcelas" class="form-input" style="cursor:pointer;width:140px">
+          {% for i in range(2,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
+        </select>
+        <div class="campo-hint">Puxa a taxa referente a este nº de parcelas</div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-cancelar" onclick="document.getElementById('modalCorrigirForma').style.display='none'">Cancelar</button>
@@ -538,8 +545,13 @@ function abrirEstorno(cid, pid, num, valor){
   document.getElementById('modalEstorno').style.display = 'flex';
 }
 
+function toggleCorrParcelas(fp){
+  document.getElementById('corrParcelasWrap').style.display = (fp === 'credito_parcelado') ? 'block' : 'none';
+}
 function abrirCorrigirForma(cid, pid){
   document.getElementById('formCorrigirForma').action = '/crediarios/'+cid+'/parcela/'+pid+'/corrigir-forma';
+  document.getElementById('corrForma').value = 'dinheiro';
+  document.getElementById('corrParcelasWrap').style.display = 'none';
   document.getElementById('modalCorrigirForma').style.display = 'flex';
 }
 

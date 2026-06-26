@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 {% macro moeda(v) %}R$ {{ "{:,.2f}".format(v|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+{% macro forma_lbl(f, n) %}{% if f=='dinheiro' %}💵 Dinheiro{% elif f=='pix' %}⚡ Pix{% elif f=='debito' %}💳 Débito{% elif f=='credito_vista' %}💳 Crédito à vista{% elif f=='credito_parcelado' %}💳 Crédito parcelado{% if n %} {{ n }}x{% endif %}{% elif f=='link' %}🔗 Link{% else %}{{ f or '—' }}{% endif %}{% endmacro %}
 <style>
 .cred-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px}
 .kpi-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05);display:flex;align-items:center;gap:14px}

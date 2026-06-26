@@ -38,6 +38,15 @@ def crediarios():
     for c in raw:
         cur.execute("SELECT * FROM crediario_parcelas WHERE crediario_id=%s ORDER BY numero_parcela", (c['id'],))
         c['parcelas'] = [dict(p) for p in cur.fetchall()]
+        # Forma de pagamento de cada parcela paga (gravada no caixa ao receber)
+        cur.execute("""SELECT parcela_id, forma_pagamento, parcelas FROM caixa
+                       WHERE crediario_id=%s AND parcela_id IS NOT NULL ORDER BY id""", (c['id'],))
+        formas = {r['parcela_id']: r for r in cur.fetchall()}
+        for p in c['parcelas']:
+            cx = formas.get(p['id'])
+            if cx:
+                p['forma_pagamento'] = cx['forma_pagamento']
+                p['forma_parcelas'] = cx['parcelas']
     # Agrupar por cliente
     agrupado = OrderedDict()
     for c in raw:

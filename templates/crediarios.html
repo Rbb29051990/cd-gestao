@@ -216,6 +216,7 @@
                   <span style="font-size:12px;font-weight:600;color:#1a1a2e">Parcela {{ p.numero_parcela }}</span>
                   <span style="font-size:11px;color:#aaa;margin-left:8px">vence {{ p.data_vencimento.strftime('%d/%m/%Y') }}</span>
                   {% if p.pago and p.data_pagamento %}<span style="font-size:11px;color:#2e7d32;margin-left:8px">· pago {{ p.data_pagamento.strftime('%d/%m/%Y') }}</span>{% endif %}
+                  {% if p.pago %}<div style="font-size:11px;color:#3949ab;font-weight:600;margin-top:3px">{% if p.forma_pagamento %}{{ forma_lbl(p.forma_pagamento, p.forma_parcelas) }}{% else %}<span style="color:#bbb;font-weight:500">forma não informada</span>{% endif %}</div>{% endif %}
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
                   <span style="font-size:14px;font-weight:700;color:{% if p.pago %}#2e7d32{% else %}#c62828{% endif %}">R$ {{ "{:,.2f}".format(p.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>

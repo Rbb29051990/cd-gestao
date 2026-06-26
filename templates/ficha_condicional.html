@@ -87,6 +87,8 @@
           <input type="hidden" name="pct_desconto" id="pctDescontoHidden" value="0">
           <input type="hidden" name="parcelas_datas" id="parcelasDatasJson" value="[]">
           <input type="hidden" name="forma_pagamento" id="formaPagamento">
+          <input type="hidden" name="pagamentos" id="pagamentosJson" value="[]">
+          <input type="hidden" name="entrada_pagamentos" id="entradaPagamentosJson" value="[]">
           {% for it in itens %}
           <div class="it-row">
             <span class="ref-badge">{{ it.codigo_produto }}</span>
@@ -113,7 +115,24 @@
             <button type="button" class="pg-opt" onclick="selPg('credito_vista',this)">💳 Créd. à vista</button>
             <button type="button" class="pg-opt" onclick="selPg('credito_parcelado',this)">💳 Créd. parc.</button>
             <button type="button" class="pg-opt" onclick="selPg('link',this)">🔗 Link</button>
+            <button type="button" class="pg-opt" onclick="selPg('multiplo',this)">🔀 Dividido</button>
             {% if cliente_cred or cond.tipo == 'transferencia' %}<button type="button" class="pg-opt" onclick="selPg('crediario',this)">📋 Crediário</button>{% endif %}
+          </div>
+
+          <!-- Pagamento dividido -->
+          <div id="secDividido" style="display:none;margin-bottom:14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:16px 18px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:6px">🔀 Pagamento dividido</div>
+            <div style="font-size:12px;color:#777;margin-bottom:12px">A soma das formas precisa igualar o total da venda — cada forma calcula sua própria taxa no caixa.</div>
+            <div id="splitRows"></div>
+            <button type="button" id="btnAddSplit" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
+            <div class="conf-box" style="margin-top:14px">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Total da venda</div><div style="font-weight:700" id="splitAlvo">—</div></div>
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="splitSoma">—</div></div>
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="splitDif">—</div></div>
+              </div>
+              <div id="splitAlerta" style="display:none;margin-top:10px;background:#fce4ec;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ A soma das formas precisa fechar com o total da venda.</div>
+            </div>
           </div>
 
           <!-- Desconto (pix/dinheiro) -->
@@ -150,11 +169,26 @@
                   <option value="dinheiro">💵 Dinheiro</option><option value="pix">⚡ Pix</option>
                   <option value="debito">💳 Débito</option><option value="credito_vista">💳 Crédito à vista</option>
                   <option value="credito_parcelado">💳 Crédito parcelado</option><option value="link">🔗 Link</option>
+                  <option value="multiplo">🔀 Dividido</option>
                 </select></div>
               <div class="form-field" id="entradaParcelasWrap" style="display:none"><label class="form-label">Parcelas do cartão (entrada)</label>
                 <select class="form-select" name="entrada_parcelas" id="entradaParcelas">{% for i in range(2,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}</select></div>
               <div class="form-field"><label class="form-label">Qtd de parcelas</label><select class="form-select" id="nParcelas" name="num_parcelas" onchange="gerarParcelas()"><option value="">Selecione...</option>{% for i in range(1,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}</select></div>
               <div class="form-field"><label class="form-label">Saldo devedor</label><input class="form-input auto" type="text" id="saldoDevedor" readonly></div>
+            </div>
+            <div id="secEntradaDividido" style="display:none;margin-bottom:14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:14px 16px">
+              <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:6px">🔀 Entrada dividida</div>
+              <div style="font-size:12px;color:#777;margin-bottom:12px">A soma das formas precisa igualar o valor da entrada.</div>
+              <div id="entradaSplitRows"></div>
+              <button type="button" id="btnAddEntradaSplit" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
+              <div class="conf-box" style="margin-top:14px">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
+                  <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Entrada</div><div style="font-weight:700" id="entradaSplitAlvo">—</div></div>
+                  <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="entradaSplitSoma">—</div></div>
+                  <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="entradaSplitDif">—</div></div>
+                </div>
+                <div id="entradaSplitAlerta" style="display:none;margin-top:10px;background:#fce4ec;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ A soma das formas precisa fechar com a entrada.</div>
+              </div>
             </div>
             <div id="parcelasCrediario"></div>
             <div class="conf-box" id="confBox">
@@ -234,12 +268,18 @@ function recalcTotal(){
   if(document.getElementById('secCrediario').style.display!=='none') calcSaldo();
 }
 
+let vendaSplit=null, entradaSplit=null;
 function selPg(tipo,btn){
   document.querySelectorAll('.pg-opt').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('formaPagamento').value=tipo;
   document.getElementById('secParcelado').style.display=tipo==='credito_parcelado'?'block':'none';
   document.getElementById('secCrediario').style.display=tipo==='crediario'?'block':'none';
+  document.getElementById('secDividido').style.display=tipo==='multiplo'?'block':'none';
+  if(tipo==='multiplo' && vendaSplit){
+    if(document.querySelectorAll('#splitRows .split-row').length===0){ vendaSplit.addRow(); vendaSplit.addRow(); }
+    vendaSplit.recompute();
+  }
   const temDesc=(tipo==='pix'||tipo==='dinheiro');
   document.getElementById('secDesconto').style.display=temDesc?'block':'none';
   if(!temDesc){
@@ -268,6 +308,7 @@ function calcDesconto(){
   const dp=document.getElementById('descontoPct'); if(dp && document.activeElement!==dp) dp.value=pct.toLocaleString('pt-BR',{minimumFractionDigits:2});
   document.getElementById('descontoValorHidden').value=val.toFixed(2);
   document.getElementById('pctDescontoHidden').value=pct.toFixed(2);
+  if(vendaSplit) vendaSplit.recompute();
 }
 
 function valorFinal(){ const total=totalVendaCalc(); const val=parseFloat(document.getElementById('descontoValorHidden').value||0); return Math.max(0,Math.round((total-val)*100)/100); }
@@ -278,10 +319,16 @@ function calcSaldo(){
   const saldo=Math.max(0,Math.round((saldoBase-entrada)*100)/100);
   document.getElementById('saldoDevedor').value=fmt(saldo);
   gerarParcelas();
+  if(entradaSplit) entradaSplit.recompute();
 }
 function toggleEntradaParcelas(){
   var f=document.getElementById('entradaForma').value;
   document.getElementById('entradaParcelasWrap').style.display=(f==='credito_parcelado')?'block':'none';
+  document.getElementById('secEntradaDividido').style.display=(f==='multiplo')?'block':'none';
+  if(f==='multiplo' && entradaSplit){
+    if(document.querySelectorAll('#entradaSplitRows .split-row').length===0){ entradaSplit.addRow(); entradaSplit.addRow(); }
+    entradaSplit.recompute();
+  }
 }
 function gerarParcelas(){
   const n=parseInt(document.getElementById('nParcelas').value)||0;
@@ -329,9 +376,37 @@ function prepararVenda(){
     const p=document.querySelector('[name=parcelas]').value;
     if(!p||p==='1'){ alert('⚠️ Informe o número de parcelas (mín. 2x).'); return false; }
   }
+  if(forma==='multiplo'){
+    const pgs=vendaSplit.serialize();
+    if(pgs.length===0){ alert('⚠️ Adicione ao menos uma forma de pagamento.'); return false; }
+    let falta=false;
+    document.querySelectorAll('#splitRows .split-row').forEach(function(row){
+      const vi=row.querySelector('.split-valor'); const v=vi.getMoney?vi.getMoney():0; const f=row.querySelector('.split-forma').value;
+      if(v>0 && !f) falta=true;
+      if(f==='credito_parcelado' && !row.querySelector('.split-parc').value) falta=true;
+    });
+    if(falta){ alert('⚠️ Cada valor precisa de uma forma (e o nº de parcelas no crédito parcelado).'); return false; }
+    if(!vendaSplit.recompute().ok){ alert('⚠️ A soma das formas precisa fechar com o total da venda.'); return false; }
+    document.getElementById('pagamentosJson').value=JSON.stringify(pgs);
+  }
   if(forma==='crediario'){
     if(document.getElementById('entradaVal').value.trim()===''){ alert('⚠️ Informe a entrada do crediário (pode ser 0,00).'); return false; }
-    if(parseMoeda(document.getElementById('entradaVal').value)>0 && !document.getElementById('entradaForma').value){ alert('⚠️ Informe a forma de pagamento da entrada (para fechar o caixa corretamente).'); return false; }
+    const entradaVal=parseMoeda(document.getElementById('entradaVal').value);
+    const entradaFormaVal=document.getElementById('entradaForma').value;
+    if(entradaVal>0 && !entradaFormaVal){ alert('⚠️ Informe a forma de pagamento da entrada (para fechar o caixa corretamente).'); return false; }
+    if(entradaVal>0 && entradaFormaVal==='multiplo'){
+      const epgs=entradaSplit.serialize();
+      if(epgs.length===0){ alert('⚠️ Adicione as formas da entrada dividida.'); return false; }
+      let faltaE=false;
+      document.querySelectorAll('#entradaSplitRows .split-row').forEach(function(row){
+        const vi=row.querySelector('.split-valor'); const v=vi.getMoney?vi.getMoney():0; const f=row.querySelector('.split-forma').value;
+        if(v>0 && !f) faltaE=true;
+        if(f==='credito_parcelado' && !row.querySelector('.split-parc').value) faltaE=true;
+      });
+      if(faltaE){ alert('⚠️ Cada valor da entrada precisa de uma forma (e parcelas no crédito parcelado).'); return false; }
+      if(!entradaSplit.recompute().ok){ alert('⚠️ A soma das formas da entrada precisa fechar com o valor da entrada.'); return false; }
+      document.getElementById('entradaPagamentosJson').value=JSON.stringify(epgs);
+    }
     if(!document.getElementById('nParcelas').value){ alert('⚠️ Informe a quantidade de parcelas.'); return false; }
     const dif=document.getElementById('confDif');
     if(dif && dif.style.color==='rgb(198, 40, 40)'){ alert('⚠️ Corrija os valores das parcelas (a soma deve fechar com o saldo).'); return false; }
@@ -342,5 +417,13 @@ function prepararVenda(){
   }
   return true;
 }
+document.addEventListener('DOMContentLoaded', function(){
+  vendaSplit = criarSplitEditor({rowsId:'splitRows', addBtnId:'btnAddSplit',
+    alvoId:'splitAlvo', somaId:'splitSoma', difId:'splitDif', alertaId:'splitAlerta',
+    target: function(){ return valorFinal(); }});
+  entradaSplit = criarSplitEditor({rowsId:'entradaSplitRows', addBtnId:'btnAddEntradaSplit',
+    alvoId:'entradaSplitAlvo', somaId:'entradaSplitSoma', difId:'entradaSplitDif', alertaId:'entradaSplitAlerta',
+    target: function(){ return parseMoeda(document.getElementById('entradaVal').value); }});
+});
 </script>
 {% endblock %}

@@ -8,7 +8,7 @@ from flask import render_template, request, redirect, url_for, flash
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx
-from utils import get_taxa_vigente
+from utils import get_taxa_vigente, parse_pagamentos, registrar_pagamentos_caixa
 
 
 def _add_months(d, m):
@@ -152,9 +152,20 @@ def pagar_parcela(cid, pid):
                     VALUES (%s,%s,%s,%s,FALSE)""", (cid, prox, hoje_app(), novo_saldo))
             cur.execute("UPDATE crediarios SET saldo_devedor=%s WHERE id=%s", (novo_saldo, cid))
         # Gravar no caixa com a forma de pagamento real (para taxas serem aplicadas corretamente)
-        descr = f"Crediário - {cred['cliente_nome']} ({forma_pg.replace('_',' ')})"
-        cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,parcela_id,vendedora_nome,parcelas) VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)",
-            (descr, valor_pago, forma_pg, cid, pid, vendedora_nome, parcelas_caixa))
+        if forma_pg == 'multiplo':
+            # Recebimento dividido: cada forma vira uma linha no caixa (com sua taxa).
+            pagamentos = parse_pagamentos(request.form.get('pagamentos'))
+            if not pagamentos:
+                raise ValueError('Pagamento dividido sem formas válidas.')
+            soma = round(sum(p['valor'] for p in pagamentos), 2)
+            if abs(soma - round(valor_pago, 2)) > 0.02:
+                raise ValueError(f'A soma das formas (R$ {soma:.2f}) não bate com o valor recebido (R$ {valor_pago:.2f}).')
+            registrar_pagamentos_caixa(cur, pagamentos, f"Crediário - {cred['cliente_nome']}",
+                crediario_id=cid, parcela_id=pid, vendedora_nome=vendedora_nome)
+        else:
+            descr = f"Crediário - {cred['cliente_nome']} ({forma_pg.replace('_',' ')})"
+            cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,parcela_id,vendedora_nome,parcelas) VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)",
+                (descr, valor_pago, forma_pg, cid, pid, vendedora_nome, parcelas_caixa))
         conn.commit(); flash('Pagamento registrado!', 'ok')
     except Exception as e: conn.rollback(); flash(str(e), 'erro')
     finally: cur.close(); close_db(conn)
@@ -310,11 +321,10 @@ def estornar_parcela(cid, pid):
                        SET saldo_devedor = saldo_devedor + %s, status = 'aberto'
                        WHERE id=%s""", (valor_estorno, cid))
 
-        # Remove lançamento do caixa (prioriza o marcado com parcela_id)
-        cur.execute("""DELETE FROM caixa WHERE id = (
-            SELECT id FROM caixa
-            WHERE crediario_id=%s AND parcela_id=%s AND venda_id IS NULL
-            ORDER BY criado_em DESC LIMIT 1)""", (cid, pid))
+        # Remove lançamento(s) do caixa desta parcela — pagamento dividido tem várias
+        # linhas com o mesmo parcela_id, então apaga TODAS.
+        cur.execute("""DELETE FROM caixa
+            WHERE crediario_id=%s AND parcela_id=%s AND venda_id IS NULL""", (cid, pid))
         if cur.rowcount == 0:
             # Legado: sem parcela_id gravado — remove a entrada mais recente do crediário
             cur.execute("""DELETE FROM caixa WHERE id = (

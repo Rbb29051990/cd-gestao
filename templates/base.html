@@ -115,6 +115,9 @@
 <body>
   {% block content %}{% endblock %}
 
+  <!-- Pagamento dividido (split) — componente compartilhado: Vendas, Crediário, Condicional -->
+  <script src="{{ url_for('static', filename='js/split.js') }}?v=v139"></script>
+
   {% if session.get('uid') %}
   <!-- MODAL FOTO DE PERFIL (compartilhado) -->
   <div id="modalFotoPerfil" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,.6);z-index:9999;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)" onclick="if(event.target===this)this.style.display='none'">

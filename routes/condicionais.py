@@ -7,7 +7,7 @@ from flask import render_template, request, redirect, url_for, flash
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
-from utils import parse_brl
+from utils import parse_brl, parse_pagamentos, registrar_pagamentos_caixa
 
 # Destinos possíveis de uma transferência (as lojas do grupo). Configurável por
 # env LOJAS_TRANSFERENCIA (separado por vírgula); padrão = as duas lojas atuais.
@@ -200,7 +200,17 @@ def gerar_venda_condicional(cid):
             cur.execute("UPDATE condicional_itens SET status=%s WHERE id=%s", (novo, it['id']))
         # Caixa / crediário
         formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
-        if forma in formas_a_vista:
+        if forma == 'multiplo':
+            # Pagamento dividido: cada forma vira uma linha no caixa (com sua taxa).
+            pagamentos = parse_pagamentos(request.form.get('pagamentos'))
+            if not pagamentos:
+                raise Exception('Pagamento dividido sem formas válidas.')
+            soma = round(sum(p['valor'] for p in pagamentos), 2)
+            if abs(soma - valor_final) > 0.02:
+                raise Exception(f'A soma das formas (R$ {soma:.2f}) não bate com o valor da venda (R$ {valor_final:.2f}).')
+            registrar_pagamentos_caixa(cur, pagamentos, f"Venda {vcod} - {cliente_nome} (condicional {cond['codigo']})",
+                venda_id=venda_id, usuario_id=usuario_id or None, vendedora_nome=vendedora_nome)
+        elif forma in formas_a_vista:
             parcelas_caixa = parcelas if forma == 'credito_parcelado' else None
             cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas)
                 VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
@@ -217,11 +227,21 @@ def gerar_venda_condicional(cid):
                     (cred_id, i + 1, p.get('data'), float(p.get('valor', 0))))
             if entrada > 0:
                 entrada_forma = request.form.get('entrada_forma', 'dinheiro').strip() or 'dinheiro'
-                if entrada_forma not in formas_a_vista: entrada_forma = 'dinheiro'
-                ent_parc = int(request.form.get('entrada_parcelas', 0) or 0) or None if entrada_forma == 'credito_parcelado' else None
-                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome,parcelas)
-                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)""",
-                    (f"Entrada crediário - {cliente_nome} (condicional {cond['codigo']}, {entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome, ent_parc))
+                if entrada_forma == 'multiplo':
+                    ent_pgs = parse_pagamentos(request.form.get('entrada_pagamentos'))
+                    if not ent_pgs:
+                        raise Exception('Entrada dividida sem formas válidas.')
+                    soma_e = round(sum(p['valor'] for p in ent_pgs), 2)
+                    if abs(soma_e - round(entrada, 2)) > 0.02:
+                        raise Exception(f'A soma das formas da entrada (R$ {soma_e:.2f}) não bate com a entrada (R$ {entrada:.2f}).')
+                    registrar_pagamentos_caixa(cur, ent_pgs, f"Entrada crediário - {cliente_nome} (condicional {cond['codigo']})",
+                        venda_id=venda_id, crediario_id=cred_id, usuario_id=usuario_id or None, vendedora_nome=vendedora_nome)
+                else:
+                    if entrada_forma not in formas_a_vista: entrada_forma = 'dinheiro'
+                    ent_parc = int(request.form.get('entrada_parcelas', 0) or 0) or None if entrada_forma == 'credito_parcelado' else None
+                    cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,usuario_id,vendedora_nome,parcelas)
+                        VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)""",
+                        (f"Entrada crediário - {cliente_nome} (condicional {cond['codigo']}, {entrada_forma.replace('_',' ')})", entrada, entrada_forma, venda_id, cred_id, usuario_id or None, vendedora_nome, ent_parc))
         cur.execute("UPDATE condicionais SET status='finalizada', venda_id=%s, finalizado_em=CURRENT_TIMESTAMP WHERE id=%s", (venda_id, cid))
         conn.commit(); flash(f'Venda {vcod} gerada da condicional {cond["codigo"]}! Peças não retiradas voltaram ao estoque.', 'ok')
     except Exception as e:

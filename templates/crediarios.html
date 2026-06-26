@@ -250,6 +250,7 @@
     <div class="modal-title">Registrar pagamento</div>
     <div class="modal-sub" id="subPagamento"></div>
     <form method="POST" id="formPagamento">
+      <input type="hidden" name="pagamentos" id="pagCredJson" value="[]">
       <div class="form-field">
         <label class="form-label">Vendedor (a)</label>
         <select name="vendedora_nome" class="form-input" style="cursor:pointer">
@@ -264,6 +265,7 @@
           <option value="debito">💳 Débito</option>
           <option value="credito_vista">💳 Crédito à vista</option>
           <option value="credito_parcelado">💳 Crédito parcelado</option>
+          <option value="multiplo">🔀 Dividido</option>
         </select>
       </div>
       <div class="form-field" id="secParcelasCred" style="display:none">
@@ -275,6 +277,20 @@
       <div class="form-field">
         <label class="form-label">Valor recebido (R$)</label>
         <input class="form-input" type="number" step="0.01" min="0" name="valor_pago" id="valorPago">
+      </div>
+      <div id="secPagDividido" style="display:none;margin-bottom:14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:14px 16px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:6px">🔀 Pagamento dividido</div>
+        <div style="font-size:12px;color:#777;margin-bottom:12px">A soma das formas precisa igualar o valor recebido.</div>
+        <div id="pagRows"></div>
+        <button type="button" id="btnAddPag" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
+        <div class="conf-box" style="margin-top:14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Recebido</div><div style="font-weight:700" id="pagAlvo">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="pagSoma">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="pagDif">—</div></div>
+          </div>
+          <div id="pagAlerta" style="display:none;margin-top:10px;background:#fce4ec;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ A soma das formas precisa fechar com o valor recebido.</div>
+        </div>
       </div>
       <div id="infoTaxaCred" style="display:none;background:#fff8e1;border:1.5px solid #ffe082;border-radius:8px;padding:12px 16px;margin-bottom:14px">
         <div style="font-size:10px;font-weight:700;color:#f57f17;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">⚠️ Taxa será aplicada</div>
@@ -492,9 +508,20 @@ const TAXAS_CRED = {
 const TAXAS_CRED_FLEX = { {% for n in range(1,13) %}{% set v = taxa_vigente['credito_' ~ n ~ 'x'] %}{{ n }}: {% if v is defined and v is not none %}{{ v|float }}{% else %}null{% endif %}{% if not loop.last %},{% endif %}{% endfor %} };
 function taxaFlexCred(n){ const t = TAXAS_CRED_FLEX[n]; return (t===null||t===undefined)?0:t; }
 
+let pagCredSplit = null;
 function toggleParcelasCred(fp) {
   document.getElementById('secParcelasCred').style.display = fp==='credito_parcelado' ? 'block' : 'none';
-  atualizarPreviewTaxa();
+  const ehDiv = fp==='multiplo';
+  document.getElementById('secPagDividido').style.display = ehDiv ? 'block' : 'none';
+  if (ehDiv) {
+    document.getElementById('infoTaxaCred').style.display = 'none';
+    if (pagCredSplit) {
+      if (document.querySelectorAll('#pagRows .split-row').length === 0) { pagCredSplit.addRow(); pagCredSplit.addRow(); }
+      pagCredSplit.recompute();
+    }
+  } else {
+    atualizarPreviewTaxa();
+  }
 }
 
 function atualizarPreviewTaxa() {
@@ -562,13 +589,34 @@ function abrirPagamento(cid, pid, data, valor){
   document.getElementById('formaPgCred').value = 'dinheiro';
   document.getElementById('secParcelasCred').style.display = 'none';
   document.getElementById('infoTaxaCred').style.display = 'none';
+  document.getElementById('secPagDividido').style.display = 'none';
+  if (pagCredSplit) pagCredSplit.reset();
+  document.getElementById('pagCredJson').value = '[]';
   document.getElementById('modalPagamento').style.display = 'flex';
 }
 
-// Atualizar preview quando valor muda
+// Atualizar preview/split quando o valor muda; inicializar o editor de split
 document.addEventListener('DOMContentLoaded', function(){
   const vp = document.getElementById('valorPago');
-  if(vp) vp.addEventListener('input', atualizarPreviewTaxa);
+  if(vp) vp.addEventListener('input', function(){ atualizarPreviewTaxa(); if(pagCredSplit) pagCredSplit.recompute(); });
+  pagCredSplit = criarSplitEditor({rowsId:'pagRows', addBtnId:'btnAddPag',
+    alvoId:'pagAlvo', somaId:'pagSoma', difId:'pagDif', alertaId:'pagAlerta',
+    target: function(){ return parseFloat(document.getElementById('valorPago').value||0); }});
+  const fp = document.getElementById('formPagamento');
+  if(fp) fp.addEventListener('submit', function(e){
+    if(document.getElementById('formaPgCred').value !== 'multiplo'){ document.getElementById('pagCredJson').value='[]'; return; }
+    const pgs = pagCredSplit.serialize();
+    if(pgs.length === 0){ e.preventDefault(); alert('⚠️ Adicione ao menos uma forma de pagamento.'); return; }
+    let falta=false;
+    document.querySelectorAll('#pagRows .split-row').forEach(function(row){
+      const vi=row.querySelector('.split-valor'); const v=vi.getMoney?vi.getMoney():0; const f=row.querySelector('.split-forma').value;
+      if(v>0 && !f) falta=true;
+      if(f==='credito_parcelado' && !row.querySelector('.split-parc').value) falta=true;
+    });
+    if(falta){ e.preventDefault(); alert('⚠️ Cada valor precisa de uma forma (e o nº de parcelas no crédito parcelado).'); return; }
+    if(!pagCredSplit.recompute().ok){ e.preventDefault(); alert('⚠️ A soma das formas precisa fechar com o valor recebido.'); return; }
+    document.getElementById('pagCredJson').value = JSON.stringify(pgs);
+  });
 });
 </script>
 {% endblock %}

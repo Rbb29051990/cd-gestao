@@ -89,6 +89,18 @@ function criarSplitEditor(cfg){
     addRow: function(){ addRow(false); },
     recompute: recompute,
     reset: function(){ rowsEl.innerHTML=''; },
+    /* Pré-carrega linhas a partir de [{forma,valor,parcelas}] (ex.: ao editar). */
+    load: function(arr){
+      rowsEl.innerHTML='';
+      (arr||[]).forEach(function(p){
+        addRow(false);
+        const row=rowsEl.lastElementChild;
+        row.querySelector('.split-valor').setMoney(parseFloat(p.valor)||0);
+        const fsel=row.querySelector('.split-forma'); fsel.value=p.forma||'';
+        if(p.forma==='credito_parcelado'){ row.querySelector('.split-parc-wrap').style.display='block'; row.querySelector('.split-parc').value=p.parcelas||''; }
+      });
+      recompute();
+    },
     serialize: function(){
       const arr=[];
       rows().forEach(function(row){

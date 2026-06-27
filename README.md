@@ -8,6 +8,7 @@ Uma cobrança agora pode ser paga em **mais de uma forma**. Ex.: R$50 no **débi
 - **Vendas** — na venda à vista e na **entrada do crediário**.
 - **Condicional → gerar venda** — à vista e na entrada do crediário.
 - **Crediário → receber parcela** — o valor recebido pode ser dividido.
+- **Edição** — em **Editar venda** e no **✏️ Forma** de uma parcela já recebida do crediário, dá para mudar para (ou ajustar um) pagamento dividido. Ao reescrever, o caixa **preserva a data original** do lançamento (não joga para hoje).
 
 **Como funciona:**
 - Em "Forma de pagamento", escolha **🔀 Dividido** e informe **valor + forma** de cada parte (com nº de parcelas quando for crédito parcelado).

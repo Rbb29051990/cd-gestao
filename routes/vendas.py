@@ -265,25 +265,35 @@ def editar_venda(vid):
             vendedora_nome = request.form.get('vendedora_nome', '').strip()
             forma_pagamento = request.form.get('forma_pagamento', '')
             parcelas = int(request.form.get('parcelas', 1) or 1)
-            # Venda com pagamento dividido: mantém 'multiplo' e NÃO mexe nas linhas do
-            # caixa (que têm cada uma sua forma). Trocar a forma colapsaria o split.
-            cur.execute("SELECT forma_pagamento FROM vendas WHERE id=%s", (vid,))
-            _r = cur.fetchone()
-            eh_dividido = bool(_r and _r['forma_pagamento'] == 'multiplo')
-            if eh_dividido:
-                forma_pagamento = 'multiplo'
+            cur.execute("SELECT codigo, valor_total, desconto, forma_pagamento, usuario_id, criado_em FROM vendas WHERE id=%s", (vid,))
+            vrow = dict(cur.fetchone())
+            forma_atual = vrow['forma_pagamento']
+            valor_final = round(float(vrow['valor_total'] or 0) - float(vrow['desconto'] or 0), 2)
             cur.execute("""UPDATE vendas SET cliente_nome=%s, vendedora_nome=%s,
                           forma_pagamento=%s, parcelas=%s WHERE id=%s""",
                        (cliente_nome, vendedora_nome, forma_pagamento, parcelas, vid))
-            # Sincroniza a forma no Caixa (e, por consequência, na Visão Geral).
-            # Atualiza só a entrada à-vista desta venda — não mexe na entrada/parcelas
-            # de crediário (que têm a própria forma de pagamento).
+            # Reconcilia o caixa à-vista desta venda (preservando a data original do
+            # lançamento). NÃO mexe em vendas de crediário, cuja entrada/parcelas têm
+            # tratamento próprio com a forma de pagamento real.
             formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
-            if not eh_dividido and forma_pagamento in formas_a_vista:
-                parcelas_caixa = parcelas if forma_pagamento == 'credito_parcelado' else None
-                cur.execute("""UPDATE caixa SET forma_pagamento=%s, parcelas=%s
-                               WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada'""",
-                            (forma_pagamento, parcelas_caixa, vid))
+            if forma_atual != 'crediario' and forma_pagamento != 'crediario':
+                cur.execute("DELETE FROM caixa WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada'", (vid,))
+                if forma_pagamento == 'multiplo':
+                    pagamentos = parse_pagamentos(request.form.get('pagamentos'))
+                    if not pagamentos:
+                        raise ValueError('Pagamento dividido sem formas válidas.')
+                    soma = round(sum(p['valor'] for p in pagamentos), 2)
+                    if abs(soma - valor_final) > 0.02:
+                        raise ValueError(f'A soma das formas (R$ {soma:.2f}) não bate com o valor da venda (R$ {valor_final:.2f}).')
+                    registrar_pagamentos_caixa(cur, pagamentos, f"Venda {vrow['codigo']} - {cliente_nome}",
+                        venda_id=vid, usuario_id=vrow.get('usuario_id'), vendedora_nome=vendedora_nome,
+                        criado_em=vrow.get('criado_em'))
+                elif forma_pagamento in formas_a_vista:
+                    parcelas_caixa = parcelas if forma_pagamento == 'credito_parcelado' else None
+                    cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas,criado_em)
+                        VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)""",
+                        (f"Venda {vrow['codigo']} - {cliente_nome}", valor_final, forma_pagamento, vid,
+                         vrow.get('usuario_id'), vendedora_nome, parcelas_caixa, vrow.get('criado_em')))
             audit_log(cur, 'ALTERAR_VENDA', 'vendas', vid,
                       {'forma_pagamento': forma_pagamento, 'cliente': cliente_nome})
             conn.commit()
@@ -299,10 +309,18 @@ def editar_venda(vid):
         flash('Venda não encontrada.', 'erro')
         return redirect(url_for('vendas'))
     venda = dict(row)
+    valor_final = round(float(venda.get('valor_total') or 0) - float(venda.get('desconto') or 0), 2)
+    # Split atual (se a venda já for dividida) p/ pré-carregar o editor
+    pagamentos = []
+    if venda.get('forma_pagamento') == 'multiplo':
+        cur.execute("""SELECT forma_pagamento, valor, parcelas FROM caixa
+                       WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada' ORDER BY id""", (vid,))
+        pagamentos = [{'forma': r['forma_pagamento'], 'valor': float(r['valor'] or 0),
+                       'parcelas': r['parcelas']} for r in cur.fetchall()]
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u)['nome'] for u in cur.fetchall()]
     cur.close(); close_db(conn)
-    ctx = get_ctx(); ctx.update(venda=venda, vendedoras=vendedoras)
+    ctx = get_ctx(); ctx.update(venda=venda, vendedoras=vendedoras, valor_final=valor_final, pagamentos=pagamentos)
     return render_template('editar_venda.html', **ctx)
 
 

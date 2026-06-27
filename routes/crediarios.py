@@ -177,7 +177,7 @@ def corrigir_forma_parcela(cid, pid):
     """Corrige a forma de pagamento de uma parcela JÁ recebida, atualizando o
     lançamento no caixa (e, por consequência, a Visão Geral). Não muda o valor."""
     forma = request.form.get('forma_pagamento', '').strip()
-    formas_validas = ['dinheiro', 'pix', 'debito', 'credito_vista', 'credito_parcelado', 'link']
+    formas_validas = ['dinheiro', 'pix', 'debito', 'credito_vista', 'credito_parcelado', 'link', 'multiplo']
     if forma not in formas_validas:
         flash('Forma de pagamento inválida.', 'erro'); return redirect(url_for('crediarios'))
     # nº de parcelas do cartão — só faz sentido no crédito parcelado (puxa a taxa da parcela)
@@ -188,6 +188,32 @@ def corrigir_forma_parcela(cid, pid):
         parc = None
     conn = get_db(); cur = conn.cursor()
     try:
+        if forma == 'multiplo':
+            # Converte o recebimento desta parcela em pagamento dividido: substitui a(s)
+            # linha(s) do caixa por uma por forma, preservando a data do lançamento.
+            pagamentos = parse_pagamentos(request.form.get('pagamentos'))
+            if not pagamentos:
+                raise ValueError('Pagamento dividido sem formas válidas.')
+            cur.execute("""SELECT p.valor, c.cliente_nome FROM crediario_parcelas p
+                           JOIN crediarios c ON c.id=p.crediario_id
+                           WHERE p.id=%s AND p.crediario_id=%s""", (pid, cid))
+            prow = cur.fetchone()
+            if not prow:
+                flash('Parcela não encontrada.', 'erro'); return redirect(url_for('crediarios'))
+            valor_parc = round(float(prow['valor'] or 0), 2)
+            soma = round(sum(p['valor'] for p in pagamentos), 2)
+            if abs(soma - valor_parc) > 0.02:
+                raise ValueError(f'A soma das formas (R$ {soma:.2f}) não bate com o valor recebido (R$ {valor_parc:.2f}).')
+            cur.execute("""SELECT criado_em FROM caixa WHERE crediario_id=%s AND parcela_id=%s
+                           AND venda_id IS NULL ORDER BY criado_em DESC LIMIT 1""", (cid, pid))
+            crow = cur.fetchone()
+            criado = crow['criado_em'] if crow else None
+            cur.execute("DELETE FROM caixa WHERE crediario_id=%s AND parcela_id=%s AND venda_id IS NULL", (cid, pid))
+            registrar_pagamentos_caixa(cur, pagamentos, f"Crediário - {prow['cliente_nome']}",
+                crediario_id=cid, parcela_id=pid, criado_em=criado)
+            conn.commit()
+            flash('Forma de pagamento da parcela corrigida (dividido) no caixa!', 'ok')
+            return redirect(url_for('crediarios'))
         # Caminho normal: lançamento marcado com este parcela_id
         cur.execute("""UPDATE caixa SET forma_pagamento=%s, parcelas=%s
                        WHERE crediario_id=%s AND parcela_id=%s AND venda_id IS NULL""",

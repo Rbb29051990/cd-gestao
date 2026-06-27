@@ -106,18 +106,26 @@ def parse_pagamentos(raw):
 
 def registrar_pagamentos_caixa(cur, pagamentos, descricao, *, venda_id=None,
                                crediario_id=None, parcela_id=None,
-                               usuario_id=None, vendedora_nome=None):
+                               usuario_id=None, vendedora_nome=None, criado_em=None):
     """Grava cada parcela de um pagamento dividido como UMA entrada no caixa, com a
     forma e o nº de parcelas próprios — assim o líquido (Taxa Flex) é calculado certo
-    por linha no caixa, na Visão Geral e no Dashboard. Retorna o total bruto lançado."""
+    por linha no caixa, na Visão Geral e no Dashboard. Retorna o total bruto lançado.
+    `criado_em` (opcional) preserva a data original do lançamento ao reescrever (edição)."""
     total = 0.0
     for p in pagamentos:
         desc = f"{descricao} ({p['forma'].replace('_', ' ')})"
-        cur.execute("""INSERT INTO caixa
-            (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,parcela_id,usuario_id,vendedora_nome,parcelas)
-            VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s,%s)""",
-            (desc, p['valor'], p['forma'], venda_id, crediario_id, parcela_id,
-             usuario_id, vendedora_nome, p['parcelas']))
+        if criado_em is not None:
+            cur.execute("""INSERT INTO caixa
+                (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,parcela_id,usuario_id,vendedora_nome,parcelas,criado_em)
+                VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (desc, p['valor'], p['forma'], venda_id, crediario_id, parcela_id,
+                 usuario_id, vendedora_nome, p['parcelas'], criado_em))
+        else:
+            cur.execute("""INSERT INTO caixa
+                (descricao,valor,tipo,forma_pagamento,venda_id,crediario_id,parcela_id,usuario_id,vendedora_nome,parcelas)
+                VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s,%s)""",
+                (desc, p['valor'], p['forma'], venda_id, crediario_id, parcela_id,
+                 usuario_id, vendedora_nome, p['parcelas']))
         total += p['valor']
     return round(total, 2)
 

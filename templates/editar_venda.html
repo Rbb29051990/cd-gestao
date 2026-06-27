@@ -18,7 +18,8 @@
       <div class="page-date" style="margin-bottom:24px">Venda #{{ '%04d'|format(venda.id) }} — {{ venda.criado_em.strftime('%d/%m/%Y') }}</div>
 
       <div class="table-wrap" style="padding:32px;max-width:660px">
-        <form method="POST">
+        <form method="POST" id="formEditarVenda">
+          <input type="hidden" name="pagamentos" id="pagamentosJson" value="[]">
 
           <div class="section-sep">Informações da venda</div>
           <div class="form-grid">
@@ -42,6 +43,7 @@
                 <option value="debito" {% if venda.forma_pagamento=='debito' %}selected{% endif %}>💳 Débito</option>
                 <option value="credito_vista" {% if venda.forma_pagamento=='credito_vista' %}selected{% endif %}>💳 Crédito à vista</option>
                 <option value="credito_parcelado" {% if venda.forma_pagamento=='credito_parcelado' %}selected{% endif %}>💳 Crédito parcelado</option>
+                <option value="multiplo" {% if venda.forma_pagamento=='multiplo' %}selected{% endif %}>🔀 Dividido</option>
                 <option value="crediario" {% if venda.forma_pagamento=='crediario' %}selected{% endif %}>📋 Crediário</option>
                 <option value="link" {% if venda.forma_pagamento=='link' %}selected{% endif %}>🔗 Link</option>
               </select>
@@ -53,6 +55,21 @@
                 <option value="{{ n }}" {% if venda.parcelas == n %}selected{% endif %}>{{ n }}x</option>
                 {% endfor %}
               </select>
+            </div>
+          </div>
+
+          <div id="secDividido" style="display:{% if venda.forma_pagamento=='multiplo' %}block{% else %}none{% endif %};margin:6px 0 14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:16px 18px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:6px">🔀 Pagamento dividido</div>
+            <div style="font-size:12px;color:#777;margin-bottom:12px">A soma das formas precisa igualar o valor da venda — cada forma calcula sua própria taxa no caixa.</div>
+            <div id="splitRows"></div>
+            <button type="button" id="btnAddSplit" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
+            <div class="conf-box" style="margin-top:14px">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Valor da venda</div><div style="font-weight:700" id="splitAlvo">—</div></div>
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="splitSoma">—</div></div>
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="splitDif">—</div></div>
+              </div>
+              <div id="splitAlerta" style="display:none;margin-top:10px;background:#fce4ec;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ A soma das formas precisa fechar com o valor da venda.</div>
             </div>
           </div>
 
@@ -69,9 +86,41 @@
   </div>
 </div>
 <script>
-document.querySelector('[name=forma_pagamento]').addEventListener('change', function() {
-  document.getElementById('campoParcelasEdit').style.display =
-    this.value === 'credito_parcelado' ? '' : 'none';
+const VALOR_FINAL = {{ valor_final|default(0) }};
+const PAG_EXISTENTES = {{ pagamentos|default([])|tojson }};
+let editVendaSplit = null;
+
+function atualizarCamposPg(forma){
+  document.getElementById('campoParcelasEdit').style.display = (forma === 'credito_parcelado') ? '' : 'none';
+  document.getElementById('secDividido').style.display = (forma === 'multiplo') ? 'block' : 'none';
+  if (forma === 'multiplo' && editVendaSplit) {
+    if (document.querySelectorAll('#splitRows .split-row').length === 0) { editVendaSplit.addRow(); editVendaSplit.addRow(); }
+    editVendaSplit.recompute();
+  }
+}
+
+document.querySelector('[name=forma_pagamento]').addEventListener('change', function(){ atualizarCamposPg(this.value); });
+
+document.addEventListener('DOMContentLoaded', function(){
+  editVendaSplit = criarSplitEditor({rowsId:'splitRows', addBtnId:'btnAddSplit',
+    alvoId:'splitAlvo', somaId:'splitSoma', difId:'splitDif', alertaId:'splitAlerta',
+    target: function(){ return VALOR_FINAL; }});
+  if (PAG_EXISTENTES && PAG_EXISTENTES.length) editVendaSplit.load(PAG_EXISTENTES);
+
+  document.getElementById('formEditarVenda').addEventListener('submit', function(e){
+    if (document.querySelector('[name=forma_pagamento]').value !== 'multiplo'){ document.getElementById('pagamentosJson').value='[]'; return; }
+    const pgs = editVendaSplit.serialize();
+    if (pgs.length === 0){ e.preventDefault(); alert('⚠️ Adicione ao menos uma forma de pagamento.'); return; }
+    let falta=false;
+    document.querySelectorAll('#splitRows .split-row').forEach(function(row){
+      const vi=row.querySelector('.split-valor'); const v=vi.getMoney?vi.getMoney():0; const f=row.querySelector('.split-forma').value;
+      if(v>0 && !f) falta=true;
+      if(f==='credito_parcelado' && !row.querySelector('.split-parc').value) falta=true;
+    });
+    if(falta){ e.preventDefault(); alert('⚠️ Cada valor precisa de uma forma (e o nº de parcelas no crédito parcelado).'); return; }
+    if(!editVendaSplit.recompute().ok){ e.preventDefault(); alert('⚠️ A soma das formas precisa fechar com o valor da venda.'); return; }
+    document.getElementById('pagamentosJson').value = JSON.stringify(pgs);
+  });
 });
 </script>
 {% endblock %}

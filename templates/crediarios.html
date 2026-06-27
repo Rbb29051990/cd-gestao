@@ -225,7 +225,7 @@
                     style="padding:6px 12px;background:#1a1a2e;color:#fff;border:none;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">💰 Receber</button>
                   <button onclick="event.stopPropagation();abrirExcluirParcela({{ c.id }},{{ p.id }},{{ p.numero_parcela }},{{ p.valor }})" title="Excluir esta parcela" style="padding:6px 10px;background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">🗑️</button>
                   {% else %}<span style="font-size:11px;font-weight:700;color:#2e7d32">✅ Pago</span>
-                  <button onclick="event.stopPropagation();abrirCorrigirForma({{ c.id }},{{ p.id }})" title="Corrigir a forma de pagamento desta parcela no caixa" style="padding:5px 10px;background:#fff;color:#5b6175;border:1.5px solid #e0e0e8;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✏️ Forma</button>
+                  <button onclick="event.stopPropagation();abrirCorrigirForma({{ c.id }},{{ p.id }},{{ p.valor }})" title="Corrigir a forma de pagamento desta parcela no caixa" style="padding:5px 10px;background:#fff;color:#5b6175;border:1.5px solid #e0e0e8;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">✏️ Forma</button>
                   <button onclick="event.stopPropagation();abrirEstorno({{ c.id }},{{ p.id }},{{ p.numero_parcela }},{{ p.valor }})" title="Estornar este pagamento" style="padding:5px 10px;background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;font-family:Outfit,sans-serif;font-size:11px;font-weight:700;cursor:pointer">🗑️ Estornar</button>{% endif %}
                 </div>
               </div>
@@ -315,6 +315,7 @@
     <div class="modal-title">Corrigir forma de pagamento</div>
     <div class="modal-sub">Ajusta a forma desta parcela já recebida e atualiza o Caixa e a Visão Geral. O valor recebido não muda.</div>
     <form method="POST" id="formCorrigirForma">
+      <input type="hidden" name="pagamentos" id="corrPagJson" value="[]">
       <div class="form-field">
         <label class="form-label">Forma de pagamento correta</label>
         <select name="forma_pagamento" id="corrForma" class="form-input" style="cursor:pointer" onchange="toggleCorrParcelas(this.value)">
@@ -324,6 +325,7 @@
           <option value="credito_vista">💳 Crédito à vista</option>
           <option value="credito_parcelado">💳 Crédito parcelado</option>
           <option value="link">🔗 Link</option>
+          <option value="multiplo">🔀 Dividido</option>
         </select>
       </div>
       <div class="form-field" id="corrParcelasWrap" style="display:none">
@@ -332,6 +334,20 @@
           {% for i in range(2,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
         </select>
         <div class="campo-hint">Puxa a taxa referente a este nº de parcelas</div>
+      </div>
+      <div id="secCorrDividido" style="display:none;margin-bottom:14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:14px 16px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:6px">🔀 Pagamento dividido</div>
+        <div style="font-size:12px;color:#777;margin-bottom:12px">A soma das formas precisa igualar o valor recebido da parcela.</div>
+        <div id="corrRows"></div>
+        <button type="button" id="btnAddCorr" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
+        <div class="conf-box" style="margin-top:14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Recebido</div><div style="font-weight:700" id="corrAlvo">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="corrSoma">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="corrDif">—</div></div>
+          </div>
+          <div id="corrAlerta" style="display:none;margin-top:10px;background:#fce4ec;padding:8px 12px;border-radius:4px;font-size:12px;font-weight:700;color:#c62828">⚠️ A soma das formas precisa fechar com o valor recebido.</div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-cancelar" onclick="document.getElementById('modalCorrigirForma').style.display='none'">Cancelar</button>
@@ -572,13 +588,24 @@ function abrirEstorno(cid, pid, num, valor){
   document.getElementById('modalEstorno').style.display = 'flex';
 }
 
+let corrSplit = null, corrAlvoValor = 0;
 function toggleCorrParcelas(fp){
   document.getElementById('corrParcelasWrap').style.display = (fp === 'credito_parcelado') ? 'block' : 'none';
+  const ehDiv = fp==='multiplo';
+  document.getElementById('secCorrDividido').style.display = ehDiv ? 'block' : 'none';
+  if(ehDiv && corrSplit){
+    if(document.querySelectorAll('#corrRows .split-row').length===0){ corrSplit.addRow(); corrSplit.addRow(); }
+    corrSplit.recompute();
+  }
 }
-function abrirCorrigirForma(cid, pid){
+function abrirCorrigirForma(cid, pid, valor){
+  corrAlvoValor = parseFloat(valor)||0;
   document.getElementById('formCorrigirForma').action = '/crediarios/'+cid+'/parcela/'+pid+'/corrigir-forma';
   document.getElementById('corrForma').value = 'dinheiro';
   document.getElementById('corrParcelasWrap').style.display = 'none';
+  document.getElementById('secCorrDividido').style.display = 'none';
+  if(corrSplit) corrSplit.reset();
+  document.getElementById('corrPagJson').value = '[]';
   document.getElementById('modalCorrigirForma').style.display = 'flex';
 }
 
@@ -602,6 +629,25 @@ document.addEventListener('DOMContentLoaded', function(){
   pagCredSplit = criarSplitEditor({rowsId:'pagRows', addBtnId:'btnAddPag',
     alvoId:'pagAlvo', somaId:'pagSoma', difId:'pagDif', alertaId:'pagAlerta',
     target: function(){ return parseFloat(document.getElementById('valorPago').value||0); }});
+  // Editor de split da correção de forma (alvo = valor recebido da parcela)
+  corrSplit = criarSplitEditor({rowsId:'corrRows', addBtnId:'btnAddCorr',
+    alvoId:'corrAlvo', somaId:'corrSoma', difId:'corrDif', alertaId:'corrAlerta',
+    target: function(){ return corrAlvoValor; }});
+  const fc = document.getElementById('formCorrigirForma');
+  if(fc) fc.addEventListener('submit', function(e){
+    if(document.getElementById('corrForma').value !== 'multiplo'){ document.getElementById('corrPagJson').value='[]'; return; }
+    const pgs = corrSplit.serialize();
+    if(pgs.length === 0){ e.preventDefault(); alert('⚠️ Adicione ao menos uma forma de pagamento.'); return; }
+    let falta=false;
+    document.querySelectorAll('#corrRows .split-row').forEach(function(row){
+      const vi=row.querySelector('.split-valor'); const v=vi.getMoney?vi.getMoney():0; const f=row.querySelector('.split-forma').value;
+      if(v>0 && !f) falta=true;
+      if(f==='credito_parcelado' && !row.querySelector('.split-parc').value) falta=true;
+    });
+    if(falta){ e.preventDefault(); alert('⚠️ Cada valor precisa de uma forma (e o nº de parcelas no crédito parcelado).'); return; }
+    if(!corrSplit.recompute().ok){ e.preventDefault(); alert('⚠️ A soma das formas precisa fechar com o valor recebido.'); return; }
+    document.getElementById('corrPagJson').value = JSON.stringify(pgs);
+  });
   const fp = document.getElementById('formPagamento');
   if(fp) fp.addEventListener('submit', function(e){
     if(document.getElementById('formaPgCred').value !== 'multiplo'){ document.getElementById('pagCredJson').value='[]'; return; }

@@ -144,7 +144,7 @@
               <td><span class="badge {% if m.tipo == 'entrada' %}badge-hab{% else %}badge-fiado{% endif %}">{% if m.tipo == 'entrada' %}⬆️ Entrada{% else %}⬇️ Saída{% endif %}</span></td>
               <td>
                 {% if m.forma_pagamento == 'credito_vista' %}💳 Créd. vista
-                {% elif m.forma_pagamento == 'credito_parcelado' %}💳 Créd. parc.
+                {% elif m.forma_pagamento == 'credito_parcelado' %}💳 Créd. parc.{% if m.parcelas %} {{ m.parcelas }}x{% endif %}
                 {% elif m.forma_pagamento == 'debito' %}💳 Débito
                 {% elif m.forma_pagamento == 'pix' %}⚡ Pix
                 {% elif m.forma_pagamento == 'dinheiro' %}💵 Dinheiro

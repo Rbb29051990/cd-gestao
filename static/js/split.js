@@ -67,12 +67,12 @@ function criarSplitEditor(cfg){
     row.innerHTML =
       '<div class="form-field" style="flex:1;margin:0"><label class="form-label">Valor</label><input class="form-input split-valor" type="text" inputmode="numeric" placeholder="R$ 0,00"></div>'
       + '<div class="form-field" style="flex:1.4;margin:0"><label class="form-label">Forma</label><select class="form-select split-forma">'+formaOptions()+'</select></div>'
-      + '<div class="form-field split-parc-wrap" style="width:110px;margin:0;display:none"><label class="form-label">Parcelas</label><select class="form-select split-parc">'+parcOptions()+'</select></div>'
+      + '<div class="form-field split-parc-wrap" style="width:110px;margin:0;visibility:hidden"><label class="form-label">Parcelas</label><select class="form-select split-parc">'+parcOptions()+'</select></div>'
       + '<button type="button" class="btn-del-split" title="Remover" style="padding:9px 11px;background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">🗑️</button>';
     rowsEl.appendChild(row);
     moneyMask(row.querySelector('.split-valor'), function(){ onEdit(row); });
     row.querySelector('.split-forma').addEventListener('change', function(){
-      row.querySelector('.split-parc-wrap').style.display=this.value==='credito_parcelado'?'block':'none';
+      row.querySelector('.split-parc-wrap').style.visibility=this.value==='credito_parcelado'?'visible':'hidden';
       recompute();
     });
     row.querySelector('.split-parc').addEventListener('change', recompute);
@@ -97,7 +97,7 @@ function criarSplitEditor(cfg){
         const row=rowsEl.lastElementChild;
         row.querySelector('.split-valor').setMoney(parseFloat(p.valor)||0);
         const fsel=row.querySelector('.split-forma'); fsel.value=p.forma||'';
-        if(p.forma==='credito_parcelado'){ row.querySelector('.split-parc-wrap').style.display='block'; row.querySelector('.split-parc').value=p.parcelas||''; }
+        if(p.forma==='credito_parcelado'){ row.querySelector('.split-parc-wrap').style.visibility='visible'; row.querySelector('.split-parc').value=p.parcelas||''; }
       });
       recompute();
     },

@@ -18,6 +18,10 @@ Uma cobrança agora pode ser paga em **mais de uma forma**. Ex.: R$50 no **débi
 
 **Componente compartilhado:** `static/js/split.js` (`moneyMask` + `criarSplitEditor`), carregado pelo `base.html`. Helpers no backend em `utils.py` (`parse_pagamentos`, `registrar_pagamentos_caixa`, `liquido_caixa_por_venda`).
 
+### Dashboard — Ranking de vendedoras mostra todas as vendedoras
+
+O ranking deixou de ficar restrito a quem já vendeu. Agora **todas as vendedoras ativas aparecem** (mesmo com zero vendas), com todos os indicadores: venda líquida, qtd de produtos, ticket, clientes atendidos e **clientes cadastrados** — útil para lojas novas que começaram só cadastrando clientes (ex.: CD Slim). Ordena por venda líquida e, em empate (sem vendas), pelos clientes cadastrados.
+
 **Observações:** editar uma venda dividida mantém `multiplo` e não mexe nas linhas do caixa (trocar a forma colapsaria o split). Desconto não é aplicado junto do split (divide-se o total). Estornar uma parcela de crediário recebida em split remove todas as linhas daquele recebimento.
 
 ## Novidades da v138 (2026-06-26) — Correção do recebimento parcial no crediário

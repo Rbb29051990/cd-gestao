@@ -403,6 +403,20 @@ def dashboard_view():
         split_map = {}
     vendedoras = []
     try:
+        tmp = {}; cache = {}
+        # Semeia o ranking com TODAS as vendedoras ATIVAS — assim elas aparecem mesmo
+        # sem vendas (ex.: loja nova que só começou a cadastrar clientes). O ranking
+        # mostra todos os indicadores (vendas, peças, ticket, clientes atendidos e
+        # clientes cadastrados), não só as vendas.
+        cur.execute("SELECT id, nome, foto FROM usuarios WHERE ativo=TRUE")
+        for u in cur.fetchall():
+            o = tmp.setdefault(u['nome'], {'nome': u['nome'], 'uid': u['id'], 'liquido': 0.0,
+                                           'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
+            if not o.get('uid'):
+                o['uid'] = u['id']
+            f = u['foto']
+            if not o.get('foto') and isinstance(f, str) and f.startswith('data:image/'):
+                o['foto'] = f
         cur.execute("""SELECT v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.parcelas, v.criado_em, v.cliente_id,
                        COALESCE(SUM(vi.quantidade),0) pecas, MAX(u.foto) AS foto
                        FROM vendas v
@@ -410,7 +424,6 @@ def dashboard_view():
                        LEFT JOIN usuarios u ON u.id=v.usuario_id
                        WHERE DATE(v.criado_em) BETWEEN %s AND %s
                        GROUP BY v.id, v.vendedora_nome, v.usuario_id, v.valor_total, v.forma_pagamento, v.parcelas, v.criado_em, v.cliente_id""", (di, df))
-        tmp = {}; cache = {}
         for r in cur.fetchall():
             nome = r['vendedora_nome'] or '—'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
@@ -433,13 +446,15 @@ def dashboard_view():
                        WHERE DATE(criado_em) BETWEEN %s AND %s AND usuario_id IS NOT NULL
                        GROUP BY usuario_id""", (di, df))
         cad_por_uid = {row['usuario_id']: int(row['c'] or 0) for row in cur.fetchall()}
-        vendedoras = sorted(tmp.values(), key=lambda x: x['liquido'], reverse=True)[:5]
-        for v in vendedoras:
-            v['clientes'] = len(v['cli'])
-            v['clientes_cad'] = cad_por_uid.get(v['uid'], 0)
-            v['ticket'] = round(v['liquido'] / v['vendas'], 2) if v['vendas'] else 0
-            v['ini'] = ''.join([p[0] for p in v['nome'].split()[:2]]).upper() or '—'
-            v['liquido'] = round(v['liquido'], 2)
+        for o in tmp.values():
+            o['clientes'] = len(o['cli'])
+            o['clientes_cad'] = cad_por_uid.get(o['uid'], 0)
+            o['ticket'] = round(o['liquido'] / o['vendas'], 2) if o['vendas'] else 0
+            o['ini'] = ''.join([p[0] for p in o['nome'].split()[:2]]).upper() or '—'
+            o['liquido'] = round(o['liquido'], 2)
+        # Ordena por venda líquida; com empate (ex.: ainda sem vendas) usa os cadastros.
+        vendedoras = sorted(tmp.values(),
+                            key=lambda x: (x['liquido'], x['clientes_cad'], x['vendas']), reverse=True)[:10]
     except Exception:
         rollback()
     vend_total = round(sum(v['liquido'] for v in vendedoras), 2)

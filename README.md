@@ -20,7 +20,7 @@ Uma cobrança agora pode ser paga em **mais de uma forma**. Ex.: R$50 no **débi
 
 ### Dashboard — Ranking de vendedoras mostra todas as vendedoras
 
-O ranking deixou de ficar restrito a quem já vendeu. Agora **todas as vendedoras ativas aparecem** (mesmo com zero vendas), com todos os indicadores: venda líquida, qtd de produtos, ticket, clientes atendidos e **clientes cadastrados** — útil para lojas novas que começaram só cadastrando clientes (ex.: CD Slim). Ordena por venda líquida e, em empate (sem vendas), pelos clientes cadastrados.
+O ranking deixou de ficar restrito a quem já vendeu. Agora **todas as vendedoras ativas aparecem** (mesmo com zero vendas), com todos os indicadores: venda líquida, qtd de produtos, ticket, clientes atendidos e **clientes cadastrados** — útil para lojas novas que começaram só cadastrando clientes (ex.: CD Slim). Ordena por venda líquida e, em empate (sem vendas), pelos clientes cadastrados. **Administradores N1 (donos) não aparecem no ranking** (nem por venda nem por cadastro).
 
 **Observações:** editar uma venda dividida mantém `multiplo` e não mexe nas linhas do caixa (trocar a forma colapsaria o split). Desconto não é aplicado junto do split (divide-se o total). Estornar uma parcela de crediário recebida em split remove todas as linhas daquele recebimento.
 

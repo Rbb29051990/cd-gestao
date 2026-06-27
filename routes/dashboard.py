@@ -404,11 +404,16 @@ def dashboard_view():
     vendedoras = []
     try:
         tmp = {}; cache = {}
-        # Semeia o ranking com TODAS as vendedoras ATIVAS — assim elas aparecem mesmo
-        # sem vendas (ex.: loja nova que só começou a cadastrar clientes). O ranking
-        # mostra todos os indicadores (vendas, peças, ticket, clientes atendidos e
-        # clientes cadastrados), não só as vendas.
-        cur.execute("SELECT id, nome, foto FROM usuarios WHERE ativo=TRUE")
+        # Administradores N1 (donos) NÃO entram no ranking do dashboard.
+        cur.execute("SELECT id, nome FROM usuarios WHERE perfil IN ('admin_n1','admin','administrador','Administrador')")
+        _adm = cur.fetchall()
+        adm_ids = {r['id'] for r in _adm}
+        adm_nomes = {(r['nome'] or '').strip().lower() for r in _adm}
+        # Semeia o ranking com TODAS as vendedoras ATIVAS (exceto Admin N1) — assim
+        # aparecem mesmo sem vendas (ex.: loja nova que só começou a cadastrar
+        # clientes). Mostra todos os indicadores (vendas, peças, ticket, clientes
+        # atendidos e clientes cadastrados), não só as vendas.
+        cur.execute("SELECT id, nome, foto FROM usuarios WHERE ativo=TRUE AND perfil NOT IN ('admin_n1','admin','administrador','Administrador')")
         for u in cur.fetchall():
             o = tmp.setdefault(u['nome'], {'nome': u['nome'], 'uid': u['id'], 'liquido': 0.0,
                                            'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
@@ -453,7 +458,9 @@ def dashboard_view():
             o['ini'] = ''.join([p[0] for p in o['nome'].split()[:2]]).upper() or '—'
             o['liquido'] = round(o['liquido'], 2)
         # Ordena por venda líquida; com empate (ex.: ainda sem vendas) usa os cadastros.
-        vendedoras = sorted(tmp.values(),
+        # Remove Admin N1 também de vendas feitas por eles (casadas pelo nome).
+        vendedoras = sorted([o for o in tmp.values()
+                             if o['uid'] not in adm_ids and (o['nome'] or '').strip().lower() not in adm_nomes],
                             key=lambda x: (x['liquido'], x['clientes_cad'], x['vendas']), reverse=True)[:10]
     except Exception:
         rollback()

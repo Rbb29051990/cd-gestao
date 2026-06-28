@@ -18,6 +18,10 @@ Uma cobrança agora pode ser paga em **mais de uma forma**. Ex.: R$50 no **débi
 
 **Componente compartilhado:** `static/js/split.js` (`moneyMask` + `criarSplitEditor`), carregado pelo `base.html`. Helpers no backend em `utils.py` (`parse_pagamentos`, `registrar_pagamentos_caixa`, `liquido_caixa_por_venda`).
 
+### Visão Geral — 14 quadrantes na ordem definida
+
+A Visão Geral passou a ser uma grade de **14 quadrantes** (cards no padrão atual), nesta ordem: (1) Fat. bruto Dinheiro+Pix, (2) Fat. bruto Cartão (crédito à vista+parcelado+débito), (3) Total fat. bruto, (4) Total fat. líquido, (5) % bruto vs líquido, (6) Despesas fixas, (7) Despesas avulsas, (8) Lucro líquido, (9) Total em caixa (entradas líquidas − despesas), (10) Crediário em aberto, (11) Em condicional/transferências, (12) Valor em estoque, (13) Custo de estoque, (14) Potencial de vendas do estoque. Grid **responsivo** (auto-fill: ~5 colunas no desktop, ~3 no tablet, 2 no celular) — removido o trava de altura de 100vh para a página rolar naturalmente em qualquer tela. Novos valores no backend: `fat_dinheiro_pix`, `fat_cartao`, `pct_liquido`, `total_caixa`.
+
 ### Nova venda — busca de produto por nome (não só pelo código)
 
 Na tela de nova venda, além do campo de código, agora há um campo **"Buscar produto por nome, descrição ou código"**: conforme digita, aparece uma lista com **foto, estoque e preço** (igual à aba Consulta). Cada item tem um **checkbox** para **marcar (definir) o produto** — a seleção é só pelo checkbox, sem risco de escolher errado num clique solto — e a **foto amplia ao clicar** (overlay) para conferência visual. Marcado, preenche os dados; basta informar a quantidade e Adicionar. Itens **sem estoque** aparecem em cinza e não podem ser marcados. Reaproveita os endpoints `/consulta/buscar` e `/consulta/foto/<id>` (sem mudança de backend). Ajuda quando a etiqueta sumiu e evita vender o produto errado.

@@ -46,6 +46,11 @@ def visao_geral():
     fat_liq = {k: round(v, 2) for k, v in fat_liq.items()}
     fat_total     = round(sum(fat.values()), 2)
     fat_total_liq = round(sum(fat_liq.values()), 2)
+    # Agrupamentos do faturamento BRUTO para os quadrantes
+    fat_dinheiro_pix = round(fat['dinheiro'] + fat['pix'], 2)            # 1º quadrante
+    fat_cartao       = round(fat_total - fat_dinheiro_pix, 2)           # 2º (crédito/débito/link)
+    # % do líquido sobre o bruto (quanto sobra após as taxas de cartão)
+    pct_liquido = round(fat_total_liq / fat_total * 100, 1) if fat_total > 0 else 0.0
     # Estoque — custo, valor de venda, lucro potencial (sempre global, não filtra por período)
     try:
         cur.execute("""SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct,
@@ -87,6 +92,8 @@ def visao_geral():
     val_despesas     = round(despesas_fixas + despesas_avulsas, 2)
     # Lucro líquido = entradas líquidas − (despesas fixas + avulsas) do período
     lucro_liquido = round(fat_total_liq - val_despesas, 2)
+    # Total em caixa = entradas líquidas − saídas (despesas fixas + avulsas)
+    total_caixa = round(fat_total_liq - val_despesas, 2)
     # Movimentações recentes (filtradas pelo período)
     try:
         cur.execute("""SELECT id,criado_em,vendedora_nome,cliente_nome,valor_total,forma_pagamento
@@ -101,6 +108,8 @@ def visao_geral():
     cur.close(); close_db(conn)
     ctx = get_ctx()
     ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
+               fat_dinheiro_pix=fat_dinheiro_pix, fat_cartao=fat_cartao, pct_liquido=pct_liquido,
+               total_caixa=total_caixa,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,
                val_condicional=val_condicional, n_condicional=n_condicional,

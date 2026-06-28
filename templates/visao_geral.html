@@ -82,9 +82,21 @@
 .mg-val.neg { color:#c62828; }
 .mg-link { font-size:10px; font-weight:600; color:#c0c0cc; margin-top:0; }
 .mg-sub  { font-size:10px; color:#a0a0ad; margin-top:0; }
+
+/* ── 14 QUADRANTES: grid responsivo (desktop ~5/linha, tablet ~3, celular 2) ──
+   auto-fill + minmax mantém o padrão dos cards e reduz a coluna sozinho conforme
+   a largura, sem prejudicar a leitura no celular/tablet. */
+.vg-quad { display:grid; grid-template-columns:repeat(auto-fill, minmax(205px, 1fr));
+           gap:12px; align-content:start; }
+@media (max-width:640px){
+  .vg-quad { grid-template-columns:repeat(2, 1fr); gap:9px; }
+  .mg-card { padding:10px 12px; }
+  .mg-val  { font-size:16px; }
+  .mg-label{ font-size:9px; }
+}
 </style>
 
-<div class="dash-wrap vg-wrap">
+<div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">{{ cliente.sigla }}</span><span class="topbar-logo-sub">Gestão Empresarial</span></div>
     <div class="topbar-right">
@@ -124,125 +136,108 @@
         </div>
       </div>
 
-      <!-- GRID PRINCIPAL -->
-      <div class="vg-body">
+      <!-- 14 QUADRANTES (ordem definida) -->
+      <div class="vg-quad">
 
-        <!-- ESQUERDA: Controle de Entradas -->
-        <div class="ce-card">
-          <div class="ce-header">
-            <div>
-              <div class="ce-h-title">Controle de Entradas</div>
-              <div class="ce-h-sub">Bruto e líquido por forma de pagamento · crediário já contabilizado na forma recebida</div>
-            </div>
-            <div class="ce-chips">
-              <div class="ce-chip">
-                <div class="ce-chip-lbl">Total bruto</div>
-                <div class="ce-chip-val">{{ brl(fat_total) }}</div>
-              </div>
-              <div class="ce-chip ce-chip-liq">
-                <div class="ce-chip-lbl">Total líquido</div>
-                <div class="ce-chip-val">{{ brl(fat_total_liq) }}</div>
-              </div>
-            </div>
-          </div>
-          <div class="ce-table-wrap">
-            <table class="ce-table">
-              <thead>
-                <tr>
-                  <th>Forma de pagamento</th>
-                  <th class="r">Bruto</th>
-                  <th class="r">Líquido</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% set linhas = [
-                  ('Dinheiro',            fat.dinheiro,          fat_liq.dinheiro,          '💵','#e8f5e9'),
-                  ('Pix',                 fat.pix,               fat_liq.pix,               '⚡','#e3f2fd'),
-                  ('Débito',              fat.debito,            fat_liq.debito,             '💳','#e8eaf6'),
-                  ('Crédito à vista',     fat.credito_vista,     fat_liq.credito_vista,      '💳','#ede7f6'),
-                  ('Crédito parcelado',   fat.credito_parcelado, fat_liq.credito_parcelado,  '💳','#ede7f6'),
-                  ('Link',                fat.link,              fat_liq.link,               '🔗','#fff3e0')
-                ] %}
-                {% for nome, bruto, liquido, icon, bg in linhas %}
-                <tr>
-                  <td class="ce-forma"><span class="ce-ico" style="background:{{ bg }}">{{ icon }}</span>{{ nome }}</td>
-                  <td class="r ce-bruto">{{ brl(bruto) }}</td>
-                  <td class="r ce-liq">{{ brl(liquido) }}</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td>Total do período</td>
-                  <td class="r">{{ brl(fat_total) }}</td>
-                  <td class="r ce-liq">{{ brl(fat_total_liq) }}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+        <!-- 1 · Faturamento Bruto (Dinheiro + Pix) -->
+        <div class="mg-card c-verde">
+          <div class="mg-top"><span class="mg-icon">💵</span><span class="mg-label">Fat. bruto · Dinheiro + Pix</span></div>
+          <div class="mg-val">{{ brl(fat_dinheiro_pix) }}</div>
+          <div class="mg-sub">Dinheiro + Pix (sem taxa)</div>
         </div>
 
-        <!-- DIREITA: 8 quadrantes (2 colunas × 4 linhas) -->
-        <div class="mg-grid">
+        <!-- 2 · Faturamento Bruto (Crédito à vista + parcelado + Débito) -->
+        <div class="mg-card c-azul">
+          <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Fat. bruto · Cartão</span></div>
+          <div class="mg-val">{{ brl(fat_cartao) }}</div>
+          <div class="mg-sub">Crédito à vista + parcelado + débito</div>
+        </div>
 
-          <!-- 1 · Despesas fixas (vencendo no período) -->
-          <a href="/despesas" class="mg-card c-laranja">
-            <div class="mg-top"><span class="mg-icon">📌</span><span class="mg-label">Despesas fixas</span></div>
-            <div class="mg-val">{{ brl(despesas_fixas) }}</div>
-            <div class="mg-sub">A pagar no período · vencimento</div>
-          </a>
+        <!-- 3 · Total de Faturamento Bruto -->
+        <div class="mg-card c-azul">
+          <div class="mg-top"><span class="mg-icon">🧾</span><span class="mg-label">Total faturamento bruto</span></div>
+          <div class="mg-val">{{ brl(fat_total) }}</div>
+          <div class="mg-sub">Soma de todas as formas</div>
+        </div>
 
-          <!-- 2 · Despesas avulsas (vencendo no período) -->
-          <a href="/despesas" class="mg-card c-laranja">
-            <div class="mg-top"><span class="mg-icon">💸</span><span class="mg-label">Despesas avulsas</span></div>
-            <div class="mg-val">{{ brl(despesas_avulsas) }}</div>
-            <div class="mg-sub">A pagar no período · vencimento</div>
-          </a>
+        <!-- 4 · Total de Faturamento Líquido -->
+        <div class="mg-card c-verde">
+          <div class="mg-top"><span class="mg-icon">✅</span><span class="mg-label">Total faturamento líquido</span></div>
+          <div class="mg-val pos">{{ brl(fat_total_liq) }}</div>
+          <div class="mg-sub">Após taxas de cartão</div>
+        </div>
 
-          <!-- 3 · Lucro líquido = total líquido entrada − (fixas + avulsas) -->
-          <div class="mg-card c-ouro">
-            <div class="mg-top"><span class="mg-icon">🏆</span><span class="mg-label">Lucro líquido</span></div>
-            <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}">{{ brl(lucro_liquido) }}</div>
-            <div class="mg-sub">Entradas líquidas − despesas do período</div>
-          </div>
+        <!-- 5 · Percentual Bruto vs Líquido -->
+        <div class="mg-card c-ouro">
+          <div class="mg-top"><span class="mg-icon">📊</span><span class="mg-label">Bruto vs líquido</span></div>
+          <div class="mg-val">{{ "%.1f"|format(pct_liquido)|replace(".",",") }}%</div>
+          <div class="mg-sub">Líquido sobre o bruto · taxas {{ "%.1f"|format(100 - pct_liquido)|replace(".",",") }}%</div>
+        </div>
 
-          <!-- 4 · Crediários em aberto -->
-          <a href="/crediarios" class="mg-card c-rosa">
-            <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Crediários em aberto</span></div>
-            <div class="mg-val">{{ brl(val_crediarios) }}</div>
-            <div class="mg-link">Ver crediários →</div>
-          </a>
+        <!-- 6 · Despesas fixas -->
+        <a href="/despesas" class="mg-card c-laranja">
+          <div class="mg-top"><span class="mg-icon">📌</span><span class="mg-label">Despesas fixas</span></div>
+          <div class="mg-val">{{ brl(despesas_fixas) }}</div>
+          <div class="mg-sub">A pagar no período · vencimento</div>
+        </a>
 
-          <!-- 5 · Em condicional / transferência -->
-          <a href="/condicionais" class="mg-card c-azul">
-            <div class="mg-top"><span class="mg-icon">🛍️</span><span class="mg-label">Em condicional / transferência</span></div>
-            <div class="mg-val">{{ brl(val_condicional) }}</div>
-            <div class="mg-sub">{{ n_condicional }} em aberto · peças reservadas</div>
-          </a>
+        <!-- 7 · Despesas avulsas -->
+        <a href="/despesas" class="mg-card c-laranja">
+          <div class="mg-top"><span class="mg-icon">💸</span><span class="mg-label">Despesas avulsas</span></div>
+          <div class="mg-val">{{ brl(despesas_avulsas) }}</div>
+          <div class="mg-sub">A pagar no período · vencimento</div>
+        </a>
 
-          <!-- 6 · Valor de estoque -->
-          <a href="/estoque" class="mg-card c-azul">
-            <div class="mg-top"><span class="mg-icon">📦</span><span class="mg-label">Valor de estoque</span></div>
-            <div class="mg-val">{{ brl(val_estoque) }}</div>
-            <div class="mg-link">Ver estoque →</div>
-          </a>
+        <!-- 8 · Lucro Líquido -->
+        <div class="mg-card c-ouro">
+          <div class="mg-top"><span class="mg-icon">🏆</span><span class="mg-label">Lucro líquido</span></div>
+          <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}">{{ brl(lucro_liquido) }}</div>
+          <div class="mg-sub">Entradas líquidas − despesas do período</div>
+        </div>
 
-          <!-- 7 · Custo do estoque -->
-          <a href="/estoque" class="mg-card c-azul">
-            <div class="mg-top"><span class="mg-icon">🏷️</span><span class="mg-label">Custo do estoque</span></div>
-            <div class="mg-val">{{ brl(custo_estoque) }}</div>
-            <div class="mg-link">Ver estoque →</div>
-          </a>
+        <!-- 9 · Total em caixa -->
+        <div class="mg-card c-verde">
+          <div class="mg-top"><span class="mg-icon">🏦</span><span class="mg-label">Total em caixa</span></div>
+          <div class="mg-val {% if total_caixa >= 0 %}pos{% else %}neg{% endif %}">{{ brl(total_caixa) }}</div>
+          <div class="mg-sub">Entradas líquidas − despesas fixas/avulsas</div>
+        </div>
 
-          <!-- 8 · Potencial de venda = valor de estoque − custo de estoque -->
-          <a href="/estoque" class="mg-card c-verde">
-            <div class="mg-top"><span class="mg-icon">📈</span><span class="mg-label">Potencial de venda do estoque</span></div>
-            <div class="mg-val pos">{{ brl(lucro_potencial) }}</div>
-            <div class="mg-sub">Valor de estoque − custo de estoque</div>
-          </a>
+        <!-- 10 · Crediário em aberto -->
+        <a href="/crediarios" class="mg-card c-rosa">
+          <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Crediário em aberto</span></div>
+          <div class="mg-val">{{ brl(val_crediarios) }}</div>
+          <div class="mg-link">Ver crediários →</div>
+        </a>
 
-        </div><!-- /mg-grid -->
-      </div><!-- /vg-body -->
+        <!-- 11 · Em condicional / transferências -->
+        <a href="/condicionais" class="mg-card c-azul">
+          <div class="mg-top"><span class="mg-icon">🛍️</span><span class="mg-label">Em condicional / transferências</span></div>
+          <div class="mg-val">{{ brl(val_condicional) }}</div>
+          <div class="mg-sub">{{ n_condicional }} em aberto · peças reservadas</div>
+        </a>
+
+        <!-- 12 · Valor em estoque -->
+        <a href="/estoque" class="mg-card c-azul">
+          <div class="mg-top"><span class="mg-icon">📦</span><span class="mg-label">Valor em estoque</span></div>
+          <div class="mg-val">{{ brl(val_estoque) }}</div>
+          <div class="mg-link">Ver estoque →</div>
+        </a>
+
+        <!-- 13 · Custo de estoque -->
+        <a href="/estoque" class="mg-card c-azul">
+          <div class="mg-top"><span class="mg-icon">🏷️</span><span class="mg-label">Custo de estoque</span></div>
+          <div class="mg-val">{{ brl(custo_estoque) }}</div>
+          <div class="mg-link">Ver estoque →</div>
+        </a>
+
+        <!-- 14 · Potencial de vendas do estoque -->
+        <a href="/estoque" class="mg-card c-verde">
+          <div class="mg-top"><span class="mg-icon">📈</span><span class="mg-label">Potencial de vendas do estoque</span></div>
+          <div class="mg-val pos">{{ brl(lucro_potencial) }}</div>
+          <div class="mg-sub">Valor de estoque − custo de estoque</div>
+        </a>
+
+      </div><!-- /vg-quad -->
     </main>
   </div>
 </div>

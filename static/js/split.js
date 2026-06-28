@@ -66,8 +66,8 @@ function criarSplitEditor(cfg){
     row.style.cssText='display:flex;gap:8px;align-items:flex-end;margin-bottom:8px';
     row.innerHTML =
       '<div class="form-field" style="flex:1;margin:0"><label class="form-label">Valor</label><input class="form-input split-valor" type="text" inputmode="numeric" placeholder="R$ 0,00"></div>'
-      + '<div class="form-field" style="flex:1.4;margin:0"><label class="form-label">Forma</label><select class="form-select split-forma">'+formaOptions()+'</select></div>'
-      + '<div class="form-field split-parc-wrap" style="width:110px;margin:0;visibility:hidden"><label class="form-label">Parcelas</label><select class="form-select split-parc">'+parcOptions()+'</select></div>'
+      + '<div class="form-field" style="flex:1.4;margin:0"><label class="form-label">Forma</label><select class="form-input split-forma" style="cursor:pointer">'+formaOptions()+'</select></div>'
+      + '<div class="form-field split-parc-wrap" style="width:110px;margin:0;visibility:hidden"><label class="form-label">Parcelas</label><select class="form-input split-parc" style="cursor:pointer">'+parcOptions()+'</select></div>'
       + '<button type="button" class="btn-del-split" title="Remover" style="padding:9px 11px;background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">🗑️</button>';
     rowsEl.appendChild(row);
     moneyMask(row.querySelector('.split-valor'), function(){ onEdit(row); });

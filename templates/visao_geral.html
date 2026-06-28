@@ -195,11 +195,11 @@
           <div class="mg-sub">Após taxas de cartão</div>
         </div>
 
-        <!-- 9 · Líquido vs Bruto -->
+        <!-- 9 · Líquido vs Bruto (número principal = taxa retida; líquido no subtítulo) -->
         <div class="mg-card c-ouro">
           <div class="mg-top"><span class="mg-icon">📊</span><span class="mg-label">Líquido vs bruto</span></div>
-          <div class="mg-val">{{ "%.1f"|format(pct_liquido)|replace(".",",") }}%</div>
-          <div class="mg-sub">Líquido sobre o bruto · taxas {{ "%.1f"|format(100 - pct_liquido)|replace(".",",") }}%</div>
+          <div class="mg-val">{{ "%.1f"|format(pct_taxa)|replace(".",",") }}%</div>
+          <div class="mg-sub">Taxa sobre o bruto · líquido {{ "%.1f"|format(pct_liquido)|replace(".",",") }}% do bruto</div>
         </div>
 
         <!-- 10 · Despesas fixas -->

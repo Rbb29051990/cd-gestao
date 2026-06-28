@@ -199,7 +199,9 @@ def ficha_venda(vid):
     row = cur.fetchone()
     if not row: flash('Venda nao encontrada.', 'erro'); return redirect(url_for('vendas'))
     venda = dict(row)
-    cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s", (vid,))
+    cur.execute("""SELECT vi.*, (e.foto IS NOT NULL) AS tem_foto
+                   FROM venda_itens vi LEFT JOIN estoque e ON e.id = vi.produto_id
+                   WHERE vi.venda_id=%s ORDER BY vi.id""", (vid,))
     itens = [dict(i) for i in cur.fetchall()]
     crediario = None
     if venda.get('forma_pagamento') == 'crediario':

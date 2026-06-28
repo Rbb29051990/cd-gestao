@@ -83,6 +83,7 @@
           <table class="etable">
             <thead>
               <tr>
+                <th>Foto</th>
                 <th>Ref</th>
                 <th>Modelo</th>
                 <th>Descrição</th>
@@ -95,6 +96,15 @@
             <tbody>
               {% for item in itens %}
               <tr>
+                <td>
+                  {% if item.tem_foto %}
+                  <div onclick="abrirFotoProduto({{ item.produto_id }})" title="Clique para ampliar" style="width:40px;height:40px;border-radius:7px;background:#eef0fb;display:flex;align-items:center;justify-content:center;cursor:zoom-in;overflow:hidden;font-size:16px">
+                    <img src="/consulta/foto/{{ item.produto_id }}" alt="" onerror="this.parentNode.innerHTML='📦';this.parentNode.style.cursor='default';this.parentNode.onclick=null" style="width:100%;height:100%;object-fit:cover">
+                  </div>
+                  {% else %}
+                  <div style="width:40px;height:40px;border-radius:7px;background:#eef0fb;display:flex;align-items:center;justify-content:center;font-size:16px">📦</div>
+                  {% endif %}
+                </td>
                 <td><span class="ref-code">{{ item.codigo_produto }}</span></td>
                 <td style="font-weight:600">{{ item.modelo or '—' }}</td>
                 <td style="color:#666">{{ item.descricao or '—' }}</td>
@@ -105,7 +115,7 @@
               </tr>
               {% endfor %}
               <tr style="background:#f8f8fc">
-                <td colspan="6" style="text-align:right;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa">Total da venda</td>
+                <td colspan="7" style="text-align:right;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa">Total da venda</td>
                 <td style="font-size:16px;font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(venda.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
               </tr>
             </tbody>
@@ -162,4 +172,15 @@
     </form>
   </div>
 </div>
+
+<!-- Overlay para ampliar a foto do produto -->
+<div id="fotoProdutoOverlay" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10000;align-items:center;justify-content:center;cursor:zoom-out;padding:24px">
+  <img id="fotoProdutoImg" src="" alt="Foto do produto" style="max-width:92vw;max-height:92vh;border-radius:12px;box-shadow:0 12px 50px rgba(0,0,0,.6)">
+</div>
+<script>
+function abrirFotoProduto(id){
+  document.getElementById('fotoProdutoImg').src = '/consulta/foto/' + id;
+  document.getElementById('fotoProdutoOverlay').style.display = 'flex';
+}
+</script>
 {% endblock %}

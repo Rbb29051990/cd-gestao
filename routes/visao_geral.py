@@ -52,6 +52,7 @@ def visao_geral():
     # % do líquido sobre o bruto (quanto sobra após as taxas de cartão)
     pct_liquido = round(fat_total_liq / fat_total * 100, 1) if fat_total > 0 else 0.0
     total_taxas = round(fat_total - fat_total_liq, 2)   # total de taxas descontadas
+    pct_taxa    = round(total_taxas / fat_total * 100, 1) if fat_total > 0 else 0.0  # % de taxa sobre o bruto
     # Estoque — custo, valor de venda, lucro potencial (sempre global, não filtra por período)
     try:
         cur.execute("""SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct,
@@ -130,7 +131,7 @@ def visao_geral():
     ctx = get_ctx()
     ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
                fat_dinheiro_pix=fat_dinheiro_pix, fat_cartao=fat_cartao, pct_liquido=pct_liquido,
-               total_taxas=total_taxas, saldo_caixa=saldo_caixa,
+               pct_taxa=pct_taxa, total_taxas=total_taxas, saldo_caixa=saldo_caixa,
                estoque_30=estoque_30, estoque_60=estoque_60,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,

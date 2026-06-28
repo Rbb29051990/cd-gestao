@@ -20,7 +20,7 @@ Uma cobrança agora pode ser paga em **mais de uma forma**. Ex.: R$50 no **débi
 
 ### Nova venda — busca de produto por nome (não só pelo código)
 
-Na tela de nova venda, além do campo de código, agora há um campo **"Buscar produto por nome, descrição ou código"**: conforme digita, aparece uma lista com **foto, estoque e preço** (igual à aba Consulta). Clicar seleciona o produto (preenche os dados), bastando informar a quantidade e Adicionar. Itens **sem estoque** aparecem em cinza e não podem ser selecionados. Reaproveita os endpoints `/consulta/buscar` e `/consulta/foto/<id>` (sem mudança de backend). Ajuda quando a etiqueta sumiu e evita vender o produto errado.
+Na tela de nova venda, além do campo de código, agora há um campo **"Buscar produto por nome, descrição ou código"**: conforme digita, aparece uma lista com **foto, estoque e preço** (igual à aba Consulta). Cada item tem um **checkbox** para **marcar (definir) o produto** — a seleção é só pelo checkbox, sem risco de escolher errado num clique solto — e a **foto amplia ao clicar** (overlay) para conferência visual. Marcado, preenche os dados; basta informar a quantidade e Adicionar. Itens **sem estoque** aparecem em cinza e não podem ser marcados. Reaproveita os endpoints `/consulta/buscar` e `/consulta/foto/<id>` (sem mudança de backend). Ajuda quando a etiqueta sumiu e evita vender o produto errado.
 
 ### Dashboard — Ranking de vendedoras mostra todas as vendedoras
 

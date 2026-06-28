@@ -608,7 +608,9 @@ function selecionarProduto(it){
 }
 
 document.addEventListener('click', e => {
-  if (!e.target.closest('#buscaProdutoWrap')) document.getElementById('produtoSugest').style.display = 'none';
+  // Não fecha a listagem ao fechar o zoom da foto (o overlay fica fora do wrapper).
+  if (!e.target.closest('#buscaProdutoWrap') && !e.target.closest('#fotoProdutoOverlay'))
+    document.getElementById('produtoSugest').style.display = 'none';
 });
 
 function addItemCarrinho() {

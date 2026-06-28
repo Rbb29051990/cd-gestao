@@ -458,6 +458,40 @@
   <img id="fotoProdutoImg" src="" alt="Foto do produto" style="max-width:92vw;max-height:92vh;border-radius:12px;box-shadow:0 12px 50px rgba(0,0,0,.6)">
 </div>
 
+<!-- MODAL: cadastrar cliente sem sair da venda -->
+<div class="modal-overlay" id="modalNovoCliente" style="display:none;z-index:9000">
+  <div class="modal" style="max-width:580px">
+    <button class="modal-close" onclick="document.getElementById('modalNovoCliente').style.display='none'">✕</button>
+    <div class="modal-title">Cadastrar cliente</div>
+    <div class="modal-sub">Preencha os dados e salve — você continua na venda com o cliente já selecionado.</div>
+    <form id="formNovoCliente" onsubmit="return salvarNovoCliente(event)">
+      <div class="form-grid2">
+        <div class="form-field"><label class="form-label">Nome *</label><input class="form-input" name="nome" id="ncNome" required placeholder="Ex.: Maria Silva" oninput="tituloCaso(this)"></div>
+        <div class="form-field"><label class="form-label">CPF</label><input class="form-input" name="cpf" maxlength="14" placeholder="000.000.000-00" oninput="mascCPF(this)"></div>
+        <div class="form-field"><label class="form-label">Nascimento</label><input class="form-input" type="date" name="data_nascimento"></div>
+        <div class="form-field"><label class="form-label">Telefone</label><input class="form-input" name="telefone" maxlength="15" placeholder="(00) 00000-0000" oninput="mascTel(this)"></div>
+        <div class="form-field"><label class="form-label">Telefone 2</label><input class="form-input" name="telefone2" maxlength="15" placeholder="(00) 00000-0000" oninput="mascTel(this)"></div>
+        <div class="form-field"><label class="form-label">CEP</label><input class="form-input" name="cep" id="ncCep" maxlength="9" placeholder="00000-000" oninput="mascCEP(this)"></div>
+        <div class="form-field"><label class="form-label">Logradouro</label><input class="form-input" name="logradouro" id="ncLogradouro" placeholder="Rua, Avenida..." oninput="tituloCaso(this)"></div>
+        <div class="form-field"><label class="form-label">Número</label><input class="form-input" name="numero" id="ncNumero" placeholder="Ex.: 123"></div>
+        <div class="form-field"><label class="form-label">Complemento</label><input class="form-input" name="complemento" placeholder="Apto, casa..." oninput="tituloCaso(this)"></div>
+        <div class="form-field"><label class="form-label">Bairro</label><input class="form-input" name="bairro" id="ncBairro" placeholder="Ex.: Centro" oninput="tituloCaso(this)"></div>
+        <div class="form-field"><label class="form-label">Cidade</label><input class="form-input" name="cidade" id="ncCidade" placeholder="Ex.: Leopoldina" oninput="tituloCaso(this)"></div>
+        <div class="form-field"><label class="form-label">UF</label><input class="form-input" name="uf" id="ncUf" maxlength="2" placeholder="MG" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+      </div>
+      <div style="display:flex;gap:20px;margin:14px 0">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="ncCrediario" style="width:16px;height:16px;accent-color:#2e7d32">Habilitar crediário</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="ncPromocoes" checked style="width:16px;height:16px;accent-color:#2e7d32">Recebe promoções</label>
+      </div>
+      <div id="ncErro" style="display:none;background:#fce4ec;color:#c62828;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600;margin-bottom:10px"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar-m" onclick="document.getElementById('modalNovoCliente').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-finalizar">💾 Salvar e continuar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 let carrinhoItens = [], clienteTemCrediario = false, refAtual = null;
 function abrirFotoProduto(id){
@@ -488,7 +522,7 @@ function buscarCliente(q) {
     const d = await r.json();
     el.innerHTML = '';
     if (!d.clientes || d.clientes.length === 0) {
-      el.innerHTML = '<div class="cliente-item" style="color:#c62828">Não encontrado — <a href="/clientes" style="color:#1565c0">cadastrar</a></div>';
+      el.innerHTML = '<div class="cliente-item" style="color:#c62828">Não encontrado — <a style="color:#1565c0;cursor:pointer;font-weight:700" onclick="abrirNovoCliente(document.getElementById(\'buscaCliente\').value)">cadastrar aqui</a></div>';
     } else {
       d.clientes.forEach(c => {
         const div = document.createElement('div');
@@ -519,6 +553,62 @@ function selecionarCliente(c) {
 document.addEventListener('click', e => {
   if (!e.target.closest('.pos-rel')) document.getElementById('clienteSugest').style.display = 'none';
 });
+
+/* ── Máscaras e capitalização do cadastro rápido de cliente ── */
+function mascTel(el){ let v=el.value.replace(/\D/g,'').slice(0,11); if(v.length<=10) v=v.replace(/^(\d{2})(\d{4})(\d{0,4})$/,'($1) $2-$3'); else v=v.replace(/^(\d{2})(\d{5})(\d{0,4})$/,'($1) $2-$3'); el.value=v; }
+function mascCPF(el){ let v=el.value.replace(/\D/g,'').slice(0,11); v=v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); el.value=v; }
+function mascCEP(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>5) v=v.slice(0,5)+'-'+v.slice(5); el.value=v; buscarCepCliente(v); }
+/* Title Case: deixa a inicial de cada palavra em maiúscula (sem mexer no resto). */
+function tituloCaso(el){
+  const s=el.selectionStart, e=el.selectionEnd;
+  el.value = el.value.replace(/(^|[\s'])([a-zà-ÿ])/g, function(m,a,b){ return a + b.toUpperCase(); });
+  try{ el.setSelectionRange(s,e); }catch(_){}
+}
+let ncCepTimer;
+function buscarCepCliente(val){
+  clearTimeout(ncCepTimer);
+  const d=val.replace(/\D/g,''); if(d.length!==8) return;
+  ncCepTimer=setTimeout(async()=>{
+    try{
+      const j = await (await fetch('https://viacep.com.br/ws/'+d+'/json/')).json();
+      if(j.erro) return;
+      const set=(id,v)=>{ const el=document.getElementById(id); if(el && v) el.value=v; };
+      set('ncLogradouro', j.logradouro); set('ncBairro', j.bairro); set('ncCidade', j.localidade);
+      const uf=document.getElementById('ncUf'); if(uf && j.uf) uf.value=j.uf;
+      const num=document.getElementById('ncNumero'); if(num) setTimeout(()=>num.focus(),100);
+    }catch(e){}
+  },400);
+}
+
+/* Cadastrar cliente sem sair da venda */
+function abrirNovoCliente(nome){
+  document.getElementById('clienteSugest').style.display = 'none';
+  document.getElementById('formNovoCliente').reset();
+  document.getElementById('ncCrediario').checked = false;
+  document.getElementById('ncPromocoes').checked = true;
+  document.getElementById('ncNome').value = (nome || '').trim();
+  document.getElementById('ncErro').style.display = 'none';
+  document.getElementById('modalNovoCliente').style.display = 'flex';
+  setTimeout(function(){ document.getElementById('ncNome').focus(); }, 50);
+}
+
+async function salvarNovoCliente(ev){
+  ev.preventDefault();
+  const form = document.getElementById('formNovoCliente');
+  if (!form.nome.value.trim()){ form.nome.focus(); return false; }
+  const fd = new FormData(form);
+  fd.set('crediario', document.getElementById('ncCrediario').checked ? '1' : '0');
+  fd.set('promocoes', document.getElementById('ncPromocoes').checked ? '1' : '0');
+  const erro = document.getElementById('ncErro');
+  erro.style.display = 'none';
+  let d;
+  try { d = await (await fetch('/clientes/novo-rapido', {method:'POST', body:fd})).json(); }
+  catch(e){ erro.textContent = 'Falha ao salvar. Tente novamente.'; erro.style.display = 'block'; return false; }
+  if (!d.ok){ erro.textContent = d.erro || 'Não foi possível cadastrar.'; erro.style.display = 'block'; return false; }
+  selecionarCliente(d.cliente);  // já preenche o cliente na venda e habilita crediário se for o caso
+  document.getElementById('modalNovoCliente').style.display = 'none';
+  return false;
+}
 
 function preencherRefInfo(){
   const it = refAtual;

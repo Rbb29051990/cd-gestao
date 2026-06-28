@@ -61,6 +61,54 @@ def novo_cliente():
 
 
 @login_required
+def criar_cliente_rapido():
+    """Cadastra um cliente e devolve JSON — usado para cadastrar SEM sair da venda.
+    Se já existir um cliente com o mesmo nome, devolve o existente (não duplica)."""
+    nome = request.form.get('nome', '').strip()
+    if not nome:
+        return jsonify({'ok': False, 'erro': 'Informe o nome do cliente.'})
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE LOWER(TRIM(nome))=LOWER(TRIM(%s))", (nome,))
+        ex = cur.fetchone()
+        if ex:
+            c = dict(ex)
+            return jsonify({'ok': True, 'existente': True,
+                            'cliente': {'id': c['id'], 'codigo': c['codigo'], 'nome': c['nome'], 'crediario': bool(c['crediario'])}})
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM clientes WHERE codigo ~ '^C[0-9]+$'")
+        n = cur.fetchone()['m']
+        cur.execute("""INSERT INTO clientes (codigo,nome,cpf,data_nascimento,telefone,telefone2,
+            cep,logradouro,numero,complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar,usuario_id,usuario_nome)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id,codigo,nome,crediario""",
+            (f"C{n+1}", nome,
+             request.form.get('cpf', '').strip() or None,
+             request.form.get('data_nascimento') or None,
+             request.form.get('telefone', '').strip() or None,
+             request.form.get('telefone2', '').strip() or None,
+             request.form.get('cep', '').strip() or None,
+             request.form.get('logradouro', '').strip() or None,
+             request.form.get('numero', '').strip() or None,
+             request.form.get('complemento', '').strip() or None,
+             request.form.get('bairro', '').strip() or None,
+             request.form.get('cidade', '').strip() or None,
+             request.form.get('uf', '').strip() or None,
+             request.form.get('promocoes', '0') == '1',
+             request.form.get('crediario', '0') == '1',
+             random.choice(CORES),
+             session.get('uid'), session.get('nome')))
+        row = dict(cur.fetchone())
+        conn.commit()
+        return jsonify({'ok': True, 'cliente': {'id': row['id'], 'codigo': row['codigo'],
+                                                'nome': row['nome'], 'crediario': bool(row['crediario'])}})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'ok': False, 'erro': str(e)})
+    finally:
+        cur.close(); close_db(conn)
+
+
+@login_required
 def verificar_cliente():
     campo = request.args.get('campo'); valor = request.args.get('valor', '').strip()
     if not campo or not valor: return jsonify({'ok': True})
@@ -135,6 +183,7 @@ def excluir_cliente(cid):
 def register(app):
     app.add_url_rule('/clientes', 'clientes', clientes)
     app.add_url_rule('/clientes/novo', 'novo_cliente', novo_cliente, methods=['POST'])
+    app.add_url_rule('/clientes/novo-rapido', 'criar_cliente_rapido', criar_cliente_rapido, methods=['POST'])
     app.add_url_rule('/clientes/verificar', 'verificar_cliente', verificar_cliente)
     app.add_url_rule('/clientes/<int:cid>', 'ficha_cliente', ficha_cliente)
     app.add_url_rule('/clientes/<int:cid>/editar', 'editar_cliente', editar_cliente, methods=['GET', 'POST'])

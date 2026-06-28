@@ -18,6 +18,10 @@ Uma cobrança agora pode ser paga em **mais de uma forma**. Ex.: R$50 no **débi
 
 **Componente compartilhado:** `static/js/split.js` (`moneyMask` + `criarSplitEditor`), carregado pelo `base.html`. Helpers no backend em `utils.py` (`parse_pagamentos`, `registrar_pagamentos_caixa`, `liquido_caixa_por_venda`).
 
+### Nova venda — busca de produto por nome (não só pelo código)
+
+Na tela de nova venda, além do campo de código, agora há um campo **"Buscar produto por nome, descrição ou código"**: conforme digita, aparece uma lista com **foto, estoque e preço** (igual à aba Consulta). Clicar seleciona o produto (preenche os dados), bastando informar a quantidade e Adicionar. Itens **sem estoque** aparecem em cinza e não podem ser selecionados. Reaproveita os endpoints `/consulta/buscar` e `/consulta/foto/<id>` (sem mudança de backend). Ajuda quando a etiqueta sumiu e evita vender o produto errado.
+
 ### Dashboard — Ranking de vendedoras mostra todas as vendedoras
 
 O ranking deixou de ficar restrito a quem já vendeu. Agora **todas as vendedoras ativas aparecem** (mesmo com zero vendas), com todos os indicadores: venda líquida, qtd de produtos, ticket, clientes atendidos e **clientes cadastrados** — útil para lojas novas que começaram só cadastrando clientes (ex.: CD Slim). Ordena por venda líquida e, em empate (sem vendas), pelos clientes cadastrados. **Administradores N1 (donos) não aparecem no ranking** (nem por venda nem por cadastro).

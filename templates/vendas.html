@@ -270,6 +270,11 @@
       </div>
 
       <div class="step-sep">2. Itens da venda</div>
+      <div class="form-field" id="buscaProdutoWrap" style="position:relative;margin-bottom:10px">
+        <label class="form-label">Buscar produto por nome, descrição ou código</label>
+        <input class="form-input" type="text" id="buscaProduto" autocomplete="off" placeholder="Ex.: vestido, calça jeans, P12..." oninput="buscarProduto(this.value)">
+        <div id="produtoSugest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;background:#fff;border:1.5px solid #e0e0e8;border-radius:10px;margin-top:4px;max-height:340px;overflow:auto;box-shadow:0 12px 30px rgba(0,0,0,.12)"></div>
+      </div>
       <div class="add-item-bar">
         <div class="form-field" style="flex:1">
           <label class="form-label">Código do produto (só números)</label>
@@ -506,29 +511,90 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.pos-rel')) document.getElementById('clienteSugest').style.display = 'none';
 });
 
+function preencherRefInfo(){
+  const it = refAtual;
+  if (!it) { document.getElementById('refInfo').style.display='none'; return; }
+  document.getElementById('rModelo').textContent = it.modelo || '—';
+  document.getElementById('rDesc').textContent = (it.descricao || '—') + ' / ' + (it.tamanho || '—');
+  document.getElementById('rTam').textContent = it.tamanho || '—';
+  var vf = parseFloat(it.valor_final != null ? it.valor_final : it.valor_venda);
+  if (it.desconto_promo > 0) {
+    document.getElementById('rVal').innerHTML = '<span style="text-decoration:line-through;color:#aaa;font-size:12px">R$ ' + parseFloat(it.valor_original).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span> <b style="color:#c62828">R$ ' + vf.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</b> <span style="background:#fdecef;color:#c62828;font-weight:700;font-size:11px;padding:1px 6px;border-radius:5px">🏷️ -' + Math.round(it.desconto_promo) + '%</span>';
+  } else {
+    document.getElementById('rVal').textContent = 'R$ ' + vf.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  }
+  document.getElementById('rSaldo').textContent = it.quantidade + ' unidade(s) em estoque';
+  document.getElementById('rSaldoWrap').style.color = it.quantidade <= 0 ? '#c62828' : it.quantidade <= 2 ? '#f57f17' : '#2e7d32';
+  document.getElementById('refInfo').style.display = 'block';
+}
+
 async function buscarRef(v) {
   if (!v || v < 1) { document.getElementById('refInfo').style.display='none'; refAtual=null; return; }
   const r = await fetch('/vendas/buscar-ref?ref=' + encodeURIComponent(v));
   const d = await r.json();
-  if (d.ok) {
-    refAtual = d.item;
-    document.getElementById('rModelo').textContent = d.item.modelo || '—';
-    document.getElementById('rDesc').textContent = (d.item.descricao || '—') + ' / ' + (d.item.tamanho || '—');
-    document.getElementById('rTam').textContent = d.item.tamanho || '—';
-    var vf = parseFloat(d.item.valor_final != null ? d.item.valor_final : d.item.valor_venda);
-    if (d.item.desconto_promo > 0) {
-      document.getElementById('rVal').innerHTML = '<span style="text-decoration:line-through;color:#aaa;font-size:12px">R$ ' + parseFloat(d.item.valor_original).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span> <b style="color:#c62828">R$ ' + vf.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</b> <span style="background:#fdecef;color:#c62828;font-weight:700;font-size:11px;padding:1px 6px;border-radius:5px">🏷️ -' + Math.round(d.item.desconto_promo) + '%</span>';
-    } else {
-      document.getElementById('rVal').textContent = 'R$ ' + vf.toLocaleString('pt-BR',{minimumFractionDigits:2});
-    }
-    document.getElementById('rSaldo').textContent = d.item.quantidade + ' unidade(s) em estoque';
-    document.getElementById('rSaldoWrap').style.color = d.item.quantidade <= 0 ? '#c62828' : d.item.quantidade <= 2 ? '#f57f17' : '#2e7d32';
-    document.getElementById('refInfo').style.display = 'block';
-  } else {
-    refAtual = null;
-    document.getElementById('refInfo').style.display = 'none';
-  }
+  if (d.ok) { refAtual = d.item; preencherRefInfo(); }
+  else { refAtual = null; document.getElementById('refInfo').style.display = 'none'; }
 }
+
+/* Busca por nome/descrição/código (igual à aba Consulta): mostra foto, estoque e preço. */
+let prodTimer = null;
+function buscarProduto(q){
+  clearTimeout(prodTimer);
+  const el = document.getElementById('produtoSugest');
+  if (!q || q.trim().length < 2){ el.style.display='none'; el.innerHTML=''; return; }
+  prodTimer = setTimeout(async () => {
+    let d;
+    try { d = await (await fetch('/consulta/buscar?q=' + encodeURIComponent(q))).json(); }
+    catch(e){ return; }
+    el.innerHTML = '';
+    if (!d.itens || d.itens.length === 0){
+      el.innerHTML = '<div style="padding:10px 12px;color:#c62828;font-size:13px">Nenhum produto encontrado.</div>';
+      el.style.display = 'block'; return;
+    }
+    d.itens.forEach(it => {
+      const semEstoque = (it.quantidade || 0) <= 0;
+      const card = document.createElement('div');
+      card.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #f0f0f4;cursor:' + (semEstoque?'not-allowed':'pointer') + ';opacity:' + (semEstoque?'0.55':'1');
+      const foto = it.tem_foto
+        ? '<img src="/consulta/foto/' + it.id + '" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none">'
+        : '<div style="width:44px;height:44px;border-radius:8px;background:#eef0fb;flex:none;display:flex;align-items:center;justify-content:center;font-size:18px">📦</div>';
+      let preco;
+      if (it.valor_promo != null){
+        preco = '<span style="text-decoration:line-through;color:#aaa;font-size:11px">R$ ' + it.valor_venda.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span> <b style="color:#c62828">R$ ' + it.valor_promo.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</b>';
+      } else {
+        preco = '<b style="color:#2e7d32">R$ ' + it.valor_venda.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</b>';
+      }
+      const corEst = semEstoque ? '#c62828' : (it.quantidade <= 2 ? '#f57f17' : '#2e7d32');
+      card.innerHTML = foto +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-weight:700;font-size:13px;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (it.codigo||'') + ' · ' + (it.modelo||'—') + '</div>' +
+          '<div style="font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (it.descricao||'') + (it.tamanho ? (' · Tam ' + it.tamanho) : '') + '</div>' +
+          '<div style="font-size:12px;margin-top:2px">' + preco + ' <span style="color:' + corEst + ';font-weight:600;margin-left:6px">' + (semEstoque ? 'sem estoque' : (it.quantidade + ' em estoque')) + '</span></div>' +
+        '</div>';
+      if (!semEstoque) card.onclick = () => selecionarProduto(it);
+      el.appendChild(card);
+    });
+    el.style.display = 'block';
+  }, 300);
+}
+
+function selecionarProduto(it){
+  refAtual = {
+    produto_id: it.id, codigo: it.codigo, modelo: it.modelo, descricao: it.descricao, tamanho: it.tamanho,
+    valor_original: it.valor_venda, desconto_promo: it.desconto_promo || 0,
+    valor_final: (it.valor_promo != null ? it.valor_promo : it.valor_venda),
+    valor_venda: it.valor_venda, quantidade: it.quantidade
+  };
+  preencherRefInfo();
+  document.getElementById('buscaProduto').value = (it.codigo||'') + ' · ' + (it.modelo || it.descricao || '');
+  document.getElementById('produtoSugest').style.display = 'none';
+  document.getElementById('refInput').value = '';
+  const q = document.getElementById('refQtd'); if (q) q.focus();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#buscaProdutoWrap')) document.getElementById('produtoSugest').style.display = 'none';
+});
 
 function addItemCarrinho() {
   if (!refAtual) return;
@@ -560,6 +626,7 @@ function addItemCarrinho() {
   document.getElementById('refInput').value = '';
   document.getElementById('refInfo').style.display = 'none';
   document.getElementById('refQtd').value = 1;
+  const bp = document.getElementById('buscaProduto'); if (bp) bp.value = '';
   refAtual = null;
 }
 

@@ -51,6 +51,7 @@ def visao_geral():
     fat_cartao       = round(fat_total - fat_dinheiro_pix, 2)           # 2º (crédito/débito/link)
     # % do líquido sobre o bruto (quanto sobra após as taxas de cartão)
     pct_liquido = round(fat_total_liq / fat_total * 100, 1) if fat_total > 0 else 0.0
+    total_taxas = round(fat_total - fat_total_liq, 2)   # total de taxas descontadas
     # Estoque — custo, valor de venda, lucro potencial (sempre global, não filtra por período)
     try:
         cur.execute("""SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct,
@@ -61,6 +62,17 @@ def visao_geral():
         val_estoque     = round(float(r['vt']), 2)
         lucro_potencial = round(val_estoque - custo_estoque, 2)
     except: custo_estoque = val_estoque = lucro_potencial = 0.0
+    # Estoque parado (mesmo critério do dashboard: dias desde a última venda, ou
+    # desde a entrada se nunca vendeu). Usa o VALOR de venda, igual ao "Valor em estoque".
+    try:
+        cur.execute("""SELECT
+            COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em)))>30 THEN valor_venda*quantidade ELSE 0 END),0) e30,
+            COALESCE(SUM(CASE WHEN (CURRENT_DATE-COALESCE(ultima_venda,DATE(criado_em)))>60 THEN valor_venda*quantidade ELSE 0 END),0) e60
+            FROM estoque WHERE ativo=TRUE AND quantidade>0""")
+        re = cur.fetchone()
+        estoque_30 = round(float(re['e30']), 2)
+        estoque_60 = round(float(re['e60']), 2)
+    except: estoque_30 = estoque_60 = 0.0
     # Crediários em aberto (global)
     try:
         cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as v FROM crediarios WHERE status='aberto'")
@@ -91,9 +103,18 @@ def visao_geral():
     despesas_avulsas = round(despesas_avulsas, 2)
     val_despesas     = round(despesas_fixas + despesas_avulsas, 2)
     # Lucro líquido = entradas líquidas − (despesas fixas + avulsas) do período
+    # (pelo VENCIMENTO — inclui o que ainda está a pagar).
     lucro_liquido = round(fat_total_liq - val_despesas, 2)
-    # Total em caixa = entradas líquidas − saídas (despesas fixas + avulsas)
-    total_caixa = round(fat_total_liq - val_despesas, 2)
+    # Total em caixa = saldo líquido REAL (igual ao "saldo líquido" da aba Caixa):
+    # entradas líquidas − SAÍDAS já pagas (lançamentos tipo 'saida' no caixa). O que
+    # ainda está só "a pagar" (despesa vincenda) NÃO entra aqui.
+    try:
+        cur.execute("SELECT COALESCE(SUM(valor),0) s FROM caixa WHERE tipo='saida' AND DATE(criado_em) BETWEEN %s AND %s",
+                    (data_inicio, data_fim))
+        saidas_caixa = round(float(cur.fetchone()['s']), 2)
+    except Exception:
+        saidas_caixa = 0.0
+    saldo_caixa = round(fat_total_liq - saidas_caixa, 2)
     # Movimentações recentes (filtradas pelo período)
     try:
         cur.execute("""SELECT id,criado_em,vendedora_nome,cliente_nome,valor_total,forma_pagamento
@@ -109,7 +130,8 @@ def visao_geral():
     ctx = get_ctx()
     ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
                fat_dinheiro_pix=fat_dinheiro_pix, fat_cartao=fat_cartao, pct_liquido=pct_liquido,
-               total_caixa=total_caixa,
+               total_taxas=total_taxas, saldo_caixa=saldo_caixa,
+               estoque_30=estoque_30, estoque_60=estoque_60,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,
                val_condicional=val_condicional, n_condicional=n_condicional,

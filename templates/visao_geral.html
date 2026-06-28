@@ -83,7 +83,7 @@
 .mg-link { font-size:10px; font-weight:600; color:#c0c0cc; margin-top:0; }
 .mg-sub  { font-size:10px; color:#a0a0ad; margin-top:0; }
 
-/* ── 14 QUADRANTES: grid responsivo (desktop ~5/linha, tablet ~3, celular 2) ──
+/* ── QUADRANTES: grid responsivo (desktop ~5/linha, tablet ~3, celular 2) ──
    auto-fill + minmax mantém o padrão dos cards e reduz a coluna sozinho conforme
    a largura, sem prejudicar a leitura no celular/tablet. */
 .vg-quad { display:grid; grid-template-columns:repeat(auto-fill, minmax(205px, 1fr));
@@ -136,105 +136,147 @@
         </div>
       </div>
 
-      <!-- 14 QUADRANTES (ordem definida) -->
+      <!-- 20 QUADRANTES (ordem definida) -->
       <div class="vg-quad">
 
-        <!-- 1 · Faturamento Bruto (Dinheiro + Pix) -->
+        <!-- 1 · Fat. Bruto · Dinheiro -->
         <div class="mg-card c-verde">
-          <div class="mg-top"><span class="mg-icon">💵</span><span class="mg-label">Fat. bruto · Dinheiro + Pix</span></div>
-          <div class="mg-val">{{ brl(fat_dinheiro_pix) }}</div>
-          <div class="mg-sub">Dinheiro + Pix (sem taxa)</div>
+          <div class="mg-top"><span class="mg-icon">💵</span><span class="mg-label">Fat. bruto · Dinheiro</span></div>
+          <div class="mg-val">{{ brl(fat.dinheiro) }}</div>
+          <div class="mg-sub">Sem taxa</div>
         </div>
 
-        <!-- 2 · Faturamento Bruto (Crédito à vista + parcelado + Débito) -->
+        <!-- 2 · Fat. Bruto · Pix -->
+        <div class="mg-card c-verde">
+          <div class="mg-top"><span class="mg-icon">⚡</span><span class="mg-label">Fat. bruto · Pix</span></div>
+          <div class="mg-val">{{ brl(fat.pix) }}</div>
+          <div class="mg-sub">Sem taxa</div>
+        </div>
+
+        <!-- 3 · Fat. Bruto · Débito -->
         <div class="mg-card c-azul">
-          <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Fat. bruto · Cartão</span></div>
-          <div class="mg-val">{{ brl(fat_cartao) }}</div>
-          <div class="mg-sub">Crédito à vista + parcelado + débito</div>
+          <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Fat. bruto · Débito</span></div>
+          <div class="mg-val">{{ brl(fat.debito) }}</div>
+          <div class="mg-sub">Bruto, antes da taxa</div>
         </div>
 
-        <!-- 3 · Total de Faturamento Bruto -->
+        <!-- 4 · Fat. Bruto · Crédito à vista -->
+        <div class="mg-card c-azul">
+          <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Fat. bruto · Créd. à vista</span></div>
+          <div class="mg-val">{{ brl(fat.credito_vista) }}</div>
+          <div class="mg-sub">Bruto, antes da taxa</div>
+        </div>
+
+        <!-- 5 · Fat. Bruto · Crédito parcelado -->
+        <div class="mg-card c-azul">
+          <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Fat. bruto · Créd. parcelado</span></div>
+          <div class="mg-val">{{ brl(fat.credito_parcelado) }}</div>
+          <div class="mg-sub">Bruto, antes da taxa</div>
+        </div>
+
+        <!-- 6 · Total de Faturamento Bruto -->
         <div class="mg-card c-azul">
           <div class="mg-top"><span class="mg-icon">🧾</span><span class="mg-label">Total faturamento bruto</span></div>
           <div class="mg-val">{{ brl(fat_total) }}</div>
           <div class="mg-sub">Soma de todas as formas</div>
         </div>
 
-        <!-- 4 · Total de Faturamento Líquido -->
+        <!-- 7 · Total de Taxas descontadas (→ detalhe no dashboard) -->
+        <a href="/dashboard" class="mg-card c-laranja">
+          <div class="mg-top"><span class="mg-icon">🧮</span><span class="mg-label">Total de taxas descontadas</span></div>
+          <div class="mg-val neg">{{ brl(total_taxas) }}</div>
+          <div class="mg-link">Ver detalhamento →</div>
+        </a>
+
+        <!-- 8 · Faturamento Líquido -->
         <div class="mg-card c-verde">
-          <div class="mg-top"><span class="mg-icon">✅</span><span class="mg-label">Total faturamento líquido</span></div>
+          <div class="mg-top"><span class="mg-icon">✅</span><span class="mg-label">Faturamento líquido</span></div>
           <div class="mg-val pos">{{ brl(fat_total_liq) }}</div>
           <div class="mg-sub">Após taxas de cartão</div>
         </div>
 
-        <!-- 5 · Percentual Bruto vs Líquido -->
+        <!-- 9 · Líquido vs Bruto -->
         <div class="mg-card c-ouro">
-          <div class="mg-top"><span class="mg-icon">📊</span><span class="mg-label">Bruto vs líquido</span></div>
+          <div class="mg-top"><span class="mg-icon">📊</span><span class="mg-label">Líquido vs bruto</span></div>
           <div class="mg-val">{{ "%.1f"|format(pct_liquido)|replace(".",",") }}%</div>
           <div class="mg-sub">Líquido sobre o bruto · taxas {{ "%.1f"|format(100 - pct_liquido)|replace(".",",") }}%</div>
         </div>
 
-        <!-- 6 · Despesas fixas -->
+        <!-- 10 · Despesas fixas -->
         <a href="/despesas" class="mg-card c-laranja">
           <div class="mg-top"><span class="mg-icon">📌</span><span class="mg-label">Despesas fixas</span></div>
           <div class="mg-val">{{ brl(despesas_fixas) }}</div>
           <div class="mg-sub">A pagar no período · vencimento</div>
         </a>
 
-        <!-- 7 · Despesas avulsas -->
+        <!-- 11 · Despesas avulsas -->
         <a href="/despesas" class="mg-card c-laranja">
           <div class="mg-top"><span class="mg-icon">💸</span><span class="mg-label">Despesas avulsas</span></div>
           <div class="mg-val">{{ brl(despesas_avulsas) }}</div>
           <div class="mg-sub">A pagar no período · vencimento</div>
         </a>
 
-        <!-- 8 · Lucro Líquido -->
+        <!-- 12 · Lucro Líquido -->
         <div class="mg-card c-ouro">
           <div class="mg-top"><span class="mg-icon">🏆</span><span class="mg-label">Lucro líquido</span></div>
           <div class="mg-val {% if lucro_liquido >= 0 %}pos{% else %}neg{% endif %}">{{ brl(lucro_liquido) }}</div>
-          <div class="mg-sub">Entradas líquidas − despesas do período</div>
+          <div class="mg-sub">Líquido − despesas do período (a vencer incluído)</div>
         </div>
 
-        <!-- 9 · Total em caixa -->
-        <div class="mg-card c-verde">
+        <!-- 13 · Total em caixa (saldo líquido real — só o que já foi pago) -->
+        <a href="/caixa" class="mg-card c-verde">
           <div class="mg-top"><span class="mg-icon">🏦</span><span class="mg-label">Total em caixa</span></div>
-          <div class="mg-val {% if total_caixa >= 0 %}pos{% else %}neg{% endif %}">{{ brl(total_caixa) }}</div>
-          <div class="mg-sub">Entradas líquidas − despesas fixas/avulsas</div>
-        </div>
+          <div class="mg-val {% if saldo_caixa >= 0 %}pos{% else %}neg{% endif %}">{{ brl(saldo_caixa) }}</div>
+          <div class="mg-sub">Entradas líquidas − saídas JÁ pagas (saldo da Caixa)</div>
+        </a>
 
-        <!-- 10 · Crediário em aberto -->
+        <!-- 14 · Crediário em aberto -->
         <a href="/crediarios" class="mg-card c-rosa">
           <div class="mg-top"><span class="mg-icon">💳</span><span class="mg-label">Crediário em aberto</span></div>
           <div class="mg-val">{{ brl(val_crediarios) }}</div>
           <div class="mg-link">Ver crediários →</div>
         </a>
 
-        <!-- 11 · Em condicional / transferências -->
+        <!-- 15 · Em condicional / transferências -->
         <a href="/condicionais" class="mg-card c-azul">
           <div class="mg-top"><span class="mg-icon">🛍️</span><span class="mg-label">Em condicional / transferências</span></div>
           <div class="mg-val">{{ brl(val_condicional) }}</div>
           <div class="mg-sub">{{ n_condicional }} em aberto · peças reservadas</div>
         </a>
 
-        <!-- 12 · Valor em estoque -->
+        <!-- 16 · Valor em estoque -->
         <a href="/estoque" class="mg-card c-azul">
           <div class="mg-top"><span class="mg-icon">📦</span><span class="mg-label">Valor em estoque</span></div>
           <div class="mg-val">{{ brl(val_estoque) }}</div>
           <div class="mg-link">Ver estoque →</div>
         </a>
 
-        <!-- 13 · Custo de estoque -->
+        <!-- 17 · Custo de estoque -->
         <a href="/estoque" class="mg-card c-azul">
           <div class="mg-top"><span class="mg-icon">🏷️</span><span class="mg-label">Custo de estoque</span></div>
           <div class="mg-val">{{ brl(custo_estoque) }}</div>
           <div class="mg-link">Ver estoque →</div>
         </a>
 
-        <!-- 14 · Potencial de vendas do estoque -->
+        <!-- 18 · Potencial de vendas do estoque -->
         <a href="/estoque" class="mg-card c-verde">
           <div class="mg-top"><span class="mg-icon">📈</span><span class="mg-label">Potencial de vendas do estoque</span></div>
           <div class="mg-val pos">{{ brl(lucro_potencial) }}</div>
           <div class="mg-sub">Valor de estoque − custo de estoque</div>
+        </a>
+
+        <!-- 19 · Valor de estoque parado > 30 dias -->
+        <a href="/estoque" class="mg-card c-laranja">
+          <div class="mg-top"><span class="mg-icon">⏳</span><span class="mg-label">Estoque parado +30 dias</span></div>
+          <div class="mg-val">{{ brl(estoque_30) }}</div>
+          <div class="mg-sub">Valor de venda · sem giro há +30 dias</div>
+        </a>
+
+        <!-- 20 · Valor de estoque parado > 60 dias -->
+        <a href="/estoque" class="mg-card c-rosa">
+          <div class="mg-top"><span class="mg-icon">⏳</span><span class="mg-label">Estoque parado +60 dias</span></div>
+          <div class="mg-val">{{ brl(estoque_60) }}</div>
+          <div class="mg-sub">Valor de venda · sem giro há +60 dias</div>
         </a>
 
       </div><!-- /vg-quad -->

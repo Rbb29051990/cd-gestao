@@ -209,21 +209,32 @@ def aplicar_promocao():
     if not ids:
         flash('Selecione ao menos um produto.', 'erro')
         return redirect(url_for('estoque'))
-    if acao == 'remover':
-        pct = 0.0
-    else:
+    # Modo de desconto: por VALOR (R$ fixo, convertido em % por produto) ou por %.
+    valor_desc = parse_brl(request.form.get('valor_desconto', '0')) if acao != 'remover' else 0.0
+    pct = 0.0
+    if acao != 'remover' and valor_desc <= 0:
         pct = parse_brl(request.form.get('percentual', '0'))
         if pct <= 0 or pct >= 100:
-            flash('Informe um percentual de desconto entre 1 e 99.', 'erro')
+            flash('Informe um percentual (1 a 99) ou um valor de desconto.', 'erro')
             return redirect(url_for('estoque'))
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("UPDATE estoque SET desconto_promo=%s WHERE id = ANY(%s)", (pct, ids))
-        conn.commit()
-        if acao == 'remover':
-            flash(f'Promoção removida de {len(ids)} produto(s).', 'ok')
+        if acao != 'remover' and valor_desc > 0:
+            # R$ fixo: cada produto recebe o % equivalente ao seu próprio preço.
+            cur.execute("SELECT id, valor_venda FROM estoque WHERE id = ANY(%s)", (ids,))
+            for r in cur.fetchall():
+                preco = float(r['valor_venda'] or 0)
+                p = round(valor_desc / preco * 100, 2) if preco > 0 else 0.0
+                p = max(0.0, min(99.0, p))
+                cur.execute("UPDATE estoque SET desconto_promo=%s WHERE id=%s", (p, r['id']))
+            flash(f'Desconto de R$ {valor_desc:.2f} aplicado em {len(ids)} produto(s).', 'ok')
         else:
-            flash(f'Desconto de {pct:.0f}% aplicado em {len(ids)} produto(s).', 'ok')
+            cur.execute("UPDATE estoque SET desconto_promo=%s WHERE id = ANY(%s)", (pct, ids))
+            if acao == 'remover':
+                flash(f'Promoção removida de {len(ids)} produto(s).', 'ok')
+            else:
+                flash(f'Desconto de {pct:.0f}% aplicado em {len(ids)} produto(s).', 'ok')
+        conn.commit()
     except Exception as e:
         conn.rollback(); flash(str(e), 'erro')
     finally:

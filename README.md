@@ -18,6 +18,10 @@ Uma cobrança agora pode ser paga em **mais de uma forma**. Ex.: R$50 no **débi
 
 **Componente compartilhado:** `static/js/split.js` (`moneyMask` + `criarSplitEditor`), carregado pelo `base.html`. Helpers no backend em `utils.py` (`parse_pagamentos`, `registrar_pagamentos_caixa`, `liquido_caixa_por_venda`).
 
+### Estoque/Promoção — desconto por valor (R$) além do %
+
+Na barra de Promoção do Estoque, além do campo de **%**, há um campo de **valor (R$)** com máscara da moeda brasileira. Ao digitar o valor, o **% é preenchido automaticamente** (prévia calculada pelo preço médio dos produtos selecionados; com 1 produto ou preços iguais, é exato). No **Aplicar**, se houver valor em R$, o servidor converte o desconto em **% por produto** (cada um recebe o % equivalente ao seu próprio preço — exato mesmo com preços diferentes; limitado a 99%). Digitar o % manualmente limpa o campo de valor (modo %). Rota `/estoque/promocao` passou a aceitar `valor_desconto`.
+
 ### Visão Geral — 20 quadrantes na ordem definida
 
 A Visão Geral é uma grade de **20 quadrantes** (cards no padrão atual), nesta ordem: (1) Fat. bruto Dinheiro, (2) Pix, (3) Débito, (4) Crédito à vista, (5) Crédito parcelado, (6) Total fat. bruto, (7) **Total de taxas descontadas** (card linka para o `/dashboard` p/ detalhamento), (8) Faturamento líquido, (9) Líquido vs bruto (%), (10) Despesas fixas, (11) Despesas avulsas, (12) Lucro líquido (líquido − despesas do período, incl. a vencer), (13) **Total em caixa** = saldo líquido REAL (entradas líquidas − **saídas já pagas**, igual ao "saldo líquido" da aba Caixa; o que está só a pagar NÃO entra), (14) Crediário em aberto, (15) Em condicional/transferências, (16) Valor em estoque, (17) Custo de estoque, (18) Potencial de vendas do estoque, (19) **Estoque parado +30 dias** (valor de venda, dias desde a última venda/entrada), (20) **Estoque parado +60 dias**. Grid **responsivo** (auto-fill: ~5 colunas no desktop, ~3 no tablet, 2 no celular), página rola naturalmente. Novos valores no backend: `fat_dinheiro_pix`, `fat_cartao`, `pct_liquido`, `total_taxas`, `saldo_caixa`, `estoque_30`, `estoque_60`.

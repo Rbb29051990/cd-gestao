@@ -109,10 +109,11 @@
         <!-- BARRA DE PROMOÇÃO -->
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;padding:10px 14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
           <span style="font-size:13px;font-weight:700;color:#1a1a2e">🏷️ Promoção</span>
-          <span style="font-size:12px;color:#888">Marque os produtos na coluna 🏷️ Promo, defina o % e aplique. O preço original não muda.</span>
+          <span style="font-size:12px;color:#888">Marque os produtos na coluna 🏷️ Promo, informe o valor (R$) <b>ou</b> o % e aplique. O preço original não muda.</span>
           <span id="promoSelCount" style="font-size:12px;font-weight:700;color:#00838f">0 selecionado(s)</span>
           <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
-            <input type="number" id="promoPctInput" min="1" max="99" placeholder="%" style="width:72px;padding:8px 10px;border:1.5px solid #e0e0e8;border-radius:8px;font-family:'Outfit',sans-serif;text-align:center;font-weight:700">
+            <input type="text" id="promoValInput" inputmode="numeric" placeholder="R$ 0,00" title="Valor de desconto — o % é calculado sozinho" oninput="promoValMask(this)" style="width:110px;padding:8px 10px;border:1.5px solid #e0e0e8;border-radius:8px;font-family:'Outfit',sans-serif;text-align:right;font-weight:700">
+            <input type="number" id="promoPctInput" min="1" max="99" step="0.01" placeholder="%" oninput="promoPctManual()" style="width:72px;padding:8px 10px;border:1.5px solid #e0e0e8;border-radius:8px;font-family:'Outfit',sans-serif;text-align:center;font-weight:700">
             <button type="button" class="btn-acao" style="background:#c62828" onclick="aplicarPromo('aplicar')">Aplicar desconto</button>
             <button type="button" class="btn-acao" style="background:#fff;color:#555;border:1.5px solid #e0e0e8" onclick="aplicarPromo('remover')">Remover</button>
           </div>
@@ -121,6 +122,7 @@
           <input type="hidden" name="ids" id="promoIds">
           <input type="hidden" name="acao" id="promoAcao">
           <input type="hidden" name="percentual" id="promoPctHidden">
+          <input type="hidden" name="valor_desconto" id="promoValHidden">
         </form>
         <div class="table-wrap" style="max-height:520px;overflow-y:auto">
           <table class="etable" id="tabelaEstoque">
@@ -146,7 +148,7 @@
               <tr onclick="window.location='/estoque/{{ item.id }}'" style="cursor:pointer" data-saldo="{{ item.quantidade }}" data-dias="{{ item.dias_estoque }}">
                 <td>{{ item.criado_em.strftime('%d/%m/%Y') }}</td>
                 <td><span class="ref-code">{{ item.codigo }}</span></td>
-                <td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="promo-check" value="{{ item.id }}" onclick="updatePromoCount()"></td>
+                <td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="promo-check" value="{{ item.id }}" data-preco="{{ item.valor_venda|float }}" onclick="updatePromoCount()"></td>
                 <td style="padding:4px 8px">
                   {% if item.foto %}
                   <img src="{{ item.foto }}" onclick="event.stopPropagation();abrirLightbox('{{ item.foto }}')"
@@ -628,15 +630,53 @@ function ordenarE(col) {
 function updatePromoCount(){
   const n = document.querySelectorAll('.promo-check:checked').length;
   document.getElementById('promoSelCount').textContent = n + ' selecionado(s)';
+  promoCalcPct();  // recalcula o % se já houver um valor R$ digitado
+}
+/* Máscara R$ no campo de valor de desconto (guarda os centavos em dataset.cents). */
+function promoValMask(el){
+  const c = el.value.replace(/\D/g,'');
+  el.dataset.cents = c;
+  if(!c){ el.value=''; promoCalcPct(); return; }
+  let n = (parseInt(c,10)/100).toFixed(2).split('.');
+  n[0] = n[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  el.value = 'R$ ' + n[0] + ',' + n[1];
+  promoCalcPct();
+}
+function promoValor(){ const c = document.getElementById('promoValInput').dataset.cents; return c ? parseInt(c,10)/100 : 0; }
+/* Preenche o % automaticamente a partir do valor R$ e do preço dos selecionados.
+   (No apply, o desconto em R$ é convertido em % POR PRODUTO no servidor — exato mesmo
+   com preços diferentes; este % é a prévia.) */
+function promoCalcPct(){
+  const valor = promoValor();
+  const pctEl = document.getElementById('promoPctInput');
+  if(valor <= 0) return;
+  const precos = Array.from(document.querySelectorAll('.promo-check:checked'))
+    .map(c=>parseFloat(c.dataset.preco)||0).filter(p=>p>0);
+  if(!precos.length){ pctEl.value=''; return; }
+  const ref = precos.reduce((a,b)=>a+b,0) / precos.length;  // preço médio dos selecionados
+  let pct = Math.round((valor/ref)*100*100)/100;
+  if(pct>99) pct=99;
+  pctEl.value = pct;
+}
+/* Se a pessoa digita o % manualmente, limpa o campo de valor (vira modo %). */
+function promoPctManual(){
+  const el = document.getElementById('promoValInput');
+  el.value=''; el.dataset.cents='';
 }
 function aplicarPromo(acao){
   const ids = Array.from(document.querySelectorAll('.promo-check:checked')).map(c=>c.value);
   if(!ids.length){ alert('Marque ao menos um produto na coluna 🏷️ Promo (após o código).'); return; }
+  let valor = 0, pct = 0;
   if(acao==='aplicar'){
-    const pct = parseFloat(document.getElementById('promoPctInput').value);
-    if(!pct || pct<=0 || pct>=100){ alert('Informe um % de desconto entre 1 e 99.'); return; }
-    if(!confirm('Aplicar '+pct+'% de desconto em '+ids.length+' produto(s)?')) return;
-    document.getElementById('promoPctHidden').value = pct;
+    valor = promoValor();
+    pct = parseFloat(document.getElementById('promoPctInput').value) || 0;
+    if(valor<=0 && (!pct || pct<=0 || pct>=100)){ alert('Informe o valor (R$) ou um % de desconto (1 a 99).'); return; }
+    const msg = valor>0
+      ? 'Aplicar R$ '+valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+' de desconto em '+ids.length+' produto(s)?'
+      : 'Aplicar '+pct+'% de desconto em '+ids.length+' produto(s)?';
+    if(!confirm(msg)) return;
+    document.getElementById('promoValHidden').value = valor>0 ? valor.toFixed(2) : '';
+    document.getElementById('promoPctHidden').value = pct || '';
   } else {
     if(!confirm('Remover a promoção de '+ids.length+' produto(s)? Os preços voltam ao normal.')) return;
   }

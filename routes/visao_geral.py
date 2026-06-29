@@ -79,6 +79,12 @@ def visao_geral():
         cur.execute("SELECT COALESCE(SUM(saldo_devedor),0) as v FROM crediarios WHERE status='aberto'")
         val_crediarios = round(float(cur.fetchone()['v']), 2)
     except: val_crediarios = 0.0
+    # Vales em aberto (passivo: crédito que a loja deve aos clientes)
+    try:
+        cur.execute("SELECT COALESCE(SUM(saldo),0) v FROM vales WHERE status='aberto'")
+        val_vales = round(float(cur.fetchone()['v']), 2)
+    except Exception:
+        val_vales = 0.0
     # Condicional / transferência em aberto (global)
     try:
         cur.execute("SELECT COALESCE(SUM(valor_total),0) as v, COUNT(*) as n FROM condicionais WHERE status='aberta'")
@@ -135,7 +141,7 @@ def visao_geral():
                estoque_30=estoque_30, estoque_60=estoque_60,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,
-               val_condicional=val_condicional, n_condicional=n_condicional,
+               val_condicional=val_condicional, n_condicional=n_condicional, val_vales=val_vales,
                val_despesas=val_despesas, despesas_fixas=despesas_fixas,
                despesas_avulsas=despesas_avulsas, lucro_liquido=lucro_liquido,
                movs=movs, estoque_baixo=estoque_baixo,

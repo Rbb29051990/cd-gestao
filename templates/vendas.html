@@ -246,6 +246,8 @@
       <input type="hidden" name="valor_final" id="valorFinalHidden" value="0">
       <input type="hidden" name="pagamentos" id="pagamentosJson" value="[]">
       <input type="hidden" name="entrada_pagamentos" id="entradaPagamentosJson" value="[]">
+      <input type="hidden" name="vale_id" id="valeId" value="">
+      <input type="hidden" name="vale_valor" id="valeValor" value="0">
 
       <div class="step-sep">1. Vendedor (a) e cliente</div>
       <div class="form-grid2">
@@ -266,6 +268,7 @@
           <input type="hidden" name="cliente_id" id="clienteId">
           <input type="hidden" name="cliente_nome" id="clienteNome">
           <div id="clienteInfo" style="font-size:12px;color:#aaa;margin-top:3px"></div>
+          <div id="valeInfo" style="display:none;margin-top:6px;font-size:13px"></div>
         </div>
       </div>
 
@@ -548,6 +551,40 @@ function selecionarCliente(c) {
   document.getElementById('clienteInfo').innerHTML = c.crediario
     ? '<span style="color:#2e7d32;font-weight:600">✅ Crediário habilitado</span>'
     : '<span style="color:#888">❌ Crediário não habilitado</span>';
+  removerVale();
+  carregarVales(c);
+}
+
+/* ── Vale (crédito da loja) ── */
+async function carregarVales(c){
+  const box = document.getElementById('valeInfo');
+  box.style.display='none'; box.innerHTML='';
+  if(!c || (!c.id && !c.nome)) return;
+  let d; try{
+    const q = c.id ? ('cliente_id='+c.id) : ('nome='+encodeURIComponent(c.nome));
+    d = await (await fetch('/vales/cliente?'+q)).json();
+  }catch(e){ return; }
+  if(!d.vales || !d.vales.length) return;
+  const v = d.vales[0];  // aplica o primeiro vale em aberto
+  const saldo = v.saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
+  box.innerHTML = '<span style="color:#2e7d32;font-weight:700">🎟️ Vale '+v.codigo+': R$ '+saldo+'</span> '
+    + '<button type="button" id="btnAplicarVale" onclick="aplicarVale('+v.id+','+v.saldo+')" style="margin-left:6px;padding:3px 10px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Aplicar na venda</button>'
+    + '<span id="valeAplicadoMsg"></span>';
+  box.style.display='block';
+}
+function aplicarVale(id, saldo){
+  document.getElementById('valeId').value = id;
+  document.getElementById('valeValor').value = saldo;
+  const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
+  const usado = Math.min(saldo, total||saldo);
+  document.getElementById('btnAplicarVale').style.display='none';
+  document.getElementById('valeAplicadoMsg').innerHTML = ' <span style="color:#2e7d32;font-weight:700">✅ aplicado (−R$ '+usado.toLocaleString('pt-BR',{minimumFractionDigits:2})+' à vista)</span> <a onclick="removerVale()" style="color:#c62828;cursor:pointer;font-weight:700;margin-left:6px">remover</a>';
+}
+function removerVale(){
+  document.getElementById('valeId').value='';
+  document.getElementById('valeValor').value='0';
+  const b=document.getElementById('btnAplicarVale'); if(b) b.style.display='';
+  const m=document.getElementById('valeAplicadoMsg'); if(m) m.innerHTML='';
 }
 
 document.addEventListener('click', e => {

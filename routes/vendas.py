@@ -9,6 +9,7 @@ from auth import login_required, get_ctx, pode_excluir
 from utils import (parse_brl, bloquear_estoque_negativo, audit_log, get_taxa_vigente,
                    calcular_liquido, parse_pagamentos, registrar_pagamentos_caixa,
                    liquido_caixa_por_venda)
+from routes.vales import gerar_vale, consumir_vale
 
 # Formas de cartão (sofrem taxa da maquininha no momento da venda à vista).
 # Crediário/pix/dinheiro não têm taxa aqui — a taxa das parcelas aparece no Caixa.
@@ -26,8 +27,10 @@ def _fin_venda(v, taxa_cache, split_map=None):
     desconto = float(v.get('desconto') or 0)
     pago = round(bruto - desconto, 2)
     forma = v.get('forma_pagamento') or ''
-    if forma == 'multiplo' and split_map is not None and v.get('id') in split_map:
-        _b, taxa_split, liq_split = split_map[v['id']]
+    if forma == 'multiplo':
+        # Líquido vem das linhas do caixa desta venda (split / troca / vale). Sem linhas
+        # (ex.: pago totalmente com vale), o líquido em caixa é 0.
+        _b, taxa_split, liq_split = (split_map or {}).get(v.get('id'), (0.0, 0.0, 0.0))
         return bruto, desconto, round(taxa_split, 2), round(liq_split, 2)
     if forma in FORMAS_CARTAO:
         d = v.get('criado_em')
@@ -160,9 +163,20 @@ def nova_venda():
             # Entra tudo no caixa no dia. Guarda o nº de parcelas só p/ crédito parcelado
             # (usado no cálculo do líquido com a taxa da parcela correspondente).
             parcelas_caixa = parcelas if forma == 'credito_parcelado' else None
-            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas)
-                VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
-                (f"Venda {cod} - {cliente_nome}", valor_final, forma, venda_id, usuario_id or None, vendedora_nome, parcelas_caixa))
+            # Vale (crédito da loja): abate do valor a receber — só o restante entra no caixa.
+            a_receber = valor_final
+            vale_id = request.form.get('vale_id', '').strip()
+            vale_valor = parse_brl(request.form.get('vale_valor', '0'))
+            if vale_id.isdigit() and vale_valor > 0:
+                usado = consumir_vale(cur, int(vale_id), min(vale_valor, valor_final), venda_id)
+                a_receber = round(valor_final - usado, 2)
+                if usado > 0:
+                    # Líquido passa a sair das linhas do caixa (a parte do vale não é caixa).
+                    cur.execute("UPDATE vendas SET forma_pagamento='multiplo' WHERE id=%s", (venda_id,))
+            if a_receber > 0.01:
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas)
+                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
+                    (f"Venda {cod} - {cliente_nome}", a_receber, forma, venda_id, usuario_id or None, vendedora_nome, parcelas_caixa))
         elif forma == 'crediario':
             # Só registra a entrada paga (se houver) — com a forma de pagamento REAL da entrada
             if entrada > 0:
@@ -392,9 +406,80 @@ def buscar_cliente():
     return jsonify({'clientes': lista})
 
 
+@login_required
+def trocar_venda(vid):
+    """Troca/Devolução: devolve itens (voltam ao estoque) e/ou adiciona peças novas.
+    Calcula a diferença — se a cliente paga a mais, recebe na forma escolhida (com taxa
+    no caixa); se sobra crédito (ou devolução pura), gera um VALE no valor da sobra."""
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM vendas WHERE id=%s", (vid,))
+        row = cur.fetchone()
+        if not row:
+            flash('Venda não encontrada.', 'erro'); return redirect(url_for('vendas'))
+        venda = dict(row)
+        if venda.get('forma_pagamento') == 'crediario':
+            raise ValueError('Troca/devolução em venda no crediário ainda não é suportada por aqui.')
+        devolver_ids = [int(x) for x in request.form.get('devolver_ids', '').split(',') if x.strip().isdigit()]
+        novos = json.loads(request.form.get('novos', '[]'))
+        if not devolver_ids and not novos:
+            raise ValueError('Selecione itens para devolver e/ou adicione peças novas.')
+        # ── Itens devolvidos: voltam ao estoque e saem da venda ──
+        valor_devolvido = 0.0
+        if devolver_ids:
+            cur.execute("SELECT * FROM venda_itens WHERE id = ANY(%s) AND venda_id=%s", (devolver_ids, vid))
+            for it in [dict(i) for i in cur.fetchall()]:
+                valor_devolvido += float(it['valor_total'] or 0)
+                if it.get('produto_id'):
+                    cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s", (int(it['quantidade']), it['produto_id']))
+                cur.execute("DELETE FROM venda_itens WHERE id=%s", (it['id'],))
+        # ── Peças novas: entram na venda e saem do estoque ──
+        valor_novos = 0.0
+        for it in novos:
+            pid = it.get('produto_id'); qtd = int(it.get('quantidade', 1)); vu = float(it.get('valor_unitario', 0))
+            valor_novos += vu * qtd
+            cur.execute("""INSERT INTO venda_itens (venda_id,produto_id,codigo_produto,modelo,descricao,tamanho,valor_unitario,quantidade,valor_total)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (vid, pid or None, it.get('codigo'), it.get('modelo'), it.get('descricao'), it.get('tamanho'), vu, qtd, vu * qtd))
+            if pid:
+                bloquear_estoque_negativo(cur, pid, qtd)
+        valor_devolvido = round(valor_devolvido, 2)
+        valor_novos = round(valor_novos, 2)
+        novo_total = round(float(venda['valor_total'] or 0) - valor_devolvido + valor_novos, 2)
+        dif = round(valor_novos - valor_devolvido, 2)
+        extra = ''
+        if dif > 0.01:
+            # Cliente paga a diferença — entra no caixa com a forma escolhida (com taxa).
+            forma = request.form.get('forma_pagamento', '').strip()
+            if forma not in FORMAS_A_VISTA:
+                raise ValueError('Escolha a forma de pagamento da diferença.')
+            parcelas_caixa = (int(request.form.get('parcelas', 0) or 0) or None) if forma == 'credito_parcelado' else None
+            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,vendedora_nome,parcelas)
+                VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
+                (f"Troca {venda['codigo']} - diferença ({forma.replace('_',' ')})", dif, forma, vid, venda.get('vendedora_nome'), parcelas_caixa))
+            extra = f"Diferença de R$ {dif:.2f} recebida ({forma.replace('_',' ')})."
+        elif dif < -0.01:
+            credito = round(-dif, 2)
+            _vid_vale, cod = gerar_vale(cur, cliente_id=venda.get('cliente_id'), cliente_nome=venda.get('cliente_nome'),
+                                        valor=credito, venda_origem=vid, observacao=f"Troca/devolução da venda {venda['codigo']}")
+            extra = f"Vale {cod} de R$ {credito:.2f} gerado para {venda.get('cliente_nome') or 'a cliente'}."
+        # Líquido passa a ser calculado pelas linhas do caixa (forma 'multiplo').
+        cur.execute("UPDATE vendas SET valor_total=%s, forma_pagamento='multiplo' WHERE id=%s", (novo_total, vid))
+        audit_log(cur, 'TROCA_VENDA', 'vendas', vid,
+                  {'codigo': venda['codigo'], 'devolvido': valor_devolvido, 'novos': valor_novos, 'diferenca': dif})
+        conn.commit()
+        flash(f"Troca/devolução concluída na venda {venda['codigo']}. {extra}".strip(), 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('ficha_venda', vid=vid))
+
+
 def register(app):
     app.add_url_rule('/vendas', 'vendas', vendas)
     app.add_url_rule('/vendas/nova', 'nova_venda', nova_venda, methods=['POST'])
+    app.add_url_rule('/vendas/<int:vid>/troca', 'trocar_venda', trocar_venda, methods=['POST'])
     app.add_url_rule('/vendas/<int:vid>', 'ficha_venda', ficha_venda)
     app.add_url_rule('/vendas/<int:vid>/excluir', 'excluir_venda', excluir_venda, methods=['POST'])
     app.add_url_rule('/vendas/<int:vid>/editar', 'editar_venda', editar_venda, methods=['GET', 'POST'])

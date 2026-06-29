@@ -101,6 +101,20 @@ def init_db():
         forma_pagamento VARCHAR(50), venda_id INTEGER, crediario_id INTEGER,
         despesa_id INTEGER, usuario_id INTEGER, vendedora_nome VARCHAR(200),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS vales (
+        id SERIAL PRIMARY KEY,
+        codigo VARCHAR(20) UNIQUE,
+        cliente_id INTEGER,
+        cliente_nome VARCHAR(200),
+        valor NUMERIC(10,2) DEFAULT 0,
+        saldo NUMERIC(10,2) DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'aberto',
+        venda_origem INTEGER,
+        venda_uso INTEGER,
+        observacao TEXT,
+        usuario_id INTEGER, usuario_nome VARCHAR(200),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        usado_em TIMESTAMP)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS ajustes_financeiros (
         id SERIAL PRIMARY KEY,
         data_ajuste DATE DEFAULT CURRENT_DATE,

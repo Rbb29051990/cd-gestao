@@ -432,8 +432,8 @@ def dashboard_view():
         for r in cur.fetchall():
             nome = r['vendedora_nome'] or '—'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-            if (r['forma_pagamento'] or '') == 'multiplo' and r['id'] in split_map:
-                liq = split_map[r['id']][2]
+            if (r['forma_pagamento'] or '') == 'multiplo':
+                liq = split_map.get(r['id'], (0.0, 0.0, 0.0))[2]
             else:
                 liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
             o = tmp.setdefault(nome, {'nome': nome, 'uid': None, 'liquido': 0.0, 'vendas': 0, 'pecas': 0, 'cli': set(), 'foto': None})
@@ -478,8 +478,8 @@ def dashboard_view():
         for r in cur.fetchall():
             nome = r['nome'] or 'Cliente'
             dt = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje
-            if (r['forma_pagamento'] or '') == 'multiplo' and r['id'] in split_map:
-                liq = split_map[r['id']][2]
+            if (r['forma_pagamento'] or '') == 'multiplo':
+                liq = split_map.get(r['id'], (0.0, 0.0, 0.0))[2]
             else:
                 liq, _d, _p = _liquido_com_taxa(float(r['valor_total'] or 0), r['forma_pagamento'] or 'outros', dt, cache, r.get('parcelas'))
             o = tmp.setdefault(nome, {'nome': nome, 'liquido': 0.0, 'compras': 0, 'pecas': 0, 'ultima': dt})

@@ -48,6 +48,11 @@
             </div>
           </div>
           <div style="display:flex;gap:10px;align-items:center">
+            {% if venda.forma_pagamento != 'crediario' %}
+            <button type="button" onclick="abrirTroca()" class="btn-salvar" style="background:#00838f;display:inline-flex;align-items:center;gap:8px;border:none;cursor:pointer">
+              🔄 Trocar / Devolver
+            </button>
+            {% endif %}
             <a href="/vendas/{{ venda.id }}/editar" class="btn-salvar" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px">
               <svg width="15" height="15" viewBox="0 0 22 22" fill="none"><path d="M4 18h3l9-9-3-3-9 9v3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 5l3 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
               Editar venda
@@ -177,10 +182,155 @@
 <div id="fotoProdutoOverlay" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10000;align-items:center;justify-content:center;cursor:zoom-out;padding:24px">
   <img id="fotoProdutoImg" src="" alt="Foto do produto" style="max-width:92vw;max-height:92vh;border-radius:12px;box-shadow:0 12px 50px rgba(0,0,0,.6)">
 </div>
+
+<!-- MODAL TROCA / DEVOLUÇÃO -->
+<div class="modal-overlay" id="modalTroca" style="display:none;z-index:9000">
+  <div class="modal" style="max-width:780px">
+    <button class="modal-close" onclick="document.getElementById('modalTroca').style.display='none'">✕</button>
+    <div class="modal-title">Trocar / Devolver — {{ venda.codigo }}</div>
+    <div class="modal-sub">Marque o que a cliente está devolvendo (volta ao estoque) e/ou adicione peças novas. O sistema calcula a diferença.</div>
+    <form method="POST" action="/vendas/{{ venda.id }}/troca" id="formTroca" onsubmit="return prepararTroca()">
+      <input type="hidden" name="devolver_ids" id="trocaDevolverIds">
+      <input type="hidden" name="novos" id="trocaNovosJson" value="[]">
+      <input type="hidden" name="forma_pagamento" id="trocaForma">
+
+      <div class="section-sep" style="margin-top:6px">1. Itens a devolver (voltam ao estoque)</div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">
+        {% for item in itens %}
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1.5px solid #e0e0e8;border-radius:8px;cursor:pointer">
+          <input type="checkbox" class="troca-dev" value="{{ item.id }}" data-valor="{{ item.valor_total|float }}" onchange="calcTroca()" style="width:16px;height:16px;accent-color:#c62828">
+          <span style="flex:1;font-size:13px">{{ item.codigo_produto }} · {{ item.modelo or item.descricao or '—' }}{% if item.tamanho %} · Tam {{ item.tamanho }}{% endif %}</span>
+          <span style="font-weight:700;font-size:13px">R$ {{ "{:,.2f}".format(item.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="section-sep">2. Peças novas (a troca) — opcional</div>
+      <div style="position:relative;margin-bottom:8px">
+        <input class="form-input" type="text" id="trocaBusca" autocomplete="off" placeholder="Buscar por nome, descrição ou código..." oninput="trocaBuscar(this.value)">
+        <div id="trocaSugest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:60;background:#fff;border:1.5px solid #e0e0e8;border-radius:10px;margin-top:4px;max-height:280px;overflow:auto;box-shadow:0 12px 30px rgba(0,0,0,.12)"></div>
+      </div>
+      <div id="trocaNovos" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
+
+      <div style="background:#f5f5f9;border-radius:10px;padding:14px 16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
+          <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:3px">Devolvido</div><div style="font-weight:700" id="trocaDevTot">R$ 0,00</div></div>
+          <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:3px">Peças novas</div><div style="font-weight:700" id="trocaNovTot">R$ 0,00</div></div>
+          <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:3px">Diferença</div><div style="font-weight:800;font-size:16px" id="trocaDif">R$ 0,00</div></div>
+        </div>
+        <div id="trocaInfoVale" style="display:none;margin-top:10px;background:#e8f5e9;color:#2e7d32;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600">💳 Será gerado um VALE de <b id="trocaValeVal"></b> para a cliente.</div>
+        <div id="trocaInfoPagar" style="display:none;margin-top:10px;background:#fff8e1;color:#a36b00;padding:8px 12px;border-radius:6px;font-size:13px;font-weight:600">A cliente paga a diferença de <b id="trocaPagarVal"></b>.</div>
+      </div>
+
+      <div id="trocaFormaWrap" style="display:none;margin-top:12px">
+        <div class="form-field">
+          <label class="form-label">Forma de pagamento da diferença</label>
+          <select class="form-input" id="trocaFormaSel" style="cursor:pointer" onchange="trocaToggleParc()">
+            <option value="">Selecione...</option>
+            <option value="dinheiro">💵 Dinheiro</option>
+            <option value="pix">⚡ Pix</option>
+            <option value="debito">💳 Débito</option>
+            <option value="credito_vista">💳 Crédito à vista</option>
+            <option value="credito_parcelado">💳 Crédito parcelado</option>
+            <option value="link">🔗 Link</option>
+          </select>
+        </div>
+        <div class="form-field" id="trocaParcWrap" style="display:none">
+          <label class="form-label">Parcelas</label>
+          <select class="form-input" name="parcelas" id="trocaParc" style="cursor:pointer;width:160px"><option value="">Selecione...</option>{% for i in range(2,13) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}</select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalTroca').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#00838f">✅ Concluir troca/devolução</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Overlay para ampliar a foto do produto -->
+<div id="fotoProdutoOverlay" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10000;align-items:center;justify-content:center;cursor:zoom-out;padding:24px">
+  <img id="fotoProdutoImg" src="" alt="Foto do produto" style="max-width:92vw;max-height:92vh;border-radius:12px;box-shadow:0 12px 50px rgba(0,0,0,.6)">
+</div>
 <script>
 function abrirFotoProduto(id){
   document.getElementById('fotoProdutoImg').src = '/consulta/foto/' + id;
   document.getElementById('fotoProdutoOverlay').style.display = 'flex';
 }
+
+/* ── Troca / Devolução ── */
+let trocaCart = [], trocaTimer = null;
+function brlTroca(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function abrirTroca(){ document.getElementById('modalTroca').style.display='flex'; calcTroca(); }
+function trocaBuscar(q){
+  clearTimeout(trocaTimer);
+  const el = document.getElementById('trocaSugest');
+  if(!q || q.trim().length<2){ el.style.display='none'; el.innerHTML=''; return; }
+  trocaTimer = setTimeout(async()=>{
+    let d; try{ d = await (await fetch('/consulta/buscar?q='+encodeURIComponent(q))).json(); }catch(e){ return; }
+    el.innerHTML='';
+    if(!d.itens || !d.itens.length){ el.innerHTML='<div style="padding:10px 12px;color:#c62828;font-size:13px">Nenhum produto encontrado.</div>'; el.style.display='block'; return; }
+    d.itens.forEach(it=>{
+      const sem = (it.quantidade||0)<=0;
+      const preco = it.valor_promo!=null ? it.valor_promo : it.valor_venda;
+      const row = document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #f0f0f4;cursor:'+(sem?'not-allowed':'pointer')+';opacity:'+(sem?'0.5':'1');
+      row.innerHTML = (it.tem_foto?'<img src="/consulta/foto/'+it.id+'" style="width:38px;height:38px;border-radius:7px;object-fit:cover">':'<div style="width:38px;height:38px;border-radius:7px;background:#eef0fb;display:flex;align-items:center;justify-content:center">📦</div>')
+        + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">'+(it.codigo||'')+' · '+(it.modelo||'—')+'</div><div style="font-size:12px;color:#888">'+(it.descricao||'')+(it.tamanho?(' · Tam '+it.tamanho):'')+'</div></div>'
+        + '<div style="font-weight:700;font-size:13px;color:'+(sem?'#c62828':'#2e7d32')+'">'+brlTroca(preco)+(sem?' · sem estoque':'')+'</div>';
+      if(!sem) row.onclick=()=>{ trocaAdd(it, preco); el.style.display='none'; document.getElementById('trocaBusca').value=''; };
+      el.appendChild(row);
+    });
+    el.style.display='block';
+  }, 300);
+}
+function trocaAdd(it, preco){
+  trocaCart.push({produto_id:it.id, codigo:it.codigo, modelo:it.modelo, descricao:it.descricao, tamanho:it.tamanho, valor_unitario:parseFloat(preco)||0, quantidade:1});
+  renderTrocaNovos(); calcTroca();
+}
+function renderTrocaNovos(){
+  const c = document.getElementById('trocaNovos');
+  c.innerHTML = trocaCart.map((it,idx)=>'<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1.5px solid #c8e6c9;border-radius:8px;background:#f0f8f2"><span style="flex:1;font-size:13px">'+(it.codigo||'')+' · '+(it.modelo||it.descricao||'—')+(it.tamanho?(' · Tam '+it.tamanho):'')+'</span><span style="font-weight:700;font-size:13px">'+brlTroca(it.valor_unitario)+'</span><button type="button" onclick="trocaDel('+idx+')" style="background:#fff;color:#c62828;border:1.5px solid #fcd5d5;border-radius:6px;padding:5px 9px;cursor:pointer">🗑️</button></div>').join('');
+}
+function trocaDel(i){ trocaCart.splice(i,1); renderTrocaNovos(); calcTroca(); }
+function calcTroca(){
+  let dev=0; document.querySelectorAll('.troca-dev:checked').forEach(c=>dev+=parseFloat(c.dataset.valor)||0);
+  let nov=0; trocaCart.forEach(it=>nov+=(it.valor_unitario||0)*(it.quantidade||1));
+  dev=Math.round(dev*100)/100; nov=Math.round(nov*100)/100;
+  const dif=Math.round((nov-dev)*100)/100;
+  document.getElementById('trocaDevTot').textContent = brlTroca(dev);
+  document.getElementById('trocaNovTot').textContent = brlTroca(nov);
+  const difEl=document.getElementById('trocaDif'); difEl.textContent=brlTroca(dif);
+  difEl.style.color = dif>0.009 ? '#a36b00' : (dif<-0.009 ? '#2e7d32' : '#1a1a2e');
+  const pagar = dif>0.009, vale = dif<-0.009;
+  document.getElementById('trocaFormaWrap').style.display = pagar ? 'block' : 'none';
+  document.getElementById('trocaInfoPagar').style.display = pagar ? 'block' : 'none';
+  document.getElementById('trocaInfoVale').style.display = vale ? 'block' : 'none';
+  if(pagar) document.getElementById('trocaPagarVal').textContent = brlTroca(dif);
+  if(vale) document.getElementById('trocaValeVal').textContent = brlTroca(-dif);
+}
+function trocaToggleParc(){
+  document.getElementById('trocaParcWrap').style.display = (document.getElementById('trocaFormaSel').value==='credito_parcelado') ? 'block' : 'none';
+}
+function prepararTroca(){
+  const devIds = Array.from(document.querySelectorAll('.troca-dev:checked')).map(c=>c.value);
+  if(!devIds.length && !trocaCart.length){ alert('Marque itens para devolver e/ou adicione peças novas.'); return false; }
+  let dev=0; document.querySelectorAll('.troca-dev:checked').forEach(c=>dev+=parseFloat(c.dataset.valor)||0);
+  let nov=0; trocaCart.forEach(it=>nov+=(it.valor_unitario||0)*(it.quantidade||1));
+  const dif=Math.round((nov-dev)*100)/100;
+  if(dif>0.009){
+    const f=document.getElementById('trocaFormaSel').value;
+    if(!f){ alert('Escolha a forma de pagamento da diferença.'); return false; }
+    if(f==='credito_parcelado' && !document.getElementById('trocaParc').value){ alert('Informe o nº de parcelas.'); return false; }
+    document.getElementById('trocaForma').value=f;
+  } else {
+    document.getElementById('trocaForma').value='';
+  }
+  document.getElementById('trocaDevolverIds').value = devIds.join(',');
+  document.getElementById('trocaNovosJson').value = JSON.stringify(trocaCart);
+  return true;
+}
+document.addEventListener('click', e=>{ if(!e.target.closest('#trocaBusca') && !e.target.closest('#trocaSugest')) document.getElementById('trocaSugest').style.display='none'; });
 </script>
 {% endblock %}

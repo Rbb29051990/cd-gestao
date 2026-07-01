@@ -4,7 +4,7 @@ pagamento de parcela (lança saída no caixa) e exclusão (só N1)."""
 from datetime import datetime, date, timedelta
 import calendar
 import secrets
-from flask import render_template, request, redirect, url_for, session, flash
+from flask import render_template, request, redirect, url_for, session, flash, jsonify
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir, is_admin
@@ -363,6 +363,87 @@ def editar_despesa(did):
 
 
 @login_required
+def detalhe_despesa(did):
+    """JSON com tudo da despesa + parcelas — usado no detalhamento (clique na linha)."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT * FROM despesas WHERE id=%s", (did,))
+    d = cur.fetchone()
+    if not d:
+        cur.close(); close_db(conn); return jsonify({'ok': False})
+    d = dict(d)
+    cur.execute("SELECT * FROM despesa_parcelas WHERE despesa_id=%s ORDER BY numero", (did,))
+    parcelas = [dict(p) for p in cur.fetchall()]
+    cur.close(); close_db(conn)
+    def ds(x): return x.isoformat() if x else None
+    out_parc = [{
+        'id': p['id'], 'numero': p['numero'], 'valor': float(p['valor'] or 0),
+        'data_vencimento': ds(p.get('data_vencimento')), 'pago': bool(p['pago']),
+        'data_pagamento': ds(p.get('data_pagamento')),
+        'forma_pagamento': p.get('forma_pagamento'), 'obs_pagamento': p.get('obs_pagamento'),
+    } for p in parcelas]
+    return jsonify({'ok': True, 'despesa': {
+        'id': d['id'], 'codigo': d.get('codigo'), 'categoria': d.get('categoria'),
+        'descricao': d.get('descricao'), 'tipo': d.get('tipo'), 'valor': float(d.get('valor') or 0),
+        'parcelado': bool(d.get('parcelado')), 'num_parcelas': d.get('num_parcelas'),
+        'obs_retirada': d.get('obs_retirada'), 'data_despesa': ds(d.get('data_despesa')),
+    }, 'parcelas': out_parc})
+
+
+@login_required
+def salvar_despesa(did):
+    """Salva a edição do detalhamento: cabeçalho (categoria/descrição/tipo/obs) e,
+    principalmente, o VALOR e o VENCIMENTO das parcelas AINDA EM ABERTO (renegociação
+    com o fornecedor). Parcelas já pagas não são alteradas (já estão no caixa)."""
+    if not is_admin():
+        flash('Apenas administradores (N1 ou N2) podem editar despesas.', 'erro')
+        return redirect(url_for('despesas'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM despesas WHERE id=%s", (did,))
+        if not cur.fetchone():
+            flash('Despesa não encontrada.', 'erro'); return redirect(url_for('despesas'))
+        categoria = request.form.get('categoria', '').strip()
+        descricao = request.form.get('descricao', '').strip()
+        tipo = request.form.get('tipo', 'avulsa').strip().lower()
+        if tipo not in ('fixa', 'avulsa'): tipo = 'avulsa'
+        obs = request.form.get('obs_retirada', '').strip() or None
+        if categoria:
+            cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING", (categoria,))
+        # Parcelas em aberto: atualiza valor/vencimento (as pagas ficam intactas).
+        cur.execute("SELECT id, pago FROM despesa_parcelas WHERE despesa_id=%s", (did,))
+        aberto = {r['id']: (not r['pago']) for r in cur.fetchall()}
+        for pid_s in [x for x in request.form.get('parcela_ids', '').split(',') if x.strip().isdigit()]:
+            pid = int(pid_s)
+            if not aberto.get(pid):   # inexistente ou já paga → não mexe
+                continue
+            pv = parse_brl(request.form.get(f'pval_{pid}', '0'))
+            pdta = request.form.get(f'pdata_{pid}', '').strip()
+            try: date.fromisoformat(pdta)
+            except Exception: pdta = None
+            if pv > 0 and pdta:
+                cur.execute("UPDATE despesa_parcelas SET valor=%s, data_vencimento=%s WHERE id=%s", (pv, pdta, pid))
+            elif pv > 0:
+                cur.execute("UPDATE despesa_parcelas SET valor=%s WHERE id=%s", (pv, pid))
+            elif pdta:
+                cur.execute("UPDATE despesa_parcelas SET data_vencimento=%s WHERE id=%s", (pdta, pid))
+        # Recalcula o total e o próximo vencimento da despesa a partir das parcelas
+        cur.execute("""SELECT COALESCE(SUM(valor),0) tot,
+                              MIN(CASE WHEN pago=FALSE THEN data_vencimento END) prox
+                       FROM despesa_parcelas WHERE despesa_id=%s""", (did,))
+        agg = cur.fetchone()
+        cur.execute("UPDATE despesas SET categoria=%s, descricao=%s, tipo=%s, obs_retirada=%s, valor=%s WHERE id=%s",
+                    (categoria or None, descricao or None, tipo, obs, float(agg['tot'] or 0), did))
+        if agg['prox'] is not None:
+            cur.execute("UPDATE despesas SET data_vencimento=%s WHERE id=%s", (agg['prox'], did))
+        conn.commit(); flash('Despesa atualizada!', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('despesas'))
+
+
+@login_required
 def excluir_despesa(did):
     if not pode_excluir():
         flash('Apenas o Administrador N1 pode excluir dados.', 'erro'); return redirect(url_for('despesas'))
@@ -382,4 +463,6 @@ def register(app):
     app.add_url_rule('/despesas/nova', 'nova_despesa', nova_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/parcela/<int:pid>/pagar', 'pagar_parcela_despesa', pagar_parcela_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/editar', 'editar_despesa', editar_despesa, methods=['POST'])
+    app.add_url_rule('/despesas/<int:did>/detalhe', 'detalhe_despesa', detalhe_despesa)
+    app.add_url_rule('/despesas/<int:did>/salvar', 'salvar_despesa', salvar_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/excluir', 'excluir_despesa', excluir_despesa, methods=['POST'])

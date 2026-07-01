@@ -217,14 +217,14 @@
 
       <div class="table-wrap" style="max-height:680px;overflow-y:auto">
         <table class="table">
-          <thead><tr><th>Cód</th><th>Data</th><th>Categoria</th><th>Descrição</th><th>Tipo</th><th>Situação</th><th>Forma</th><th>Origem</th><th>Valor</th><th></th></tr></thead>
+          <thead><tr><th>Cód</th><th>Data</th><th>Categoria</th><th>Descrição</th><th>Tipo</th><th>Situação</th><th>Forma</th><th>Origem</th><th>Valor</th></tr></thead>
           <tbody>
             {% for d in lista %}
-            <tr>
+            <tr style="cursor:pointer" onclick="abrirDetalheDespesa({{ d.id }})" title="Ver detalhamento">
               <td><span style="font-size:11px;font-weight:700;color:#e65100;background:#fff3e0;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ d.codigo }}</span></td>
               <td>{{ d.data_despesa.strftime('%d/%m/%Y') if d.data_despesa else '—' }}</td>
-              <td style="font-weight:600">{{ d.categoria or '—' }}</td>
-              <td>{{ d.descricao or '—' }}</td>
+              <td style="font-weight:600;color:#3949ab">{{ d.categoria or '—' }}</td>
+              <td style="color:#3949ab">{{ d.descricao or '—' }}</td>
               <td><span class="bdg-tipo {% if d.tipo == 'fixa' %}bdg-fixa{% else %}bdg-avulsa{% endif %}">{{ d.tipo }}</span></td>
               <td>
                 {% if d.parcelado %}
@@ -238,34 +238,9 @@
               <td>{{ d.forma_pagamento or '—' }}</td>
               <td>{% if d.local_retirada == 'caixa' %}🏦 Caixa{% elif d.local_retirada == 'pix' %}⚡ PIX{% else %}—{% endif %}</td>
               <td style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
-              <td>
-                <div style="display:flex;gap:6px;justify-content:center;align-items:center">
-                  {% if is_admin_user %}
-                  <button type="button" class="btn-sm" style="background:#eef0fb;color:#3949ab"
-                    onclick="abrirEditarDespesa(this)"
-                    data-id="{{ d.id }}"
-                    data-categoria="{{ d.categoria or '' }}"
-                    data-descricao="{{ d.descricao or '' }}"
-                    data-tipo="{{ d.tipo }}"
-                    data-forma="{{ d.forma_pagamento or '' }}"
-                    data-local="{{ d.local_retirada or '' }}"
-                    data-obs="{{ d.obs_retirada or '' }}"
-                    data-valor="{{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}"
-                    data-venc="{{ d.data_vencimento.isoformat() if d.data_vencimento else '' }}"
-                    data-editavel="{{ '1' if (not d.parcelado and d.status != 'pago') else '0' }}"
-                  >✏️</button>
-                  {% endif %}
-                  {% if pode_excluir %}
-                  <form method="POST" action="/despesas/{{ d.id }}/excluir" style="display:inline" onsubmit="return confirm('Excluir esta despesa? Parcelas e lançamentos no caixa também serão removidos.')">
-                    <button type="submit" class="btn-sm btn-sm-danger">🗑️</button>
-                  </form>
-                  {% endif %}
-                  {% if not is_admin_user and not pode_excluir %}<span style="color:#ddd">—</span>{% endif %}
-                </div>
-              </td>
             </tr>
             {% else %}
-            <tr><td colspan="10" class="empty-row">Nenhuma despesa neste período.</td></tr>
+            <tr><td colspan="9" class="empty-row">Nenhuma despesa neste período.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -476,6 +451,102 @@
     </form>
   </div>
 </div>
+
+<!-- MODAL DETALHAMENTO DA DESPESA -->
+<div class="modal-overlay" id="modalDetalhe" style="display:none">
+  <div class="modal modal-tall" style="max-width:660px">
+    <button class="modal-close" onclick="fecharDetalhe()">✕</button>
+    <div class="modal-title" id="detTitulo">Despesa</div>
+    <div class="modal-sub" id="detSub"></div>
+    <form id="formDetalhe" method="POST" action="">
+      <input type="hidden" name="parcela_ids" id="detParcelaIds">
+      <div class="form-grid2" style="margin-bottom:6px">
+        <div class="form-field"><label class="form-label">Categoria</label><input class="form-input" name="categoria" id="detCategoria" disabled></div>
+        <div class="form-field"><label class="form-label">Descrição</label><input class="form-input" name="descricao" id="detDescricao" disabled></div>
+        <div class="form-field"><label class="form-label">Tipo</label>
+          <select class="form-input" name="tipo" id="detTipo" disabled style="cursor:pointer"><option value="fixa">🔒 Fixa</option><option value="avulsa">⚡ Avulsa</option></select>
+        </div>
+        <div class="form-field"><label class="form-label">Observação</label><input class="form-input" name="obs_retirada" id="detObs" placeholder="—" disabled></div>
+      </div>
+      <div class="section-sep">Parcelas</div>
+      <div id="detEditHint" style="display:none;font-size:12px;color:#00838f;font-weight:600;margin-bottom:8px">✏️ Editando — ajuste valor e vencimento das parcelas <b>em aberto</b> (renegociação). Parcelas pagas não mudam.</div>
+      <div id="detParcelas" style="max-height:300px;overflow-y:auto"></div>
+      <div class="modal-footer" style="justify-content:space-between;align-items:center">
+        <div>
+          {% if pode_excluir %}<button type="button" class="btn-sm btn-sm-danger" onclick="excluirDetalhe()">🗑️ Excluir</button>{% endif %}
+        </div>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn-cancelar" onclick="fecharDetalhe()">Fechar</button>
+          {% if is_admin_user %}
+          <button type="button" id="detBtnEditar" class="btn-salvar" style="background:#3949ab" onclick="ativarEdicaoDetalhe()">✏️ Editar</button>
+          <button type="submit" id="detBtnSalvar" class="btn-salvar" style="display:none;background:#2e7d32">💾 Salvar alterações</button>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+/* ── DETALHAMENTO / EDIÇÃO DA DESPESA ── */
+let detDid = null, detParcelas = [];
+function brlDet(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function dataBR(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
+async function abrirDetalheDespesa(did){
+  detDid = did;
+  let d; try{ d = await (await fetch('/despesas/'+did+'/detalhe')).json(); }catch(e){ return; }
+  if(!d || !d.ok) return;
+  const dp = d.despesa; detParcelas = d.parcelas || [];
+  document.getElementById('formDetalhe').action = '/despesas/'+did+'/salvar';
+  document.getElementById('detTitulo').textContent = (dp.categoria || dp.descricao || 'Despesa') + '  ·  ' + (dp.codigo || '');
+  document.getElementById('detSub').textContent = 'Total ' + brlDet(dp.valor) + (dp.parcelado ? ('  ·  '+dp.num_parcelas+'x') : '  ·  conta única');
+  document.getElementById('detCategoria').value = dp.categoria || '';
+  document.getElementById('detDescricao').value = dp.descricao || '';
+  document.getElementById('detTipo').value = (dp.tipo === 'fixa' ? 'fixa' : 'avulsa');
+  document.getElementById('detObs').value = dp.obs_retirada || '';
+  desativarEdicaoDetalhe();
+  renderDetParcelas(false);
+  document.getElementById('modalDetalhe').style.display = 'flex';
+}
+function renderDetParcelas(edit){
+  const c = document.getElementById('detParcelas'); const ids = [];
+  c.innerHTML = detParcelas.map(function(p){
+    ids.push(p.id);
+    if(edit && !p.pago){
+      return '<div style="display:flex;gap:8px;align-items:flex-end;padding:8px 0;border-bottom:1px solid #f0f0f4">'
+        + '<div style="width:52px"><label class="form-label">Parc</label><div style="font-weight:700;padding:9px 0">'+p.numero+'</div></div>'
+        + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="pdata_'+p.id+'" value="'+(p.data_vencimento||'')+'"></div>'
+        + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="pval_'+p.id+'" value="'+p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'"></div>'
+        + '</div>';
+    }
+    const status = p.pago
+      ? '<span style="color:#2e7d32;font-weight:700">✅ Paga'+(p.data_pagamento?(' em '+dataBR(p.data_pagamento)):'')+'</span>'+(p.forma_pagamento?(' · '+p.forma_pagamento):'')+(p.obs_pagamento?(' · '+p.obs_pagamento):'')
+      : '<span style="color:#c62828;font-weight:700">⏳ A pagar</span>' + (edit ? ' <span style="color:#aaa">(paga — não editável)</span>' : '');
+    return '<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:1px solid #f0f0f4;font-size:13px">'
+      + '<div style="min-width:0"><b>Parcela '+p.numero+'</b> · vence '+dataBR(p.data_vencimento)+'<div style="font-size:12px;margin-top:2px">'+status+'</div></div>'
+      + '<div style="font-weight:700;white-space:nowrap">'+brlDet(p.valor)+'</div></div>';
+  }).join('');
+  document.getElementById('detParcelaIds').value = ids.join(',');
+}
+function ativarEdicaoDetalhe(){
+  ['detCategoria','detDescricao','detTipo','detObs'].forEach(id=>{ const e=document.getElementById(id); if(e) e.disabled=false; });
+  document.getElementById('detEditHint').style.display='block';
+  renderDetParcelas(true);
+  document.getElementById('detBtnEditar').style.display='none';
+  document.getElementById('detBtnSalvar').style.display='inline-flex';
+}
+function desativarEdicaoDetalhe(){
+  ['detCategoria','detDescricao','detTipo','detObs'].forEach(id=>{ const e=document.getElementById(id); if(e) e.disabled=true; });
+  document.getElementById('detEditHint').style.display='none';
+  const be=document.getElementById('detBtnEditar'), bs=document.getElementById('detBtnSalvar');
+  if(be) be.style.display='inline-flex'; if(bs) bs.style.display='none';
+}
+function fecharDetalhe(){ document.getElementById('modalDetalhe').style.display='none'; }
+function excluirDetalhe(){
+  if(!confirm('Excluir esta despesa? Parcelas e lançamentos no caixa também serão removidos.')) return;
+  const f=document.createElement('form'); f.method='POST'; f.action='/despesas/'+detDid+'/excluir';
+  document.body.appendChild(f); f.submit();
+}
+</script>
 <script>
 function abrirEditarDespesa(btn){
   const d = btn.dataset;

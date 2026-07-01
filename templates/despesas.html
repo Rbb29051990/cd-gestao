@@ -514,8 +514,8 @@ function renderDetParcelas(edit){
     if(edit && !p.pago){
       return '<div style="display:flex;gap:8px;align-items:flex-end;padding:8px 0;border-bottom:1px solid #f0f0f4">'
         + '<div style="width:52px"><label class="form-label">Parc</label><div style="font-weight:700;padding:9px 0">'+p.numero+'</div></div>'
-        + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="pdata_'+p.id+'" value="'+(p.data_vencimento||'')+'"></div>'
-        + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="pval_'+p.id+'" value="'+p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'"></div>'
+        + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="pdata_'+p.id+'" value="'+(p.data_vencimento||'')+'" onchange="cascataData('+p.id+')"></div>'
+        + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="pval_'+p.id+'" value="'+p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'" onchange="redistribuirValor('+p.id+')"></div>'
         + '</div>';
     }
     const status = p.pago
@@ -545,6 +545,51 @@ function excluirDetalhe(){
   if(!confirm('Excluir esta despesa? Parcelas e lançamentos no caixa também serão removidos.')) return;
   const f=document.createElement('form'); f.method='POST'; f.action='/despesas/'+detDid+'/excluir';
   document.body.appendChild(f); f.submit();
+}
+function parseMoedaDet(s){ return parseFloat(String(s||'').replace(/\./g,'').replace(',','.')) || 0; }
+function fmtMoedaDet(v){ return (Math.round((parseFloat(v)||0)*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+function addDias(iso, dias){
+  const d = new Date(iso+'T00:00:00'); d.setDate(d.getDate()+dias);
+  const p2 = x => String(x).padStart(2,'0');
+  return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+}
+/* Mudou o vencimento de uma parcela → as SEGUINTES em aberto vão +30 dias em cascata. */
+function cascataData(pid){
+  const idx = detParcelas.findIndex(p=>p.id===pid);
+  if(idx<0) return;
+  const el = document.querySelector('[name="pdata_'+pid+'"]');
+  if(!el || !el.value) return;
+  detParcelas[idx].data_vencimento = el.value;
+  let prev = el.value;
+  for(let k=idx+1; k<detParcelas.length; k++){
+    const p = detParcelas[k];
+    if(p.pago) continue;
+    prev = addDias(prev, 30);
+    p.data_vencimento = prev;
+    const inp = document.querySelector('[name="pdata_'+p.id+'"]');
+    if(inp) inp.value = prev;
+  }
+}
+/* Mudou um valor → a diferença redistribui IGUALMENTE entre as outras parcelas em
+   aberto (mantém o total). As parcelas já pagas não entram. */
+function redistribuirValor(pid){
+  const el = document.querySelector('[name="pval_'+pid+'"]');
+  if(!el) return;
+  const p = detParcelas.find(x=>x.id===pid);
+  const novo = parseMoedaDet(el.value);
+  const antigo = p ? p.valor : 0;
+  const outras = detParcelas.filter(x=>!x.pago && x.id!==pid);
+  if(p){ p.valor = novo; }
+  el.value = fmtMoedaDet(novo);
+  if(!outras.length) return;
+  const ajuste = (novo - antigo) / outras.length;  // some subtrai das outras
+  outras.forEach(o=>{
+    let v = Math.round((o.valor - ajuste)*100)/100;
+    if(v < 0) v = 0;
+    o.valor = v;
+    const inp = document.querySelector('[name="pval_'+o.id+'"]');
+    if(inp) inp.value = fmtMoedaDet(v);
+  });
 }
 </script>
 <script>

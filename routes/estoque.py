@@ -3,7 +3,7 @@ etiquetas (lista por data e busca por código), ficha, edição e exclusão."""
 from datetime import date
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from db import get_db, close_db
-from config import hoje_app
+from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import parse_brl, audit_log
 
@@ -11,23 +11,18 @@ from utils import parse_brl, audit_log
 @login_required
 def estoque():
     conn = get_db(); cur = conn.cursor()
-    # Filtro de período por DATA DE LANÇAMENTO do produto (criado_em). Vazio = todos.
-    data_inicio = request.args.get('data_inicio', '').strip()
-    data_fim = request.args.get('data_fim', '').strip()
+    hoje = hoje_app()
+    # Filtro de período por DATA DE LANÇAMENTO do produto (criado_em) — padrão das
+    # demais abas: começa no mês vigente (1º dia → último dia).
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
+    data_fim = request.args.get('data_fim', fim_mes_app())
     try: date.fromisoformat(data_inicio)
-    except ValueError: data_inicio = ''
+    except ValueError: data_inicio = hoje.strftime('%Y-%m-01')
     try: date.fromisoformat(data_fim)
-    except ValueError: data_fim = ''
-    periodo = bool(data_inicio and data_fim)
-    if periodo:
-        cur.execute("SELECT * FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em", (data_inicio, data_fim))
-    else:
-        cur.execute("SELECT * FROM estoque WHERE ativo=TRUE ORDER BY criado_em")
+    except ValueError: data_fim = fim_mes_app()
+    cur.execute("SELECT * FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em", (data_inicio, data_fim))
     itens = [dict(i) for i in cur.fetchall()]
-    if periodo:
-        cur.execute("SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct, COALESCE(SUM(valor_venda*quantidade),0) as vt FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s", (data_inicio, data_fim))
-    else:
-        cur.execute("SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct, COALESCE(SUM(valor_venda*quantidade),0) as vt FROM estoque WHERE ativo=TRUE")
+    cur.execute("SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct, COALESCE(SUM(valor_venda*quantidade),0) as vt FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s", (data_inicio, data_fim))
     tots = cur.fetchone()
     cur.execute("SELECT nome FROM modelos_estoque ORDER BY nome")
     modelos = [r['nome'] for r in cur.fetchall()]
@@ -39,7 +34,6 @@ def estoque():
     cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
     entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
     cur.close(); close_db(conn)
-    hoje = hoje_app()
     for i in itens:
         i['dias_estoque'] = (hoje - i['criado_em'].date()).days
         i['entradas_adicionais'] = entradas_map.get(i['id'], 0)

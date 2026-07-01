@@ -15,7 +15,24 @@
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
 
       <div class="page-title" style="margin-bottom:1px">Vales</div>
-      <div class="page-date" style="margin-bottom:18px">Créditos da loja a favor dos clientes (gerados em trocas/devoluções)</div>
+      <div class="page-date" style="margin-bottom:14px">Créditos da loja a favor dos clientes (gerados em trocas/devoluções)</div>
+
+      <!-- FILTRO DE PERÍODO (data de criação do vale) -->
+      <form method="GET" action="/vales" id="formPeriodoVale" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">De</div>
+          <input type="date" name="data_inicio" id="valDataInicio" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_inicio }}" onchange="this.form.submit()">
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">Até</div>
+          <input type="date" name="data_fim" id="valDataFim" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_fim }}" onchange="this.form.submit()">
+        </div>
+        <div style="display:flex;gap:5px">
+          <button type="button" class="filtro-btn" onclick="atalhoVale('hoje')">Hoje</button>
+          <button type="button" class="filtro-btn" onclick="atalhoVale('semana')">7 dias</button>
+          <button type="button" class="filtro-btn" onclick="atalhoVale('mes')">Mês</button>
+        </div>
+      </form>
 
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px">
         <div style="background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:14px 20px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
@@ -53,4 +70,16 @@
     </main>
   </div>
 </div>
+<script>
+function atalhoVale(tipo){
+  const hoje = new Date(); const fmt = d => localISODate(d);
+  let ini, fim = fmt(hoje);
+  if(tipo==='hoje'){ ini = fmt(hoje); }
+  else if(tipo==='semana'){ const d = new Date(hoje); d.setDate(d.getDate()-6); ini = fmt(d); }
+  else if(tipo==='mes'){ ini = fmt(hoje).slice(0,7)+'-01'; fim = fmt(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0)); }
+  document.getElementById('valDataInicio').value = ini;
+  document.getElementById('valDataFim').value = fim;
+  document.getElementById('formPeriodoVale').submit();
+}
+</script>
 {% endblock %}

@@ -1,8 +1,10 @@
 """Vales (crédito da loja a favor do cliente): gerados em trocas/devoluções e
 usados como forma de pagamento numa compra futura. É um PASSIVO (a loja deve ao
 cliente) — o oposto do crediário."""
+from datetime import date
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from db import get_db, close_db
+from config import hoje_app
 from auth import login_required, get_ctx, pode_excluir
 
 
@@ -46,12 +48,21 @@ def consumir_vale(cur, vale_id, valor_uso, venda_uso=None):
 @login_required
 def vales():
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT * FROM vales ORDER BY (status='aberto') DESC, criado_em DESC")
+    hoje = hoje_app()
+    # Período por data de criação do vale — padrão: início do ano até hoje.
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except ValueError: data_inicio = hoje.strftime('%Y-01-01')
+    try: date.fromisoformat(data_fim)
+    except ValueError: data_fim = hoje.strftime('%Y-%m-%d')
+    cur.execute("SELECT * FROM vales WHERE DATE(criado_em) BETWEEN %s AND %s ORDER BY (status='aberto') DESC, criado_em DESC", (data_inicio, data_fim))
     lista = [dict(v) for v in cur.fetchall()]
-    cur.execute("SELECT COALESCE(SUM(saldo),0) s, COUNT(*) n FROM vales WHERE status='aberto'")
+    cur.execute("SELECT COALESCE(SUM(saldo),0) s, COUNT(*) n FROM vales WHERE status='aberto' AND DATE(criado_em) BETWEEN %s AND %s", (data_inicio, data_fim))
     t = cur.fetchone()
     cur.close(); close_db(conn)
-    ctx = get_ctx(); ctx.update(vales=lista, total_aberto=float(t['s']), n_aberto=int(t['n']))
+    ctx = get_ctx(); ctx.update(vales=lista, total_aberto=float(t['s']), n_aberto=int(t['n']),
+                                data_inicio=data_inicio, data_fim=data_fim)
     return render_template('vales.html', **ctx)
 
 

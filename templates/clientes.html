@@ -32,6 +32,23 @@
         <button class="btn-acao" onclick="document.getElementById('modalCliente').style.display='flex'">+ Novo cliente</button>
       </div>
 
+      <!-- FILTRO DE PERÍODO (data de cadastro) -->
+      <form method="GET" action="/clientes" id="formPeriodoCli" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin:14px 0">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">De</div>
+          <input type="date" name="data_inicio" id="cliDataInicio" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_inicio }}" onchange="this.form.submit()">
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">Até</div>
+          <input type="date" name="data_fim" id="cliDataFim" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_fim }}" onchange="this.form.submit()">
+        </div>
+        <div style="display:flex;gap:5px">
+          <button type="button" class="filtro-btn" onclick="atalhoCli('hoje')">Hoje</button>
+          <button type="button" class="filtro-btn" onclick="atalhoCli('semana')">7 dias</button>
+          <button type="button" class="filtro-btn" onclick="atalhoCli('mes')">Mês</button>
+        </div>
+      </form>
+
       <!-- FILTROS E BUSCA -->
       <div class="filtros">
         <div class="busca">
@@ -267,6 +284,17 @@
 /* ══════════════════════════════════════
    MÁSCARAS
 ══════════════════════════════════════ */
+function atalhoCli(tipo){
+  const hoje = new Date(); const fmt = d => localISODate(d);
+  let ini, fim = fmt(hoje);
+  if(tipo==='hoje'){ ini = fmt(hoje); }
+  else if(tipo==='semana'){ const d = new Date(hoje); d.setDate(d.getDate()-6); ini = fmt(d); }
+  else if(tipo==='mes'){ ini = fmt(hoje).slice(0,7)+'-01'; fim = fmt(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0)); }
+  document.getElementById('cliDataInicio').value = ini;
+  document.getElementById('cliDataFim').value = fim;
+  document.getElementById('formPeriodoCli').submit();
+}
+
 function mascaraTel(el) {
   let v = el.value.replace(/\D/g,'').slice(0,11);
   if (v.length <= 10) {

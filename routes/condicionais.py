@@ -23,12 +23,12 @@ def condicionais():
     cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE ORDER BY nome")
     clientes_lista = [dict(c) for c in cur.fetchall()]
     hoje = hoje_app()
-    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim    = request.args.get('data_fim',    fim_mes_app())
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
+    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
     try: date.fromisoformat(data_inicio)
-    except: data_inicio = hoje.strftime('%Y-%m-01')
+    except: data_inicio = hoje.strftime('%Y-01-01')
     try: date.fromisoformat(data_fim)
-    except: data_fim = fim_mes_app()
+    except: data_fim = hoje.strftime('%Y-%m-%d')
     # Abertas no período (o filtro do topo conecta a tela toda)
     cur.execute("""SELECT c.*,
         COALESCE((SELECT SUM(quantidade) FROM condicional_itens WHERE condicional_id=c.id AND status='pendente'),0) as qtd_pecas

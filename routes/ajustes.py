@@ -68,12 +68,12 @@ def _enriquecer_liquido(lista):
 def ajustes():
     conn = get_db(); cur = conn.cursor()
     hoje = hoje_app()
-    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim = request.args.get('data_fim', fim_mes_app())
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
     try: date.fromisoformat(data_inicio)
-    except Exception: data_inicio = hoje.strftime('%Y-%m-01')
+    except Exception: data_inicio = hoje.strftime('%Y-01-01')
     try: date.fromisoformat(data_fim)
-    except Exception: data_fim = fim_mes_app()
+    except Exception: data_fim = hoje.strftime('%Y-%m-%d')
 
     cur.execute("""SELECT * FROM ajustes_financeiros
                    WHERE DATE(data_ajuste) BETWEEN %s AND %s

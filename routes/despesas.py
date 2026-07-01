@@ -31,12 +31,12 @@ def _parse_iso_date(value, default=None):
 def despesas():
     conn = get_db(); cur = conn.cursor()
     hoje = hoje_app()
-    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim    = request.args.get('data_fim',    fim_mes_app())
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
+    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
     try: date.fromisoformat(data_inicio)
-    except: data_inicio = hoje.strftime('%Y-%m-01')
+    except: data_inicio = hoje.strftime('%Y-01-01')
     try: date.fromisoformat(data_fim)
-    except: data_fim = fim_mes_app()
+    except: data_fim = hoje.strftime('%Y-%m-%d')
     # v115: o período da aba Despesas é sempre baseado no VENCIMENTO DAS PARCELAS.
     # Isso evita somar o valor total de uma despesa parcelada/recorrente dentro de um único mês.
     # Ex.: empréstimo de 18x R$ 750 aparece no mês como R$ 750, e não como R$ 13.500.

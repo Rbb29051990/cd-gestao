@@ -14,12 +14,12 @@ def estoque():
     hoje = hoje_app()
     # Filtro de período por DATA DE LANÇAMENTO do produto (criado_em) — padrão das
     # demais abas: começa no mês vigente (1º dia → último dia).
-    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-    data_fim = request.args.get('data_fim', fim_mes_app())
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
     try: date.fromisoformat(data_inicio)
-    except ValueError: data_inicio = hoje.strftime('%Y-%m-01')
+    except ValueError: data_inicio = hoje.strftime('%Y-01-01')
     try: date.fromisoformat(data_fim)
-    except ValueError: data_fim = fim_mes_app()
+    except ValueError: data_fim = hoje.strftime('%Y-%m-%d')
     cur.execute("SELECT * FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em", (data_inicio, data_fim))
     itens = [dict(i) for i in cur.fetchall()]
     cur.execute("SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct, COALESCE(SUM(valor_venda*quantidade),0) as vt FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s", (data_inicio, data_fim))

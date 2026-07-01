@@ -40,6 +40,11 @@ def inicio_mes_app():
     return f"{d.year:04d}-{d.month:02d}-01"
 
 
+def inicio_ano_app():
+    """Primeiro dia do ano corrente em ISO (yyyy-01-01) — padrão 'do início do ano'."""
+    return f"{hoje_app().year:04d}-01-01"
+
+
 def fim_mes_app():
     """Último dia do mês corrente em ISO (yyyy-mm-dd)."""
     d = hoje_app()

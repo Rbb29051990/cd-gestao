@@ -12,7 +12,7 @@ import math
 from datetime import date, timedelta
 from flask import render_template, request
 from db import get_db, close_db
-from config import hoje_app, agora_app, inicio_mes_app, fim_mes_app
+from config import hoje_app, agora_app, inicio_mes_app, fim_mes_app, inicio_ano_app
 from auth import login_required, get_ctx
 from utils import get_taxa_vigente, calcular_liquido, liquido_caixa_por_venda
 
@@ -114,8 +114,8 @@ def _liquido_com_taxa(bruto, forma, dt, taxa_cache, parcelas=None):
 @login_required
 def dashboard_view():
     conn = get_db(); cur = conn.cursor(); hoje = hoje_app()
-    data_inicio = _parse_date(request.args.get('data_inicio'), inicio_mes_app())
-    data_fim = _parse_date(request.args.get('data_fim'), fim_mes_app())
+    data_inicio = _parse_date(request.args.get('data_inicio'), inicio_ano_app())
+    data_fim = _parse_date(request.args.get('data_fim'), hoje.isoformat())
     if data_fim < data_inicio:
         data_inicio, data_fim = data_fim, data_inicio
     di, df = data_inicio.isoformat(), data_fim.isoformat()

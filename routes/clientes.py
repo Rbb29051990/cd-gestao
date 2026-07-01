@@ -1,9 +1,10 @@
 """Rotas de Clientes: listagem, cadastro, verificação de duplicidade, ficha,
 edição e exclusão (exclusão só N1)."""
 import random
+from datetime import date
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from db import get_db, close_db
-from config import CORES
+from config import CORES, hoje_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import audit_log
 
@@ -11,7 +12,15 @@ from utils import audit_log
 @login_required
 def clientes():
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT * FROM clientes WHERE ativo=TRUE ORDER BY nome")
+    hoje = hoje_app()
+    # Período por data de CADASTRO do cliente — padrão: início do ano até hoje.
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except ValueError: data_inicio = hoje.strftime('%Y-01-01')
+    try: date.fromisoformat(data_fim)
+    except ValueError: data_fim = hoje.strftime('%Y-%m-%d')
+    cur.execute("SELECT * FROM clientes WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s ORDER BY nome", (data_inicio, data_fim))
     lista = [dict(c) for c in cur.fetchall()]
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM clientes WHERE codigo ~ '^C[0-9]+$'")
     n = cur.fetchone()['m']
@@ -19,7 +28,8 @@ def clientes():
     for c in lista:
         p = c['nome'].split()
         c['iniciais'] = (p[0][0] + (p[1][0] if len(p) > 1 else p[0][-1])).upper()
-    ctx = get_ctx(); ctx.update(clientes=lista, next_id=f"C{n+1}")
+    ctx = get_ctx(); ctx.update(clientes=lista, next_id=f"C{n+1}",
+                                data_inicio=data_inicio, data_fim=data_fim)
     return render_template('clientes.html', **ctx)
 
 

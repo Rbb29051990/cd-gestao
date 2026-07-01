@@ -1,5 +1,6 @@
 """Rotas de Estoque: listagem, cadastro, nova entrada, modelos/tamanhos,
 etiquetas (lista por data e busca por código), ficha, edição e exclusão."""
+from datetime import date
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from db import get_db, close_db
 from config import hoje_app
@@ -10,9 +11,23 @@ from utils import parse_brl, audit_log
 @login_required
 def estoque():
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT * FROM estoque WHERE ativo=TRUE ORDER BY criado_em")
+    # Filtro de período por DATA DE LANÇAMENTO do produto (criado_em). Vazio = todos.
+    data_inicio = request.args.get('data_inicio', '').strip()
+    data_fim = request.args.get('data_fim', '').strip()
+    try: date.fromisoformat(data_inicio)
+    except ValueError: data_inicio = ''
+    try: date.fromisoformat(data_fim)
+    except ValueError: data_fim = ''
+    periodo = bool(data_inicio and data_fim)
+    if periodo:
+        cur.execute("SELECT * FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em", (data_inicio, data_fim))
+    else:
+        cur.execute("SELECT * FROM estoque WHERE ativo=TRUE ORDER BY criado_em")
     itens = [dict(i) for i in cur.fetchall()]
-    cur.execute("SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct, COALESCE(SUM(valor_venda*quantidade),0) as vt FROM estoque WHERE ativo=TRUE")
+    if periodo:
+        cur.execute("SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct, COALESCE(SUM(valor_venda*quantidade),0) as vt FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s", (data_inicio, data_fim))
+    else:
+        cur.execute("SELECT COALESCE(SUM(custo_unitario*quantidade),0) as ct, COALESCE(SUM(valor_venda*quantidade),0) as vt FROM estoque WHERE ativo=TRUE")
     tots = cur.fetchone()
     cur.execute("SELECT nome FROM modelos_estoque ORDER BY nome")
     modelos = [r['nome'] for r in cur.fetchall()]
@@ -35,7 +50,7 @@ def estoque():
     ctx.update(itens=itens, modelos=modelos, tamanhos=tamanhos,
                custo_total=float(tots['ct']), valor_total=float(tots['vt']),
                lucro_potencial=float(tots['vt']) - float(tots['ct']),
-               next_ref=f"P{n+1}")
+               next_ref=f"P{n+1}", data_inicio=data_inicio, data_fim=data_fim)
     return render_template('estoque.html', **ctx)
 
 
@@ -173,15 +188,23 @@ def editar_estoque(eid):
     conn = get_db(); cur = conn.cursor()
     if request.method == 'POST':
         qtd = int(request.form.get('quantidade', 1) or 1)
-        cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
-            custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s WHERE id=%s""",
-            (request.form.get('modelo', '').strip(),
-             request.form.get('descricao', '').strip() or None,
-             request.form.get('tamanho', '').strip(), qtd,
-             parse_brl(request.form.get('custo_unitario', '0')),
-             parse_brl(request.form.get('markup', '0')),
-             parse_brl(request.form.get('valor_venda', '0')),
-             parse_brl(request.form.get('margem_lucro', '0')), eid))
+        campos = (request.form.get('modelo', '').strip(),
+                  request.form.get('descricao', '').strip() or None,
+                  request.form.get('tamanho', '').strip(), qtd,
+                  parse_brl(request.form.get('custo_unitario', '0')),
+                  parse_brl(request.form.get('markup', '0')),
+                  parse_brl(request.form.get('valor_venda', '0')),
+                  parse_brl(request.form.get('margem_lucro', '0')))
+        # Só mexe na foto se o usuário trocou/removeu (senão preserva a existente).
+        if request.form.get('foto_alterada') == '1':
+            foto = request.form.get('foto', '').strip() or None
+            cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
+                custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s,foto=%s WHERE id=%s""",
+                campos + (foto, eid))
+        else:
+            cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
+                custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s WHERE id=%s""",
+                campos + (eid,))
         conn.commit(); cur.close(); close_db(conn)
         flash('Produto atualizado!', 'ok')
         return redirect(url_for('ficha_estoque', eid=eid))

@@ -91,6 +91,23 @@
             </div>
           </div>
 
+          <!-- FOTO -->
+          <div class="section-sep">Foto do produto <span style="color:#ccc;text-transform:none;letter-spacing:0;font-weight:400">(opcional)</span></div>
+          <input type="hidden" name="foto" id="eFoto" value="">
+          <input type="hidden" name="foto_alterada" id="eFotoAlterada" value="0">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px">
+            <div id="eFotoPreview" style="width:96px;height:96px;border-radius:12px;border:1.5px dashed #d0d0d8;background:#f8f8fc;display:flex;align-items:center;justify-content:center;font-size:30px;color:#cfcfe0;overflow:hidden;flex-shrink:0">
+              {% if item.foto %}<img src="{{ item.foto }}" style="width:100%;height:100%;object-fit:cover">{% else %}📷{% endif %}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label style="display:inline-flex;align-items:center;gap:8px;padding:9px 14px;background:#eef0fb;color:#3949ab;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+                📷 Tirar foto / escolher
+                <input type="file" accept="image/*" style="display:none" onchange="eCarregarFoto(this)">
+              </label>
+              <button type="button" id="eFotoRemover" onclick="eRemoverFoto()" style="{% if not item.foto %}display:none;{% endif %}background:#fce4ec;color:#c62828;border:none;border-radius:8px;padding:8px 14px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer">🗑️ Remover foto</button>
+            </div>
+          </div>
+
           <!-- BOTÕES -->
           <div class="footer-btns" style="display:flex;gap:12px;padding-top:24px;border-top:1.5px solid var(--cor-borda);flex-wrap:wrap">
             <button type="submit" class="btn-salvar" style="display:inline-flex;align-items:center;gap:8px">
@@ -225,6 +242,36 @@ function eAtualizarTotais() {
   const qtd   = parseInt(document.getElementById('eQtd').value) || 0;
   document.getElementById('eCustoTotal').textContent = fmtMoeda(custo * qtd);
   document.getElementById('eValorTotal').textContent = fmtMoeda(venda * qtd);
+}
+
+/* ── FOTO ── */
+function eCarregarFoto(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      const MAX = 800; let w = img.width, h = img.height;
+      if(w > h && w > MAX){ h = Math.round(h*MAX/w); w = MAX; }
+      else if(h >= w && h > MAX){ w = Math.round(w*MAX/h); h = MAX; }
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      const url = c.toDataURL('image/jpeg', 0.70);
+      document.getElementById('eFoto').value = url;
+      document.getElementById('eFotoAlterada').value = '1';
+      document.getElementById('eFotoPreview').innerHTML = '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover">';
+      document.getElementById('eFotoRemover').style.display = 'inline-block';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function eRemoverFoto(){
+  document.getElementById('eFoto').value = '';
+  document.getElementById('eFotoAlterada').value = '1';
+  document.getElementById('eFotoPreview').innerHTML = '📷';
+  document.getElementById('eFotoRemover').style.display = 'none';
 }
 
 document.addEventListener('DOMContentLoaded', () => {

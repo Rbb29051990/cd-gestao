@@ -77,9 +77,30 @@
             <button type="button" class="btn-acao" style="background:#00838f" onclick="mostrarPainel('eEtiquetas')">🏷️ Imprimir etiquetas</button>
           </div>
         </div>
+        <!-- FILTRO DE PERÍODO (data de lançamento do produto) -->
+        <div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+          <div style="font-size:12px;color:#888;font-weight:600;padding-bottom:8px">📅 Lançamento:</div>
+          <form method="GET" action="/estoque" id="formPeriodoEst" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin:0">
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">De</div>
+              <input type="date" name="data_inicio" id="estDataInicio" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_inicio }}" onchange="this.form.submit()">
+            </div>
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:3px">Até</div>
+              <input type="date" name="data_fim" id="estDataFim" class="form-input" style="width:auto;padding:7px 11px;font-size:13px" value="{{ data_fim }}" onchange="this.form.submit()">
+            </div>
+            <div style="display:flex;gap:5px">
+              <button type="button" class="filtro-btn" onclick="estAtalho('hoje')">Hoje</button>
+              <button type="button" class="filtro-btn" onclick="estAtalho('semana')">7 dias</button>
+              <button type="button" class="filtro-btn" onclick="estAtalho('mes')">Mês</button>
+              <a href="/estoque" class="filtro-btn{% if not (data_inicio and data_fim) %} active{% endif %}" style="text-decoration:none;display:inline-flex;align-items:center">Todos</a>
+            </div>
+          </form>
+          {% if data_inicio and data_fim %}<span style="font-size:12px;color:#00838f;font-weight:700;padding-bottom:8px">Lançados de {{ data_inicio.split('-')|reverse|join('/') }} a {{ data_fim.split('-')|reverse|join('/') }}</span>{% endif %}
+        </div>
         <div class="resumo-grid">
           <div class="resumo-card laranja">
-            <div class="resumo-label">Custo total em estoque</div>
+            <div class="resumo-label">Custo total {% if data_inicio and data_fim %}(período){% else %}em estoque{% endif %}</div>
             <div class="resumo-valor">R$ {{ "{:,.2f}".format(custo_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
             <div class="resumo-hint">valor investido em peças</div>
           </div>
@@ -624,6 +645,18 @@ function ordenarE(col) {
     return eSortDir[col] ? av.localeCompare(bv,'pt-BR') : bv.localeCompare(av,'pt-BR');
   });
   rows.forEach(r => tbody.appendChild(r));
+}
+
+/* ── FILTRO DE PERÍODO (lançamento) ── */
+function estAtalho(tipo){
+  const hoje = new Date(); const fmt = d => localISODate(d);
+  let ini, fim = fmt(hoje);
+  if(tipo==='hoje'){ ini = fmt(hoje); }
+  else if(tipo==='semana'){ const d = new Date(hoje); d.setDate(d.getDate()-6); ini = fmt(d); }
+  else if(tipo==='mes'){ ini = fmt(hoje).slice(0,7)+'-01'; fim = fmt(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0)); }
+  document.getElementById('estDataInicio').value = ini;
+  document.getElementById('estDataFim').value = fim;
+  document.getElementById('formPeriodoEst').submit();
 }
 
 /* ── PROMOÇÃO: seleção e aplicação de desconto ── */

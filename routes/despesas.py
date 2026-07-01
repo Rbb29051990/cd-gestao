@@ -409,30 +409,47 @@ def salvar_despesa(did):
         obs = request.form.get('obs_retirada', '').strip() or None
         if categoria:
             cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING", (categoria,))
-        # Parcelas em aberto: atualiza valor/vencimento (as pagas ficam intactas).
-        cur.execute("SELECT id, pago FROM despesa_parcelas WHERE despesa_id=%s", (did,))
-        aberto = {r['id']: (not r['pago']) for r in cur.fetchall()}
-        for pid_s in [x for x in request.form.get('parcela_ids', '').split(',') if x.strip().isdigit()]:
-            pid = int(pid_s)
-            if not aberto.get(pid):   # inexistente ou já paga → não mexe
-                continue
-            pv = parse_brl(request.form.get(f'pval_{pid}', '0'))
-            pdta = request.form.get(f'pdata_{pid}', '').strip()
-            try: date.fromisoformat(pdta)
-            except Exception: pdta = None
-            if pv > 0 and pdta:
-                cur.execute("UPDATE despesa_parcelas SET valor=%s, data_vencimento=%s WHERE id=%s", (pv, pdta, pid))
-            elif pv > 0:
-                cur.execute("UPDATE despesa_parcelas SET valor=%s WHERE id=%s", (pv, pid))
-            elif pdta:
-                cur.execute("UPDATE despesa_parcelas SET data_vencimento=%s WHERE id=%s", (pdta, pid))
-        # Recalcula o total e o próximo vencimento da despesa a partir das parcelas
-        cur.execute("""SELECT COALESCE(SUM(valor),0) tot,
+        reparc_n = request.form.get('reparc_n', '').strip()
+        if reparc_n.isdigit() and int(reparc_n) >= 2:
+            # RENEGOCIAÇÃO EM PARCELAS: apaga as parcelas em aberto e cria N novas.
+            # As já pagas continuam (histórico/caixa intactos).
+            n = min(int(reparc_n), 48)
+            cur.execute("DELETE FROM despesa_parcelas WHERE despesa_id=%s AND pago=FALSE", (did,))
+            cur.execute("SELECT COALESCE(MAX(numero),0) mx FROM despesa_parcelas WHERE despesa_id=%s", (did,))
+            base_num = cur.fetchone()['mx']
+            for i in range(1, n + 1):
+                pv = parse_brl(request.form.get(f'np_valor_{i}', '0'))
+                pd = request.form.get(f'np_data_{i}', '').strip()
+                try: date.fromisoformat(pd)
+                except Exception: pd = None
+                cur.execute("INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento) VALUES (%s,%s,%s,%s)",
+                            (did, base_num + i, pv, pd))
+            cur.execute("UPDATE despesas SET parcelado=TRUE WHERE id=%s", (did,))
+        else:
+            # Parcelas em aberto: atualiza valor/vencimento (as pagas ficam intactas).
+            cur.execute("SELECT id, pago FROM despesa_parcelas WHERE despesa_id=%s", (did,))
+            aberto = {r['id']: (not r['pago']) for r in cur.fetchall()}
+            for pid_s in [x for x in request.form.get('parcela_ids', '').split(',') if x.strip().isdigit()]:
+                pid = int(pid_s)
+                if not aberto.get(pid):   # inexistente ou já paga → não mexe
+                    continue
+                pv = parse_brl(request.form.get(f'pval_{pid}', '0'))
+                pdta = request.form.get(f'pdata_{pid}', '').strip()
+                try: date.fromisoformat(pdta)
+                except Exception: pdta = None
+                if pv > 0 and pdta:
+                    cur.execute("UPDATE despesa_parcelas SET valor=%s, data_vencimento=%s WHERE id=%s", (pv, pdta, pid))
+                elif pv > 0:
+                    cur.execute("UPDATE despesa_parcelas SET valor=%s WHERE id=%s", (pv, pid))
+                elif pdta:
+                    cur.execute("UPDATE despesa_parcelas SET data_vencimento=%s WHERE id=%s", (pdta, pid))
+        # Recalcula total, próximo vencimento e nº de parcelas da despesa
+        cur.execute("""SELECT COALESCE(SUM(valor),0) tot, COUNT(*) cnt,
                               MIN(CASE WHEN pago=FALSE THEN data_vencimento END) prox
                        FROM despesa_parcelas WHERE despesa_id=%s""", (did,))
         agg = cur.fetchone()
-        cur.execute("UPDATE despesas SET categoria=%s, descricao=%s, tipo=%s, obs_retirada=%s, valor=%s WHERE id=%s",
-                    (categoria or None, descricao or None, tipo, obs, float(agg['tot'] or 0), did))
+        cur.execute("UPDATE despesas SET categoria=%s, descricao=%s, tipo=%s, obs_retirada=%s, valor=%s, num_parcelas=%s WHERE id=%s",
+                    (categoria or None, descricao or None, tipo, obs, float(agg['tot'] or 0), int(agg['cnt'] or 1), did))
         if agg['prox'] is not None:
             cur.execute("UPDATE despesas SET data_vencimento=%s WHERE id=%s", (agg['prox'], did))
         conn.commit(); flash('Despesa atualizada!', 'ok')

@@ -4,8 +4,10 @@
 
 Ao clicar numa **despesa recorrente** (fixa que gera 12 contas mensais), o **detalhamento** agora mostra **todos os meses do grupo numa única tela**. Dá para ajustar **valor, vencimento, categoria, descrição, tipo e observação de uma vez** — sem precisar abrir mês a mês. No modo **Editar**:
 
-- **Aplicar a todos os meses em aberto**: define um único **valor** para todos os meses pendentes e/ou **reprograma os vencimentos** a partir de uma 1ª data (avançando 1 mês por mês).
-- Ao mudar a **data** de um mês, os seguintes em aberto avançam **+1 mês em cascata**.
+- **➕ Adicionar vencimento**: estende a série (útil quando ela chega ao fim) e **🗑 excluir** vencimentos ainda **em aberto** (meses já pagos permanecem como histórico). Também disponível em despesas parceladas.
+- **Aplicar a todos os meses em aberto**: define um único **valor** para todos os meses pendentes e/ou **reprograma os vencimentos** a partir de uma 1ª data (**a cada 30 dias**).
+- Ao **informar/alterar** a data de um vencimento, os seguintes em aberto **puxam automaticamente a cada 30 dias** (em cascata).
+- Campos do detalhamento **padronizados** (alinhados em grade: mês · vencimento · valor · excluir).
 - Cada mês tem **valor independente** (não redistribui entre os outros, como acontece no parcelamento).
 - **Meses já pagos ficam intactos** (não mudam valor/vencimento).
 - **Excluir** pelo detalhamento remove a **série inteira** (apenas N1).

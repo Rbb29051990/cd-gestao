@@ -27,6 +27,64 @@ def _parse_iso_date(value, default=None):
         return default or hoje_app()
 
 
+def _add_novos_vencimentos(cur, did, grupo):
+    """v140: cria os novos vencimentos informados no detalhamento (edição).
+    Lê add_count + add_data_<k>/add_valor_<k>. Recorrente (grupo != None): cada novo
+    vencimento vira uma nova conta mensal no MESMO grupo (linha em despesas + parcela),
+    permitindo estender a série quando ela chega ao fim. Parcelada/única: novas parcelas
+    na própria despesa. Só cria linhas com data válida e valor > 0."""
+    try:
+        add_count = int(request.form.get('add_count', '0') or 0)
+    except ValueError:
+        add_count = 0
+    if add_count <= 0:
+        return
+    novos = []
+    for k in range(1, add_count + 1):
+        pd = request.form.get(f'add_data_{k}', '').strip()
+        pv = parse_brl(request.form.get(f'add_valor_{k}', '0'))
+        try: date.fromisoformat(pd)
+        except Exception: pd = None
+        if pd and pv > 0:
+            novos.append((pd, pv))
+    if not novos:
+        return
+    if grupo:
+        cur.execute("SELECT * FROM despesas WHERE recorrencia_grupo=%s ORDER BY id LIMIT 1", (grupo,))
+        tpl_row = cur.fetchone()
+        tpl = dict(tpl_row) if tpl_row else {}
+        categoria = tpl.get('categoria') or request.form.get('categoria', '').strip() or None
+        descricao = tpl.get('descricao') or request.form.get('descricao', '').strip() or None
+        tipo = tpl.get('tipo') or 'fixa'
+        obs = tpl.get('obs_retirada')
+        rec_total = tpl.get('recorrencia_total')
+        rec_base = tpl.get('recorrencia_base')
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) m FROM despesas WHERE codigo ~ '^D[0-9]+$'")
+        nextn = cur.fetchone()['m'] + 1
+        cur.execute("SELECT COALESCE(MAX(recorrencia_seq),0) mx FROM despesas WHERE recorrencia_grupo=%s", (grupo,))
+        seq = cur.fetchone()['mx'] or 0
+        for pd, pv in novos:
+            seq += 1
+            cur.execute("""INSERT INTO despesas
+                (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,
+                 parcelado,num_parcelas,local_retirada,obs_retirada,status,data_vencimento,usuario_id,usuario_nome,
+                 recorrente,recorrencia_grupo,recorrencia_seq,recorrencia_total,recorrencia_base)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                (f"D{nextn}", descricao, categoria, pv, hoje_app().isoformat(), None, tipo,
+                 False, 1, None, obs, 'pendente', pd,
+                 session['uid'], session['nome'], True, grupo, seq, rec_total, rec_base))
+            new_id = cur.fetchone()['id']
+            cur.execute("INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento) VALUES (%s,1,%s,%s)",
+                        (new_id, pv, pd))
+            nextn += 1
+    else:
+        cur.execute("SELECT COALESCE(MAX(numero),0) mx FROM despesa_parcelas WHERE despesa_id=%s", (did,))
+        base_num = cur.fetchone()['mx']
+        for i, (pd, pv) in enumerate(novos, start=1):
+            cur.execute("INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento) VALUES (%s,%s,%s,%s)",
+                        (did, base_num + i, pv, pd))
+
+
 @login_required
 def despesas():
     conn = get_db(); cur = conn.cursor()
@@ -451,10 +509,21 @@ def salvar_despesa(did):
                            FROM despesa_parcelas p JOIN despesas dd ON dd.id=p.despesa_id
                            WHERE dd.recorrencia_grupo=%s""", (grupo,))
             grp_parc = {r['id']: {'did': r['despesa_id'], 'aberto': (not r['pago'])} for r in cur.fetchall()}
+            # ── Exclusões: só meses EM ABERTO; os já pagos ficam (histórico/caixa) ──
+            for pid_s in [x for x in request.form.get('del_ids', '').split(',') if x.strip().isdigit()]:
+                pid = int(pid_s)
+                info = grp_parc.get(pid)
+                if not info or not info['aberto']:
+                    continue
+                cur.execute("DELETE FROM caixa WHERE parcela_id=%s", (pid,))
+                cur.execute("DELETE FROM despesa_parcelas WHERE id=%s", (pid,))
+                cur.execute("DELETE FROM despesas WHERE id=%s", (info['did'],))  # cada mês é 1 despesa
+                grp_parc.pop(pid, None)
+            # ── Edições de valor/vencimento dos meses em aberto ──
             for pid_s in [x for x in request.form.get('parcela_ids', '').split(',') if x.strip().isdigit()]:
                 pid = int(pid_s)
                 info = grp_parc.get(pid)
-                if not info or not info['aberto']:   # inexistente ou já paga → não mexe
+                if not info or not info['aberto']:   # inexistente, já paga ou excluída → não mexe
                     continue
                 pv = parse_brl(request.form.get(f'pval_{pid}', '0'))
                 pdta = request.form.get(f'pdata_{pid}', '').strip()
@@ -469,7 +538,9 @@ def salvar_despesa(did):
                 elif pdta:
                     cur.execute("UPDATE despesa_parcelas SET data_vencimento=%s WHERE id=%s", (pdta, pid))
                     cur.execute("UPDATE despesas SET data_vencimento=%s WHERE id=%s", (pdta, info['did']))
-            conn.commit(); flash('Despesa recorrente atualizada em todos os meses em aberto!', 'ok')
+            # ── Adições: novos vencimentos (novas contas mensais dentro do mesmo grupo) ──
+            _add_novos_vencimentos(cur, did, grupo)
+            conn.commit(); flash('Despesa recorrente atualizada!', 'ok')
             return redirect(url_for('despesas'))
         reparc_n = request.form.get('reparc_n', '').strip()
         if reparc_n.isdigit() and int(reparc_n) >= 2:
@@ -491,9 +562,17 @@ def salvar_despesa(did):
             # Parcelas em aberto: atualiza valor/vencimento (as pagas ficam intactas).
             cur.execute("SELECT id, pago FROM despesa_parcelas WHERE despesa_id=%s", (did,))
             aberto = {r['id']: (not r['pago']) for r in cur.fetchall()}
+            # ── Exclusões: só parcelas EM ABERTO desta despesa ──
+            for pid_s in [x for x in request.form.get('del_ids', '').split(',') if x.strip().isdigit()]:
+                pid = int(pid_s)
+                if not aberto.get(pid):
+                    continue
+                cur.execute("DELETE FROM caixa WHERE parcela_id=%s", (pid,))
+                cur.execute("DELETE FROM despesa_parcelas WHERE id=%s", (pid,))
+                aberto.pop(pid, None)
             for pid_s in [x for x in request.form.get('parcela_ids', '').split(',') if x.strip().isdigit()]:
                 pid = int(pid_s)
-                if not aberto.get(pid):   # inexistente ou já paga → não mexe
+                if not aberto.get(pid):   # inexistente, já paga ou excluída → não mexe
                     continue
                 pv = parse_brl(request.form.get(f'pval_{pid}', '0'))
                 pdta = request.form.get(f'pdata_{pid}', '').strip()
@@ -505,13 +584,16 @@ def salvar_despesa(did):
                     cur.execute("UPDATE despesa_parcelas SET valor=%s WHERE id=%s", (pv, pid))
                 elif pdta:
                     cur.execute("UPDATE despesa_parcelas SET data_vencimento=%s WHERE id=%s", (pdta, pid))
+            # ── Adições: novos vencimentos como parcelas da MESMA despesa ──
+            _add_novos_vencimentos(cur, did, None)
         # Recalcula total, próximo vencimento e nº de parcelas da despesa
         cur.execute("""SELECT COALESCE(SUM(valor),0) tot, COUNT(*) cnt,
                               MIN(CASE WHEN pago=FALSE THEN data_vencimento END) prox
                        FROM despesa_parcelas WHERE despesa_id=%s""", (did,))
         agg = cur.fetchone()
-        cur.execute("UPDATE despesas SET categoria=%s, descricao=%s, tipo=%s, obs_retirada=%s, valor=%s, num_parcelas=%s WHERE id=%s",
-                    (categoria or None, descricao or None, tipo, obs, float(agg['tot'] or 0), int(agg['cnt'] or 1), did))
+        cnt = int(agg['cnt'] or 1)
+        cur.execute("UPDATE despesas SET categoria=%s, descricao=%s, tipo=%s, obs_retirada=%s, valor=%s, num_parcelas=%s, parcelado=%s WHERE id=%s",
+                    (categoria or None, descricao or None, tipo, obs, float(agg['tot'] or 0), cnt, cnt > 1, did))
         if agg['prox'] is not None:
             cur.execute("UPDATE despesas SET data_vencimento=%s WHERE id=%s", (agg['prox'], did))
         conn.commit(); flash('Despesa atualizada!', 'ok')

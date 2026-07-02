@@ -45,7 +45,7 @@
       <div class="table-wrap">
         <table class="etable">
           <thead><tr>
-            <th>Código</th><th>Cliente</th><th>Valor</th><th>Saldo</th><th>Status</th><th>Origem</th><th>Criado</th>{% if pode_excluir %}<th></th>{% endif %}
+            <th>Código</th><th>Cliente</th><th>Valor</th><th>Saldo</th><th>Status</th><th>Origem</th><th>Gasto em (venda)</th><th>Criado</th>{% if pode_excluir %}<th></th>{% endif %}
           </tr></thead>
           <tbody>
             {% for v in vales %}
@@ -56,13 +56,21 @@
               <td style="font-weight:700;color:{% if v.saldo > 0 %}#2e7d32{% else %}#aaa{% endif %}">{{ brl(v.saldo) }}</td>
               <td>{% if v.status == 'aberto' %}<span class="badge badge-hab">🎟️ Aberto</span>{% else %}<span class="badge badge-nao">✔️ Usado</span>{% endif %}</td>
               <td style="color:#888;font-size:12px">{% if v.venda_origem %}<a href="/vendas/{{ v.venda_origem }}" style="color:#1565c0">Venda #{{ '%04d'|format(v.venda_origem) }}</a>{% else %}—{% endif %}</td>
+              <td style="font-size:12px">
+                {% if v.usos %}
+                  {% for u in v.usos %}
+                    <div style="white-space:nowrap">🛍️ <a href="/vendas/{{ u.venda_id }}" style="color:#2e7d32;font-weight:600" title="Ver os produtos e fotos desta venda">{{ u.venda_codigo or ('Venda #' ~ '%04d'|format(u.venda_id)) }}</a>
+                    <span style="color:#888">· {{ brl(u.valor) }}{% if u.criado_em %} · {{ u.criado_em.strftime('%d/%m/%Y') }}{% endif %}</span></div>
+                  {% endfor %}
+                {% else %}<span style="color:#ccc">—</span>{% endif %}
+              </td>
               <td style="color:#999;font-size:12px">{{ v.criado_em.strftime('%d/%m/%Y') if v.criado_em else '—' }}</td>
               {% if pode_excluir %}
               <td><form method="POST" action="/vales/{{ v.id }}/excluir" onsubmit="return confirm('Excluir o vale {{ v.codigo }}?')"><button type="submit" class="btn-exc-venda">🗑️</button></form></td>
               {% endif %}
             </tr>
             {% else %}
-            <tr><td colspan="8" style="text-align:center;color:#aaa;padding:24px">Nenhum vale registrado ainda.</td></tr>
+            <tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">Nenhum vale registrado ainda.</td></tr>
             {% endfor %}
           </tbody>
         </table>

@@ -1,5 +1,20 @@
 # CD Gestão Empresarial — v140
 
+## Novidades da v140 — Uso de vale (crédito da loja) na venda
+
+Quando uma troca/devolução gera um **vale** para o cliente, agora é simples usá-lo numa compra futura:
+
+- **Lançar o código** do vale (ex.: `VL5`) direto na venda para abater — ou clicar num dos **vales sugeridos** do cliente selecionado.
+- **Combinar vários vales** na mesma compra (ex.: mãe + filha) — abatem em ordem; cada um mostra quanto abateu e quanto sobra.
+- Resumo claro: **saldo do vale → quanto abate → quanto sobra** de saldo para a próxima compra.
+- Se ainda **restar valor a pagar**, é obrigatório informar a **forma de pagamento** para lançar o restante no caixa.
+- Funciona **à vista** e no **pagamento dividido** (o alvo das formas já vem com o(s) vale(s) descontado(s)).
+- Se o(s) vale(s) **cobrir(em) 100%** da venda, finaliza sem precisar de outra forma de pagamento.
+- **Não se aplica ao crediário** (o painel some ao escolher crediário).
+- A parte paga com vale **não entra no caixa** (não é faturamento novo); só o restante é registrado.
+
+**Baixa automática e rastreio:** ao usar o vale, a aba **Vales** já dá baixa (o saldo reduz ou o vale vira "usado") e registra **onde foi gasto** — a coluna **"Gasto em (venda)"** mostra a(s) venda(s) com valor e data, com **link para a ficha da venda** (onde é possível ver os **produtos e as fotos** da compra, para auditoria/origem).
+
 ## Novidades da v140 (2026-07-01) — Despesa recorrente editável em uma tela
 
 Ao clicar numa **despesa recorrente** (fixa que gera 12 contas mensais), o **detalhamento** agora mostra **todos os meses do grupo numa única tela**. Dá para ajustar **valor, vencimento, categoria, descrição, tipo e observação de uma vez** — sem precisar abrir mês a mês. No modo **Editar**:

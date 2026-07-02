@@ -246,8 +246,7 @@
       <input type="hidden" name="valor_final" id="valorFinalHidden" value="0">
       <input type="hidden" name="pagamentos" id="pagamentosJson" value="[]">
       <input type="hidden" name="entrada_pagamentos" id="entradaPagamentosJson" value="[]">
-      <input type="hidden" name="vale_id" id="valeId" value="">
-      <input type="hidden" name="vale_valor" id="valeValor" value="0">
+      <input type="hidden" name="vales_ids" id="valesIds" value="[]">
 
       <div class="step-sep">1. Vendedor (a) e cliente</div>
       <div class="form-grid2">
@@ -268,7 +267,6 @@
           <input type="hidden" name="cliente_id" id="clienteId">
           <input type="hidden" name="cliente_nome" id="clienteNome">
           <div id="clienteInfo" style="font-size:12px;color:#aaa;margin-top:3px"></div>
-          <div id="valeInfo" style="display:none;margin-top:6px;font-size:13px"></div>
         </div>
       </div>
 
@@ -311,6 +309,20 @@
       <div class="total-bar">
         <span class="total-label">Total da venda</span>
         <span class="total-valor" id="totalVenda">R$ 0,00</span>
+      </div>
+
+      <!-- VALE / CRÉDITO DA LOJA (v140) -->
+      <div id="valePanel" style="background:#f0faf4;border:1.5px solid #c5e1a5;border-radius:10px;padding:14px 18px;margin:14px 0">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#2e7d32;margin-bottom:10px">🎟️ Vale / crédito da loja
+          <span style="text-transform:none;letter-spacing:0;color:#9aa;font-weight:600">— pode somar vários vales; o que sobrar fica de saldo</span></div>
+        <div id="valeSugestoes" style="display:none;margin-bottom:10px;font-size:12.5px"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="valeCodigo" class="form-input" placeholder="Código do vale (ex.: VL5)" autocomplete="off"
+                 style="max-width:220px" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarValeCodigo();}">
+          <button type="button" onclick="aplicarValeCodigo()" style="padding:9px 16px;background:#2e7d32;color:#fff;border:none;border-radius:8px;font-family:Outfit,sans-serif;font-size:13px;font-weight:700;cursor:pointer">+ Adicionar vale</button>
+        </div>
+        <div id="valeErro" style="display:none;margin-top:8px;color:#c62828;font-size:12.5px;font-weight:700"></div>
+        <div id="valeResumo" style="display:none;margin-top:10px;background:#fff;border:1.5px solid #c8e6c9;border-radius:8px;padding:12px 14px;font-size:13px"></div>
       </div>
 
       <div class="step-sep">3. Forma de pagamento</div>
@@ -375,7 +387,7 @@
         <button type="button" id="btnAddSplit" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
         <div class="conf-box" style="margin-top:14px">
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
-            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Total da venda</div><div style="font-weight:700" id="splitAlvo">—</div></div>
+            <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px" id="splitAlvoLbl">Total da venda</div><div style="font-weight:700" id="splitAlvo">—</div></div>
             <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="splitSoma">—</div></div>
             <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="splitDif">—</div></div>
           </div>
@@ -555,36 +567,120 @@ function selecionarCliente(c) {
   carregarVales(c);
 }
 
-/* ── Vale (crédito da loja) ── */
+/* ══════════ VALE / CRÉDITO DA LOJA (v140) ══════════
+   Vários vales podem ser COMBINADOS na mesma venda (ex.: mãe + filha). Cada vale abate do
+   valor a pagar (em ordem); o que sobrar de cada um fica de saldo. Aplicável por CÓDIGO
+   digitado ou pelos vales sugeridos do cliente. Vale à vista e no dividido; não no crediário. */
+let valesAplicados = [];   // [{id, codigo, saldo}]
+function fmtBRLv(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function valorFinalVenda(){
+  const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
+  const desc  = parseFloat(document.getElementById('descontoValorHidden').value||0);
+  return Math.max(0, Math.round((total-desc)*100)/100);
+}
+/* Distribui o valor da venda entre os vales aplicados (em ordem). */
+function calcAbatimentos(){
+  let restante = valorFinalVenda();
+  return valesAplicados.map(function(v){
+    const usado = Math.round(Math.max(0, Math.min(v.saldo, restante))*100)/100;
+    restante = Math.round((restante - usado)*100)/100;
+    return {id:v.id, codigo:v.codigo, saldo:v.saldo, usado:usado, sobra:Math.round((v.saldo-usado)*100)/100};
+  });
+}
+function valeAbatido(){ return Math.round(calcAbatimentos().reduce(function(s,a){return s+a.usado;},0)*100)/100; }
+function aPagarLiquido(){ return Math.max(0, Math.round((valorFinalVenda()-valeAbatido())*100)/100); }
+function syncValesHidden(){ document.getElementById('valesIds').value = JSON.stringify(valesAplicados.map(function(v){return v.id;})); }
+
+/* Sugestões: vales em aberto do cliente selecionado (clicáveis). */
 async function carregarVales(c){
-  const box = document.getElementById('valeInfo');
-  box.style.display='none'; box.innerHTML='';
+  const box = document.getElementById('valeSugestoes');
+  if(box){ box.style.display='none'; box.innerHTML=''; }
   if(!c || (!c.id && !c.nome)) return;
   let d; try{
     const q = c.id ? ('cliente_id='+c.id) : ('nome='+encodeURIComponent(c.nome));
     d = await (await fetch('/vales/cliente?'+q)).json();
   }catch(e){ return; }
-  if(!d.vales || !d.vales.length) return;
-  const v = d.vales[0];  // aplica o primeiro vale em aberto
-  const saldo = v.saldo.toLocaleString('pt-BR',{minimumFractionDigits:2});
-  box.innerHTML = '<span style="color:#2e7d32;font-weight:700">🎟️ Vale '+v.codigo+': R$ '+saldo+'</span> '
-    + '<button type="button" id="btnAplicarVale" onclick="aplicarVale('+v.id+','+v.saldo+')" style="margin-left:6px;padding:3px 10px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">Aplicar na venda</button>'
-    + '<span id="valeAplicadoMsg"></span>';
+  if(!d.vales || !d.vales.length || !box) return;
+  box.innerHTML = '<span style="color:#2e7d32;font-weight:700">Vales deste cliente:</span> '
+    + d.vales.map(function(v){
+        return '<button type="button" onclick="aplicarValeSugestao('+v.id+',\''+v.codigo+'\','+v.saldo+')" '
+             + 'style="margin:2px 4px 2px 0;padding:4px 10px;background:#fff;border:1.5px solid #2e7d32;color:#2e7d32;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer">🎟️ '
+             + v.codigo+' · '+fmtBRLv(v.saldo)+'</button>';
+      }).join('');
   box.style.display='block';
 }
-function aplicarVale(id, saldo){
-  document.getElementById('valeId').value = id;
-  document.getElementById('valeValor').value = saldo;
-  const total = parseFloat(document.getElementById('valorTotalHidden').value||0);
-  const usado = Math.min(saldo, total||saldo);
-  document.getElementById('btnAplicarVale').style.display='none';
-  document.getElementById('valeAplicadoMsg').innerHTML = ' <span style="color:#2e7d32;font-weight:700">✅ aplicado (−R$ '+usado.toLocaleString('pt-BR',{minimumFractionDigits:2})+' à vista)</span> <a onclick="removerVale()" style="color:#c62828;cursor:pointer;font-weight:700;margin-left:6px">remover</a>';
+function aplicarValeSugestao(id, codigo, saldo){ addVale({id:id, codigo:codigo, saldo:saldo}); }
+async function aplicarValeCodigo(){
+  const cod = (document.getElementById('valeCodigo').value||'').trim();
+  const err = document.getElementById('valeErro');
+  err.style.display='none';
+  if(!cod){ err.textContent='Digite o código do vale (ex.: VL5).'; err.style.display='block'; return; }
+  let d; try{ d = await (await fetch('/vales/buscar?codigo='+encodeURIComponent(cod))).json(); }
+  catch(e){ err.textContent='Erro ao buscar o vale. Tente novamente.'; err.style.display='block'; return; }
+  if(!d.ok){ err.textContent = d.erro || 'Vale não encontrado.'; err.style.display='block'; return; }
+  addVale(d.vale);
 }
-function removerVale(){
-  document.getElementById('valeId').value='';
-  document.getElementById('valeValor').value='0';
-  const b=document.getElementById('btnAplicarVale'); if(b) b.style.display='';
-  const m=document.getElementById('valeAplicadoMsg'); if(m) m.innerHTML='';
+function addVale(v){
+  const err = document.getElementById('valeErro');
+  if(valesAplicados.some(function(x){return x.id===v.id;})){
+    if(err){ err.textContent='O vale '+v.codigo+' já foi adicionado.'; err.style.display='block'; }
+    return;
+  }
+  if(document.getElementById('formaPagamento').value==='crediario'){
+    if(err){ err.textContent='O vale não se aplica ao crediário.'; err.style.display='block'; }
+    return;
+  }
+  valesAplicados.push({id:v.id, codigo:v.codigo, saldo:parseFloat(v.saldo)||0});
+  if(err) err.style.display='none';
+  document.getElementById('valeCodigo').value='';
+  syncValesHidden(); renderValeResumo(); atualizarPagamentoAlvos();
+}
+function removerValeItem(id){
+  valesAplicados = valesAplicados.filter(function(v){return v.id!==id;});
+  syncValesHidden(); renderValeResumo(); atualizarPagamentoAlvos();
+}
+function removerVale(){   // limpa TODOS (usado ao trocar de cliente / escolher crediário)
+  valesAplicados = [];
+  const cod=document.getElementById('valeCodigo'); if(cod) cod.value='';
+  const err=document.getElementById('valeErro'); if(err) err.style.display='none';
+  syncValesHidden(); renderValeResumo(); atualizarPagamentoAlvos();
+}
+function renderValeResumo(){
+  const box = document.getElementById('valeResumo');
+  if(!box) return;
+  if(!valesAplicados.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const ab = calcAbatimentos();
+  const totalAbate = valeAbatido();
+  const apagar = aPagarLiquido();
+  let html = ab.map(function(a){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed #eee">'
+      + '<span>🎟️ <b>'+a.codigo+'</b> · saldo '+fmtBRLv(a.saldo)+'</span>'
+      + '<span style="white-space:nowrap"><b style="color:#2e7d32">− '+fmtBRLv(a.usado)+'</b>'
+      + (a.sobra>0.005 ? ' <span style="color:#00838f;font-size:12px">(sobra '+fmtBRLv(a.sobra)+')</span>' : '')
+      + ' <a onclick="removerValeItem('+a.id+')" style="color:#c62828;cursor:pointer;font-weight:700;margin-left:8px">✕</a></span>'
+      + '</div>';
+  }).join('');
+  html += '<div style="display:flex;justify-content:space-between;margin-top:6px;color:#2e7d32"><span>Total abatido em vales</span><b>− '+fmtBRLv(totalAbate)+'</b></div>'
+    + '<div style="display:flex;justify-content:space-between;border-top:1px solid #eee;padding-top:6px;margin-top:4px;font-size:15px"><span style="font-weight:700">A pagar</span><b style="color:'+(apagar<=0.005?'#2e7d32':'#1a1a2e')+'">'+fmtBRLv(apagar)+(apagar<=0.005?'  ✅ pago com vale(s)':'')+'</b></div>';
+  if(apagar>0.005){
+    html += '<div style="margin-top:6px;font-size:12px;color:#e65100;font-weight:600">➜ Restou '+fmtBRLv(apagar)+' — escolha a forma de pagamento abaixo para lançar no caixa.</div>';
+  }
+  box.innerHTML = html;
+  box.style.display='block';
+}
+/* Reflete o abatimento do(s) vale(s) nos alvos das formas (split) e barra o crediário. */
+function atualizarPagamentoAlvos(){
+  const forma = document.getElementById('formaPagamento').value;
+  if(valesAplicados.length && forma==='crediario'){
+    alert('O vale não se aplica ao crediário. Ele foi removido — use o(s) vale(s) numa venda à vista ou dividida.');
+    removerVale();
+    return;
+  }
+  const lbl = document.getElementById('splitAlvoLbl');
+  if(lbl) lbl.textContent = valesAplicados.length ? 'A pagar (após vale)' : 'Total da venda';
+  if(typeof vendaSplit!=='undefined' && vendaSplit && document.getElementById('secDividido').style.display!=='none'){
+    vendaSplit.recompute();
+  }
 }
 
 document.addEventListener('click', e => {
@@ -780,6 +876,7 @@ function renderCarrinho() {
     body.innerHTML = '<div class="empty-carrinho">Nenhum item adicionado ainda</div>';
     document.getElementById('totalVenda').textContent = 'R$ 0,00';
     document.getElementById('valorTotalHidden').value = '0';
+    if (typeof renderValeResumo === 'function') { renderValeResumo(); atualizarPagamentoAlvos(); }
     return;
   }
   let total = 0;
@@ -798,6 +895,7 @@ function renderCarrinho() {
   document.getElementById('totalVenda').textContent = 'R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2});
   document.getElementById('valorTotalHidden').value = total.toFixed(2);
   calcSaldo();
+  if (typeof renderValeResumo === 'function') { renderValeResumo(); atualizarPagamentoAlvos(); }
 }
 
 function updateQtd(idx, val) { carrinhoItens[idx].quantidade = parseInt(val)||1; renderCarrinho(); }
@@ -834,6 +932,10 @@ function selPg(tipo, btn) {
     document.getElementById('descontoValorHidden').value = '0';
     document.getElementById('pctDescontoHidden').value = '0';
   }
+  // Vale não se aplica ao crediário → esconde o painel (remove o vale se estiver aplicado).
+  const vp = document.getElementById('valePanel');
+  if (vp) vp.style.display = (tipo==='crediario') ? 'none' : 'block';
+  if (typeof atualizarPagamentoAlvos === 'function') atualizarPagamentoAlvos();
 }
 
 /* ── Editor de pagamento dividido (reutilizável: venda e entrada do crediário) ── */
@@ -1051,17 +1153,23 @@ function prepararEnvio() {
 
   if (carrinhoItens.length === 0) { alert('⚠️ Adicione pelo menos um produto ao carrinho.'); return false; }
 
-  const forma = document.getElementById('formaPagamento')?.value;
-  if (!forma) { alert('⚠️ Selecione a forma de pagamento.'); return false; }
+  let forma = document.getElementById('formaPagamento')?.value;
+  // Vale cobre 100% da venda → não precisa escolher outra forma de pagamento.
+  syncValesHidden();
+  const pagoTotalVale = !!(valesAplicados.length && aPagarLiquido() <= 0.01 && valeAbatido() > 0);
+  if (!forma) {
+    if (pagoTotalVale) { forma = 'dinheiro'; document.getElementById('formaPagamento').value = 'dinheiro'; }
+    else { alert('⚠️ Selecione a forma de pagamento.'); return false; }
+  }
 
-  if (forma === 'credito_parcelado') {
+  if (forma === 'credito_parcelado' && !pagoTotalVale) {
     const parc = document.querySelector('[name=parcelas]')?.value;
     if (!parc || parc === '' || parc === '1') {
       alert('⚠️ Informe o número de parcelas para crédito parcelado (mínimo 2x).'); return false;
     }
   }
 
-  if (forma === 'multiplo') {
+  if (forma === 'multiplo' && !pagoTotalVale) {
     const pgs = vendaSplit.serialize();
     if (pgs.length === 0) { alert('⚠️ Adicione ao menos uma forma de pagamento.'); return false; }
     let faltaForma = false;
@@ -1243,7 +1351,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Editores de pagamento dividido (venda e entrada do crediário)
   vendaSplit = criarSplitEditor({rowsId:'splitRows', addBtnId:'btnAddSplit',
     alvoId:'splitAlvo', somaId:'splitSoma', difId:'splitDif', alertaId:'splitAlerta',
-    target: function(){ return parseFloat(document.getElementById('valorTotalHidden').value||0); }});
+    target: function(){ return (typeof aPagarLiquido==='function') ? aPagarLiquido() : parseFloat(document.getElementById('valorTotalHidden').value||0); }});
   entradaSplit = criarSplitEditor({rowsId:'entradaSplitRows', addBtnId:'btnAddEntradaSplit',
     alvoId:'entradaSplitAlvo', somaId:'entradaSplitSoma', difId:'entradaSplitDif', alertaId:'entradaSplitAlerta',
     target: function(){ return parseMoeda(document.getElementById('entradaVal').value); }});
@@ -1324,6 +1432,8 @@ function atualizarValorFinal(desc, pct) {
   const total = parseMoedaD(document.getElementById('totalVenda').textContent);
   const final = Math.max(0, total - desc);
   document.getElementById('valorFinalDesconto').textContent = fmtBRLD(final);
+  // Desconto mudou → recalcula o abatimento do vale e os alvos de pagamento.
+  if (typeof renderValeResumo === 'function') { renderValeResumo(); atualizarPagamentoAlvos(); }
 }
 
 function atalhoVendas(tipo) {

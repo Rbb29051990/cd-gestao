@@ -147,32 +147,51 @@ def nova_venda():
         valor_final_form = parse_brl(request.form.get('valor_final', '0'))
         valor_final = valor_final_form if valor_final_form > 0 else round(valor_total - desconto, 2)
 
+        # ── Vale(s) (crédito da loja): abatem do valor da venda ANTES de registrar o caixa.
+        # Pode combinar VÁRIOS vales (ex.: mãe + filha) — consumidos em ordem até cobrir o
+        # valor da venda. Vale não gera taxa e não entra no caixa; só o restante (a pagar) é
+        # registrado. O saldo que sobrar continua no vale. Não se aplica ao crediário. ──
+        vales_ids = []
+        try:
+            vales_ids = [int(x) for x in json.loads(request.form.get('vales_ids', '[]')) if str(x).isdigit()]
+        except Exception:
+            vales_ids = []
+        # Compatibilidade: aceita o formato antigo de vale único.
+        if not vales_ids and request.form.get('vale_id', '').strip().isdigit():
+            vales_ids = [int(request.form.get('vale_id').strip())]
+        vale_usado = 0.0
+        if vales_ids and forma != 'crediario':
+            restante = valor_final
+            for vid in vales_ids:
+                if restante <= 0.01:
+                    break
+                u = consumir_vale(cur, vid, restante, venda_id)
+                restante = round(restante - u, 2)
+                vale_usado = round(vale_usado + u, 2)
+            if vale_usado > 0:
+                # A parte paga com vale não é caixa; o líquido sai das linhas restantes.
+                cur.execute("UPDATE vendas SET forma_pagamento='multiplo' WHERE id=%s", (venda_id,))
+
         # Registrar no caixa conforme forma de pagamento
         if forma == 'multiplo':
             # Pagamento dividido à vista: cada forma escolhida vira uma entrada no caixa,
             # com sua própria taxa (Taxa Flex) — garantindo o líquido correto no caixa.
+            alvo = round(valor_final - vale_usado, 2)   # o que sobra para as formas cobrirem
             pagamentos = parse_pagamentos(request.form.get('pagamentos'))
-            if not pagamentos:
-                raise ValueError('Pagamento dividido sem formas válidas.')
-            soma = round(sum(p['valor'] for p in pagamentos), 2)
-            if abs(soma - valor_final) > 0.02:
-                raise ValueError(f'A soma das formas (R$ {soma:.2f}) não bate com o valor da venda (R$ {valor_final:.2f}).')
-            registrar_pagamentos_caixa(cur, pagamentos, f"Venda {cod} - {cliente_nome}",
-                venda_id=venda_id, usuario_id=usuario_id or None, vendedora_nome=vendedora_nome)
+            if alvo > 0.01:
+                if not pagamentos:
+                    raise ValueError('Pagamento dividido sem formas válidas.')
+                soma = round(sum(p['valor'] for p in pagamentos), 2)
+                if abs(soma - alvo) > 0.02:
+                    raise ValueError(f'A soma das formas (R$ {soma:.2f}) não bate com o valor a pagar (R$ {alvo:.2f}).')
+                registrar_pagamentos_caixa(cur, pagamentos, f"Venda {cod} - {cliente_nome}",
+                    venda_id=venda_id, usuario_id=usuario_id or None, vendedora_nome=vendedora_nome)
+            # alvo <= 0: pago integralmente com o vale — nenhuma linha de caixa.
         elif forma in FORMAS_A_VISTA:
             # Entra tudo no caixa no dia. Guarda o nº de parcelas só p/ crédito parcelado
             # (usado no cálculo do líquido com a taxa da parcela correspondente).
             parcelas_caixa = parcelas if forma == 'credito_parcelado' else None
-            # Vale (crédito da loja): abate do valor a receber — só o restante entra no caixa.
-            a_receber = valor_final
-            vale_id = request.form.get('vale_id', '').strip()
-            vale_valor = parse_brl(request.form.get('vale_valor', '0'))
-            if vale_id.isdigit() and vale_valor > 0:
-                usado = consumir_vale(cur, int(vale_id), min(vale_valor, valor_final), venda_id)
-                a_receber = round(valor_final - usado, 2)
-                if usado > 0:
-                    # Líquido passa a sair das linhas do caixa (a parte do vale não é caixa).
-                    cur.execute("UPDATE vendas SET forma_pagamento='multiplo' WHERE id=%s", (venda_id,))
+            a_receber = round(valor_final - vale_usado, 2)   # já descontado o vale
             if a_receber > 0.01:
                 cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas)
                     VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",

@@ -27,8 +27,10 @@ def gerar_vale(cur, *, cliente_id, cliente_nome, valor, venda_origem=None, obser
 
 
 def consumir_vale(cur, vale_id, valor_uso, venda_uso=None):
-    """Abate `valor_uso` do saldo do vale; marca 'usado' quando zera. Devolve o valor
-    efetivamente consumido (limitado ao saldo). Não faz commit."""
+    """Abate `valor_uso` do saldo do vale; marca 'usado' quando zera. Registra o uso em
+    vale_usos (rastreio de ONDE foi gasto — mesmo em uso parcial ou em várias vendas) e
+    guarda a última venda em venda_uso. Devolve o valor efetivamente consumido (limitado
+    ao saldo). Não faz commit."""
     cur.execute("SELECT saldo FROM vales WHERE id=%s AND status='aberto'", (vale_id,))
     r = cur.fetchone()
     if not r:
@@ -41,7 +43,12 @@ def consumir_vale(cur, vale_id, valor_uso, venda_uso=None):
     if novo <= 0.01:
         cur.execute("UPDATE vales SET saldo=0, status='usado', venda_uso=%s, usado_em=CURRENT_TIMESTAMP WHERE id=%s", (venda_uso, vale_id))
     else:
-        cur.execute("UPDATE vales SET saldo=%s WHERE id=%s", (novo, vale_id))
+        # Uso parcial: reduz o saldo, mantém 'aberto' e registra a última venda onde foi usado.
+        cur.execute("UPDATE vales SET saldo=%s, venda_uso=%s, usado_em=CURRENT_TIMESTAMP WHERE id=%s", (novo, venda_uso, vale_id))
+    # Histórico de uso (origem do gasto — para auditoria e para ver os produtos da venda)
+    cur.execute("""INSERT INTO vale_usos (vale_id, venda_id, valor, usuario_id, usuario_nome)
+                   VALUES (%s,%s,%s,%s,%s)""",
+                (vale_id, venda_uso, usar, session.get('uid'), session.get('nome')))
     return usar
 
 
@@ -58,6 +65,12 @@ def vales():
     except ValueError: data_fim = hoje.strftime('%Y-%m-%d')
     cur.execute("SELECT * FROM vales WHERE DATE(criado_em) BETWEEN %s AND %s ORDER BY (status='aberto') DESC, criado_em DESC", (data_inicio, data_fim))
     lista = [dict(v) for v in cur.fetchall()]
+    # v140: histórico de uso de cada vale (onde foi gasto) para rastreio + link à ficha da venda.
+    for v in lista:
+        cur.execute("""SELECT u.venda_id, u.valor, u.criado_em, ve.codigo AS venda_codigo
+                       FROM vale_usos u LEFT JOIN vendas ve ON ve.id = u.venda_id
+                       WHERE u.vale_id = %s ORDER BY u.criado_em""", (v['id'],))
+        v['usos'] = [dict(u) for u in cur.fetchall()]
     cur.execute("SELECT COALESCE(SUM(saldo),0) s, COUNT(*) n FROM vales WHERE status='aberto' AND DATE(criado_em) BETWEEN %s AND %s", (data_inicio, data_fim))
     t = cur.fetchone()
     cur.close(); close_db(conn)
@@ -84,6 +97,31 @@ def vales_cliente():
 
 
 @login_required
+def buscar_vale():
+    """JSON: busca UM vale em aberto pelo código (ex.: VL5 ou só 5) — usado para
+    lançar o código do vale direto na venda. Retorna saldo e cliente."""
+    cod = request.args.get('codigo', '').strip().upper()
+    if cod.startswith('#'):
+        cod = cod[1:]
+    if cod and cod.isdigit():
+        cod = 'VL' + cod
+    if not cod:
+        return jsonify({'ok': False, 'erro': 'Informe o código do vale.'})
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id,codigo,saldo,cliente_id,cliente_nome FROM vales WHERE UPPER(codigo)=%s", (cod,))
+    r = cur.fetchone()
+    cur.close(); close_db(conn)
+    if not r:
+        return jsonify({'ok': False, 'erro': f'Vale {cod} não encontrado.'})
+    r = dict(r)
+    saldo = float(r['saldo'] or 0)
+    if saldo <= 0:
+        return jsonify({'ok': False, 'erro': f'Vale {cod} já foi totalmente utilizado.'})
+    return jsonify({'ok': True, 'vale': {'id': r['id'], 'codigo': r['codigo'], 'saldo': saldo,
+                                         'cliente_id': r['cliente_id'], 'cliente_nome': r['cliente_nome']}})
+
+
+@login_required
 def excluir_vale(vid):
     if not pode_excluir():
         flash('Apenas o Administrador N1 pode excluir dados.', 'erro'); return redirect(url_for('vales'))
@@ -101,4 +139,5 @@ def excluir_vale(vid):
 def register(app):
     app.add_url_rule('/vales', 'vales', vales)
     app.add_url_rule('/vales/cliente', 'vales_cliente', vales_cliente)
+    app.add_url_rule('/vales/buscar', 'buscar_vale', buscar_vale)
     app.add_url_rule('/vales/<int:vid>/excluir', 'excluir_vale', excluir_vale, methods=['POST'])

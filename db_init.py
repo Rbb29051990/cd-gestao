@@ -115,6 +115,14 @@ def init_db():
         usuario_id INTEGER, usuario_nome VARCHAR(200),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         usado_em TIMESTAMP)""")
+    # v140: histórico de USO dos vales (um vale pode ser usado em várias vendas / parcial).
+    cur.execute("""CREATE TABLE IF NOT EXISTS vale_usos (
+        id SERIAL PRIMARY KEY,
+        vale_id INTEGER,
+        venda_id INTEGER,
+        valor NUMERIC(10,2) DEFAULT 0,
+        usuario_id INTEGER, usuario_nome VARCHAR(200),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS ajustes_financeiros (
         id SERIAL PRIMARY KEY,
         data_ajuste DATE DEFAULT CURRENT_DATE,
@@ -279,6 +287,8 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_despesas_vencimento_status ON despesas (data_vencimento, status)",
         "CREATE INDEX IF NOT EXISTS idx_despesas_recorrencia ON despesas (recorrencia_grupo, recorrencia_seq)",
         "CREATE INDEX IF NOT EXISTS idx_despesa_parcelas_pago_data ON despesa_parcelas (pago, data_pagamento, data_vencimento)",
+        "CREATE INDEX IF NOT EXISTS idx_vale_usos_vale ON vale_usos (vale_id)",
+        "CREATE INDEX IF NOT EXISTS idx_vale_usos_venda ON vale_usos (venda_id)",
     ]
     try:
         for sql in indices_v91:

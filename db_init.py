@@ -123,6 +123,29 @@ def init_db():
         valor NUMERIC(10,2) DEFAULT 0,
         usuario_id INTEGER, usuario_nome VARCHAR(200),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    # v141: registro de TROCAS/DEVOLUÇÕES (para auditoria — o que voltou, o que entrou,
+    # diferença e vale gerado), mesmo que o item volte ao estoque e saia da venda.
+    cur.execute("""CREATE TABLE IF NOT EXISTS trocas (
+        id SERIAL PRIMARY KEY,
+        venda_id INTEGER,
+        venda_codigo VARCHAR(12),
+        valor_devolvido NUMERIC(10,2) DEFAULT 0,
+        valor_novos NUMERIC(10,2) DEFAULT 0,
+        diferenca NUMERIC(10,2) DEFAULT 0,
+        forma_pagamento VARCHAR(50),
+        vale_id INTEGER, vale_codigo VARCHAR(20),
+        usuario_id INTEGER, usuario_nome VARCHAR(200),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS troca_itens (
+        id SERIAL PRIMARY KEY,
+        troca_id INTEGER,
+        direcao VARCHAR(12),            -- 'devolvido' | 'novo'
+        produto_id INTEGER,
+        codigo_produto VARCHAR(30),
+        modelo VARCHAR(120), descricao TEXT, tamanho VARCHAR(20),
+        valor_unitario NUMERIC(10,2) DEFAULT 0,
+        quantidade INTEGER DEFAULT 1,
+        valor_total NUMERIC(10,2) DEFAULT 0)""")
     cur.execute("""CREATE TABLE IF NOT EXISTS ajustes_financeiros (
         id SERIAL PRIMARY KEY,
         data_ajuste DATE DEFAULT CURRENT_DATE,
@@ -190,6 +213,10 @@ def init_db():
         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto TEXT",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS desconto NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS pct_desconto NUMERIC(6,2) DEFAULT 0",
+        # v141: forma ORIGINAL da venda quando sofre troca/devolução (exibição mantém a forma real,
+        # mas o líquido passa a vir do caixa via 'multiplo') + flag de que houve troca.
+        "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS forma_original VARCHAR(50)",
+        "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS trocada BOOLEAN DEFAULT FALSE",
         "ALTER TABLE vendas ALTER COLUMN pct_desconto TYPE NUMERIC(6,2)",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS dias_estoque INTEGER DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0",
@@ -289,6 +316,8 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_despesa_parcelas_pago_data ON despesa_parcelas (pago, data_pagamento, data_vencimento)",
         "CREATE INDEX IF NOT EXISTS idx_vale_usos_vale ON vale_usos (vale_id)",
         "CREATE INDEX IF NOT EXISTS idx_vale_usos_venda ON vale_usos (venda_id)",
+        "CREATE INDEX IF NOT EXISTS idx_trocas_venda ON trocas (venda_id)",
+        "CREATE INDEX IF NOT EXISTS idx_troca_itens_troca ON troca_itens (troca_id)",
     ]
     try:
         for sql in indices_v91:

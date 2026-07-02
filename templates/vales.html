@@ -42,35 +42,58 @@
         </div>
       </div>
 
+      <div style="font-size:12px;color:#999;margin-bottom:8px">Agrupado por cliente — clique numa linha para ver os vales e a origem.</div>
       <div class="table-wrap">
         <table class="etable">
           <thead><tr>
-            <th>Código</th><th>Cliente</th><th>Valor</th><th>Saldo</th><th>Status</th><th>Origem</th><th>Gasto em (venda)</th><th>Criado</th>{% if pode_excluir %}<th></th>{% endif %}
+            <th></th><th>Cliente</th><th>Vales</th><th>Valor total</th><th>Saldo a usar</th>
           </tr></thead>
           <tbody>
-            {% for v in vales %}
-            <tr>
-              <td><span class="ref-code">{{ v.codigo }}</span></td>
-              <td style="font-weight:600">{{ v.cliente_nome or '—' }}</td>
-              <td>{{ brl(v.valor) }}</td>
-              <td style="font-weight:700;color:{% if v.saldo > 0 %}#2e7d32{% else %}#aaa{% endif %}">{{ brl(v.saldo) }}</td>
-              <td>{% if v.status == 'aberto' %}<span class="badge badge-hab">🎟️ Aberto</span>{% else %}<span class="badge badge-nao">✔️ Usado</span>{% endif %}</td>
-              <td style="color:#888;font-size:12px">{% if v.venda_origem %}<a href="/vendas/{{ v.venda_origem }}" style="color:#1565c0">Venda #{{ '%04d'|format(v.venda_origem) }}</a>{% else %}—{% endif %}</td>
-              <td style="font-size:12px">
-                {% if v.usos %}
-                  {% for u in v.usos %}
-                    <div style="white-space:nowrap">🛍️ <a href="/vendas/{{ u.venda_id }}" style="color:#2e7d32;font-weight:600" title="Ver os produtos e fotos desta venda">{{ u.venda_codigo or ('Venda #' ~ '%04d'|format(u.venda_id)) }}</a>
-                    <span style="color:#888">· {{ brl(u.valor) }}{% if u.criado_em %} · {{ u.criado_em.strftime('%d/%m/%Y') }}{% endif %}</span></div>
-                  {% endfor %}
-                {% else %}<span style="color:#ccc">—</span>{% endif %}
+            {% for g in grupos %}
+            {% set gi = loop.index %}
+            <tr onclick="toggleGrupoVale({{ gi }})" style="cursor:pointer" title="Ver os vales deste cliente">
+              <td style="width:28px;text-align:center;color:#888"><span id="valeArrow{{ gi }}">▸</span></td>
+              <td style="font-weight:700">{{ g.cliente_nome }}</td>
+              <td style="color:#888;font-size:12px">{{ g.n_vales }} vale(s){% if g.n_aberto %} · <span style="color:#2e7d32;font-weight:700">{{ g.n_aberto }} aberto(s)</span>{% endif %}</td>
+              <td>{{ brl(g.total_valor) }}</td>
+              <td style="font-weight:800;color:{% if g.total_saldo > 0 %}#2e7d32{% else %}#aaa{% endif %}">{{ brl(g.total_saldo) }}</td>
+            </tr>
+            <tr id="valeDet{{ gi }}" style="display:none;background:#fafafd">
+              <td></td>
+              <td colspan="4" style="padding:0 12px 12px">
+                <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                  <thead><tr style="color:#aaa;text-align:left">
+                    <th style="padding:6px 8px;font-weight:700">Código</th><th style="padding:6px 8px;font-weight:700">Valor</th>
+                    <th style="padding:6px 8px;font-weight:700">Saldo</th><th style="padding:6px 8px;font-weight:700">Status</th>
+                    <th style="padding:6px 8px;font-weight:700">Origem</th><th style="padding:6px 8px;font-weight:700">Gasto em (venda)</th>
+                    <th style="padding:6px 8px;font-weight:700">Criado</th>{% if pode_excluir %}<th></th>{% endif %}
+                  </tr></thead>
+                  <tbody>
+                    {% for v in g.vales %}
+                    <tr style="border-top:1px solid #eee">
+                      <td style="padding:6px 8px"><span class="ref-code">{{ v.codigo }}</span></td>
+                      <td style="padding:6px 8px">{{ brl(v.valor) }}</td>
+                      <td style="padding:6px 8px;font-weight:700;color:{% if v.saldo > 0 %}#2e7d32{% else %}#aaa{% endif %}">{{ brl(v.saldo) }}</td>
+                      <td style="padding:6px 8px">{% if v.status == 'aberto' %}<span class="badge badge-hab">🎟️ Aberto</span>{% else %}<span class="badge badge-nao">✔️ Usado</span>{% endif %}</td>
+                      <td style="padding:6px 8px;color:#888">{% if v.venda_origem %}<a href="/vendas/{{ v.venda_origem }}" style="color:#1565c0">Venda #{{ '%04d'|format(v.venda_origem) }}</a>{% else %}—{% endif %}</td>
+                      <td style="padding:6px 8px">
+                        {% if v.usos %}{% for u in v.usos %}
+                          <div style="white-space:nowrap">🛍️ <a href="/vendas/{{ u.venda_id }}" style="color:#2e7d32;font-weight:600" title="Ver os produtos e fotos desta venda">{{ u.venda_codigo or ('Venda #' ~ '%04d'|format(u.venda_id)) }}</a>
+                          <span style="color:#888">· {{ brl(u.valor) }}{% if u.criado_em %} · {{ u.criado_em.strftime('%d/%m/%Y') }}{% endif %}</span></div>
+                        {% endfor %}{% else %}<span style="color:#ccc">—</span>{% endif %}
+                      </td>
+                      <td style="padding:6px 8px;color:#999">{{ v.criado_em.strftime('%d/%m/%Y') if v.criado_em else '—' }}</td>
+                      {% if pode_excluir %}
+                      <td style="padding:6px 8px"><form method="POST" action="/vales/{{ v.id }}/excluir" onsubmit="return confirm('Excluir o vale {{ v.codigo }}?')"><button type="submit" class="btn-exc-venda">🗑️</button></form></td>
+                      {% endif %}
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
               </td>
-              <td style="color:#999;font-size:12px">{{ v.criado_em.strftime('%d/%m/%Y') if v.criado_em else '—' }}</td>
-              {% if pode_excluir %}
-              <td><form method="POST" action="/vales/{{ v.id }}/excluir" onsubmit="return confirm('Excluir o vale {{ v.codigo }}?')"><button type="submit" class="btn-exc-venda">🗑️</button></form></td>
-              {% endif %}
             </tr>
             {% else %}
-            <tr><td colspan="9" style="text-align:center;color:#aaa;padding:24px">Nenhum vale registrado ainda.</td></tr>
+            <tr><td colspan="5" style="text-align:center;color:#aaa;padding:24px">Nenhum vale registrado ainda.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -79,6 +102,14 @@
   </div>
 </div>
 <script>
+function toggleGrupoVale(i){
+  const det = document.getElementById('valeDet'+i);
+  const arr = document.getElementById('valeArrow'+i);
+  if(!det) return;
+  const aberto = det.style.display !== 'none';
+  det.style.display = aberto ? 'none' : 'table-row';
+  if(arr) arr.textContent = aberto ? '▸' : '▾';
+}
 function atalhoVale(tipo){
   const hoje = new Date(); const fmt = d => localISODate(d);
   let ini, fim = fmt(hoje);

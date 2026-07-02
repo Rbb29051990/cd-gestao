@@ -74,7 +74,27 @@ def vales():
     cur.execute("SELECT COALESCE(SUM(saldo),0) s, COUNT(*) n FROM vales WHERE status='aberto' AND DATE(criado_em) BETWEEN %s AND %s", (data_inicio, data_fim))
     t = cur.fetchone()
     cur.close(); close_db(conn)
-    ctx = get_ctx(); ctx.update(vales=lista, total_aberto=float(t['s']), n_aberto=int(t['n']),
+    # v141: AGRUPA os vales POR CLIENTE (evita várias linhas do mesmo cliente). Cada grupo traz
+    # o total, o saldo em aberto, nº de vales e a lista detalhada (para expandir no clique).
+    grupos = {}
+    for v in lista:
+        chave = ('id', v['cliente_id']) if v.get('cliente_id') else ('nome', (v.get('cliente_nome') or '—').strip().lower())
+        g = grupos.get(chave)
+        if not g:
+            g = {'cliente_nome': v.get('cliente_nome') or '—', 'cliente_id': v.get('cliente_id'),
+                 'total_valor': 0.0, 'total_saldo': 0.0, 'n_vales': 0, 'n_aberto': 0, 'vales': []}
+            grupos[chave] = g
+        g['total_valor'] += float(v.get('valor') or 0)
+        g['total_saldo'] += float(v.get('saldo') or 0)
+        g['n_vales'] += 1
+        if v.get('status') == 'aberto':
+            g['n_aberto'] += 1
+        g['vales'].append(v)
+    grupos_lista = sorted(grupos.values(), key=lambda g: (-g['total_saldo'], g['cliente_nome'].lower()))
+    for g in grupos_lista:
+        g['total_valor'] = round(g['total_valor'], 2)
+        g['total_saldo'] = round(g['total_saldo'], 2)
+    ctx = get_ctx(); ctx.update(grupos=grupos_lista, total_aberto=float(t['s']), n_aberto=int(t['n']),
                                 data_inicio=data_inicio, data_fim=data_fim)
     return render_template('vales.html', **ctx)
 

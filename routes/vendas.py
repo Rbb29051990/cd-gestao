@@ -2,7 +2,7 @@
 crediário), ficha, exclusão (restaura estoque/caixa), edição, ranking e buscas."""
 import json
 from datetime import date
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from db import get_db, close_db
 from config import agora_app, hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
@@ -64,6 +64,12 @@ def vendas():
         lista_vendas = [dict(v) for v in cur.fetchall()]
         # Líquido das vendas com pagamento dividido vem das linhas do caixa.
         split_map = liquido_caixa_por_venda(cur, [v['id'] for v in lista_vendas if v.get('forma_pagamento') == 'multiplo'])
+        # v141: quais vendas do período GERARAM um vale (para a etiqueta 🎟️ na lista).
+        ids_periodo = [v['id'] for v in lista_vendas]
+        vendas_com_vale = set()
+        if ids_periodo:
+            cur.execute("SELECT DISTINCT venda_origem FROM vales WHERE venda_origem = ANY(%s)", (ids_periodo,))
+            vendas_com_vale = {r['venda_origem'] for r in cur.fetchall()}
         cur.execute("""SELECT c.*,v.criado_em as data_venda FROM crediarios c
             JOIN vendas v ON v.id=c.venda_id ORDER BY c.criado_em DESC""")
         lista_crediarios = [dict(c) for c in cur.fetchall()]
@@ -94,7 +100,8 @@ def vendas():
                    data_inicio=data_inicio, data_fim=data_fim,
                    total_bruto=round(tot_bruto, 2), total_desconto=round(tot_desc, 2),
                    total_taxa=round(tot_taxa, 2), total_liquido=round(tot_liq, 2),
-                   n_vendas_periodo=n_vendas, ticket_liquido=ticket_liq)
+                   n_vendas_periodo=n_vendas, ticket_liquido=ticket_liq,
+                   vendas_com_vale=vendas_com_vale)
         return render_template('vendas.html', **ctx)
     except Exception as e:
         return "<pre style='padding:20px'>ERRO VENDAS: " + str(e) + "</pre>", 500
@@ -252,8 +259,19 @@ def ficha_venda(vid):
         pagamentos = [dict(p) for p in cur.fetchall()]
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u) for u in cur.fetchall()]
+    # v141: histórico de trocas/devoluções desta venda (o que voltou e o que entrou), com foto.
+    cur.execute("SELECT * FROM trocas WHERE venda_id=%s ORDER BY criado_em", (vid,))
+    trocas = [dict(t) for t in cur.fetchall()]
+    for t in trocas:
+        cur.execute("""SELECT ti.*, (e.foto IS NOT NULL) AS tem_foto
+                       FROM troca_itens ti LEFT JOIN estoque e ON e.id = ti.produto_id
+                       WHERE ti.troca_id=%s ORDER BY ti.direcao DESC, ti.id""", (t['id'],))
+        rows = [dict(i) for i in cur.fetchall()]
+        t['devolvidos'] = [i for i in rows if i.get('direcao') == 'devolvido']
+        t['novos'] = [i for i in rows if i.get('direcao') == 'novo']
     cur.close(); close_db(conn)
-    ctx = get_ctx(); ctx.update(venda=venda, itens=itens, crediario=crediario, vendedoras=vendedoras, pagamentos=pagamentos)
+    ctx = get_ctx(); ctx.update(venda=venda, itens=itens, crediario=crediario, vendedoras=vendedoras,
+                                pagamentos=pagamentos, trocas=trocas)
     return render_template('ficha_venda.html', **ctx)
 
 
@@ -443,20 +461,26 @@ def trocar_venda(vid):
         novos = json.loads(request.form.get('novos', '[]'))
         if not devolver_ids and not novos:
             raise ValueError('Selecione itens para devolver e/ou adicione peças novas.')
-        # ── Itens devolvidos: voltam ao estoque e saem da venda ──
+        # ── Itens devolvidos: voltam ao estoque e saem da venda (guardando o snapshot p/ registro) ──
         valor_devolvido = 0.0
+        itens_devolvidos = []
         if devolver_ids:
             cur.execute("SELECT * FROM venda_itens WHERE id = ANY(%s) AND venda_id=%s", (devolver_ids, vid))
             for it in [dict(i) for i in cur.fetchall()]:
                 valor_devolvido += float(it['valor_total'] or 0)
+                itens_devolvidos.append(it)   # snapshot antes de apagar
                 if it.get('produto_id'):
                     cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s", (int(it['quantidade']), it['produto_id']))
                 cur.execute("DELETE FROM venda_itens WHERE id=%s", (it['id'],))
         # ── Peças novas: entram na venda e saem do estoque ──
         valor_novos = 0.0
+        itens_novos = []
         for it in novos:
             pid = it.get('produto_id'); qtd = int(it.get('quantidade', 1)); vu = float(it.get('valor_unitario', 0))
             valor_novos += vu * qtd
+            itens_novos.append({'produto_id': pid, 'codigo': it.get('codigo'), 'modelo': it.get('modelo'),
+                                'descricao': it.get('descricao'), 'tamanho': it.get('tamanho'),
+                                'valor_unitario': vu, 'quantidade': qtd, 'valor_total': vu * qtd})
             cur.execute("""INSERT INTO venda_itens (venda_id,produto_id,codigo_produto,modelo,descricao,tamanho,valor_unitario,quantidade,valor_total)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
                 (vid, pid or None, it.get('codigo'), it.get('modelo'), it.get('descricao'), it.get('tamanho'), vu, qtd, vu * qtd))
@@ -467,11 +491,14 @@ def trocar_venda(vid):
         novo_total = round(float(venda['valor_total'] or 0) - valor_devolvido + valor_novos, 2)
         dif = round(valor_novos - valor_devolvido, 2)
         extra = ''
+        forma_dif = None
+        vale_id_gerado = None; vale_cod_gerado = None
         if dif > 0.01:
             # Cliente paga a diferença — entra no caixa com a forma escolhida (com taxa).
             forma = request.form.get('forma_pagamento', '').strip()
             if forma not in FORMAS_A_VISTA:
                 raise ValueError('Escolha a forma de pagamento da diferença.')
+            forma_dif = forma
             parcelas_caixa = (int(request.form.get('parcelas', 0) or 0) or None) if forma == 'credito_parcelado' else None
             cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,vendedora_nome,parcelas)
                 VALUES (%s,%s,'entrada',%s,%s,%s,%s)""",
@@ -479,11 +506,32 @@ def trocar_venda(vid):
             extra = f"Diferença de R$ {dif:.2f} recebida ({forma.replace('_',' ')})."
         elif dif < -0.01:
             credito = round(-dif, 2)
-            _vid_vale, cod = gerar_vale(cur, cliente_id=venda.get('cliente_id'), cliente_nome=venda.get('cliente_nome'),
+            vale_id_gerado, vale_cod_gerado = gerar_vale(cur, cliente_id=venda.get('cliente_id'), cliente_nome=venda.get('cliente_nome'),
                                         valor=credito, venda_origem=vid, observacao=f"Troca/devolução da venda {venda['codigo']}")
-            extra = f"Vale {cod} de R$ {credito:.2f} gerado para {venda.get('cliente_nome') or 'a cliente'}."
-        # Líquido passa a ser calculado pelas linhas do caixa (forma 'multiplo').
-        cur.execute("UPDATE vendas SET valor_total=%s, forma_pagamento='multiplo' WHERE id=%s", (novo_total, vid))
+            extra = f"Vale {vale_cod_gerado} de R$ {credito:.2f} gerado para {venda.get('cliente_nome') or 'a cliente'}."
+        # ── Registro da troca/devolução (auditoria) — o que voltou e o que entrou ──
+        cur.execute("""INSERT INTO trocas (venda_id,venda_codigo,valor_devolvido,valor_novos,diferenca,
+                       forma_pagamento,vale_id,vale_codigo,usuario_id,usuario_nome)
+                       VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (vid, venda['codigo'], valor_devolvido, valor_novos, dif, forma_dif,
+             vale_id_gerado, vale_cod_gerado, session.get('uid'), session.get('nome')))
+        troca_id = cur.fetchone()['id']
+        for it in itens_devolvidos:
+            cur.execute("""INSERT INTO troca_itens (troca_id,direcao,produto_id,codigo_produto,modelo,descricao,tamanho,valor_unitario,quantidade,valor_total)
+                VALUES (%s,'devolvido',%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (troca_id, it.get('produto_id'), it.get('codigo_produto'), it.get('modelo'), it.get('descricao'),
+                 it.get('tamanho'), it.get('valor_unitario'), it.get('quantidade'), it.get('valor_total')))
+        for it in itens_novos:
+            cur.execute("""INSERT INTO troca_itens (troca_id,direcao,produto_id,codigo_produto,modelo,descricao,tamanho,valor_unitario,quantidade,valor_total)
+                VALUES (%s,'novo',%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (troca_id, it.get('produto_id'), it.get('codigo'), it.get('modelo'), it.get('descricao'),
+                 it.get('tamanho'), it.get('valor_unitario'), it.get('quantidade'), it.get('valor_total')))
+        # Líquido passa a ser calculado pelas linhas do caixa (forma interna 'multiplo'), mas a
+        # forma ORIGINAL é preservada p/ exibição (não vira "Dividido" na lista). v141.
+        forma_atual = venda.get('forma_pagamento') or ''
+        forma_orig = venda.get('forma_original') or (forma_atual if forma_atual != 'multiplo' else None)
+        cur.execute("UPDATE vendas SET valor_total=%s, forma_pagamento='multiplo', forma_original=%s, trocada=TRUE WHERE id=%s",
+                    (novo_total, forma_orig, vid))
         audit_log(cur, 'TROCA_VENDA', 'vendas', vid,
                   {'codigo': venda['codigo'], 'devolvido': valor_devolvido, 'novos': valor_novos, 'diferenca': dif})
         conn.commit()

@@ -1,4 +1,4 @@
-"""Dashboard Executivo V140 — layout moderno em uma página só (estende base.html).
+"""Dashboard Executivo V141 — layout moderno em uma página só (estende base.html).
 
 Estrutura:
   • Cabeçalho com período e comparação

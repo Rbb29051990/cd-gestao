@@ -1,4 +1,11 @@
-# CD Gestão Empresarial — v140
+# CD Gestão Empresarial — v141
+
+## Novidades da v141 — Troca/Devolução com registro e vales por cliente
+
+1. **A venda não vira mais "Dividido" ao trocar.** Ao fazer troca/devolução, a lista de Vendas mantém a **forma original** (ex.: Pix) e ganha uma etiqueta discreta: **🎟️ vale** (gerou vale) ou **↩ troca**. Nos bastidores o líquido continua vindo do caixa (correto).
+2. **Registro do que foi devolvido/levado.** Toda troca/devolução fica registrada e visível na **ficha da venda**, seção **"Trocas / devoluções"** — com os itens que voltaram e os que saíram, **com foto**, para auditoria. O item continua voltando ao estoque normalmente.
+3. **Vales agrupados por cliente.** A aba **Vales** agora mostra **um cliente por linha** (com total e saldo a usar); clique para **expandir** e ver cada vale, sua origem e onde foi gasto.
+
 
 ## Novidades da v140 — Uso de vale (crédito da loja) na venda
 

@@ -195,14 +195,18 @@
                   R$ {{ "{:,.2f}".format(v.valor_liquido|float)|replace(",","X")|replace(".",",")|replace("X",".") }}
                 </td>
                 <td onclick="window.location='/vendas/{{ v.id }}'" style="cursor:pointer">
-                  {% if v.forma_pagamento=='pix' %}<span class="badge bp-pix">⚡ Pix</span>
-                  {% elif v.forma_pagamento=='dinheiro' %}<span class="badge bp-dinheiro">💵 Dinheiro</span>
-                  {% elif v.forma_pagamento=='debito' %}<span class="badge bp-debito">💳 Débito</span>
-                  {% elif v.forma_pagamento=='crediario' %}<span class="badge bp-crediario">📋 Crediário</span>
-                  {% elif v.forma_pagamento in ['credito_vista','credito_parcelado'] %}<span class="badge bp-credito">💳 Crédito</span>
-                  {% elif v.forma_pagamento=='link' %}<span class="badge bp-link">🔗 Link</span>
-                  {% elif v.forma_pagamento=='multiplo' %}<span class="badge bp-credito">🔀 Dividido</span>
-                  {% else %}<span class="badge">{{ v.forma_pagamento }}</span>{% endif %}
+                  {# v141: quando a venda sofreu troca, exibe a forma ORIGINAL (não vira "Dividido") #}
+                  {% set fp = v.forma_original if (v.trocada and v.forma_original) else v.forma_pagamento %}
+                  {% if fp=='pix' %}<span class="badge bp-pix">⚡ Pix</span>
+                  {% elif fp=='dinheiro' %}<span class="badge bp-dinheiro">💵 Dinheiro</span>
+                  {% elif fp=='debito' %}<span class="badge bp-debito">💳 Débito</span>
+                  {% elif fp=='crediario' %}<span class="badge bp-crediario">📋 Crediário</span>
+                  {% elif fp in ['credito_vista','credito_parcelado'] %}<span class="badge bp-credito">💳 Crédito</span>
+                  {% elif fp=='link' %}<span class="badge bp-link">🔗 Link</span>
+                  {% elif fp=='multiplo' %}<span class="badge bp-credito">🔀 Dividido</span>
+                  {% else %}<span class="badge">{{ fp }}</span>{% endif %}
+                  {% if v.id in vendas_com_vale %}<span title="Esta venda gerou um vale (troca/devolução)" style="margin-left:4px;font-size:10px;font-weight:700;color:#2e7d32;background:#e8f5e9;border:1px solid #c8e6c9;border-radius:20px;padding:1px 7px">🎟️ vale</span>
+                  {% elif v.trocada %}<span title="Esta venda teve troca/devolução" style="margin-left:4px;font-size:10px;font-weight:700;color:#00838f;background:#e0f7fa;border:1px solid #b2ebf2;border-radius:20px;padding:1px 7px">↩ troca</span>{% endif %}
                 </td>
                 <td>
                   {% if pode_excluir %}

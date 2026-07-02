@@ -78,7 +78,17 @@
 .det-parc-del{width:30px;height:36px;border:none;background:#fdecec;color:#c62828;border-radius:7px;cursor:pointer;font-size:14px;align-self:center;margin-top:16px}
 .det-parc-del:hover{background:#f8d7d7}
 .btn-add-venc{width:100%;padding:10px;border:1.5px dashed #a5d6a7;background:#f6fff7;color:#2e7d32;border-radius:9px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px}
-.btn-add-venc:hover{background:#eaf7ea}</style>
+.btn-add-venc:hover{background:#eaf7ea}
+/* v140: painel de renegociação (parceladas) */
+.reneg-box{background:#eef2ff;border:1.5px solid #c5cae9;border-radius:12px;padding:14px 16px;margin-bottom:12px}
+.reneg-title{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:12px}
+.reneg-grid{display:grid;grid-template-columns:1.2fr .8fr 1fr;gap:12px}
+.reneg-grid .form-field{margin:0}
+@media(max-width:560px){.reneg-grid{grid-template-columns:1fr 1fr}}
+.reneg-resumo{margin-top:12px;padding:10px 12px;border-radius:9px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.reneg-ok{background:#e8f5e9;color:#2e7d32;border:1.5px solid #c8e6c9}
+.reneg-erro{background:#fdecec;color:#c62828;border:1.5px solid #f3c0c0}
+.btn-salvar[disabled]{opacity:.5;cursor:not-allowed;filter:grayscale(.3)}</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">{{ cliente.sigla }}</span><span class="topbar-logo-sub">Gestão Empresarial</span></div>
@@ -470,7 +480,7 @@
     <button class="modal-close" onclick="fecharDetalhe()">✕</button>
     <div class="modal-title" id="detTitulo">Despesa</div>
     <div class="modal-sub" id="detSub"></div>
-    <form id="formDetalhe" method="POST" action="">
+    <form id="formDetalhe" method="POST" action="" onsubmit="return validarDetalhe()">
       <input type="hidden" name="parcela_ids" id="detParcelaIds">
       <input type="hidden" name="del_ids" id="detDelIds">
       <input type="hidden" name="add_count" id="detAddCount" value="0">
@@ -494,12 +504,18 @@
         1º venc. <input type="date" id="bulkData" style="padding:5px 8px;border:1.5px solid #c8e6c9;border-radius:6px">
         <button type="button" onclick="aplicarBulkData()" style="padding:6px 12px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Aplicar vencimentos (a cada 30 dias)</button>
       </div>
-      <div id="detReparc" style="display:none;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:2">
-        <b>Renegociou em parcelas?</b> Dividir o saldo em aberto (<b id="reparcSaldo">R$ 0,00</b>) em
-        <select id="reparcN" style="padding:5px 8px;border:1.5px solid #c5cae9;border-radius:6px;font-weight:700;cursor:pointer"><option value="">—</option>{% for i in range(2,25) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select> x,
-        1ª em <input type="date" id="reparcData" style="padding:5px 8px;border:1.5px solid #c5cae9;border-radius:6px">
-        <button type="button" onclick="aplicarReparc()" style="padding:6px 12px;background:#3949ab;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Aplicar</button>
-        <a id="reparcCancelar" onclick="cancelarReparc()" style="display:none;color:#c62828;cursor:pointer;font-weight:700;margin-left:6px">cancelar</a>
+      <!-- v140: painel de renegociação — edita valor total, nº de parcelas, datas e valores -->
+      <div id="detReneg" class="reneg-box" style="display:none">
+        <div class="reneg-title">💠 Renegociação — ajuste valor, parcelas e vencimentos</div>
+        <div class="reneg-grid">
+          <div class="form-field"><label class="form-label">Valor total (R$)</label>
+            <input class="form-input" id="renegTotal" inputmode="numeric" onchange="onRenegTotal()"></div>
+          <div class="form-field"><label class="form-label">Parcelas</label>
+            <input class="form-input" id="renegN" type="number" min="1" max="48" onchange="onRenegN()"></div>
+          <div class="form-field"><label class="form-label">1º vencimento</label>
+            <input class="form-input" id="renegData" type="date" onchange="onRenegPrimData()"></div>
+        </div>
+        <div class="reneg-resumo reneg-ok" id="renegResumo"></div>
       </div>
       <input type="hidden" name="reparc_n" id="reparcNHidden" value="">
       <div id="detParcelas" style="max-height:300px;overflow-y:auto"></div>
@@ -548,7 +564,6 @@ async function abrirDetalheDespesa(did){
   renderDetParcelas(false);
   document.getElementById('modalDetalhe').style.display = 'flex';
 }
-let reparcParcelas = null;  // quando != null, está no modo "renegociar em parcelas"
 function parcRotulo(p){ return detRecorrente ? (p.rotulo_mes || ('Mês '+p.numero)) : ('Parcela '+p.numero); }
 function parcelaViewHtml(p){
   const status = p.pago
@@ -560,27 +575,8 @@ function parcelaViewHtml(p){
 }
 function renderDetParcelas(edit){
   const c = document.getElementById('detParcelas');
-  const cancel = document.getElementById('reparcCancelar');
-  if(edit && reparcParcelas){
-    // parcelas já pagas (intactas) + as NOVAS parcelas do reparcelamento
-    let html = detParcelas.filter(p=>p.pago).map(parcelaViewHtml).join('');
-    html += reparcParcelas.map(function(np,k){
-      const i=k+1;
-      return '<div style="display:flex;gap:8px;align-items:flex-end;padding:8px 0;border-bottom:1px solid #f0f0f4">'
-        + '<div style="width:52px"><label class="form-label">Nova</label><div style="font-weight:700;padding:9px 0">'+i+'</div></div>'
-        + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="np_data_'+i+'" value="'+(np.data||'')+'"></div>'
-        + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="np_valor_'+i+'" value="'+np.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'"></div>'
-        + '</div>';
-    }).join('');
-    c.innerHTML = html;
-    document.getElementById('detParcelaIds').value = '';
-    document.getElementById('detDelIds').value = '';
-    document.getElementById('detAddCount').value = 0;
-    const aw0 = document.getElementById('detAddWrap'); if(aw0) aw0.style.display='none';
-    if(cancel) cancel.style.display='inline';
-    return;
-  }
-  if(cancel) cancel.style.display='none';
+  // Edição de PARCELADA / conta única com saldo em aberto → editor de renegociação.
+  if(edit && renegAtivo){ renderReneg(); return; }
   const ids = [];
   let html = detParcelas.map(function(p){
     ids.push(p.id);
@@ -595,7 +591,7 @@ function renderDetParcelas(edit){
   document.getElementById('detParcelaIds').value = ids.join(',');
   document.getElementById('detDelIds').value = detDelIds.join(',');
   document.getElementById('detAddCount').value = detNovos.length;
-  const aw = document.getElementById('detAddWrap'); if(aw) aw.style.display = edit ? 'block' : 'none';
+  const aw = document.getElementById('detAddWrap'); if(aw) aw.style.display = (edit && detRecorrente) ? 'block' : 'none';
 }
 /* Linha editável de uma parcela/mês em aberto (padronizada) + botão excluir. */
 function linhaEditavelHtml(p){
@@ -626,8 +622,10 @@ function marcarExcluirParcela(pid){
   if(detDelIds.indexOf(pid) < 0) detDelIds.push(pid);
   renderDetParcelas(true);
 }
-/* Adiciona um novo vencimento: data = último conhecido +30 dias; valor = último valor. */
+/* Adiciona um novo vencimento. Na parcelada usa o editor de renegociação; na recorrente
+   cria um novo mês independente. */
 function adicionarVencimento(){
+  if(renegAtivo){ adicionarRenegRow(); return; }
   let lastData = null, lastValor = 0;
   if(detNovos.length){ const u = detNovos[detNovos.length-1]; lastData = u.data; lastValor = u.valor; }
   else {
@@ -643,54 +641,190 @@ function removerNovoVenc(idx){
   detNovos.splice(idx, 1);
   renderDetParcelas(true);
 }
-function saldoAberto(){ return Math.round(detParcelas.filter(p=>!p.pago).reduce((s,p)=>s+(p.valor||0),0)*100)/100; }
-function aplicarReparc(){
-  const N = parseInt(document.getElementById('reparcN').value)||0;
-  const start = document.getElementById('reparcData').value;
-  if(N<2){ alert('Escolha em quantas parcelas (2 ou mais).'); return; }
-  if(!start){ alert('Informe a data da 1ª parcela.'); return; }
-  const saldo = saldoAberto();
-  if(saldo<=0){ alert('Não há saldo em aberto para parcelar.'); return; }
-  const base = Math.floor((saldo/N)*100)/100;
-  reparcParcelas = []; let acc=0, d=start;
-  for(let i=1;i<=N;i++){
-    if(i>1) d = addDias(d,30);
-    const v = (i===N) ? Math.round((saldo-acc)*100)/100 : base;
-    acc += v;
-    reparcParcelas.push({valor:v, data:(i===1?start:d)});
+/* ════════ v140 · EDITOR DE RENEGOCIAÇÃO (despesas parceladas / conta única) ════════
+   Fonte única da verdade: openRows = parcelas EM ABERTO sendo editadas. As pagas ficam
+   fixas (pagoValor). Ao salvar, envia como reparcelamento (reparc_n + np_data_i/np_valor_i):
+   o backend apaga as parcelas em aberto e recria as daqui; o total é recalculado da soma. */
+let renegAtivo = false, openRows = [], pagoValor = 0;
+
+function iniciarReneg(){
+  renegAtivo = true;
+  const pagas = detParcelas.filter(p=>p.pago);
+  const abertas = detParcelas.filter(p=>!p.pago);
+  pagoValor = Math.round(pagas.reduce((s,p)=>s+(p.valor||0),0)*100)/100;
+  const total = Math.round(detParcelas.reduce((s,p)=>s+(p.valor||0),0)*100)/100;
+  if(abertas.length){
+    openRows = abertas.map(p=>({data:p.data_vencimento||'', valor:p.valor||0}));
+  } else {
+    openRows = [{data:new Date().toISOString().slice(0,10), valor:Math.max(total-pagoValor,0)}];
   }
-  document.getElementById('reparcNHidden').value = N;
-  renderDetParcelas(true);
+  document.getElementById('renegTotal').value = fmtMoedaDet(total);
+  document.getElementById('renegN').value = openRows.length;
+  document.getElementById('renegData').value = openRows[0].data || new Date().toISOString().slice(0,10);
 }
-function cancelarReparc(){
-  reparcParcelas = null;
-  document.getElementById('reparcNHidden').value = '';
-  document.getElementById('reparcN').value = '';
-  renderDetParcelas(true);
+function renegTotalVal(){ return parseMoedaDet(document.getElementById('renegTotal').value); }
+function renegSaldo(){ return Math.round((renegTotalVal() - pagoValor)*100)/100; }
+function somaAberto(){ return Math.round(openRows.reduce((s,r)=>s+(r.valor||0),0)*100)/100; }
+/* Distribui o saldo em aberto igualmente entre as openRows (ajusta a última). */
+function equalizeValores(){
+  const saldo = Math.max(renegSaldo(),0); const n = openRows.length||1;
+  const base = Math.floor((saldo/n)*100)/100;
+  openRows.forEach((r,i)=>{ r.valor = (i===n-1) ? Math.round((saldo-base*(n-1))*100)/100 : base; });
+}
+/* Recalcula todas as datas a partir do 1º vencimento, +30 dias cada. */
+function recomputeDatas(){
+  let first = document.getElementById('renegData').value || (openRows[0] && openRows[0].data) || new Date().toISOString().slice(0,10);
+  let prev = first;
+  openRows.forEach((r,i)=>{ r.data = (i===0) ? first : addDias(prev,30); prev = r.data; });
+}
+function onRenegTotal(){
+  document.getElementById('renegTotal').value = fmtMoedaDet(renegTotalVal());
+  equalizeValores(); renderReneg();
+}
+function onRenegN(){
+  let n = parseInt(document.getElementById('renegN').value)||1;
+  n = Math.min(Math.max(n,1),48);
+  document.getElementById('renegN').value = n;
+  while(openRows.length < n) openRows.push({data:'', valor:0});
+  while(openRows.length > n) openRows.pop();
+  recomputeDatas(); equalizeValores(); renderReneg();
+}
+function onRenegPrimData(){ recomputeDatas(); renderReneg(); }
+/* Mudou a data de uma parcela → as seguintes seguem +30 dias em cascata. */
+function onRenegData(i){
+  const el = document.querySelector('[name="np_data_'+(i+1)+'"]');
+  if(!el || !el.value) return;
+  openRows[i].data = el.value;
+  if(i===0) document.getElementById('renegData').value = el.value;
+  let prev = el.value;
+  for(let k=i+1; k<openRows.length; k++){ prev = addDias(prev,30); openRows[k].data = prev; }
+  renderReneg();
+}
+/* Mudou um valor → a diferença redistribui igualmente entre as OUTRAS parcelas em aberto. */
+function onRenegValor(i){
+  const el = document.querySelector('[name="np_valor_'+(i+1)+'"]');
+  if(!el) return;
+  const novo = parseMoedaDet(el.value);
+  const antigo = openRows[i].valor || 0;
+  openRows[i].valor = novo;
+  const outras = openRows.filter((_,k)=>k!==i);
+  if(outras.length){
+    // Várias parcelas: a diferença redistribui entre as outras (mantém o total).
+    const ajuste = (novo - antigo) / outras.length;
+    outras.forEach(o=>{ o.valor = Math.max(Math.round((o.valor - ajuste)*100)/100, 0); });
+  } else {
+    // Parcela única em aberto: ela define o saldo → atualiza o valor total da despesa.
+    document.getElementById('renegTotal').value = fmtMoedaDet(pagoValor + novo);
+  }
+  renderReneg();
+}
+function removerRenegRow(i){
+  if(openRows.length<=1){ alert('A despesa precisa de ao menos 1 parcela em aberto. Se quiser encerrá-la, exclua a despesa.'); return; }
+  openRows.splice(i,1);
+  document.getElementById('renegN').value = openRows.length;
+  recomputeDatas(); equalizeValores(); renderReneg();
+}
+function adicionarRenegRow(){
+  const last = openRows[openRows.length-1];
+  const nova = last && last.data ? addDias(last.data,30) : new Date().toISOString().slice(0,10);
+  openRows.push({data:nova, valor:0});
+  document.getElementById('renegN').value = openRows.length;
+  equalizeValores(); renderReneg();
+}
+function renderReneg(){
+  const c = document.getElementById('detParcelas');
+  const pagas = detParcelas.filter(p=>p.pago);
+  let html = '';
+  if(pagas.length){
+    html += '<div style="font-size:11.5px;color:#2e7d32;font-weight:700;margin:2px 0 8px">✅ '+pagas.length+' parcela(s) paga(s) — '+brlDet(pagoValor)+' (não muda)</div>';
+    html += pagas.map(parcelaViewHtml).join('');
+  }
+  html += openRows.map(function(r,i){
+    return '<div class="det-parc-row">'
+      + '<div class="dpl">#'+(pagas.length+i+1)+'</div>'
+      + '<div class="form-field"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="np_data_'+(i+1)+'" value="'+(r.data||'')+'" onchange="onRenegData('+i+')"></div>'
+      + '<div class="form-field"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="np_valor_'+(i+1)+'" value="'+fmtMoedaDet(r.valor)+'" onchange="onRenegValor('+i+')"></div>'
+      + '<button type="button" class="det-parc-del" title="Remover parcela" onclick="removerRenegRow('+i+')">🗑</button>'
+      + '</div>';
+  }).join('');
+  c.innerHTML = html;
+  document.getElementById('reparcNHidden').value = openRows.length;
+  document.getElementById('detParcelaIds').value = '';
+  document.getElementById('detDelIds').value = '';
+  document.getElementById('detAddCount').value = 0;
+  const aw = document.getElementById('detAddWrap'); if(aw) aw.style.display = 'block';
+  atualizarResumoReneg();
+}
+function atualizarResumoReneg(){
+  const soma = somaAberto();
+  const saldo = renegSaldo();
+  const total = renegTotalVal();
+  const box = document.getElementById('renegResumo');
+  const btn = document.getElementById('detBtnSalvar');
+  const diff = Math.round((soma - saldo)*100)/100;
+  let ok = Math.abs(diff) < 0.05 && saldo > 0 && total > 0;
+  let msg;
+  if(total <= 0){ msg = '⚠️ Informe o valor total da despesa.'; }
+  else if(saldo <= 0){ msg = '⚠️ O valor total ('+brlDet(total)+') precisa ser maior que o já pago ('+brlDet(pagoValor)+').'; }
+  else if(diff > 0.005){ msg = '⚠️ Soma das parcelas '+brlDet(soma)+' — sobra '+brlDet(diff)+' sobre o saldo '+brlDet(saldo); }
+  else if(diff < -0.005){ msg = '⚠️ Soma das parcelas '+brlDet(soma)+' — faltam '+brlDet(-diff)+' para o saldo '+brlDet(saldo); }
+  else { msg = '✅ Parcelas '+brlDet(soma)+' · saldo '+brlDet(saldo)+(pagoValor>0?(' · pago '+brlDet(pagoValor)):'')+' · total '+brlDet(total); }
+  box.className = 'reneg-resumo ' + (ok ? 'reneg-ok' : 'reneg-erro');
+  box.innerHTML = '<span>'+msg+'</span>';
+  if(btn){ btn.disabled = !ok; }
+}
+/* Lê os inputs atuais para openRows (garante estado antes de validar no submit). */
+function syncRenegFromDOM(){
+  openRows.forEach((r,i)=>{
+    const dd = document.querySelector('[name="np_data_'+(i+1)+'"]');
+    const dv = document.querySelector('[name="np_valor_'+(i+1)+'"]');
+    if(dd) r.data = dd.value;
+    if(dv) r.valor = parseMoedaDet(dv.value);
+  });
+}
+function validarDetalhe(){
+  if(!renegAtivo) return true;   // recorrente ou visualização: sem trava especial
+  syncRenegFromDOM();
+  const soma = somaAberto(), saldo = renegSaldo(), total = renegTotalVal();
+  if(total <= 0){ alert('Informe o valor total da despesa.'); return false; }
+  if(saldo <= 0){ alert('O valor total precisa ser maior que o valor já pago ('+brlDet(pagoValor)+').'); return false; }
+  if(Math.abs(soma - saldo) >= 0.05){
+    alert('A soma das parcelas em aberto ('+brlDet(soma)+') não bate com o saldo a distribuir ('+brlDet(saldo)+'). Ajuste os valores antes de salvar.');
+    return false;
+  }
+  for(let i=0;i<openRows.length;i++){ if(!openRows[i].data){ alert('Informe a data de vencimento da parcela #'+(i+1)+'.'); return false; } }
+  return true;
 }
 function ativarEdicaoDetalhe(){
   ['detCategoria','detDescricao','detTipo','detObs'].forEach(id=>{ const e=document.getElementById(id); if(e) e.disabled=false; });
-  reparcParcelas = null; detDelIds = []; detNovos = [];
+  detDelIds = []; detNovos = []; renegAtivo = false;
   document.getElementById('reparcNHidden').value = '';
-  document.getElementById('reparcN').value = '';
   const prim = (detParcelas.find(p=>!p.pago) || {}).data_vencimento;
   if(detRecorrente){
-    // Recorrente: sem reparcelamento; edição direta mês a mês + aplicar em massa.
+    // Recorrente: edição direta mês a mês + aplicar em massa + adicionar/excluir.
     document.getElementById('detEditHint').style.display='none';
-    document.getElementById('detReparc').style.display='none';
+    document.getElementById('detReneg').style.display='none';
     document.getElementById('detRecHint').style.display='block';
     document.getElementById('detRecBulk').style.display='block';
     document.getElementById('bulkValor').value='';
     document.getElementById('bulkData').value = prim || new Date().toISOString().slice(0,10);
   } else {
-    document.getElementById('detEditHint').style.display='block';
+    // Parcelada / conta única.
     document.getElementById('detRecHint').style.display='none';
     document.getElementById('detRecBulk').style.display='none';
-    // Controle de reparcelamento (só quando há saldo em aberto)
-    const saldo = saldoAberto();
-    document.getElementById('reparcSaldo').textContent = brlDet(saldo);
-    document.getElementById('reparcData').value = prim || new Date().toISOString().slice(0,10);
-    document.getElementById('detReparc').style.display = saldo > 0 ? 'block' : 'none';
+    const temAberto = detParcelas.some(p=>!p.pago);
+    if(temAberto){
+      // Editor de renegociação (valor + parcelas + datas).
+      document.getElementById('detEditHint').style.display='none';
+      document.getElementById('detReneg').style.display='block';
+      iniciarReneg();
+    } else {
+      // Tudo pago: só o cabeçalho é editável (não há saldo p/ renegociar).
+      renegAtivo = false;
+      document.getElementById('detReneg').style.display='none';
+      const h=document.getElementById('detEditHint');
+      if(h){ h.textContent='✏️ Despesa quitada — só é possível ajustar categoria, descrição, tipo e observação.'; h.style.display='block'; }
+    }
   }
   renderDetParcelas(true);
   document.getElementById('detBtnEditar').style.display='none';
@@ -699,11 +833,12 @@ function ativarEdicaoDetalhe(){
 function desativarEdicaoDetalhe(){
   ['detCategoria','detDescricao','detTipo','detObs'].forEach(id=>{ const e=document.getElementById(id); if(e) e.disabled=true; });
   document.getElementById('detEditHint').style.display='none';
-  document.getElementById('detReparc').style.display='none';
+  const rn0=document.getElementById('detReneg'); if(rn0) rn0.style.display='none';
   const rh0=document.getElementById('detRecHint'); if(rh0) rh0.style.display='none';
   const rb0=document.getElementById('detRecBulk'); if(rb0) rb0.style.display='none';
   const aw0=document.getElementById('detAddWrap'); if(aw0) aw0.style.display='none';
-  reparcParcelas = null; detDelIds = []; detNovos = [];
+  detDelIds = []; detNovos = []; renegAtivo = false;
+  const sb=document.getElementById('detBtnSalvar'); if(sb) sb.disabled=false;
   const rh=document.getElementById('reparcNHidden'); if(rh) rh.value='';
   const be=document.getElementById('detBtnEditar'), bs=document.getElementById('detBtnSalvar');
   if(be) be.style.display='inline-flex'; if(bs) bs.style.display='none';

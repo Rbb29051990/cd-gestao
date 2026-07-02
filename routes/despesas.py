@@ -543,9 +543,10 @@ def salvar_despesa(did):
             conn.commit(); flash('Despesa recorrente atualizada!', 'ok')
             return redirect(url_for('despesas'))
         reparc_n = request.form.get('reparc_n', '').strip()
-        if reparc_n.isdigit() and int(reparc_n) >= 2:
-            # RENEGOCIAÇÃO EM PARCELAS: apaga as parcelas em aberto e cria N novas.
-            # As já pagas continuam (histórico/caixa intactos).
+        if reparc_n.isdigit() and int(reparc_n) >= 1:
+            # RENEGOCIAÇÃO (editor v140): apaga as parcelas EM ABERTO e cria N novas com os
+            # valores/vencimentos informados. As já pagas continuam (histórico/caixa intactos).
+            # O total (valor) da despesa é recalculado da soma logo abaixo.
             n = min(int(reparc_n), 48)
             cur.execute("DELETE FROM despesa_parcelas WHERE despesa_id=%s AND pago=FALSE", (did,))
             cur.execute("SELECT COALESCE(MAX(numero),0) mx FROM despesa_parcelas WHERE despesa_id=%s", (did,))

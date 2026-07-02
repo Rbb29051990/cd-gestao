@@ -12,7 +12,17 @@ Ao clicar numa **despesa recorrente** (fixa que gera 12 contas mensais), o **det
 - **Meses já pagos ficam intactos** (não mudam valor/vencimento).
 - **Excluir** pelo detalhamento remove a **série inteira** (apenas N1).
 
-Despesas **parceladas/avulsas** mantêm o comportamento anterior (renegociação/reparcelamento das parcelas em aberto).
+### Editor de renegociação (despesas parceladas / conta única)
+
+Ao **Editar** uma despesa parcelada, um painel de renegociação permite:
+
+- **Valor total (R$)** editável — renegociou para mais ou para menos.
+- **Nº de parcelas** — ao mudar, os campos de parcela são **regenerados e os valores redistribuídos** automaticamente.
+- **1º vencimento** — as demais parcelas puxam **+30 dias em cascata**.
+- Alterar o **valor de uma parcela** → a diferença **redistribui** entre as outras (mantendo o total); com uma única parcela em aberto, ela ajusta o total.
+- **➕ adicionar** / **🗑 excluir** parcelas em aberto.
+- **Trava de segurança**: o botão Salvar fica desabilitado enquanto a **soma das parcelas em aberto não bate com o saldo** (total − pago).
+- **Parcelas já pagas ficam fixas** (não entram na renegociação).
 
 ## Novidades da v139 (2026-06-26) — Pagamento dividido (split)
 

@@ -468,8 +468,18 @@
         </div>
         <div class="form-field"><label class="form-label">Observação</label><input class="form-input" name="obs_retirada" id="detObs" placeholder="—" disabled></div>
       </div>
-      <div class="section-sep">Parcelas</div>
+      <div class="section-sep" id="detParcTitulo">Parcelas</div>
       <div id="detEditHint" style="display:none;font-size:12px;color:#00838f;font-weight:600;margin-bottom:8px">✏️ Editando — ajuste valor e vencimento das parcelas <b>em aberto</b> (renegociação). Parcelas pagas não mudam.</div>
+      <div id="detRecHint" style="display:none;font-size:12px;color:#2e7d32;font-weight:600;margin-bottom:8px">✏️ Editando despesa recorrente — ajuste valor e vencimento de <b>cada mês em aberto</b>. Meses já pagos não mudam.</div>
+      <!-- v140: aplicar em massa a todos os meses em aberto de uma despesa recorrente -->
+      <div id="detRecBulk" style="display:none;background:#e8f5e9;border:1.5px solid #c8e6c9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:2.1">
+        <b>Aplicar a todos os meses em aberto:</b><br>
+        novo valor <input type="text" inputmode="numeric" id="bulkValor" placeholder="R$ 0,00" style="width:110px;padding:5px 8px;border:1.5px solid #c8e6c9;border-radius:6px">
+        <button type="button" onclick="aplicarBulkValor()" style="padding:6px 12px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Aplicar valor</button>
+        <span style="color:#aaa">·</span>
+        1º venc. <input type="date" id="bulkData" style="padding:5px 8px;border:1.5px solid #c8e6c9;border-radius:6px">
+        <button type="button" onclick="aplicarBulkData()" style="padding:6px 12px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Aplicar vencimentos (mensal)</button>
+      </div>
       <div id="detReparc" style="display:none;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:2">
         <b>Renegociou em parcelas?</b> Dividir o saldo em aberto (<b id="reparcSaldo">R$ 0,00</b>) em
         <select id="reparcN" style="padding:5px 8px;border:1.5px solid #c5cae9;border-radius:6px;font-weight:700;cursor:pointer"><option value="">—</option>{% for i in range(2,25) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}</select> x,
@@ -496,7 +506,7 @@
 </div>
 <script>
 /* ── DETALHAMENTO / EDIÇÃO DA DESPESA ── */
-let detDid = null, detParcelas = [];
+let detDid = null, detParcelas = [], detRecorrente = false;
 function brlDet(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function dataBR(iso){ return iso ? iso.split('-').reverse().join('/') : '—'; }
 async function abrirDetalheDespesa(did){
@@ -504,9 +514,14 @@ async function abrirDetalheDespesa(did){
   let d; try{ d = await (await fetch('/despesas/'+did+'/detalhe')).json(); }catch(e){ return; }
   if(!d || !d.ok) return;
   const dp = d.despesa; detParcelas = d.parcelas || [];
+  detRecorrente = !!dp.recorrente;
   document.getElementById('formDetalhe').action = '/despesas/'+did+'/salvar';
   document.getElementById('detTitulo').textContent = (dp.categoria || dp.descricao || 'Despesa') + '  ·  ' + (dp.codigo || '');
-  document.getElementById('detSub').textContent = 'Total ' + brlDet(dp.valor) + (dp.parcelado ? ('  ·  '+dp.num_parcelas+'x') : '  ·  conta única');
+  let sub;
+  if(detRecorrente) sub = 'Despesa recorrente  ·  Total ' + brlDet(dp.valor) + '  ·  ' + dp.num_parcelas + ' meses';
+  else sub = 'Total ' + brlDet(dp.valor) + (dp.parcelado ? ('  ·  '+dp.num_parcelas+'x') : '  ·  conta única');
+  document.getElementById('detSub').textContent = sub;
+  document.getElementById('detParcTitulo').textContent = detRecorrente ? 'Meses' : 'Parcelas';
   document.getElementById('detCategoria').value = dp.categoria || '';
   document.getElementById('detDescricao').value = dp.descricao || '';
   document.getElementById('detTipo').value = (dp.tipo === 'fixa' ? 'fixa' : 'avulsa');
@@ -516,12 +531,13 @@ async function abrirDetalheDespesa(did){
   document.getElementById('modalDetalhe').style.display = 'flex';
 }
 let reparcParcelas = null;  // quando != null, está no modo "renegociar em parcelas"
+function parcRotulo(p){ return detRecorrente ? (p.rotulo_mes || ('Mês '+p.numero)) : ('Parcela '+p.numero); }
 function parcelaViewHtml(p){
   const status = p.pago
     ? '<span style="color:#2e7d32;font-weight:700">✅ Paga'+(p.data_pagamento?(' em '+dataBR(p.data_pagamento)):'')+'</span>'+(p.forma_pagamento?(' · '+p.forma_pagamento):'')+(p.obs_pagamento?(' · '+p.obs_pagamento):'')
     : '<span style="color:#c62828;font-weight:700">⏳ A pagar</span>';
   return '<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:1px solid #f0f0f4;font-size:13px">'
-    + '<div style="min-width:0"><b>Parcela '+p.numero+'</b> · vence '+dataBR(p.data_vencimento)+'<div style="font-size:12px;margin-top:2px">'+status+'</div></div>'
+    + '<div style="min-width:0"><b>'+parcRotulo(p)+'</b> · vence '+dataBR(p.data_vencimento)+'<div style="font-size:12px;margin-top:2px">'+status+'</div></div>'
     + '<div style="font-weight:700;white-space:nowrap">'+brlDet(p.valor)+'</div></div>';
 }
 function renderDetParcelas(edit){
@@ -549,7 +565,7 @@ function renderDetParcelas(edit){
     ids.push(p.id);
     if(edit && !p.pago){
       return '<div style="display:flex;gap:8px;align-items:flex-end;padding:8px 0;border-bottom:1px solid #f0f0f4">'
-        + '<div style="width:52px"><label class="form-label">Parc</label><div style="font-weight:700;padding:9px 0">'+p.numero+'</div></div>'
+        + '<div style="width:'+(detRecorrente?'66px':'52px')+'"><label class="form-label">'+(detRecorrente?'Mês':'Parc')+'</label><div style="font-weight:700;padding:9px 0;font-size:'+(detRecorrente?'12px':'14px')+'">'+parcRotulo(p).replace(/^Parcela /,'').replace(/^Mês /,'')+'</div></div>'
         + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="pdata_'+p.id+'" value="'+(p.data_vencimento||'')+'" onchange="cascataData('+p.id+')"></div>'
         + '<div class="form-field" style="margin:0;flex:1"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="pval_'+p.id+'" value="'+p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'" onchange="redistribuirValor('+p.id+')"></div>'
         + '</div>';
@@ -585,16 +601,28 @@ function cancelarReparc(){
 }
 function ativarEdicaoDetalhe(){
   ['detCategoria','detDescricao','detTipo','detObs'].forEach(id=>{ const e=document.getElementById(id); if(e) e.disabled=false; });
-  document.getElementById('detEditHint').style.display='block';
-  // Controle de reparcelamento (só quando há saldo em aberto)
   reparcParcelas = null;
   document.getElementById('reparcNHidden').value = '';
   document.getElementById('reparcN').value = '';
-  const saldo = saldoAberto();
-  document.getElementById('reparcSaldo').textContent = brlDet(saldo);
   const prim = (detParcelas.find(p=>!p.pago) || {}).data_vencimento;
-  document.getElementById('reparcData').value = prim || new Date().toISOString().slice(0,10);
-  document.getElementById('detReparc').style.display = saldo > 0 ? 'block' : 'none';
+  if(detRecorrente){
+    // Recorrente: sem reparcelamento; edição direta mês a mês + aplicar em massa.
+    document.getElementById('detEditHint').style.display='none';
+    document.getElementById('detReparc').style.display='none';
+    document.getElementById('detRecHint').style.display='block';
+    document.getElementById('detRecBulk').style.display='block';
+    document.getElementById('bulkValor').value='';
+    document.getElementById('bulkData').value = prim || new Date().toISOString().slice(0,10);
+  } else {
+    document.getElementById('detEditHint').style.display='block';
+    document.getElementById('detRecHint').style.display='none';
+    document.getElementById('detRecBulk').style.display='none';
+    // Controle de reparcelamento (só quando há saldo em aberto)
+    const saldo = saldoAberto();
+    document.getElementById('reparcSaldo').textContent = brlDet(saldo);
+    document.getElementById('reparcData').value = prim || new Date().toISOString().slice(0,10);
+    document.getElementById('detReparc').style.display = saldo > 0 ? 'block' : 'none';
+  }
   renderDetParcelas(true);
   document.getElementById('detBtnEditar').style.display='none';
   document.getElementById('detBtnSalvar').style.display='inline-flex';
@@ -603,6 +631,8 @@ function desativarEdicaoDetalhe(){
   ['detCategoria','detDescricao','detTipo','detObs'].forEach(id=>{ const e=document.getElementById(id); if(e) e.disabled=true; });
   document.getElementById('detEditHint').style.display='none';
   document.getElementById('detReparc').style.display='none';
+  const rh0=document.getElementById('detRecHint'); if(rh0) rh0.style.display='none';
+  const rb0=document.getElementById('detRecBulk'); if(rb0) rb0.style.display='none';
   reparcParcelas = null;
   const rh=document.getElementById('reparcNHidden'); if(rh) rh.value='';
   const be=document.getElementById('detBtnEditar'), bs=document.getElementById('detBtnSalvar');
@@ -610,7 +640,10 @@ function desativarEdicaoDetalhe(){
 }
 function fecharDetalhe(){ document.getElementById('modalDetalhe').style.display='none'; }
 function excluirDetalhe(){
-  if(!confirm('Excluir esta despesa? Parcelas e lançamentos no caixa também serão removidos.')) return;
+  const msg = detRecorrente
+    ? 'Excluir esta despesa RECORRENTE? TODOS os meses da série e seus lançamentos no caixa serão removidos.'
+    : 'Excluir esta despesa? Parcelas e lançamentos no caixa também serão removidos.';
+  if(!confirm(msg)) return;
   const f=document.createElement('form'); f.method='POST'; f.action='/despesas/'+detDid+'/excluir';
   document.body.appendChild(f); f.submit();
 }
@@ -621,7 +654,18 @@ function addDias(iso, dias){
   const p2 = x => String(x).padStart(2,'0');
   return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
 }
-/* Mudou o vencimento de uma parcela → as SEGUINTES em aberto vão +30 dias em cascata. */
+/* Soma meses mantendo o dia (ajusta p/ último dia do mês quando necessário). */
+function addMeses(iso, meses){
+  const d = new Date(iso+'T00:00:00');
+  const dia = d.getDate();
+  d.setDate(1); d.setMonth(d.getMonth()+meses);
+  const ultimo = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+  d.setDate(Math.min(dia, ultimo));
+  const p2 = x => String(x).padStart(2,'0');
+  return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+}
+/* Mudou o vencimento de uma parcela/mês → os SEGUINTES em aberto seguem em cascata
+   (+1 mês na recorrente, +30 dias no parcelamento). */
 function cascataData(pid){
   const idx = detParcelas.findIndex(p=>p.id===pid);
   if(idx<0) return;
@@ -632,11 +676,37 @@ function cascataData(pid){
   for(let k=idx+1; k<detParcelas.length; k++){
     const p = detParcelas[k];
     if(p.pago) continue;
-    prev = addDias(prev, 30);
+    prev = detRecorrente ? addMeses(prev, 1) : addDias(prev, 30);
     p.data_vencimento = prev;
     const inp = document.querySelector('[name="pdata_'+p.id+'"]');
     if(inp) inp.value = prev;
   }
+}
+/* v140 — RECORRENTE: aplicar o mesmo valor a TODOS os meses em aberto. */
+function aplicarBulkValor(){
+  const v = parseMoedaDet(document.getElementById('bulkValor').value);
+  if(v<=0){ alert('Informe o novo valor a aplicar.'); return; }
+  detParcelas.forEach(p=>{
+    if(p.pago) return;
+    p.valor = v;
+    const inp = document.querySelector('[name="pval_'+p.id+'"]');
+    if(inp) inp.value = fmtMoedaDet(v);
+  });
+}
+/* v140 — RECORRENTE: reprograma os vencimentos dos meses em aberto a partir de uma
+   1ª data, avançando 1 mês por mês. */
+function aplicarBulkData(){
+  const start = document.getElementById('bulkData').value;
+  if(!start){ alert('Informe a data do 1º vencimento.'); return; }
+  let i=0;
+  detParcelas.forEach(p=>{
+    if(p.pago) return;
+    const nova = (i===0) ? start : addMeses(start, i);
+    p.data_vencimento = nova;
+    const inp = document.querySelector('[name="pdata_'+p.id+'"]');
+    if(inp) inp.value = nova;
+    i++;
+  });
 }
 /* Mudou um valor → a diferença redistribui IGUALMENTE entre as outras parcelas em
    aberto (mantém o total). As parcelas já pagas não entram. */
@@ -645,6 +715,8 @@ function redistribuirValor(pid){
   if(!el) return;
   const p = detParcelas.find(x=>x.id===pid);
   const novo = parseMoedaDet(el.value);
+  // Recorrente: cada mês é independente — só normaliza o valor digitado, sem redistribuir.
+  if(detRecorrente){ if(p) p.valor = novo; el.value = fmtMoedaDet(novo); return; }
   const antigo = p ? p.valor : 0;
   const outras = detParcelas.filter(x=>!x.pago && x.id!==pid);
   if(p){ p.valor = novo; }

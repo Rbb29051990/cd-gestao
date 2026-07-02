@@ -1,4 +1,16 @@
-# CD Gestão Empresarial — v139
+# CD Gestão Empresarial — v140
+
+## Novidades da v140 (2026-07-01) — Despesa recorrente editável em uma tela
+
+Ao clicar numa **despesa recorrente** (fixa que gera 12 contas mensais), o **detalhamento** agora mostra **todos os meses do grupo numa única tela**. Dá para ajustar **valor, vencimento, categoria, descrição, tipo e observação de uma vez** — sem precisar abrir mês a mês. No modo **Editar**:
+
+- **Aplicar a todos os meses em aberto**: define um único **valor** para todos os meses pendentes e/ou **reprograma os vencimentos** a partir de uma 1ª data (avançando 1 mês por mês).
+- Ao mudar a **data** de um mês, os seguintes em aberto avançam **+1 mês em cascata**.
+- Cada mês tem **valor independente** (não redistribui entre os outros, como acontece no parcelamento).
+- **Meses já pagos ficam intactos** (não mudam valor/vencimento).
+- **Excluir** pelo detalhamento remove a **série inteira** (apenas N1).
+
+Despesas **parceladas/avulsas** mantêm o comportamento anterior (renegociação/reparcelamento das parcelas em aberto).
 
 ## Novidades da v139 (2026-06-26) — Pagamento dividido (split)
 

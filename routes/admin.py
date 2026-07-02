@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v139'})
+        return jsonify({'status': 'ok', 'version': 'v140'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v139 — 2026-06-26</b><br>
+    Versão: <b style='color:green'>v140 — 2026-07-01</b><br>
+    v140: Despesas — clicar numa despesa RECORRENTE (fixa) abre o detalhamento com TODOS os meses do grupo numa única tela; dá para editar valor, vencimento, categoria/descrição/tipo/observação de uma vez, sem abrir mês a mês. No "Editar" há "Aplicar a todos os meses em aberto": um único valor para todos e/ou reprogramar os vencimentos a partir de uma 1ª data (mensal). Ao mudar a data de um mês, os seguintes em aberto avançam +1 mês em cascata; cada mês tem valor independente (não redistribui). Meses já pagos ficam intactos. Excluir uma recorrente pelo detalhamento remove a série inteira (N1). ✅<br>
     v139: Pagamento dividido (split) — uma cobrança pode ser paga em VÁRIAS formas (ex.: R$50 no débito + R$50 no crédito 5x). Cada forma vira uma linha no caixa com sua própria taxa (Taxa Flex), garantindo o líquido correto no caixa, na Visão Geral e no Dashboard. Disponível em: VENDAS (à vista e entrada do crediário), CONDICIONAL→venda, e RECEBIMENTO de parcela do crediário. Também ao EDITAR (editar venda e corrigir a forma de uma parcela já recebida no crediário) — reescreve o caixa preservando a data original. Ao digitar um valor, o campo seguinte já vem com o restante; máscara R$ padronizada em todos os campos (sem erro de ponto/vírgula). ✅<br>
     v139: Dashboard — o Ranking de vendedoras agora mostra TODAS as vendedoras ativas (mesmo sem vendas), com todos os indicadores, incl. clientes cadastrados (antes ficava "Sem vendas" e escondia tudo). Administradores N1 (donos) NÃO aparecem no ranking. ✅<br>
     v139: Troca / Devolução + Vales — na ficha da venda, botão "Trocar / Devolver": marca itens que voltam ao estoque e/ou adiciona peças novas; calcula a diferença (cliente paga na forma escolhida COM taxa, ou gera um VALE de crédito quando sobra). Nova aba VALES (crédito da loja a favor do cliente, passivo na Visão Geral) — usável como pagamento numa próxima venda à vista (abate do total; a parte do vale não é caixa). ✅<br>

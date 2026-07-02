@@ -364,28 +364,57 @@ def editar_despesa(did):
 
 @login_required
 def detalhe_despesa(did):
-    """JSON com tudo da despesa + parcelas — usado no detalhamento (clique na linha)."""
+    """JSON com tudo da despesa + parcelas — usado no detalhamento (clique na linha).
+
+    v140: se a despesa for RECORRENTE (fixa que gerou 12 contas mensais no mesmo grupo),
+    o detalhamento agrega TODAS as contas do grupo em uma única tela. Cada mês vira uma
+    "parcela" editável (valor/vencimento), evitando ter de abrir mês a mês. Para despesas
+    parceladas/únicas mantém o comportamento anterior (as parcelas da própria despesa)."""
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM despesas WHERE id=%s", (did,))
     d = cur.fetchone()
     if not d:
         cur.close(); close_db(conn); return jsonify({'ok': False})
     d = dict(d)
-    cur.execute("SELECT * FROM despesa_parcelas WHERE despesa_id=%s ORDER BY numero", (did,))
-    parcelas = [dict(p) for p in cur.fetchall()]
-    cur.close(); close_db(conn)
     def ds(x): return x.isoformat() if x else None
-    out_parc = [{
-        'id': p['id'], 'numero': p['numero'], 'valor': float(p['valor'] or 0),
-        'data_vencimento': ds(p.get('data_vencimento')), 'pago': bool(p['pago']),
-        'data_pagamento': ds(p.get('data_pagamento')),
-        'forma_pagamento': p.get('forma_pagamento'), 'obs_pagamento': p.get('obs_pagamento'),
-    } for p in parcelas]
+    grupo = d.get('recorrencia_grupo')
+    out_parc = []
+    if grupo:
+        # Recorrente: junta as parcelas de TODAS as despesas do grupo, uma por mês.
+        cur.execute("""SELECT p.*, p.despesa_id AS dp_id
+                       FROM despesa_parcelas p
+                       JOIN despesas dd ON dd.id = p.despesa_id
+                       WHERE dd.recorrencia_grupo = %s
+                       ORDER BY p.data_vencimento, p.despesa_id, p.numero""", (grupo,))
+        parcelas = [dict(p) for p in cur.fetchall()]
+        MESES_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+        for i, p in enumerate(parcelas, start=1):
+            v = p.get('data_vencimento')
+            rot = f"{MESES_PT[v.month-1]}/{v.year}" if v else f"Mês {i}"
+            out_parc.append({
+                'id': p['id'], 'despesa_id': p['dp_id'], 'numero': i, 'rotulo_mes': rot,
+                'valor': float(p['valor'] or 0), 'data_vencimento': ds(p.get('data_vencimento')),
+                'pago': bool(p['pago']), 'data_pagamento': ds(p.get('data_pagamento')),
+                'forma_pagamento': p.get('forma_pagamento'), 'obs_pagamento': p.get('obs_pagamento'),
+            })
+    else:
+        cur.execute("SELECT * FROM despesa_parcelas WHERE despesa_id=%s ORDER BY numero", (did,))
+        parcelas = [dict(p) for p in cur.fetchall()]
+        out_parc = [{
+            'id': p['id'], 'despesa_id': did, 'numero': p['numero'], 'valor': float(p['valor'] or 0),
+            'data_vencimento': ds(p.get('data_vencimento')), 'pago': bool(p['pago']),
+            'data_pagamento': ds(p.get('data_pagamento')),
+            'forma_pagamento': p.get('forma_pagamento'), 'obs_pagamento': p.get('obs_pagamento'),
+        } for p in parcelas]
+    total_geral = round(sum(p['valor'] for p in out_parc), 2) if grupo else float(d.get('valor') or 0)
+    cur.close(); close_db(conn)
     return jsonify({'ok': True, 'despesa': {
         'id': d['id'], 'codigo': d.get('codigo'), 'categoria': d.get('categoria'),
-        'descricao': d.get('descricao'), 'tipo': d.get('tipo'), 'valor': float(d.get('valor') or 0),
-        'parcelado': bool(d.get('parcelado')), 'num_parcelas': d.get('num_parcelas'),
+        'descricao': d.get('descricao'), 'tipo': d.get('tipo'), 'valor': total_geral,
+        'parcelado': bool(d.get('parcelado')),
+        'num_parcelas': (len(out_parc) if grupo else d.get('num_parcelas')),
         'obs_retirada': d.get('obs_retirada'), 'data_despesa': ds(d.get('data_despesa')),
+        'recorrente': bool(grupo), 'recorrencia_grupo': grupo,
     }, 'parcelas': out_parc})
 
 
@@ -399,9 +428,11 @@ def salvar_despesa(did):
         return redirect(url_for('despesas'))
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("SELECT id FROM despesas WHERE id=%s", (did,))
-        if not cur.fetchone():
+        cur.execute("SELECT id, recorrencia_grupo FROM despesas WHERE id=%s", (did,))
+        row = cur.fetchone()
+        if not row:
             flash('Despesa não encontrada.', 'erro'); return redirect(url_for('despesas'))
+        grupo = dict(row).get('recorrencia_grupo')
         categoria = request.form.get('categoria', '').strip()
         descricao = request.form.get('descricao', '').strip()
         tipo = request.form.get('tipo', 'avulsa').strip().lower()
@@ -409,6 +440,37 @@ def salvar_despesa(did):
         obs = request.form.get('obs_retirada', '').strip() or None
         if categoria:
             cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING", (categoria,))
+        if grupo:
+            # ── RECORRENTE: edição de TODOS os meses do grupo em uma tela só ──
+            # Cabeçalho (categoria/descrição/tipo/obs) vale para todas as contas do grupo.
+            cur.execute("""UPDATE despesas SET categoria=%s, descricao=%s, tipo=%s, obs_retirada=%s
+                           WHERE recorrencia_grupo=%s""",
+                        (categoria or None, descricao or None, tipo, obs, grupo))
+            # Mapa das parcelas do grupo (id -> despesa_id) e quais estão em aberto.
+            cur.execute("""SELECT p.id, p.despesa_id, p.pago
+                           FROM despesa_parcelas p JOIN despesas dd ON dd.id=p.despesa_id
+                           WHERE dd.recorrencia_grupo=%s""", (grupo,))
+            grp_parc = {r['id']: {'did': r['despesa_id'], 'aberto': (not r['pago'])} for r in cur.fetchall()}
+            for pid_s in [x for x in request.form.get('parcela_ids', '').split(',') if x.strip().isdigit()]:
+                pid = int(pid_s)
+                info = grp_parc.get(pid)
+                if not info or not info['aberto']:   # inexistente ou já paga → não mexe
+                    continue
+                pv = parse_brl(request.form.get(f'pval_{pid}', '0'))
+                pdta = request.form.get(f'pdata_{pid}', '').strip()
+                try: date.fromisoformat(pdta)
+                except Exception: pdta = None
+                if pv > 0 and pdta:
+                    cur.execute("UPDATE despesa_parcelas SET valor=%s, data_vencimento=%s WHERE id=%s", (pv, pdta, pid))
+                    cur.execute("UPDATE despesas SET valor=%s, data_vencimento=%s WHERE id=%s", (pv, pdta, info['did']))
+                elif pv > 0:
+                    cur.execute("UPDATE despesa_parcelas SET valor=%s WHERE id=%s", (pv, pid))
+                    cur.execute("UPDATE despesas SET valor=%s WHERE id=%s", (pv, info['did']))
+                elif pdta:
+                    cur.execute("UPDATE despesa_parcelas SET data_vencimento=%s WHERE id=%s", (pdta, pid))
+                    cur.execute("UPDATE despesas SET data_vencimento=%s WHERE id=%s", (pdta, info['did']))
+            conn.commit(); flash('Despesa recorrente atualizada em todos os meses em aberto!', 'ok')
+            return redirect(url_for('despesas'))
         reparc_n = request.form.get('reparc_n', '').strip()
         if reparc_n.isdigit() and int(reparc_n) >= 2:
             # RENEGOCIAÇÃO EM PARCELAS: apaga as parcelas em aberto e cria N novas.
@@ -466,6 +528,19 @@ def excluir_despesa(did):
         flash('Apenas o Administrador N1 pode excluir dados.', 'erro'); return redirect(url_for('despesas'))
     conn = get_db(); cur = conn.cursor()
     try:
+        # v140: se for recorrente, exclui TODA a série (o detalhamento mostra o grupo inteiro).
+        cur.execute("SELECT recorrencia_grupo FROM despesas WHERE id=%s", (did,))
+        row = cur.fetchone()
+        grupo = dict(row).get('recorrencia_grupo') if row else None
+        if grupo:
+            cur.execute("SELECT id FROM despesas WHERE recorrencia_grupo=%s", (grupo,))
+            ids = [r['id'] for r in cur.fetchall()]
+            if ids:
+                cur.execute("DELETE FROM caixa WHERE despesa_id = ANY(%s)", (ids,))
+                cur.execute("DELETE FROM despesa_parcelas WHERE despesa_id = ANY(%s)", (ids,))
+                cur.execute("DELETE FROM despesas WHERE id = ANY(%s)", (ids,))
+            conn.commit(); flash('Despesa recorrente excluída (todos os meses).', 'ok')
+            return redirect(url_for('despesas'))
         cur.execute("DELETE FROM caixa WHERE despesa_id=%s", (did,))
         cur.execute("DELETE FROM despesa_parcelas WHERE despesa_id=%s", (did,))
         cur.execute("DELETE FROM despesas WHERE id=%s", (did,))

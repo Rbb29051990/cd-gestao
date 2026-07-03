@@ -3,6 +3,10 @@
 {% macro moeda(v) %}R$ {{ "{:,.2f}".format(v|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
 <style>
 .table thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+.table th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+.table th.sortable::after{content:' ⇅';font-size:10px;color:#ccc}
+.table th.sortable.asc::after{content:' ↑';color:#1a1a2e}
+.table th.sortable.desc::after{content:' ↓';color:#1a1a2e}
 .desp-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 @media(max-width:700px){.desp-charts{grid-template-columns:1fr}}
 .chart-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
@@ -239,12 +243,21 @@
 
       <div class="table-wrap" style="max-height:680px;overflow-y:auto">
         <table class="table">
-          <thead><tr><th>Cód</th><th>Data</th><th>Categoria</th><th>Descrição</th><th>Tipo</th><th>Situação</th><th>Forma</th><th>Origem</th><th>Valor</th></tr></thead>
+          <thead><tr>
+            <th class="sortable" onclick="sortDesp(this,0)">Cód</th>
+            <th class="sortable" onclick="sortDesp(this,1)">Vencimento</th>
+            <th class="sortable" onclick="sortDesp(this,2)">Categoria</th>
+            <th class="sortable" onclick="sortDesp(this,3)">Descrição</th>
+            <th class="sortable" onclick="sortDesp(this,4)">Tipo</th>
+            <th class="sortable" onclick="sortDesp(this,5)">Situação</th>
+            <th>Forma</th><th>Origem</th>
+            <th class="sortable" onclick="sortDesp(this,8)">Valor</th>
+          </tr></thead>
           <tbody>
             {% for d in lista %}
             <tr style="cursor:pointer" onclick="abrirDetalheDespesa({{ d.id }})" title="Ver detalhamento">
               <td><span style="font-size:11px;font-weight:700;color:#e65100;background:#fff3e0;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ d.codigo }}</span></td>
-              <td>{{ d.data_despesa.strftime('%d/%m/%Y') if d.data_despesa else '—' }}</td>
+              <td data-sv="{{ d.data_vencimento.strftime('%Y%m%d') if d.data_vencimento else '' }}">{{ d.data_vencimento.strftime('%d/%m/%Y') if d.data_vencimento else '—' }}</td>
               <td style="font-weight:600;color:#3949ab">{{ d.categoria or '—' }}</td>
               <td style="color:#3949ab">{{ d.descricao or '—' }}</td>
               <td><span class="bdg-tipo {% if d.tipo == 'fixa' %}bdg-fixa{% else %}bdg-avulsa{% endif %}">{{ d.tipo }}</span></td>
@@ -259,7 +272,7 @@
               </td>
               <td>{{ d.forma_pagamento or '—' }}</td>
               <td>{% if d.local_retirada == 'caixa' %}🏦 Caixa{% elif d.local_retirada == 'pix' %}⚡ PIX{% else %}—{% endif %}</td>
-              <td style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
+              <td data-sv="{{ d.valor|float }}" style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
             </tr>
             {% else %}
             <tr><td colspan="9" class="empty-row">Nenhuma despesa neste período.</td></tr>
@@ -484,6 +497,7 @@
       <input type="hidden" name="parcela_ids" id="detParcelaIds">
       <input type="hidden" name="del_ids" id="detDelIds">
       <input type="hidden" name="add_count" id="detAddCount" value="0">
+      <input type="hidden" name="pagos_ids" id="detPagosIds">
       <div class="form-grid2" style="margin-bottom:6px">
         <div class="form-field"><label class="form-label">Categoria</label><input class="form-input" name="categoria" id="detCategoria" disabled></div>
         <div class="form-field"><label class="form-label">Descrição</label><input class="form-input" name="descricao" id="detDescricao" disabled></div>
@@ -498,7 +512,7 @@
       <!-- v140: aplicar em massa a todos os meses em aberto de uma despesa recorrente -->
       <div id="detRecBulk" style="display:none;background:#e8f5e9;border:1.5px solid #c8e6c9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:2.1">
         <b>Aplicar a todos os meses em aberto:</b><br>
-        novo valor <input type="text" inputmode="numeric" id="bulkValor" placeholder="R$ 0,00" style="width:110px;padding:5px 8px;border:1.5px solid #c8e6c9;border-radius:6px">
+        novo valor <input type="text" inputmode="numeric" id="bulkValor" placeholder="R$ 0,00" oninput="mascaraMoedaDet(this)" style="width:110px;padding:5px 8px;border:1.5px solid #c8e6c9;border-radius:6px">
         <button type="button" onclick="aplicarBulkValor()" style="padding:6px 12px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Aplicar valor</button>
         <span style="color:#aaa">·</span>
         1º venc. <input type="date" id="bulkData" style="padding:5px 8px;border:1.5px solid #c8e6c9;border-radius:6px">
@@ -509,7 +523,7 @@
         <div class="reneg-title">💠 Renegociação — ajuste valor, parcelas e vencimentos</div>
         <div class="reneg-grid">
           <div class="form-field"><label class="form-label">Valor total (R$)</label>
-            <input class="form-input" id="renegTotal" inputmode="numeric" onchange="onRenegTotal()"></div>
+            <input class="form-input" id="renegTotal" inputmode="numeric" oninput="mascaraMoedaDet(this)" onchange="onRenegTotal()"></div>
           <div class="form-field"><label class="form-label">Parcelas</label>
             <input class="form-input" id="renegN" type="number" min="1" max="48" onchange="onRenegN()"></div>
           <div class="form-field"><label class="form-label">1º vencimento</label>
@@ -573,15 +587,29 @@ function parcelaViewHtml(p){
     + '<div style="min-width:0"><b>'+parcRotulo(p)+'</b> · vence '+dataBR(p.data_vencimento)+'<div style="font-size:12px;margin-top:2px">'+status+'</div></div>'
     + '<div style="font-weight:700;white-space:nowrap">'+brlDet(p.valor)+'</div></div>';
 }
+/* v141: parcela/mês JÁ PAGO editável — permite corrigir o vencimento e a DATA DE PAGAMENTO
+   (o caixa é ajustado junto). O valor não muda aqui (já está lançado no caixa). */
+function linhaPagaEditavel(p){
+  const rot = detRecorrente ? (p.rotulo_mes || ('Mês '+p.numero)) : ('Parcela '+p.numero);
+  return '<div style="padding:8px 2px;border-bottom:1px solid #f0f0f4">'
+    + '<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px">'
+    + '<b style="color:#2e7d32">'+rot+' · ✅ paga'+(p.forma_pagamento?(' · '+p.forma_pagamento):'')+'</b>'
+    + '<b style="white-space:nowrap">'+brlDet(p.valor)+'</b></div>'
+    + '<div style="display:flex;gap:10px">'
+    + '<div class="form-field" style="flex:1;margin:0"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="pgvenc_'+p.id+'" value="'+(p.data_vencimento||'')+'"></div>'
+    + '<div class="form-field" style="flex:1;margin:0"><label class="form-label">Pago em</label><input class="form-input" type="date" name="pgdata_'+p.id+'" value="'+(p.data_pagamento||'')+'"></div>'
+    + '</div></div>';
+}
 function renderDetParcelas(edit){
   const c = document.getElementById('detParcelas');
   // Edição de PARCELADA / conta única com saldo em aberto → editor de renegociação.
   if(edit && renegAtivo){ renderReneg(); return; }
-  const ids = [];
+  const ids = [], pagos = [];
   let html = detParcelas.map(function(p){
     ids.push(p.id);
     if(edit && detDelIds.indexOf(p.id) >= 0) return '';   // marcada p/ excluir → some da tela
     if(edit && !p.pago) return linhaEditavelHtml(p);
+    if(edit && p.pago){ pagos.push(p.id); return linhaPagaEditavel(p); }   // v141: editar datas de pagas
     return parcelaViewHtml(p);
   }).join('');
   if(edit){
@@ -591,6 +619,7 @@ function renderDetParcelas(edit){
   document.getElementById('detParcelaIds').value = ids.join(',');
   document.getElementById('detDelIds').value = detDelIds.join(',');
   document.getElementById('detAddCount').value = detNovos.length;
+  document.getElementById('detPagosIds').value = pagos.join(',');
   const aw = document.getElementById('detAddWrap'); if(aw) aw.style.display = (edit && detRecorrente) ? 'block' : 'none';
 }
 /* Linha editável de uma parcela/mês em aberto (padronizada) + botão excluir. */
@@ -599,7 +628,7 @@ function linhaEditavelHtml(p){
   return '<div class="det-parc-row">'
     + '<div class="dpl">'+rot+'</div>'
     + '<div class="form-field"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="pdata_'+p.id+'" value="'+(p.data_vencimento||'')+'" onchange="cascataData('+p.id+')"></div>'
-    + '<div class="form-field"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="pval_'+p.id+'" value="'+p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'" onchange="redistribuirValor('+p.id+')"></div>'
+    + '<div class="form-field"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="pval_'+p.id+'" value="'+p.valor.toLocaleString('pt-BR',{minimumFractionDigits:2})+'" oninput="mascaraMoedaDet(this)" onchange="redistribuirValor('+p.id+')"></div>'
     + '<button type="button" class="det-parc-del" title="Excluir este vencimento" onclick="marcarExcluirParcela('+p.id+')">🗑</button>'
     + '</div>';
 }
@@ -610,7 +639,7 @@ function linhaNovaHtml(nv, idx){
   return '<div class="det-parc-row det-parc-nova">'
     + '<div class="dpl">Novo</div>'
     + '<div class="form-field"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="add_data_'+k+'" value="'+(nv.data||'')+'" onchange="detNovos['+idx+'].data=this.value"></div>'
-    + '<div class="form-field"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="add_valor_'+k+'" value="'+vv+'" onchange="detNovos['+idx+'].valor=parseMoedaDet(this.value);this.value=fmtMoedaDet(detNovos['+idx+'].valor)"></div>'
+    + '<div class="form-field"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="add_valor_'+k+'" value="'+vv+'" oninput="mascaraMoedaDet(this)" onchange="detNovos['+idx+'].valor=parseMoedaDet(this.value);this.value=fmtMoedaDet(detNovos['+idx+'].valor)"></div>'
     + '<button type="button" class="det-parc-del" title="Remover" onclick="removerNovoVenc('+idx+')">✕</button>'
     + '</div>';
 }
@@ -736,14 +765,17 @@ function renderReneg(){
   const pagas = detParcelas.filter(p=>p.pago);
   let html = '';
   if(pagas.length){
-    html += '<div style="font-size:11.5px;color:#2e7d32;font-weight:700;margin:2px 0 8px">✅ '+pagas.length+' parcela(s) paga(s) — '+brlDet(pagoValor)+' (não muda)</div>';
-    html += pagas.map(parcelaViewHtml).join('');
+    html += '<div style="font-size:11.5px;color:#2e7d32;font-weight:700;margin:2px 0 8px">✅ '+pagas.length+' parcela(s) paga(s) — '+brlDet(pagoValor)+' (o valor não muda; a data pode ser corrigida)</div>';
+    html += pagas.map(linhaPagaEditavel).join('');
+    document.getElementById('detPagosIds').value = pagas.map(function(p){return p.id;}).join(',');
+  } else {
+    document.getElementById('detPagosIds').value = '';
   }
   html += openRows.map(function(r,i){
     return '<div class="det-parc-row">'
       + '<div class="dpl">#'+(pagas.length+i+1)+'</div>'
       + '<div class="form-field"><label class="form-label">Vencimento</label><input class="form-input" type="date" name="np_data_'+(i+1)+'" value="'+(r.data||'')+'" onchange="onRenegData('+i+')"></div>'
-      + '<div class="form-field"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="np_valor_'+(i+1)+'" value="'+fmtMoedaDet(r.valor)+'" onchange="onRenegValor('+i+')"></div>'
+      + '<div class="form-field"><label class="form-label">Valor (R$)</label><input class="form-input" type="text" inputmode="numeric" name="np_valor_'+(i+1)+'" value="'+fmtMoedaDet(r.valor)+'" oninput="mascaraMoedaDet(this)" onchange="onRenegValor('+i+')"></div>'
       + '<button type="button" class="det-parc-del" title="Remover parcela" onclick="removerRenegRow('+i+')">🗑</button>'
       + '</div>';
   }).join('');
@@ -819,11 +851,11 @@ function ativarEdicaoDetalhe(){
       document.getElementById('detReneg').style.display='block';
       iniciarReneg();
     } else {
-      // Tudo pago: só o cabeçalho é editável (não há saldo p/ renegociar).
+      // Tudo pago: cabeçalho + DATAS das parcelas pagas (vencimento e data de pagamento).
       renegAtivo = false;
       document.getElementById('detReneg').style.display='none';
       const h=document.getElementById('detEditHint');
-      if(h){ h.textContent='✏️ Despesa quitada — só é possível ajustar categoria, descrição, tipo e observação.'; h.style.display='block'; }
+      if(h){ h.textContent='✏️ Despesa quitada — ajuste categoria/descrição/tipo/observação e, se precisar, corrija a data de vencimento e a data de pagamento (o caixa é ajustado junto). O valor não muda.'; h.style.display='block'; }
     }
   }
   renderDetParcelas(true);
@@ -838,6 +870,7 @@ function desativarEdicaoDetalhe(){
   const rb0=document.getElementById('detRecBulk'); if(rb0) rb0.style.display='none';
   const aw0=document.getElementById('detAddWrap'); if(aw0) aw0.style.display='none';
   detDelIds = []; detNovos = []; renegAtivo = false;
+  const pg0=document.getElementById('detPagosIds'); if(pg0) pg0.value='';
   const sb=document.getElementById('detBtnSalvar'); if(sb) sb.disabled=false;
   const rh=document.getElementById('reparcNHidden'); if(rh) rh.value='';
   const be=document.getElementById('detBtnEditar'), bs=document.getElementById('detBtnSalvar');
@@ -854,6 +887,16 @@ function excluirDetalhe(){
 }
 function parseMoedaDet(s){ return parseFloat(String(s||'').replace(/\./g,'').replace(',','.')) || 0; }
 function fmtMoedaDet(v){ return (Math.round((parseFloat(v)||0)*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+/* v141: máscara de moeda estilo caixa registradora (todos os dígitos = centavos), aplicada
+   ao vivo enquanto digita nos campos de VALOR do detalhamento. Reprocessa o campo inteiro
+   a cada tecla, então é imune a edições no meio do número (sem "1370,0000,00"). */
+function mascaraMoedaDet(el){
+  let raw = String(el.value||'').replace(/\D/g,'').replace(/^0+/,'');
+  if(!raw){ el.value=''; return; }
+  let p = (parseInt(raw,10)/100).toFixed(2).split('.');
+  p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  el.value = p[0]+','+p[1];
+}
 function addDias(iso, dias){
   const d = new Date(iso+'T00:00:00'); d.setDate(d.getDate()+dias);
   const p2 = x => String(x).padStart(2,'0');
@@ -1131,6 +1174,33 @@ function filtrarDesp(q) {
     const txt = tr.textContent.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
     tr.style.display = txt.includes(termo) ? '' : 'none';
   });
+}
+
+/* v141: ordenação da tabela de despesas (clique no cabeçalho). Usa data-sv quando presente
+   (vencimento=YYYYMMDD, valor=número); senão o texto da célula. Alterna asc/desc. */
+function sortDesp(th, col){
+  const table = th.closest('table');
+  const tbody = table.querySelector('tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => !r.querySelector('.empty-row'));
+  if(!rows.length) return;
+  const asc = !th.classList.contains('asc');
+  table.querySelectorAll('th').forEach(h => h.classList.remove('asc','desc'));
+  th.classList.add(asc ? 'asc' : 'desc');
+  const val = (tr) => {
+    const td = tr.children[col];
+    if(!td) return '';
+    const sv = td.getAttribute('data-sv');
+    return sv !== null ? sv : td.textContent.trim();
+  };
+  rows.sort((a,b) => {
+    const va = val(a), vb = val(b);
+    const na = parseFloat(va), nb = parseFloat(vb);
+    let cmp;
+    if(va !== '' && vb !== '' && !isNaN(na) && !isNaN(nb) && /^-?[\d.]+$/.test(va) && /^-?[\d.]+$/.test(vb)) cmp = na - nb;
+    else cmp = String(va).localeCompare(String(vb), 'pt-BR', {numeric:true});
+    return asc ? cmp : -cmp;
+  });
+  rows.forEach(r => tbody.appendChild(r));
 }
 </script>
 {% endblock %}

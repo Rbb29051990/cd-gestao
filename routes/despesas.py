@@ -27,6 +27,36 @@ def _parse_iso_date(value, default=None):
         return default or hoje_app()
 
 
+def _editar_datas_pagas(cur):
+    """v141: corrige a DATA de vencimento e/ou a DATA DE PAGAMENTO de parcelas JÁ PAGAS
+    (campos pgvenc_<id>/pgdata_<id> + lista pagos_ids). Mantém o CAIXA coerente ajustando
+    o criado_em do lançamento daquela parcela. O valor não é alterado (já está no caixa)."""
+    for pid_s in [x for x in request.form.get('pagos_ids', '').split(',') if x.strip().isdigit()]:
+        pid = int(pid_s)
+        cur.execute("SELECT pago, despesa_id FROM despesa_parcelas WHERE id=%s", (pid,))
+        r = cur.fetchone()
+        if not r or not r['pago']:
+            continue
+        pgv = request.form.get(f'pgvenc_{pid}', '').strip()
+        pgd = request.form.get(f'pgdata_{pid}', '').strip()
+        try: date.fromisoformat(pgv)
+        except Exception: pgv = None
+        try: date.fromisoformat(pgd)
+        except Exception: pgd = None
+        sets, args = [], []
+        if pgv: sets.append("data_vencimento=%s"); args.append(pgv)
+        if pgd: sets.append("data_pagamento=%s"); args.append(pgd)
+        if sets:
+            args.append(pid)
+            cur.execute("UPDATE despesa_parcelas SET " + ",".join(sets) + " WHERE id=%s", tuple(args))
+        # Mantém a despesa-mãe coerente (usada na listagem, sobretudo em recorrentes).
+        if pgv:
+            cur.execute("UPDATE despesas SET data_vencimento=%s WHERE id=%s", (pgv, r['despesa_id']))
+        # Caixa coerente: a saída daquela parcela passa a ter a data de pagamento corrigida.
+        if pgd:
+            cur.execute("UPDATE caixa SET criado_em=%s WHERE parcela_id=%s", (pgd, pid))
+
+
 def _add_novos_vencimentos(cur, did, grupo):
     """v140: cria os novos vencimentos informados no detalhamento (edição).
     Lê add_count + add_data_<k>/add_valor_<k>. Recorrente (grupo != None): cada novo
@@ -540,6 +570,8 @@ def salvar_despesa(did):
                     cur.execute("UPDATE despesas SET data_vencimento=%s WHERE id=%s", (pdta, info['did']))
             # ── Adições: novos vencimentos (novas contas mensais dentro do mesmo grupo) ──
             _add_novos_vencimentos(cur, did, grupo)
+            # ── Correção de datas de meses JÁ PAGOS (vencimento / data de pagamento) ──
+            _editar_datas_pagas(cur)
             conn.commit(); flash('Despesa recorrente atualizada!', 'ok')
             return redirect(url_for('despesas'))
         reparc_n = request.form.get('reparc_n', '').strip()
@@ -587,6 +619,9 @@ def salvar_despesa(did):
                     cur.execute("UPDATE despesa_parcelas SET data_vencimento=%s WHERE id=%s", (pdta, pid))
             # ── Adições: novos vencimentos como parcelas da MESMA despesa ──
             _add_novos_vencimentos(cur, did, None)
+        # ── Correção de datas de parcelas JÁ PAGAS (vencimento / data de pagamento) ──
+        # Vale para parceladas e para a conta única quitada (roda em reparc e no else).
+        _editar_datas_pagas(cur)
         # Recalcula total, próximo vencimento e nº de parcelas da despesa
         cur.execute("""SELECT COALESCE(SUM(valor),0) tot, COUNT(*) cnt,
                               MIN(CASE WHEN pago=FALSE THEN data_vencimento END) prox

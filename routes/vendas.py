@@ -140,19 +140,20 @@ def nova_venda():
                  item.get('descricao'), item.get('tamanho'), vunit, qtd, vunit * qtd))
             if pid:
                 bloquear_estoque_negativo(cur, pid, qtd)
+        # Valor final = total - desconto (enviado já calculado pelo JS; v141: também vale
+        # para o crediário — o cliente deve entrada+parcelas sobre o valor JÁ com desconto).
+        valor_final_form = parse_brl(request.form.get('valor_final', '0'))
+        valor_final = valor_final_form if valor_final_form > 0 else round(valor_total - desconto, 2)
         if forma == 'crediario':
             entrada = parse_brl(request.form.get('entrada', '0'))
-            saldo = valor_total - entrada
+            saldo = round(valor_final - entrada, 2)
             cur.execute("""INSERT INTO crediarios (venda_id,cliente_id,cliente_nome,valor_total,entrada,saldo_devedor)
                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
-                (venda_id, cliente_id or None, cliente_nome, valor_total, entrada, saldo))
+                (venda_id, cliente_id or None, cliente_nome, valor_final, entrada, saldo))
             cred_id = cur.fetchone()['id']
             for i, p in enumerate(json.loads(request.form.get('parcelas_datas', '[]'))):
                 cur.execute("INSERT INTO crediario_parcelas (crediario_id,numero_parcela,data_vencimento,valor) VALUES (%s,%s,%s,%s)",
                     (cred_id, i + 1, p.get('data'), float(p.get('valor', 0))))
-        # Valor final = total - desconto (enviado já calculado pelo JS)
-        valor_final_form = parse_brl(request.form.get('valor_final', '0'))
-        valor_final = valor_final_form if valor_final_form > 0 else round(valor_total - desconto, 2)
 
         # ── Vale(s) (crédito da loja): abatem do valor da venda ANTES de registrar o caixa.
         # Pode combinar VÁRIOS vales (ex.: mãe + filha) — consumidos em ordem até cobrir o

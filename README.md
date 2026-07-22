@@ -1,4 +1,8 @@
-# CD Gestão Empresarial — v141
+# CD Gestão Empresarial — v142
+
+## Novidades da v142
+
+Pasta renumerada de v141 para v142 (padronização sequencial de versões, sem mudança funcional). Todas as entregas abaixo, feitas na v141, seguem valendo.
 
 ## Novidades da v141 — Troca/Devolução com registro e vales por cliente
 

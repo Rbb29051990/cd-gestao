@@ -13,7 +13,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v141'})
+        return jsonify({'status': 'ok', 'version': 'v142'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -155,7 +155,9 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v141 — 2026-07-02</b><br>
+    Versão: <b style='color:green'>v142 — 2026-07-02</b><br>
+    v142: Consolidação de versão — pasta renumerada de v141 para v142 para manter o padrão de numeração sequencial (sem mudança funcional em relação à v141). ✅<br>
+    v141: Vendas — DESCONTO agora disponível em QUALQUER forma de pagamento (antes só pix/dinheiro) — inclusive crediário, pensado para liquidações. No crediário, a entrada/saldo/parcelas passam a ser calculados sobre o valor JÁ com desconto (antes ignorava). ✅<br>
     v141: Despesas — (a) os campos de VALOR do detalhamento (editar recorrente/parcelada, aplicar-a-todos) voltaram a ter MÁSCARA de moeda ao vivo (R$ 1.234,56), sem o erro de "1370,0000,00". (b) A tabela de despesas passou a mostrar a coluna VENCIMENTO (em vez da data de lançamento) e agora é ORDENÁVEL: clique no cabeçalho (Vencimento, Valor, etc.) para ordenar e ver o que pagar primeiro. (c) Agora dá para EDITAR A DATA de uma despesa JÁ PAGA (vencimento e data de pagamento) no detalhamento — o lançamento no caixa é ajustado junto; o valor não muda. ✅<br>
     v141: Troca/Devolução — (1) a venda NÃO vira mais "Dividido" ao trocar: mantém a forma original (ex.: Pix) na lista, com uma etiqueta 🎟️ vale / ↩ troca. (2) Passa a ficar REGISTRADO o que a cliente devolveu e o que levou (com foto) — visível na ficha da venda em "Trocas / devoluções", para auditoria; o item continua voltando ao estoque normalmente. (3) Aba VALES agrupada POR CLIENTE (some a repetição de linhas do mesmo cliente); clique no cliente para expandir os vales, origem e onde foram gastos. ✅<br>
     v140: Despesas — clicar numa despesa RECORRENTE (fixa) abre o detalhamento com TODOS os meses do grupo numa única tela; dá para editar valor, vencimento, categoria/descrição/tipo/observação de uma vez, sem abrir mês a mês. Botão "➕ Adicionar vencimento" (estende a série quando ela chega ao fim) e "🗑" para excluir vencimentos em aberto (meses pagos ficam como histórico). Ao informar/alterar uma data, os vencimentos seguintes em aberto puxam automaticamente a cada 30 dias (em cascata). "Aplicar a todos os meses em aberto": um único valor e/ou reprogramar os vencimentos a partir de uma 1ª data (a cada 30 dias). Cada mês tem valor independente (não redistribui). Campos do detalhamento padronizados. Excluir a recorrente inteira pelo detalhamento remove a série (N1). Adicionar/excluir vencimentos também vale para despesas parceladas. ✅<br>

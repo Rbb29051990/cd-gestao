@@ -1,7 +1,12 @@
 """Rotas de Estoque: listagem, cadastro, nova entrada, modelos/tamanhos,
-etiquetas (lista por data e busca por código), ficha, edição e exclusão."""
+etiquetas (lista por data e busca por código), ficha, edição, exclusão e
+exportação para .xlsx (v142)."""
+import io
 from datetime import date
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
@@ -273,6 +278,82 @@ def excluir_estoque(eid):
     return redirect(url_for('estoque'))
 
 
+@login_required
+def exportar_estoque():
+    """v142: gera um .xlsx com os produtos do período filtrado (mesmo filtro da tela de
+    Estoque — data de lançamento) para download. Uma linha por produto, com saldo,
+    entradas/saídas, custo/venda e a promoção vigente."""
+    conn = get_db(); cur = conn.cursor()
+    hoje = hoje_app()
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except ValueError: data_inicio = hoje.strftime('%Y-01-01')
+    try: date.fromisoformat(data_fim)
+    except ValueError: data_fim = hoje.strftime('%Y-%m-%d')
+    cur.execute("SELECT * FROM estoque WHERE ativo=TRUE AND DATE(criado_em) BETWEEN %s AND %s ORDER BY criado_em", (data_inicio, data_fim))
+    itens = [dict(i) for i in cur.fetchall()]
+    cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
+    entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
+    cur.close(); close_db(conn)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Estoque'
+
+    headers = ['Código', 'Data lançamento', 'Modelo', 'Descrição', 'Tamanho',
+               'Estoque inicial', 'Entradas adicionais', 'Saídas', 'Saldo atual',
+               'Custo unitário (R$)', 'Markup (%)', 'Valor de venda (R$)',
+               'Margem de lucro (%)', 'Desconto promo (%)', 'Valor promocional (R$)',
+               'Dias em estoque', 'Custo total do saldo (R$)', 'Valor total do saldo (R$)']
+    ws.append(headers)
+    header_fill = PatternFill(start_color='E65100', end_color='E65100', fill_type='solid')
+    for col in range(1, len(headers) + 1):
+        c = ws.cell(row=1, column=col)
+        c.font = Font(bold=True, color='FFFFFF')
+        c.fill = header_fill
+        c.alignment = Alignment(horizontal='center', vertical='center')
+
+    money_cols = {10, 12, 15, 17, 18}
+    pct_cols = {11, 13, 14}
+    for item in itens:
+        entradas_adicionais = entradas_map.get(item['id'], 0)
+        saldo = int(item.get('quantidade') or 0)
+        saidas = max(0, (item.get('estoque_inicial') or 0) + entradas_adicionais - saldo)
+        dias = (hoje - item['criado_em'].date()).days if item.get('criado_em') else None
+        custo = float(item.get('custo_unitario') or 0)
+        venda = float(item.get('valor_venda') or 0)
+        dp = float(item.get('desconto_promo') or 0)
+        valor_promo = round(venda * (1 - dp / 100), 2) if dp > 0 else None
+        ws.append([
+            item.get('codigo'),
+            item['criado_em'].strftime('%d/%m/%Y') if item.get('criado_em') else '',
+            item.get('modelo') or '', item.get('descricao') or '', item.get('tamanho') or '',
+            item.get('estoque_inicial') or 0, entradas_adicionais, saidas, saldo,
+            custo, float(item.get('markup') or 0), venda, float(item.get('margem_lucro') or 0),
+            dp if dp > 0 else None, valor_promo, dias,
+            round(custo * saldo, 2), round(venda * saldo, 2),
+        ])
+        row = ws.max_row
+        for col in money_cols:
+            ws.cell(row=row, column=col).number_format = '#,##0.00'
+        for col in pct_cols:
+            ws.cell(row=row, column=col).number_format = '0.00'
+
+    widths = [10, 14, 20, 28, 9, 10, 12, 9, 10, 15, 10, 16, 14, 13, 16, 12, 18, 18]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = 'A2'
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    nome_arquivo = f"estoque_{data_inicio}_a_{data_fim}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=nome_arquivo,
+                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
 def register(app):
     app.add_url_rule('/estoque', 'estoque', estoque)
     app.add_url_rule('/estoque/novo', 'novo_estoque', novo_estoque, methods=['POST'])
@@ -282,6 +363,7 @@ def register(app):
     app.add_url_rule('/estoque/etiquetas', 'etiquetas', etiquetas)
     app.add_url_rule('/estoque/etiqueta-busca', 'etiqueta_busca', etiqueta_busca)
     app.add_url_rule('/estoque/promocao', 'aplicar_promocao', aplicar_promocao, methods=['POST'])
+    app.add_url_rule('/estoque/exportar', 'exportar_estoque', exportar_estoque)
     app.add_url_rule('/estoque/<int:eid>', 'ficha_estoque', ficha_estoque)
     app.add_url_rule('/estoque/<int:eid>/editar', 'editar_estoque', editar_estoque, methods=['GET', 'POST'])
     app.add_url_rule('/estoque/<int:eid>/excluir', 'excluir_estoque', excluir_estoque, methods=['POST'])

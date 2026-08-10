@@ -2,7 +2,8 @@
 
 ## Novidades da v142
 
-Pasta renumerada de v141 para v142 (padronização sequencial de versões, sem mudança funcional). Todas as entregas abaixo, feitas na v141, seguem valendo.
+- **Estoque — Exportar dados**: botão "📤 Exportar dados" gera um arquivo **.xlsx** para download com os produtos do período filtrado (mesmo filtro da tela). Colunas: código, data de lançamento, modelo, descrição, tamanho, estoque inicial, entradas, saídas, saldo, custo unitário, markup, valor de venda, margem, desconto promo, valor promocional, dias em estoque e os totais de custo/valor do saldo. Cabeçalho fixo (congelado), com auto-filtro.
+- Pasta renumerada de v141 para v142 (padronização sequencial de versões). Todas as entregas abaixo, feitas na v141, seguem valendo.
 
 ## Novidades da v141 — Troca/Devolução com registro e vales por cliente
 

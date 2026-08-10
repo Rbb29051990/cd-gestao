@@ -156,6 +156,7 @@ def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
     Versão: <b style='color:green'>v142 — 2026-07-02</b><br>
+    v142: Estoque — botão "📤 Exportar dados" gera um arquivo .xlsx para download com todos os produtos do período filtrado (mesmo filtro da tela: data de lançamento), incluindo código, modelo, saldo, entradas/saídas, custo, valor de venda, promoção vigente e totais do saldo (custo × venda). Cabeçalho fixo, filtro automático e colunas formatadas. ✅<br>
     v142: Consolidação de versão — pasta renumerada de v141 para v142 para manter o padrão de numeração sequencial (sem mudança funcional em relação à v141). ✅<br>
     v141: Vendas — DESCONTO agora disponível em QUALQUER forma de pagamento (antes só pix/dinheiro) — inclusive crediário, pensado para liquidações. No crediário, a entrada/saldo/parcelas passam a ser calculados sobre o valor JÁ com desconto (antes ignorava). ✅<br>
     v141: Despesas — (a) os campos de VALOR do detalhamento (editar recorrente/parcelada, aplicar-a-todos) voltaram a ter MÁSCARA de moeda ao vivo (R$ 1.234,56), sem o erro de "1370,0000,00". (b) A tabela de despesas passou a mostrar a coluna VENCIMENTO (em vez da data de lançamento) e agora é ORDENÁVEL: clique no cabeçalho (Vencimento, Valor, etc.) para ordenar e ver o que pagar primeiro. (c) Agora dá para EDITAR A DATA de uma despesa JÁ PAGA (vencimento e data de pagamento) no detalhamento — o lançamento no caixa é ajustado junto; o valor não muda. ✅<br>

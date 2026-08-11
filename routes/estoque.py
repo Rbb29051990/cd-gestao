@@ -1,11 +1,13 @@
 """Rotas de Estoque: listagem, cadastro, nova entrada, modelos/tamanhos,
 etiquetas (lista por data e busca por código), ficha, edição, exclusão,
-exportação para .xlsx e extração das fotos por código (v142/v143)."""
+exportação para .xlsx, extração das fotos por código e IMPORTAÇÃO pro ERP
+unificado (v142/v143 — importação só habilitada com MODO_MIGRACAO=true)."""
 import base64
 import io
+import os
 import zipfile
-from datetime import date
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
+from datetime import date, datetime
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_file, session
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
@@ -17,6 +19,22 @@ from utils import parse_brl, audit_log
 # v142: tipo do produto escolhido no cadastro define o prefixo do código — cada
 # prefixo tem sua própria sequência numérica (ACn/PSn/SLn podem coexistir).
 PREFIXOS_TIPO = {'Acessórios': 'AC', 'Plus Size': 'PS', 'Slim': 'SL'}
+
+
+def migracao_habilitada():
+    return os.environ.get('MODO_MIGRACAO') == 'true'
+
+
+def _parse_data_planilha(val):
+    """Aceita datetime/date (Excel converteu) ou string 'dd/mm/aaaa'. None se inválido."""
+    if not val:
+        return None
+    if isinstance(val, (datetime, date)):
+        return val.date().isoformat() if isinstance(val, datetime) else val.isoformat()
+    try:
+        return datetime.strptime(str(val).strip(), '%d/%m/%Y').date().isoformat()
+    except Exception:
+        return None
 
 
 def _proximo_codigo(cur, prefixo):
@@ -50,7 +68,7 @@ def _montar_wb_estoque(itens, entradas_map, hoje):
     ws = wb.active
     ws.title = 'Estoque'
 
-    headers = ['Código', 'Categoria', 'Data lançamento', 'Modelo', 'Descrição', 'Tamanho',
+    headers = ['Código', 'Categoria', 'Data lançamento', 'Cadastrado por', 'Modelo', 'Descrição', 'Tamanho',
                'Estoque inicial', 'Entradas adicionais', 'Saídas', 'Saldo atual',
                'Custo unitário (R$)', 'Markup (%)', 'Valor de venda (R$)',
                'Margem de lucro (%)', 'Desconto promo (%)', 'Valor promocional (R$)',
@@ -63,8 +81,8 @@ def _montar_wb_estoque(itens, entradas_map, hoje):
         c.fill = header_fill
         c.alignment = Alignment(horizontal='center', vertical='center')
 
-    money_cols = {11, 13, 16, 18, 19}
-    pct_cols = {12, 14, 15}
+    money_cols = {12, 14, 17, 19, 20}
+    pct_cols = {13, 15, 16}
     for item in itens:
         entradas_adicionais = entradas_map.get(item['id'], 0)
         saldo = int(item.get('quantidade') or 0)
@@ -76,7 +94,8 @@ def _montar_wb_estoque(itens, entradas_map, hoje):
         valor_promo = round(venda * (1 - dp / 100), 2) if dp > 0 else None
         ws.append([
             item.get('codigo'), item.get('tipo_produto') or '',
-            item['criado_em'].strftime('%d/%m/%Y') if item.get('criado_em') else '',
+            item['criado_em'].strftime('%d/%m/%Y %H:%M:%S') if item.get('criado_em') else '',
+            item.get('usuario_nome') or '—',
             item.get('modelo') or '', item.get('descricao') or '', item.get('tamanho') or '',
             item.get('estoque_inicial') or 0, entradas_adicionais, saidas, saldo,
             custo, float(item.get('markup') or 0), venda, float(item.get('margem_lucro') or 0),
@@ -89,7 +108,7 @@ def _montar_wb_estoque(itens, entradas_map, hoje):
         for col in pct_cols:
             ws.cell(row=row, column=col).number_format = '0.00'
 
-    widths = [10, 10, 14, 20, 28, 9, 10, 12, 9, 10, 15, 10, 16, 14, 13, 16, 12, 18, 18]
+    widths = [10, 10, 18, 18, 20, 28, 9, 10, 12, 9, 10, 15, 10, 16, 14, 13, 16, 12, 18, 18]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = 'A2'
@@ -135,7 +154,8 @@ def estoque():
                custo_total=float(tots['ct']), valor_total=float(tots['vt']),
                lucro_potencial=float(tots['vt']) - float(tots['ct']),
                next_refs=next_refs, tipos_produto=list(PREFIXOS_TIPO.keys()),
-               data_inicio=data_inicio, data_fim=data_fim)
+               data_inicio=data_inicio, data_fim=data_fim,
+               modo_migracao=migracao_habilitada())
     return render_template('estoque.html', **ctx)
 
 
@@ -166,14 +186,15 @@ def novo_estoque():
         foto = None
     try:
         cur.execute("""INSERT INTO estoque (codigo,tipo_produto,modelo,descricao,tamanho,quantidade,estoque_inicial,
-            custo_unitario,markup,valor_venda,margem_lucro,foto) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            custo_unitario,markup,valor_venda,margem_lucro,foto,usuario_id,usuario_nome) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             (codigo, tipo_produto, request.form.get('modelo', '').strip(),
              request.form.get('descricao', '').strip() or None,
              request.form.get('tamanho', '').strip(), qtd, qtd,
              parse_brl(request.form.get('custo_unitario', '0')),
              parse_brl(request.form.get('markup', '0')),
              parse_brl(request.form.get('valor_venda', '0')),
-             parse_brl(request.form.get('margem_lucro', '0')), foto))
+             parse_brl(request.form.get('margem_lucro', '0')), foto,
+             session.get('uid'), session.get('nome')))
         conn.commit(); flash('Produto cadastrado!', 'ok')
     except Exception as e: conn.rollback(); flash(str(e), 'erro')
     finally: cur.close(); close_db(conn)
@@ -481,57 +502,129 @@ def exportar_fotos_estoque():
 
 
 @login_required
-def exportar_selecionados_estoque():
-    """v143: exporta DADOS (.xlsx, mesmas colunas do 'Exportar dados') + FOTOS dos
-    produtos marcados na coluna 'Exportar' da tabela — tudo num único .zip. Feito
-    pra levar só um recorte do estoque (ex.: parte do inventário sendo migrada) já
-    com dado e foto juntos, sem precisar exportar tudo e depois filtrar manualmente."""
-    ids_raw = request.form.get('ids', '')
-    ids = [int(x) for x in ids_raw.split(',') if x.strip().isdigit()]
-    if not ids:
-        flash('Marque ao menos um produto (coluna "Exportar") antes de exportar.', 'erro')
-        return redirect(url_for('estoque'))
+def importar_estoque():
+    """v143: importa um .xlsx (o mesmo formato do botão 'Exportar dados', já tratado
+    pelo usuário) + opcionalmente um .zip de fotos (do botão 'Exportar fotos') pro
+    ERP unificado. Protegida pelos mesmos 2 cadeados de Clientes: env var
+    MODO_MIGRACAO=true (só existe no serviço unificado) + admin N1.
+
+    O admin escolhe o TIPO (Acessórios/Plus Size/Slim) na tela — define o prefixo do
+    código NOVO (sequência própria, continua do maior já existente nesse tipo) e o
+    valor gravado em tipo_produto. O código ANTIGO da planilha fica em origem_codigo,
+    só como rastreio. Idempotente: reimportar o mesmo arquivo não duplica (índice
+    único tipo_produto+origem_codigo). Se o .zip de fotos trouxer um arquivo cujo
+    nome (sem extensão/pasta) bate com o código antigo, ela é decodificada e
+    associada automaticamente ao produto novo — sem precisar subir foto por foto."""
+    if not migracao_habilitada():
+        flash('Importação não habilitada nesta instância.', 'erro'); return redirect(url_for('estoque'))
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode importar dados.', 'erro'); return redirect(url_for('estoque'))
+    if request.method == 'GET':
+        ctx = get_ctx()
+        ctx.update(tipos_produto=list(PREFIXOS_TIPO.keys()))
+        return render_template('importar_estoque.html', **ctx)
+
     conn = get_db(); cur = conn.cursor()
-    hoje = hoje_app()
-    cur.execute("SELECT * FROM estoque WHERE id = ANY(%s) ORDER BY codigo", (ids,))
-    itens = [dict(i) for i in cur.fetchall()]
-    cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas "
-                "WHERE estoque_id = ANY(%s) GROUP BY estoque_id", (ids,))
-    entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
-    cur.close(); close_db(conn)
-    if not itens:
-        flash('Nenhum dos produtos marcados foi encontrado.', 'erro')
-        return redirect(url_for('estoque'))
+    try:
+        tipo_produto = request.form.get('tipo_produto', '').strip()
+        prefixo = PREFIXOS_TIPO.get(tipo_produto)
+        if not prefixo:
+            flash('Selecione o tipo do produto (Acessórios, Plus Size ou Slim).', 'erro')
+            return redirect(url_for('importar_estoque'))
 
-    wb = _montar_wb_estoque(itens, entradas_map, hoje)
-    xlsx_buf = io.BytesIO()
-    wb.save(xlsx_buf)
-    xlsx_buf.seek(0)
+        arquivo = request.files.get('arquivo')
+        if not arquivo or not arquivo.filename:
+            flash('Selecione o arquivo .xlsx exportado.', 'erro')
+            return redirect(url_for('importar_estoque'))
 
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr('dados_selecionados.xlsx', xlsx_buf.read())
-        usados = set()
-        sem_foto = []
-        for item in itens:
-            decoded = _foto_bytes_ext(item.get('foto'))
-            if not decoded:
-                sem_foto.append(item.get('codigo') or f"id{item['id']}")
+        # .zip de fotos é opcional — sem ele, os produtos entram sem foto (dá pra
+        # subir depois, um a um, na edição do produto).
+        fotos_map = {}
+        fotos_zip = request.files.get('fotos')
+        if fotos_zip and fotos_zip.filename:
+            with zipfile.ZipFile(io.BytesIO(fotos_zip.read())) as zf:
+                for nome in zf.namelist():
+                    base = nome.rsplit('/', 1)[-1]
+                    if '.' not in base or base.startswith('_'):
+                        continue
+                    codigo_base, ext = base.rsplit('.', 1)
+                    fotos_map[codigo_base.strip().upper()] = (zf.read(nome), ext.lower())
+
+        wb = load_workbook(io.BytesIO(arquivo.read()), data_only=True)
+        ws = wb['Estoque'] if 'Estoque' in wb.sheetnames else wb.active
+        linhas = list(ws.iter_rows(values_only=True))
+        if not linhas:
+            flash('Planilha vazia.', 'erro')
+            return redirect(url_for('importar_estoque'))
+        cabecalho = [str(h).strip() if h is not None else '' for h in linhas[0]]
+        col = {nome: i for i, nome in enumerate(cabecalho)}
+        if 'Código' not in col:
+            flash('A planilha precisa ter a coluna "Código" (use o arquivo gerado pelo botão Exportar dados).', 'erro')
+            return redirect(url_for('importar_estoque'))
+
+        def val(row, chave):
+            i = col.get(chave)
+            if i is None or i >= len(row):
+                return None
+            v = row[i]
+            return v.strip() if isinstance(v, str) else v
+
+        proximo_codigo = _proximo_codigo(cur, prefixo)
+        importados = pulados = ignorados = com_foto = 0
+        for row in linhas[1:]:
+            origem_codigo = val(row, 'Código')
+            if not origem_codigo or not str(origem_codigo).strip():
+                ignorados += 1
                 continue
-            dados, ext = decoded
-            nome = item.get('codigo') or f"id{item['id']}"
-            sufixo = 1
-            nome_final = nome
-            while nome_final in usados:
-                sufixo += 1
-                nome_final = f"{nome}_{sufixo}"
-            usados.add(nome_final)
-            zf.writestr(f"fotos/{nome_final}.{ext}", dados)
-        if sem_foto:
-            zf.writestr('_avisos.txt', 'Códigos sem foto cadastrada:\n' + '\n'.join(sem_foto))
-    buf.seek(0)
-    nome_arquivo = f"estoque_selecionados_{hoje.strftime('%Y%m%d')}.zip"
-    return send_file(buf, as_attachment=True, download_name=nome_arquivo, mimetype='application/zip')
+            origem_codigo = str(origem_codigo).strip()
+            saldo_raw = val(row, 'Saldo atual')
+            try:
+                saldo = int(saldo_raw) if saldo_raw is not None else 0
+            except (ValueError, TypeError):
+                saldo = 0
+            custo = parse_brl(val(row, 'Custo unitário (R$)'))
+            markup = parse_brl(val(row, 'Markup (%)'))
+            venda = parse_brl(val(row, 'Valor de venda (R$)'))
+            margem = parse_brl(val(row, 'Margem de lucro (%)'))
+            criado_em = _parse_data_planilha(val(row, 'Data lançamento'))
+
+            foto = None
+            achou_foto = fotos_map.get(origem_codigo.upper())
+            if achou_foto:
+                dados, ext = achou_foto
+                candidato = f"data:image/{ext};base64,{base64.b64encode(dados).decode('ascii')}"
+                if len(candidato) <= 1_500_000:
+                    foto = candidato
+
+            novo_codigo = f"{prefixo}{proximo_codigo}"
+            proximo_codigo += 1
+            cur.execute("""INSERT INTO estoque
+                (codigo,tipo_produto,modelo,descricao,tamanho,quantidade,estoque_inicial,
+                 custo_unitario,markup,valor_venda,margem_lucro,foto,origem_codigo,criado_em)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s,CURRENT_TIMESTAMP))
+                ON CONFLICT (tipo_produto, origem_codigo) WHERE origem_codigo IS NOT NULL DO NOTHING
+                RETURNING id""",
+                (novo_codigo, tipo_produto, val(row, 'Modelo'), val(row, 'Descrição'),
+                 val(row, 'Tamanho'), saldo, saldo, custo, markup, venda, margem,
+                 foto, origem_codigo, criado_em))
+            if cur.fetchone():
+                importados += 1
+                if foto:
+                    com_foto += 1
+            else:
+                pulados += 1
+        conn.commit()
+        audit_log(cur, 'IMPORTAR_ESTOQUE', 'estoque', None,
+                  {'tipo_produto': tipo_produto, 'importados': importados, 'pulados': pulados})
+        conn.commit()
+        flash(f"Importação concluída: {importados} produto(s) novo(s) importado(s) "
+              f"({com_foto} com foto), {pulados} já existia(m) (pulado(s) automaticamente), "
+              f"{ignorados} linha(s) vazia(s) ignorada(s).", 'ok')
+    except Exception as e:
+        conn.rollback(); flash(f'Erro na importação: {e}', 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('importar_estoque'))
 
 
 def register(app):
@@ -545,7 +638,7 @@ def register(app):
     app.add_url_rule('/estoque/promocao', 'aplicar_promocao', aplicar_promocao, methods=['POST'])
     app.add_url_rule('/estoque/exportar', 'exportar_estoque', exportar_estoque)
     app.add_url_rule('/estoque/exportar-fotos', 'exportar_fotos_estoque', exportar_fotos_estoque, methods=['GET', 'POST'])
-    app.add_url_rule('/estoque/exportar-selecionados', 'exportar_selecionados_estoque', exportar_selecionados_estoque, methods=['POST'])
+    app.add_url_rule('/estoque/importar', 'importar_estoque', importar_estoque, methods=['GET', 'POST'])
     app.add_url_rule('/estoque/<int:eid>', 'ficha_estoque', ficha_estoque)
     app.add_url_rule('/estoque/<int:eid>/editar', 'editar_estoque', editar_estoque, methods=['GET', 'POST'])
     app.add_url_rule('/estoque/<int:eid>/excluir', 'excluir_estoque', excluir_estoque, methods=['POST'])

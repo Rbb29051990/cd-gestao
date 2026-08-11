@@ -230,6 +230,16 @@ def init_db():
         # (ACn/PSn/SLn), sequências numéricas independentes por tipo (dá pra saber o
         # total de cada um só pelo código).
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS tipo_produto VARCHAR(12)",
+        # v143: rastreabilidade da importação de estoque (migração módulo a módulo,
+        # mesmo padrão de clientes.origem_codigo/origem_id) — guarda o código antigo da
+        # loja de origem. Único por (tipo_produto, origem_codigo): evita duplicar se
+        # reimportar o mesmo arquivo, e não colide entre lojas diferentes (cada loja
+        # migra pra um tipo_produto próprio).
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS origem_codigo VARCHAR(20)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_estoque_origem ON estoque (tipo_produto, origem_codigo) WHERE origem_codigo IS NOT NULL",
+        # v143: quem cadastrou o produto — aparece na exportação (.xlsx) como "Cadastrado por".
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS usuario_id INTEGER",
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS usuario_nome VARCHAR(200)",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS margem_lucro NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'avulsa'",

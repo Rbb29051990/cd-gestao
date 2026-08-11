@@ -2,12 +2,14 @@
 {% block content %}
 <style>
 .etable thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
-/* ── Roupa? Plus ou Slim (cadastro) ── */
-.roupa-opts{display:flex;gap:10px;margin-bottom:18px}
-.roupa-opt{flex:1;padding:14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:10px;text-align:center;font-weight:700;font-size:14px;color:#888;cursor:pointer;transition:all .15s}
+/* ── Tipo? Acessórios / Plus Size / Slim (cadastro) ── */
+.roupa-opts{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.roupa-opt{flex:1;min-width:120px;padding:14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:10px;text-align:center;font-weight:700;font-size:14px;color:#888;cursor:pointer;transition:all .15s}
 .roupa-opt input{display:none}
-.roupa-opt.sel-plus{border-color:#3949ab;background:#3949ab;color:#fff}
-.roupa-opt.sel-slim{border-color:#e65100;background:#e65100;color:#fff}
+.roupa-opt.sel{color:#fff}
+.roupa-opt.sel[data-tipo="Acessórios"]{border-color:#00838f;background:#00838f}
+.roupa-opt.sel[data-tipo="Plus Size"]{border-color:#3949ab;background:#3949ab}
+.roupa-opt.sel[data-tipo="Slim"]{border-color:#e65100;background:#e65100}
 /* Coluna Cód (2ª) compacta — sobrepõe o min-width:150px global da 2ª coluna */
 #tabelaEstoque td:nth-child(2),#tabelaEstoque th:nth-child(2){min-width:0!important;width:1%;white-space:nowrap!important}
 /* ── ETIQUETAS ── */
@@ -222,10 +224,13 @@
         <div class="page-title" style="font-size:20px;margin-bottom:18px">Cadastrar produto</div>
         <div class="form-card">
           <form id="eFormCadastro" method="POST" action="/estoque/novo">
-            <div class="section-sep">Roupa? *</div>
+            <div class="section-sep">Tipo? *</div>
             <div class="roupa-opts">
-              <label class="roupa-opt" id="optRoupaPlus" onclick="selRoupa('Plus')"><input type="radio" name="categoria_roupa" value="Plus" required> Plus</label>
-              <label class="roupa-opt" id="optRoupaSlim" onclick="selRoupa('Slim')"><input type="radio" name="categoria_roupa" value="Slim"> Slim</label>
+              {% for t in tipos_produto %}
+              <label class="roupa-opt" id="optTipo{{ loop.index }}" data-tipo="{{ t }}" onclick="selRoupa('{{ t }}')">
+                <input type="radio" name="tipo_produto" value="{{ t }}" {% if loop.first %}required{% endif %}> {{ t }}
+              </label>
+              {% endfor %}
             </div>
             <div class="section-sep">Identificação</div>
             <div class="form-grid2">
@@ -334,9 +339,9 @@
               <div class="etq-box-tit">1. Buscar produto pelo código</div>
               <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
                 <div class="form-field" style="flex:1;min-width:120px">
-                  <span class="form-label">Código (ex.: PL5, SL12)</span>
+                  <span class="form-label">Código (ex.: AC5, PS12, SL8)</span>
                   <div style="display:flex;align-items:center">
-                    <input class="form-input etq-cod-input" type="text" id="etqCodigo" placeholder="PL5" style="text-transform:uppercase" oninput="etqBuscar(this.value)">
+                    <input class="form-input etq-cod-input" type="text" id="etqCodigo" placeholder="PS5" style="text-transform:uppercase" oninput="etqBuscar(this.value)">
                   </div>
                 </div>
                 <div class="form-field" style="width:90px">
@@ -545,18 +550,12 @@ function initMoeda(el, onChangeFn) {
   }
 }
 
-/* ── Roupa? Plus ou Slim — define o prefixo do código (PLn / SLn) ── */
-const NEXT_REF = { Plus: "{{ next_ref_plus }}", Slim: "{{ next_ref_slim }}" };
+/* ── Tipo? Acessórios / Plus Size / Slim — define o prefixo do código (ACn/PSn/SLn) ── */
+const NEXT_REF = { {% for t in tipos_produto %}"{{ t }}": "{{ next_refs[t] }}"{% if not loop.last %}, {% endif %}{% endfor %} };
 function selRoupa(v){
-  document.getElementById('optRoupaPlus').classList.remove('sel-plus');
-  document.getElementById('optRoupaSlim').classList.remove('sel-slim');
-  if(v === 'Plus'){
-    document.getElementById('optRoupaPlus').classList.add('sel-plus');
-    document.getElementById('optRoupaPlus').querySelector('input').checked = true;
-  } else {
-    document.getElementById('optRoupaSlim').classList.add('sel-slim');
-    document.getElementById('optRoupaSlim').querySelector('input').checked = true;
-  }
+  document.querySelectorAll('.roupa-opt').forEach(el => el.classList.remove('sel'));
+  const opt = document.querySelector('.roupa-opt[data-tipo="'+v+'"]');
+  if(opt){ opt.classList.add('sel'); opt.querySelector('input').checked = true; }
   document.getElementById('eRefPreview').value = NEXT_REF[v] || '—';
 }
 
@@ -626,8 +625,8 @@ function eAtualizarTotais() {
 }
 
 function prepararEnvio() {
-  const roupa = document.querySelector('input[name="categoria_roupa"]:checked');
-  if (!roupa) { alert('Selecione se a peça é Plus ou Slim.'); return; }
+  const roupa = document.querySelector('input[name="tipo_produto"]:checked');
+  if (!roupa) { alert('Selecione o tipo do produto (Acessórios, Plus Size ou Slim).'); return; }
   const custo = parseMoeda(document.getElementById('eCusto').value);
   const venda = parseMoeda(document.getElementById('eVenda').value);
   if (!custo || custo <= 0) { alert('Informe o custo unitário antes de salvar.'); return; }

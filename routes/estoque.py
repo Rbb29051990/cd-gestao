@@ -12,13 +12,13 @@ from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import parse_brl, audit_log
 
-# v142: categoria Plus/Slim escolhida no cadastro define o prefixo do código — cada
-# prefixo tem sua própria sequência numérica (PL10 e SL10 podem coexistir).
-PREFIXOS_ROUPA = {'Plus': 'PL', 'Slim': 'SL'}
+# v142: tipo do produto escolhido no cadastro define o prefixo do código — cada
+# prefixo tem sua própria sequência numérica (ACn/PSn/SLn podem coexistir).
+PREFIXOS_TIPO = {'Acessórios': 'AC', 'Plus Size': 'PS', 'Slim': 'SL'}
 
 
 def _proximo_codigo(cur, prefixo):
-    """Próximo código pro prefixo dado (PL ou SL) — sequências independentes."""
+    """Próximo código pro prefixo dado (AC/PS/SL) — sequências independentes."""
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM %s) AS INTEGER)), 0) as m "
                 "FROM estoque WHERE codigo ~ %s", (len(prefixo) + 1, f'^{prefixo}[0-9]+$'))
     return cur.fetchone()['m'] + 1
@@ -44,10 +44,9 @@ def estoque():
     modelos = [r['nome'] for r in cur.fetchall()]
     cur.execute("SELECT nome FROM tamanhos_estoque ORDER BY id")
     tamanhos = [r['nome'] for r in cur.fetchall()]
-    # Preview do próximo código de cada categoria — o JS troca qual mostrar conforme
-    # o botão Plus/Slim escolhido no cadastro.
-    next_ref_plus = f"PL{_proximo_codigo(cur, 'PL')}"
-    next_ref_slim = f"SL{_proximo_codigo(cur, 'SL')}"
+    # Preview do próximo código de cada tipo — o JS troca qual mostrar conforme o
+    # botão escolhido no cadastro.
+    next_refs = {tipo: f"{pfx}{_proximo_codigo(cur, pfx)}" for tipo, pfx in PREFIXOS_TIPO.items()}
     # Buscar total de entradas adicionais por item (mesma conexão, antes de fechar)
     cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
     entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
@@ -62,7 +61,7 @@ def estoque():
     ctx.update(itens=itens, modelos=modelos, tamanhos=tamanhos,
                custo_total=float(tots['ct']), valor_total=float(tots['vt']),
                lucro_potencial=float(tots['vt']) - float(tots['ct']),
-               next_ref_plus=next_ref_plus, next_ref_slim=next_ref_slim,
+               next_refs=next_refs, tipos_produto=list(PREFIXOS_TIPO.keys()),
                data_inicio=data_inicio, data_fim=data_fim)
     return render_template('estoque.html', **ctx)
 
@@ -70,10 +69,10 @@ def estoque():
 @login_required
 def novo_estoque():
     conn = get_db(); cur = conn.cursor()
-    categoria_roupa = request.form.get('categoria_roupa', '').strip()
-    prefixo = PREFIXOS_ROUPA.get(categoria_roupa)
+    tipo_produto = request.form.get('tipo_produto', '').strip()
+    prefixo = PREFIXOS_TIPO.get(tipo_produto)
     if not prefixo:
-        flash('Selecione se a peça é Plus ou Slim.', 'erro')
+        flash('Selecione o tipo do produto (Acessórios, Plus Size ou Slim).', 'erro')
         cur.close(); close_db(conn)
         return redirect(url_for('estoque'))
     codigo = f"{prefixo}{_proximo_codigo(cur, prefixo)}"
@@ -93,9 +92,9 @@ def novo_estoque():
     if foto and (not foto.startswith('data:image/') or len(foto) > 1_500_000):
         foto = None
     try:
-        cur.execute("""INSERT INTO estoque (codigo,categoria_roupa,modelo,descricao,tamanho,quantidade,estoque_inicial,
+        cur.execute("""INSERT INTO estoque (codigo,tipo_produto,modelo,descricao,tamanho,quantidade,estoque_inicial,
             custo_unitario,markup,valor_venda,margem_lucro,foto) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (codigo, categoria_roupa, request.form.get('modelo', '').strip(),
+            (codigo, tipo_produto, request.form.get('modelo', '').strip(),
              request.form.get('descricao', '').strip() or None,
              request.form.get('tamanho', '').strip(), qtd, qtd,
              parse_brl(request.form.get('custo_unitario', '0')),
@@ -346,7 +345,7 @@ def exportar_estoque():
         dp = float(item.get('desconto_promo') or 0)
         valor_promo = round(venda * (1 - dp / 100), 2) if dp > 0 else None
         ws.append([
-            item.get('codigo'), item.get('categoria_roupa') or '',
+            item.get('codigo'), item.get('tipo_produto') or '',
             item['criado_em'].strftime('%d/%m/%Y') if item.get('criado_em') else '',
             item.get('modelo') or '', item.get('descricao') or '', item.get('tamanho') or '',
             item.get('estoque_inicial') or 0, entradas_adicionais, saidas, saldo,

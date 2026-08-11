@@ -161,6 +161,10 @@ def estoque():
 
 @login_required
 def novo_estoque():
+    """v143: aceita um ou mais tamanhos no mesmo cadastro (campos tamanho_item/
+    quantidade_item, repetidos por linha na tela) — cada tamanho com quantidade > 0
+    vira um produto (código) próprio, em sequência, com o mesmo modelo/descrição/
+    foto/preço; só tamanho e quantidade mudam de linha pra linha."""
     conn = get_db(); cur = conn.cursor()
     tipo_produto = request.form.get('tipo_produto', '').strip()
     prefixo = PREFIXOS_TIPO.get(tipo_produto)
@@ -168,8 +172,6 @@ def novo_estoque():
         flash('Selecione o tipo do produto (Acessórios, Plus Size ou Slim).', 'erro')
         cur.close(); close_db(conn)
         return redirect(url_for('estoque'))
-    codigo = f"{prefixo}{_proximo_codigo(cur, prefixo)}"
-    qtd = int(request.form.get('quantidade', 1) or 1)
     custo_raw = request.form.get('custo_unitario', '').strip()
     venda_raw = request.form.get('valor_venda', '').strip()
     if not custo_raw or parse_brl(custo_raw) <= 0:
@@ -180,22 +182,49 @@ def novo_estoque():
         flash('O valor de venda é obrigatório e deve ser maior que zero.', 'erro')
         cur.close(); close_db(conn)
         return redirect(url_for('estoque'))
+
+    tamanhos_form = request.form.getlist('tamanho_item')
+    quantidades_form = request.form.getlist('quantidade_item')
+    linhas = []
+    for i, tamanho in enumerate(tamanhos_form):
+        qtd_raw = quantidades_form[i] if i < len(quantidades_form) else '0'
+        try:
+            qtd = int(qtd_raw or 0)
+        except ValueError:
+            qtd = 0
+        if qtd > 0:
+            linhas.append((tamanho.strip(), qtd))
+    if not linhas:
+        flash('Informe a quantidade de ao menos um tamanho.', 'erro')
+        cur.close(); close_db(conn)
+        return redirect(url_for('estoque'))
+
     foto = request.form.get('foto', '').strip() or None
     # Segurança: só aceita data URI de imagem e limita o tamanho (~1.5MB de base64)
     if foto and (not foto.startswith('data:image/') or len(foto) > 1_500_000):
         foto = None
+    modelo = request.form.get('modelo', '').strip()
+    descricao = request.form.get('descricao', '').strip() or None
+    custo = parse_brl(request.form.get('custo_unitario', '0'))
+    markup = parse_brl(request.form.get('markup', '0'))
+    venda = parse_brl(request.form.get('valor_venda', '0'))
+    margem = parse_brl(request.form.get('margem_lucro', '0'))
     try:
-        cur.execute("""INSERT INTO estoque (codigo,tipo_produto,modelo,descricao,tamanho,quantidade,estoque_inicial,
-            custo_unitario,markup,valor_venda,margem_lucro,foto,usuario_id,usuario_nome) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (codigo, tipo_produto, request.form.get('modelo', '').strip(),
-             request.form.get('descricao', '').strip() or None,
-             request.form.get('tamanho', '').strip(), qtd, qtd,
-             parse_brl(request.form.get('custo_unitario', '0')),
-             parse_brl(request.form.get('markup', '0')),
-             parse_brl(request.form.get('valor_venda', '0')),
-             parse_brl(request.form.get('margem_lucro', '0')), foto,
-             session.get('uid'), session.get('nome')))
-        conn.commit(); flash('Produto cadastrado!', 'ok')
+        proximo = _proximo_codigo(cur, prefixo)
+        criados = []
+        for tamanho, qtd in linhas:
+            codigo = f"{prefixo}{proximo}"
+            proximo += 1
+            cur.execute("""INSERT INTO estoque (codigo,tipo_produto,modelo,descricao,tamanho,quantidade,estoque_inicial,
+                custo_unitario,markup,valor_venda,margem_lucro,foto,usuario_id,usuario_nome) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (codigo, tipo_produto, modelo, descricao, tamanho or None, qtd, qtd,
+                 custo, markup, venda, margem, foto, session.get('uid'), session.get('nome')))
+            criados.append(codigo)
+        conn.commit()
+        if len(criados) == 1:
+            flash(f'Produto {criados[0]} cadastrado!', 'ok')
+        else:
+            flash(f"{len(criados)} produtos cadastrados ({', '.join(criados)})!", 'ok')
     except Exception as e: conn.rollback(); flash(str(e), 'erro')
     finally: cur.close(); close_db(conn)
     return redirect(url_for('estoque'))

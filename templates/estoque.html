@@ -12,6 +12,12 @@
 .roupa-opt.sel[data-tipo="Slim"]{border-color:#e65100;background:#e65100}
 /* Coluna Cód (2ª) compacta — sobrepõe o min-width:150px global da 2ª coluna */
 #tabelaEstoque td:nth-child(2),#tabelaEstoque th:nth-child(2){min-width:0!important;width:1%;white-space:nowrap!important}
+/* ── Cadastro: múltiplos tamanhos/quantidades (cada um gera um código próprio) ── */
+.etam-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.etam-del{width:44px;height:44px;border:1.5px solid #f3c0c0;background:#fdecec;color:#c62828;border-radius:8px;cursor:pointer;font-size:15px;flex-shrink:0}
+.etam-del:hover{background:#f8d7d7}
+.btn-add-tam{width:100%;padding:10px;border:1.5px dashed #a5d6a7;background:#f6fff7;color:#2e7d32;border-radius:9px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:2px}
+.btn-add-tam:hover{background:#eaf7ea}
 /* ── ETIQUETAS ── */
 .etq-cols{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:20px;align-items:start}
 @media (max-width:1100px){.etq-cols{grid-template-columns:1fr}}
@@ -255,21 +261,23 @@
                 <span class="form-label">Descrição <span style="color:#ccc;text-transform:none;letter-spacing:0;font-weight:400">(opcional)</span></span>
                 <input class="form-input" type="text" name="descricao" placeholder="Ex: Floral manga longa, cor rose...">
               </div>
-              <div class="form-field">
-                <span class="form-label">Tamanho</span>
-                <div class="select-wrap">
-                  <select name="tamanho">
+            </div>
+            <div class="section-sep">Tamanhos e quantidades</div>
+            <div id="eTamanhosBox">
+              <div class="etam-row">
+                <div class="select-wrap" style="flex:2">
+                  <select name="tamanho_item">
                     <option value="">Selecione...</option>
                     {% for t in tamanhos %}<option>{{ t }}</option>{% endfor %}
                   </select>
-                  <button type="button" class="btn-add-sel" onclick="abrirModalE('tamanho')" title="Novo tamanho">＋</button>
+                  <button type="button" class="btn-add-sel" onclick="abrirModalE('tamanho', this)" title="Novo tamanho">＋</button>
                 </div>
-              </div>
-              <div class="form-field">
-                <span class="form-label">Quantidade</span>
-                <input class="form-input" type="number" name="quantidade" id="eQtd" value="1" min="1" oninput="eCalcular()">
+                <input class="form-input" type="number" name="quantidade_item" value="1" min="1" oninput="eAtualizarTotais()" placeholder="Qtd" style="max-width:110px">
+                <button type="button" class="etam-del" onclick="removerTamanhoRow(this)" title="Remover este tamanho">🗑</button>
               </div>
             </div>
+            <button type="button" class="btn-add-tam" onclick="adicionarTamanhoRow()">➕ Adicionar outro tamanho</button>
+            <div style="font-size:11px;color:#aaa;margin:6px 0 4px">Cada tamanho vira um cadastro (código) próprio, seguindo a referência — mesmo modelo, descrição, foto e preço pros dois.</div>
             <div class="section-sep">Foto do produto <span style="color:#ccc;text-transform:none;letter-spacing:0;font-weight:400">(opcional)</span></div>
             <input type="hidden" name="foto" id="eFoto">
             <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:8px">
@@ -462,11 +470,13 @@ function salvarNovoTamanho() {
     .then(r => r.json())
     .then(data => {
       if (!data.ok) { alert(data.erro || 'Erro ao salvar tamanho.'); return; }
-      // Adiciona a opção em todos os selects de tamanho da página
-      document.querySelectorAll('select[name="tamanho"]').forEach(sel => {
+      // Adiciona a opção em todos os selects de tamanho da página (todas as linhas
+      // já criadas), mas só marca como selecionada na linha que abriu o modal.
+      document.querySelectorAll('select[name="tamanho_item"]').forEach(sel => {
         const opt = document.createElement('option');
-        opt.value = data.nome; opt.textContent = data.nome; opt.selected = true;
+        opt.value = data.nome; opt.textContent = data.nome;
         sel.appendChild(opt);
+        if (sel === window._tamanhoTargetSelect) sel.value = data.nome;
       });
       input.value = '';
       document.getElementById('modalTamanho').style.display = 'none';
@@ -559,7 +569,40 @@ function selRoupa(v){
   document.querySelectorAll('.roupa-opt').forEach(el => el.classList.remove('sel'));
   const opt = document.querySelector('.roupa-opt[data-tipo="'+v+'"]');
   if(opt){ opt.classList.add('sel'); opt.querySelector('input').checked = true; }
-  document.getElementById('eRefPreview').value = NEXT_REF[v] || '—';
+  eAtualizarRefPreview();
+}
+
+/* ── MÚLTIPLOS TAMANHOS: cada linha (tamanho + qtd) vira um código sequencial próprio ── */
+function eAtualizarRefPreview(){
+  const tipoEl = document.querySelector('input[name="tipo_produto"]:checked');
+  const base = tipoEl ? NEXT_REF[tipoEl.value] : null;
+  const n = document.querySelectorAll('#eTamanhosBox .etam-row').length;
+  if(!base){ document.getElementById('eRefPreview').value = '—'; return; }
+  const m = base.match(/^([A-Za-zÀ-ú]+)(\d+)$/);
+  if(!m || n <= 1){ document.getElementById('eRefPreview').value = base; return; }
+  const prefixo = m[1], inicio = parseInt(m[2], 10);
+  document.getElementById('eRefPreview').value = prefixo + inicio + ' – ' + prefixo + (inicio + n - 1);
+}
+function novaTamanhoRowHtml(){
+  const opts = document.querySelector('#eTamanhosBox select[name="tamanho_item"]').innerHTML;
+  return '<div class="etam-row">'
+    + '<div class="select-wrap" style="flex:2"><select name="tamanho_item">' + opts + '</select>'
+    + '<button type="button" class="btn-add-sel" onclick="abrirModalE(\'tamanho\', this)" title="Novo tamanho">＋</button></div>'
+    + '<input class="form-input" type="number" name="quantidade_item" value="1" min="1" oninput="eAtualizarTotais()" placeholder="Qtd" style="max-width:110px">'
+    + '<button type="button" class="etam-del" onclick="removerTamanhoRow(this)" title="Remover este tamanho">🗑</button>'
+    + '</div>';
+}
+function adicionarTamanhoRow(){
+  document.getElementById('eTamanhosBox').insertAdjacentHTML('beforeend', novaTamanhoRowHtml());
+  eAtualizarRefPreview();
+  eAtualizarTotais();
+}
+function removerTamanhoRow(btn){
+  const box = document.getElementById('eTamanhosBox');
+  if(box.querySelectorAll('.etam-row').length <= 1) return;
+  btn.closest('.etam-row').remove();
+  eAtualizarRefPreview();
+  eAtualizarTotais();
 }
 
 /* ── TROCA DE PAINEL (estoque / cadastro / etiquetas) ── */
@@ -571,9 +614,12 @@ function mostrarPainel(id) {
 }
 
 /* ── MODAL MODELO/TAMANHO ── */
-function abrirModalE(tipo) {
+function abrirModalE(tipo, btn) {
   if (tipo === 'modelo') document.getElementById('modalModelo').style.display = 'flex';
-  else document.getElementById('modalTamanho').style.display = 'flex';
+  else {
+    window._tamanhoTargetSelect = btn ? btn.closest('.select-wrap').querySelector('select') : null;
+    document.getElementById('modalTamanho').style.display = 'flex';
+  }
 }
 
 /* ── FORMATAÇÃO MOEDA ── */
@@ -622,7 +668,8 @@ function eCalcDaVenda() {
 function eAtualizarTotais() {
   const custo = parseMoeda(document.getElementById('eCusto').value);
   const venda = parseMoeda(document.getElementById('eVenda').value);
-  const qtd   = parseInt(document.getElementById('eQtd').value) || 0;
+  let qtd = 0;
+  document.querySelectorAll('#eTamanhosBox input[name="quantidade_item"]').forEach(el => { qtd += parseInt(el.value) || 0; });
   document.getElementById('eCustoTotal').textContent = fmtMoeda(custo * qtd);
   document.getElementById('eValorTotal').textContent = fmtMoeda(venda * qtd);
 }
@@ -634,6 +681,9 @@ function prepararEnvio() {
   const venda = parseMoeda(document.getElementById('eVenda').value);
   if (!custo || custo <= 0) { alert('Informe o custo unitário antes de salvar.'); return; }
   if (!venda || venda <= 0) { alert('Informe o valor de venda antes de salvar.'); return; }
+  const temQtd = Array.from(document.querySelectorAll('#eTamanhosBox input[name="quantidade_item"]'))
+    .some(el => (parseInt(el.value) || 0) > 0);
+  if (!temQtd) { alert('Informe a quantidade de ao menos um tamanho antes de salvar.'); return; }
 
   const mStr = (document.getElementById('eMargem').value||'').replace('%','').replace(',','.');
   const form = document.getElementById('eFormCadastro');
@@ -642,7 +692,6 @@ function prepararEnvio() {
   fd.set('markup', parseMoeda(document.getElementById('eMarkup').value));
   fd.set('valor_venda', venda);
   fd.set('margem_lucro', parseFloat(mStr)||0);
-  if (!fd.get('quantidade') || fd.get('quantidade') == '0') fd.set('quantidade', '1');
 
   const btn = form.querySelector('.btn-salvar');
   btn.disabled = true; btn.textContent = '⏳ Salvando...';

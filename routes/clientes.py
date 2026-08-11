@@ -1,10 +1,15 @@
 """Rotas de Clientes: listagem, cadastro, verificação de duplicidade, ficha,
-edição e exclusão (exclusão só N1)."""
+edição, exclusão (exclusão só N1) e exportação para .xlsx (v142 — preparação
+para a migração de dados rumo ao ERP unificado)."""
+import io
 import random
 from datetime import date
-from flask import render_template, request, redirect, url_for, flash, jsonify, session
+from flask import render_template, request, redirect, url_for, flash, jsonify, session, send_file
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
 from db import get_db, close_db
-from config import CORES, hoje_app
+from config import CORES, CLIENTE, hoje_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import audit_log
 
@@ -190,8 +195,66 @@ def excluir_cliente(cid):
     return redirect(url_for('clientes'))
 
 
+@login_required
+def exportar_clientes():
+    """v142: gera um .xlsx com TODOS os clientes ativos (sem filtro de período —
+    migração precisa do histórico completo) para download. Inclui o ID original e a
+    loja de origem (identidade da instância), para rastreabilidade numa futura
+    reimportação no ERP unificado."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT * FROM clientes WHERE ativo=TRUE ORDER BY nome")
+    itens = [dict(c) for c in cur.fetchall()]
+    cur.close(); close_db(conn)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Clientes'
+
+    headers = ['ID original', 'Loja de origem', 'Código', 'Nome', 'CPF', 'Data nascimento',
+               'Telefone', 'Telefone 2', 'CEP', 'Logradouro', 'Número', 'Complemento',
+               'Bairro', 'Cidade', 'UF', 'Aceita promoções', 'Crediário habilitado',
+               'Cadastrado por', 'Data de cadastro']
+    ws.append(headers)
+    header_fill = PatternFill(start_color='1a1a2e', end_color='1a1a2e', fill_type='solid')
+    for col in range(1, len(headers) + 1):
+        c = ws.cell(row=1, column=col)
+        c.font = Font(bold=True, color='FFFFFF')
+        c.fill = header_fill
+        c.alignment = Alignment(horizontal='center', vertical='center')
+
+    loja_origem = CLIENTE.get('sigla') or CLIENTE.get('nome') or ''
+    for item in itens:
+        ws.append([
+            item.get('id'), loja_origem, item.get('codigo'), item.get('nome') or '',
+            item.get('cpf') or '',
+            item['data_nascimento'].strftime('%d/%m/%Y') if item.get('data_nascimento') else '',
+            item.get('telefone') or '', item.get('telefone2') or '', item.get('cep') or '',
+            item.get('logradouro') or '', item.get('numero') or '', item.get('complemento') or '',
+            item.get('bairro') or '', item.get('cidade') or '', item.get('uf') or '',
+            'Sim' if item.get('promocoes') else 'Não',
+            'Sim' if item.get('crediario') else 'Não',
+            item.get('usuario_nome') or '',
+            item['criado_em'].strftime('%d/%m/%Y %H:%M') if item.get('criado_em') else '',
+        ])
+
+    widths = [10, 14, 8, 26, 15, 13, 15, 15, 10, 26, 8, 16, 16, 16, 5, 12, 16, 18, 16]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = 'A2'
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    prefixo = (CLIENTE.get('sigla') or 'clientes').replace(' ', '_').replace('·', '').strip('_')
+    nome_arquivo = f"clientes_{prefixo}_{hoje_app().strftime('%Y%m%d')}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=nome_arquivo,
+                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
 def register(app):
     app.add_url_rule('/clientes', 'clientes', clientes)
+    app.add_url_rule('/clientes/exportar', 'exportar_clientes', exportar_clientes)
     app.add_url_rule('/clientes/novo', 'novo_cliente', novo_cliente, methods=['POST'])
     app.add_url_rule('/clientes/novo-rapido', 'criar_cliente_rapido', criar_cliente_rapido, methods=['POST'])
     app.add_url_rule('/clientes/verificar', 'verificar_cliente', verificar_cliente)

@@ -29,7 +29,10 @@
           <div class="page-title">Clientes</div>
           <div class="page-date" id="contadorLabel">{{ clientes|length }} cliente(s) cadastrado(s)</div>
         </div>
-        <button class="btn-acao" onclick="document.getElementById('modalCliente').style.display='flex'">+ Novo cliente</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn-acao" onclick="document.getElementById('modalCliente').style.display='flex'">+ Novo cliente</button>
+          <a href="/clientes/exportar" class="btn-acao" style="background:#2e7d32">📤 Exportar dados</a>
+        </div>
       </div>
 
       <!-- FILTRO DE PERÍODO (data de cadastro) -->

@@ -125,34 +125,29 @@ def despesas():
     except: data_inicio = hoje.strftime('%Y-01-01')
     try: date.fromisoformat(data_fim)
     except: data_fim = hoje.strftime('%Y-%m-%d')
-    # v143: a tabela principal mostra TODOS os registros (não filtra por período) —
-    # o filtro de data acima passa a valer só para os cards de Contas a pagar/Contas pagas.
-    cur.execute("""SELECT d.*
-                   FROM despesas d
-                   JOIN despesa_parcelas p ON p.despesa_id=d.id
-                   GROUP BY d.id
-                   ORDER BY MIN(p.data_vencimento) DESC, d.id DESC""")
-    lista = [dict(d) for d in cur.fetchall()]
+    # v143: a tabela principal mostra UMA LINHA POR PARCELA (não por despesa) — cada
+    # conta a pagar/paga aparece no seu próprio vencimento/valor, sem agregação. Não
+    # filtra por período (o filtro acima vale só para os cards de Contas a pagar/pagas).
+    cur.execute("""SELECT p.id AS parcela_id, p.numero, p.valor, p.data_vencimento, p.referencia, p.pago,
+                          d.id AS despesa_id, d.codigo, d.categoria, d.descricao, d.tipo,
+                          d.parcelado, d.num_parcelas
+                   FROM despesa_parcelas p
+                   JOIN despesas d ON d.id = p.despesa_id
+                   ORDER BY p.data_vencimento DESC, d.id DESC, p.numero DESC""")
+    lista = [dict(r) for r in cur.fetchall()]
     def _norm_tipo(t):
         # v143: 'mensal' é o nome atual do tipo; 'fixa'/'fixo' ficam como sinônimo legado.
         return 'mensal' if (t or '').strip().lower() in ('mensal', 'fixa', 'fixo') else 'avulsa'
-    for d in lista:
-        cur.execute("SELECT * FROM despesa_parcelas WHERE despesa_id=%s ORDER BY numero", (d['id'],))
-        d['parcelas'] = [dict(p) for p in cur.fetchall()]
-        d['parc_pagas'] = sum(1 for p in d['parcelas'] if p['pago'])
-        d['valor_total_original'] = d.get('valor')
-        # v143: mostra a parcela EM DESTAQUE (a próxima a pagar; se todas já pagas, a
-        # última) — vencimento, REF e valor sempre da MESMA parcela. Evita mostrar o
-        # montante somado de todas as parcelas quando a despesa é avulsa parcelada
-        # (ex.: empréstimo 16x R$750 não pode aparecer como R$12.000 na tabela).
-        pendentes = sorted((p for p in d['parcelas'] if not p['pago']),
-                            key=lambda p: p.get('data_vencimento') or date.max)
-        destaque = pendentes[0] if pendentes else d['parcelas'][-1]
-        d['valor'] = float(destaque.get('valor') or 0)
-        d['data_vencimento'] = destaque.get('data_vencimento')
-        d['referencia'] = destaque.get('referencia')
-        d['tipo'] = _norm_tipo(d.get('tipo'))
-    total = round(sum(float(d['valor'] or 0) for d in lista), 2)
+    for r in lista:
+        r['tipo'] = _norm_tipo(r.get('tipo'))
+        # REF: mês de competência (mensal) OU número da parcela/total (avulsa parcelada).
+        if r.get('referencia'):
+            r['ref_display'] = r['referencia'].strftime('%m/%Y')
+        elif r.get('parcelado') and (r.get('num_parcelas') or 1) > 1:
+            r['ref_display'] = f"{r['numero']:02d}/{r['num_parcelas']}"
+        else:
+            r['ref_display'] = None
+    total = round(sum(float(r['valor'] or 0) for r in lista), 2)
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM despesas WHERE codigo ~ '^D[0-9]+$'")
     n = cur.fetchone()['m']
     # Categorias para o cadastro (ordenadas)

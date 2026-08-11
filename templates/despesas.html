@@ -88,7 +88,7 @@
       <div class="page-header" style="flex-wrap:wrap;gap:16px">
         <div>
           <div class="page-title">Despesas</div>
-          <div class="page-date">Total geral: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong> · {{ lista|length }} despesa(s)</div>
+          <div class="page-date">Total geral: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong> · {{ lista|length }} conta(s)</div>
         </div>
         <form method="GET" id="formFiltroDespesas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div>
@@ -198,21 +198,19 @@
           </tr></thead>
           <tbody>
             {% for d in lista %}
-            <tr style="cursor:pointer" onclick="abrirDetalheDespesa({{ d.id }})" title="Ver detalhamento">
+            <tr style="cursor:pointer" onclick="abrirDetalheDespesa({{ d.despesa_id }})" title="Ver detalhamento">
               <td><span style="font-size:11px;font-weight:700;color:#e65100;background:#fff3e0;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ d.codigo }}</span></td>
               <td><span class="bdg-tipo {% if d.tipo == 'mensal' %}bdg-mensal{% else %}bdg-avulsa{% endif %}">{{ d.tipo }}</span></td>
               <td style="font-weight:600;color:#3949ab">{{ d.categoria or '—' }}</td>
               <td style="color:#3949ab">{{ d.descricao or '—' }}</td>
               <td data-sv="{{ d.data_vencimento.strftime('%Y%m%d') if d.data_vencimento else '' }}">{{ d.data_vencimento.strftime('%d/%m/%Y') if d.data_vencimento else '—' }}</td>
-              <td style="font-size:11px;color:#888;font-weight:600">{{ d.referencia.strftime('%m/%Y') if d.referencia else '—' }}</td>
+              <td style="font-size:11px;color:#888;font-weight:600">{{ d.ref_display or '—' }}</td>
               <td data-sv="{{ d.valor|float }}" style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
               <td>
-                {% if d.parcelado %}
-                  <span class="sit-badge {% if d.parc_pagas == d.num_parcelas %}sit-pago{% else %}sit-pend{% endif %}">{{ d.parc_pagas }}/{{ d.num_parcelas }} pagas</span>
-                {% elif d.status == 'pendente' %}
-                  <span class="sit-badge sit-pend">A pagar{% if d.data_vencimento %} · {{ d.data_vencimento.strftime('%d/%m') }}{% endif %}</span>
-                {% else %}
+                {% if d.pago %}
                   <span class="sit-badge sit-pago">Pago</span>
+                {% else %}
+                  <span class="sit-badge sit-pend">A pagar</span>
                 {% endif %}
               </td>
             </tr>

@@ -127,11 +127,7 @@ def despesas():
     except: data_fim = hoje.strftime('%Y-%m-%d')
     # v143: a tabela principal mostra TODOS os registros (não filtra por período) —
     # o filtro de data acima passa a valer só para os cards de Contas a pagar/Contas pagas.
-    cur.execute("""SELECT d.*,
-                          COALESCE(SUM(p.valor),0) AS valor_calc,
-                          MIN(p.data_vencimento) AS vencimento_calc,
-                          MIN(p.referencia) AS referencia_calc,
-                          COUNT(p.id) AS parcelas_calc
+    cur.execute("""SELECT d.*
                    FROM despesas d
                    JOIN despesa_parcelas p ON p.despesa_id=d.id
                    GROUP BY d.id
@@ -145,10 +141,16 @@ def despesas():
         d['parcelas'] = [dict(p) for p in cur.fetchall()]
         d['parc_pagas'] = sum(1 for p in d['parcelas'] if p['pago'])
         d['valor_total_original'] = d.get('valor')
-        d['valor'] = float(d.get('valor_calc') or 0)
-        if not d.get('data_vencimento') and d.get('vencimento_calc'):
-            d['data_vencimento'] = d.get('vencimento_calc')
-        d['referencia'] = d.get('referencia_calc')
+        # v143: mostra a parcela EM DESTAQUE (a próxima a pagar; se todas já pagas, a
+        # última) — vencimento, REF e valor sempre da MESMA parcela. Evita mostrar o
+        # montante somado de todas as parcelas quando a despesa é avulsa parcelada
+        # (ex.: empréstimo 16x R$750 não pode aparecer como R$12.000 na tabela).
+        pendentes = sorted((p for p in d['parcelas'] if not p['pago']),
+                            key=lambda p: p.get('data_vencimento') or date.max)
+        destaque = pendentes[0] if pendentes else d['parcelas'][-1]
+        d['valor'] = float(destaque.get('valor') or 0)
+        d['data_vencimento'] = destaque.get('data_vencimento')
+        d['referencia'] = destaque.get('referencia')
         d['tipo'] = _norm_tipo(d.get('tipo'))
     total = round(sum(float(d['valor'] or 0) for d in lista), 2)
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM despesas WHERE codigo ~ '^D[0-9]+$'")

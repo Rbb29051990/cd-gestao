@@ -1,17 +1,52 @@
 """Rotas de Clientes: listagem, cadastro, verificação de duplicidade, ficha,
-edição, exclusão (exclusão só N1) e exportação para .xlsx (v142 — preparação
-para a migração de dados rumo ao ERP unificado)."""
+edição, exclusão (exclusão só N1), exportação e IMPORTAÇÃO de .xlsx (v142 —
+migração módulo a módulo rumo ao ERP unificado; importação só habilitada com
+a env var MODO_MIGRACAO=true, pensada pra rodar só na instância unificada)."""
 import io
+import os
 import random
-from datetime import date
+from datetime import date, datetime
 from flask import render_template, request, redirect, url_for, flash, jsonify, session, send_file
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from db import get_db, close_db
 from config import CORES, CLIENTE, hoje_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import audit_log
+
+
+def migracao_habilitada():
+    return os.environ.get('MODO_MIGRACAO') == 'true'
+
+
+def _parse_data(val):
+    """Aceita datetime/date (Excel converteu) ou string 'dd/mm/aaaa'. None se inválido."""
+    if not val:
+        return None
+    if isinstance(val, (datetime, date)):
+        return val.date().isoformat() if isinstance(val, datetime) else val.isoformat()
+    try:
+        return datetime.strptime(str(val).strip(), '%d/%m/%Y').date().isoformat()
+    except Exception:
+        return None
+
+
+def _parse_datahora(val):
+    """Igual _parse_data mas devolve TIMESTAMP (usado no criado_em, preserva histórico)."""
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val.isoformat()
+    if isinstance(val, date):
+        return datetime(val.year, val.month, val.day).isoformat()
+    s = str(val).strip()
+    for fmt in ('%d/%m/%Y %H:%M', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(s, fmt).isoformat()
+        except Exception:
+            continue
+    return None
 
 
 @login_required
@@ -34,7 +69,8 @@ def clientes():
         p = c['nome'].split()
         c['iniciais'] = (p[0][0] + (p[1][0] if len(p) > 1 else p[0][-1])).upper()
     ctx = get_ctx(); ctx.update(clientes=lista, next_id=f"C{n+1}",
-                                data_inicio=data_inicio, data_fim=data_fim)
+                                data_inicio=data_inicio, data_fim=data_fim,
+                                modo_migracao=migracao_habilitada())
     return render_template('clientes.html', **ctx)
 
 
@@ -252,9 +288,101 @@ def exportar_clientes():
                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
+@login_required
+def importar_clientes():
+    """v142: importa um .xlsx exportado (e já tratado/deduplicado pelo usuário) pra dentro
+    desta instância — pensada pra rodar SÓ no ERP unificado. Protegida por dois cadeados:
+    a env var MODO_MIGRACAO=true (só existe no serviço unificado) e admin N1.
+
+    Sem conceito de loja de origem — o ERP unificado trata todo cliente igual; a
+    deduplicação (mesma pessoa nas duas lojas) já vem pronta na planilha. Idempotente:
+    reimportar o mesmo arquivo não duplica (índice único em origem_id — a linha da
+    planilha já importada antes é pulada)."""
+    if not migracao_habilitada():
+        flash('Importação não habilitada nesta instância.', 'erro'); return redirect(url_for('clientes'))
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode importar dados.', 'erro'); return redirect(url_for('clientes'))
+    conn = get_db(); cur = conn.cursor()
+    if request.method == 'GET':
+        cur.close(); close_db(conn)
+        return render_template('importar_clientes.html', **get_ctx())
+
+    try:
+        arquivo = request.files.get('arquivo')
+        if not arquivo or not arquivo.filename:
+            flash('Selecione o arquivo .xlsx exportado.', 'erro'); return redirect(url_for('importar_clientes'))
+
+        wb = load_workbook(io.BytesIO(arquivo.read()), data_only=True)
+        ws = wb['Clientes'] if 'Clientes' in wb.sheetnames else wb.active
+        linhas = list(ws.iter_rows(values_only=True))
+        if not linhas:
+            flash('Planilha vazia.', 'erro'); return redirect(url_for('importar_clientes'))
+        cabecalho = [str(h).strip() if h is not None else '' for h in linhas[0]]
+        col = {nome: i for i, nome in enumerate(cabecalho)}
+        if 'Nome' not in col:
+            flash('A planilha precisa ter a coluna "Nome" (use o arquivo gerado pelo botão Exportar).', 'erro')
+            return redirect(url_for('importar_clientes'))
+
+        def val(row, chave):
+            i = col.get(chave)
+            if i is None or i >= len(row):
+                return None
+            v = row[i]
+            return v.strip() if isinstance(v, str) else v
+
+        # Código NOVO (renumerado) pra este banco — o código original fica só em
+        # origem_codigo, como referência.
+        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM clientes WHERE codigo ~ '^C[0-9]+$'")
+        proximo_codigo = cur.fetchone()['m'] + 1
+
+        importados = pulados = ignorados = 0
+        for row in linhas[1:]:
+            nome = val(row, 'Nome')
+            if not nome or not str(nome).strip():
+                ignorados += 1
+                continue
+            origem_id_raw = val(row, 'ID original')
+            origem_id = int(origem_id_raw) if isinstance(origem_id_raw, (int, float)) else \
+                        (int(origem_id_raw) if str(origem_id_raw or '').strip().isdigit() else None)
+            promocoes = str(val(row, 'Aceita promoções') or '').strip().lower() == 'sim'
+            crediario = str(val(row, 'Crediário habilitado') or '').strip().lower() == 'sim'
+            criado_em = _parse_datahora(val(row, 'Data de cadastro'))
+            novo_codigo = f"C{proximo_codigo}"
+            proximo_codigo += 1
+            cur.execute("""INSERT INTO clientes
+                (nome,codigo,cpf,data_nascimento,telefone,telefone2,cep,logradouro,numero,
+                 complemento,bairro,cidade,uf,promocoes,crediario,cor_avatar,usuario_id,usuario_nome,
+                 origem_codigo,origem_id,criado_em)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s,CURRENT_TIMESTAMP))
+                ON CONFLICT (origem_id) WHERE origem_id IS NOT NULL DO NOTHING
+                RETURNING id""",
+                (str(nome).strip(), novo_codigo, val(row, 'CPF'), _parse_data(val(row, 'Data nascimento')),
+                 val(row, 'Telefone'), val(row, 'Telefone 2'), val(row, 'CEP'), val(row, 'Logradouro'),
+                 val(row, 'Número'), val(row, 'Complemento'), val(row, 'Bairro'), val(row, 'Cidade'),
+                 val(row, 'UF'), promocoes, crediario, random.choice(CORES), None,
+                 val(row, 'Cadastrado por'), val(row, 'Código'), origem_id, criado_em))
+            if cur.fetchone():
+                importados += 1
+            else:
+                pulados += 1
+        conn.commit()
+        audit_log(cur, 'IMPORTAR_CLIENTES', 'clientes', None,
+                  {'importados': importados, 'pulados': pulados})
+        conn.commit()
+        flash(f"Importação concluída: {importados} cliente(s) novo(s) importado(s), "
+              f"{pulados} já existiam (pulado(s) automaticamente), "
+              f"{ignorados} linha(s) vazia(s) ignorada(s).", 'ok')
+    except Exception as e:
+        conn.rollback(); flash(f'Erro na importação: {e}', 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('importar_clientes'))
+
+
 def register(app):
     app.add_url_rule('/clientes', 'clientes', clientes)
     app.add_url_rule('/clientes/exportar', 'exportar_clientes', exportar_clientes)
+    app.add_url_rule('/clientes/importar', 'importar_clientes', importar_clientes, methods=['GET', 'POST'])
     app.add_url_rule('/clientes/novo', 'novo_cliente', novo_cliente, methods=['POST'])
     app.add_url_rule('/clientes/novo-rapido', 'criar_cliente_rapido', criar_cliente_rapido, methods=['POST'])
     app.add_url_rule('/clientes/verificar', 'verificar_cliente', verificar_cliente)

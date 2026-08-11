@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">{{ cliente.sigla }}</span><span class="topbar-logo-sub">Gestão Empresarial</span></div>
+    <div class="topbar-right">
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
+    </div>
+  </div>
+  <div class="dash-layout">
+    {% include "_sidebar.html" %}
+    <main class="main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Importar clientes</div>
+          <div class="page-date">Migração pro ERP unificado — sobe o .xlsx já tratado (sem duplicados)</div>
+        </div>
+        <a href="/clientes" class="btn-cancelar" style="text-decoration:none">← Voltar pra Clientes</a>
+      </div>
+
+      <div style="background:#fff3e0;border:1.5px solid #ffe0b2;border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#7a4a00;line-height:1.7">
+        ⚠️ Reenviar o mesmo arquivo é seguro — quem já foi importado é pulado automaticamente (não duplica).
+        O arquivo precisa ter pelo menos a coluna <b>Nome</b> (use o gerado pelo botão <b>📤 Exportar dados</b>
+        da aba Clientes como base — pode editar/apagar linhas e colunas à vontade).
+      </div>
+
+      <div style="max-width:480px;background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:24px 26px;box-shadow:0 4px 14px rgba(0,0,0,.05)">
+        <form method="POST" action="/clientes/importar" enctype="multipart/form-data" onsubmit="return confirm('Confirma a importação deste arquivo?')">
+          <div class="form-field">
+            <label class="form-label">Arquivo .xlsx *</label>
+            <input class="form-input" type="file" name="arquivo" accept=".xlsx" required>
+          </div>
+          <div class="modal-footer" style="justify-content:flex-end;margin-top:20px">
+            <button type="submit" class="btn-salvar" style="background:#2e7d32">📥 Importar</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+{% endblock %}

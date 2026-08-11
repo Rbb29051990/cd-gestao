@@ -32,6 +32,9 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn-acao" onclick="document.getElementById('modalCliente').style.display='flex'">+ Novo cliente</button>
           <a href="/clientes/exportar" class="btn-acao" style="background:#2e7d32">📤 Exportar dados</a>
+          {% if modo_migracao and pode_excluir %}
+          <a href="/clientes/importar" class="btn-acao" style="background:#3949ab">📥 Importar dados</a>
+          {% endif %}
         </div>
       </div>
 

@@ -208,6 +208,13 @@ def init_db():
         "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS usuario_id INTEGER",
         "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS usuario_nome VARCHAR(200)",
         "CREATE INDEX IF NOT EXISTS idx_clientes_usuario_criado ON clientes (usuario_id, criado_em)",
+        # v142: rastreabilidade simples da importação (sem conceito de loja — o ERP
+        # unificado trata todo cliente igual, já vem tratado/deduplicado na planilha).
+        # origem_id é só a referência da linha na planilha importada, pra reimportar o
+        # mesmo arquivo não duplicar (índice único abaixo).
+        "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS origem_codigo VARCHAR(10)",
+        "ALTER TABLE clientes ADD COLUMN IF NOT EXISTS origem_id INTEGER",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_origem_id ON clientes (origem_id) WHERE origem_id IS NOT NULL",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS reservado INTEGER DEFAULT 0",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS foto TEXT",
         "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto TEXT",

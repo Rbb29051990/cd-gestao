@@ -12,6 +12,17 @@ from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import parse_brl, audit_log
 
+# v142: categoria Plus/Slim escolhida no cadastro define o prefixo do código — cada
+# prefixo tem sua própria sequência numérica (PL10 e SL10 podem coexistir).
+PREFIXOS_ROUPA = {'Plus': 'PL', 'Slim': 'SL'}
+
+
+def _proximo_codigo(cur, prefixo):
+    """Próximo código pro prefixo dado (PL ou SL) — sequências independentes."""
+    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM %s) AS INTEGER)), 0) as m "
+                "FROM estoque WHERE codigo ~ %s", (len(prefixo) + 1, f'^{prefixo}[0-9]+$'))
+    return cur.fetchone()['m'] + 1
+
 
 @login_required
 def estoque():
@@ -33,8 +44,10 @@ def estoque():
     modelos = [r['nome'] for r in cur.fetchall()]
     cur.execute("SELECT nome FROM tamanhos_estoque ORDER BY id")
     tamanhos = [r['nome'] for r in cur.fetchall()]
-    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM estoque WHERE codigo ~ '^P[0-9]+$'")
-    n = cur.fetchone()['m']
+    # Preview do próximo código de cada categoria — o JS troca qual mostrar conforme
+    # o botão Plus/Slim escolhido no cadastro.
+    next_ref_plus = f"PL{_proximo_codigo(cur, 'PL')}"
+    next_ref_slim = f"SL{_proximo_codigo(cur, 'SL')}"
     # Buscar total de entradas adicionais por item (mesma conexão, antes de fechar)
     cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas GROUP BY estoque_id")
     entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
@@ -49,15 +62,21 @@ def estoque():
     ctx.update(itens=itens, modelos=modelos, tamanhos=tamanhos,
                custo_total=float(tots['ct']), valor_total=float(tots['vt']),
                lucro_potencial=float(tots['vt']) - float(tots['ct']),
-               next_ref=f"P{n+1}", data_inicio=data_inicio, data_fim=data_fim)
+               next_ref_plus=next_ref_plus, next_ref_slim=next_ref_slim,
+               data_inicio=data_inicio, data_fim=data_fim)
     return render_template('estoque.html', **ctx)
 
 
 @login_required
 def novo_estoque():
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM estoque WHERE codigo ~ '^P[0-9]+$'")
-    n = cur.fetchone()['m']
+    categoria_roupa = request.form.get('categoria_roupa', '').strip()
+    prefixo = PREFIXOS_ROUPA.get(categoria_roupa)
+    if not prefixo:
+        flash('Selecione se a peça é Plus ou Slim.', 'erro')
+        cur.close(); close_db(conn)
+        return redirect(url_for('estoque'))
+    codigo = f"{prefixo}{_proximo_codigo(cur, prefixo)}"
     qtd = int(request.form.get('quantidade', 1) or 1)
     custo_raw = request.form.get('custo_unitario', '').strip()
     venda_raw = request.form.get('valor_venda', '').strip()
@@ -74,9 +93,9 @@ def novo_estoque():
     if foto and (not foto.startswith('data:image/') or len(foto) > 1_500_000):
         foto = None
     try:
-        cur.execute("""INSERT INTO estoque (codigo,modelo,descricao,tamanho,quantidade,estoque_inicial,
-            custo_unitario,markup,valor_venda,margem_lucro,foto) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (f"P{n+1}", request.form.get('modelo', '').strip(),
+        cur.execute("""INSERT INTO estoque (codigo,categoria_roupa,modelo,descricao,tamanho,quantidade,estoque_inicial,
+            custo_unitario,markup,valor_venda,margem_lucro,foto) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (codigo, categoria_roupa, request.form.get('modelo', '').strip(),
              request.form.get('descricao', '').strip() or None,
              request.form.get('tamanho', '').strip(), qtd, qtd,
              parse_brl(request.form.get('custo_unitario', '0')),
@@ -159,8 +178,9 @@ def etiquetas():
 
 @login_required
 def etiqueta_busca():
+    # v142: código completo agora (ex.: PL5, SL12) — não tem mais um prefixo único "P"
+    # pra completar sozinho.
     cod = request.args.get('codigo', '').strip().upper()
-    if cod and not cod.startswith('P'): cod = 'P' + cod
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT id,codigo,modelo,descricao,tamanho,valor_venda,quantidade FROM estoque WHERE codigo=%s AND ativo=TRUE", (cod,))
     item = cur.fetchone(); cur.close(); close_db(conn)
@@ -301,7 +321,7 @@ def exportar_estoque():
     ws = wb.active
     ws.title = 'Estoque'
 
-    headers = ['Código', 'Data lançamento', 'Modelo', 'Descrição', 'Tamanho',
+    headers = ['Código', 'Categoria', 'Data lançamento', 'Modelo', 'Descrição', 'Tamanho',
                'Estoque inicial', 'Entradas adicionais', 'Saídas', 'Saldo atual',
                'Custo unitário (R$)', 'Markup (%)', 'Valor de venda (R$)',
                'Margem de lucro (%)', 'Desconto promo (%)', 'Valor promocional (R$)',
@@ -314,8 +334,8 @@ def exportar_estoque():
         c.fill = header_fill
         c.alignment = Alignment(horizontal='center', vertical='center')
 
-    money_cols = {10, 12, 15, 17, 18}
-    pct_cols = {11, 13, 14}
+    money_cols = {11, 13, 16, 18, 19}
+    pct_cols = {12, 14, 15}
     for item in itens:
         entradas_adicionais = entradas_map.get(item['id'], 0)
         saldo = int(item.get('quantidade') or 0)
@@ -326,7 +346,7 @@ def exportar_estoque():
         dp = float(item.get('desconto_promo') or 0)
         valor_promo = round(venda * (1 - dp / 100), 2) if dp > 0 else None
         ws.append([
-            item.get('codigo'),
+            item.get('codigo'), item.get('categoria_roupa') or '',
             item['criado_em'].strftime('%d/%m/%Y') if item.get('criado_em') else '',
             item.get('modelo') or '', item.get('descricao') or '', item.get('tamanho') or '',
             item.get('estoque_inicial') or 0, entradas_adicionais, saidas, saldo,
@@ -340,7 +360,7 @@ def exportar_estoque():
         for col in pct_cols:
             ws.cell(row=row, column=col).number_format = '0.00'
 
-    widths = [10, 14, 20, 28, 9, 10, 12, 9, 10, 15, 10, 16, 14, 13, 16, 12, 18, 18]
+    widths = [10, 10, 14, 20, 28, 9, 10, 12, 9, 10, 15, 10, 16, 14, 13, 16, 12, 18, 18]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
     ws.freeze_panes = 'A2'

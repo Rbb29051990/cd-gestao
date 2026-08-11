@@ -2,6 +2,7 @@
 usuários, healthcheck, página de versão e limpeza de registros órfãos do caixa.
 setup/reset ficam bloqueados em produção, salvo liberação por variável de ambiente."""
 import os
+import re
 from flask import jsonify
 from werkzeug.security import generate_password_hash
 from db import get_db, close_db
@@ -112,9 +113,6 @@ def corrigir_codigos_estoque():
         return 'Acesso negado — apenas o Administrador N1.', 403
     conn = get_db(); cur = conn.cursor()
     try:
-        # Maior número já em uso → ponto de partida dos novos códigos
-        cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM estoque WHERE codigo ~ '^P[0-9]+$'")
-        prox = cur.fetchone()['m'] + 1
         # Todos os itens cujo código aparece mais de uma vez, ordenados por
         # código e do mais antigo para o mais novo.
         cur.execute("""SELECT id, codigo, modelo, descricao, criado_em FROM estoque
@@ -123,12 +121,21 @@ def corrigir_codigos_estoque():
         rows = cur.fetchall()
         renomeados = []
         vistos = set()
+        # v142: mantém o PREFIXO original (PL/SL) do código duplicado — cada prefixo
+        # tem sua própria sequência; calculado sob demanda (só quando aparece).
+        prox_por_prefixo = {}
         for r in rows:
             cod = r['codigo']
             if cod not in vistos:
                 vistos.add(cod)          # mantém o mais antigo com o código original
                 continue
-            novo = f"P{prox}"; prox += 1
+            m = re.match(r'^([A-Za-z]+)(\d+)$', cod or '')
+            prefixo = m.group(1).upper() if m else 'P'
+            if prefixo not in prox_por_prefixo:
+                cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM %s) AS INTEGER)),0) as mx "
+                            "FROM estoque WHERE codigo ~ %s", (len(prefixo) + 1, f'^{prefixo}[0-9]+$'))
+                prox_por_prefixo[prefixo] = cur.fetchone()['mx'] + 1
+            novo = f"{prefixo}{prox_por_prefixo[prefixo]}"; prox_por_prefixo[prefixo] += 1
             cur.execute("UPDATE estoque SET codigo=%s WHERE id=%s", (novo, r['id']))
             renomeados.append((cod, novo, r['modelo'] or '', r['descricao'] or ''))
         conn.commit()

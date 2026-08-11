@@ -336,10 +336,9 @@
       <div class="step-sep">3. Peças</div>
       <div class="add-item-bar">
         <div class="form-field" style="flex:1">
-          <label class="form-label">Código do produto (só números)</label>
+          <label class="form-label">Código do produto (ex.: PL5, SL12)</label>
           <div style="display:flex;align-items:center">
-            <span class="ref-prefix">P</span>
-            <input class="form-input ref-input" type="number" id="refInput" placeholder="1" min="1" oninput="buscarRef(this.value)">
+            <input class="form-input ref-input" type="text" id="refInput" placeholder="PL5" style="text-transform:uppercase" oninput="buscarRef(this.value)">
           </div>
         </div>
         <div class="form-field" style="width:80px">
@@ -441,7 +440,8 @@ function selecionarCliente(c){
 document.addEventListener('click', e=>{ if(!e.target.closest('.pos-rel')) document.getElementById('clienteSugest').style.display='none'; });
 
 async function buscarRef(v){
-  if(!v || v<1){ document.getElementById('refInfo').style.display='none'; refAtual=null; return; }
+  v = (v || '').trim();
+  if(!v){ document.getElementById('refInfo').style.display='none'; refAtual=null; return; }
   const r=await fetch('/vendas/buscar-ref?ref='+encodeURIComponent(v));
   const d=await r.json();
   if(d.ok){

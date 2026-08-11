@@ -2,6 +2,12 @@
 {% block content %}
 <style>
 .etable thead th{position:sticky;top:0;z-index:2;background:#f8f8fc;box-shadow:0 2px 4px rgba(0,0,0,.04)}
+/* ── Roupa? Plus ou Slim (cadastro) ── */
+.roupa-opts{display:flex;gap:10px;margin-bottom:18px}
+.roupa-opt{flex:1;padding:14px;border:1.5px solid #e0e0e8;background:#f8f8fc;border-radius:10px;text-align:center;font-weight:700;font-size:14px;color:#888;cursor:pointer;transition:all .15s}
+.roupa-opt input{display:none}
+.roupa-opt.sel-plus{border-color:#3949ab;background:#3949ab;color:#fff}
+.roupa-opt.sel-slim{border-color:#e65100;background:#e65100;color:#fff}
 /* Coluna Cód (2ª) compacta — sobrepõe o min-width:150px global da 2ª coluna */
 #tabelaEstoque td:nth-child(2),#tabelaEstoque th:nth-child(2){min-width:0!important;width:1%;white-space:nowrap!important}
 /* ── ETIQUETAS ── */
@@ -216,11 +222,16 @@
         <div class="page-title" style="font-size:20px;margin-bottom:18px">Cadastrar produto</div>
         <div class="form-card">
           <form id="eFormCadastro" method="POST" action="/estoque/novo">
+            <div class="section-sep">Roupa? *</div>
+            <div class="roupa-opts">
+              <label class="roupa-opt" id="optRoupaPlus" onclick="selRoupa('Plus')"><input type="radio" name="categoria_roupa" value="Plus" required> Plus</label>
+              <label class="roupa-opt" id="optRoupaSlim" onclick="selRoupa('Slim')"><input type="radio" name="categoria_roupa" value="Slim"> Slim</label>
+            </div>
             <div class="section-sep">Identificação</div>
             <div class="form-grid2">
               <div class="form-field">
                 <span class="form-label">Referência</span>
-                <input class="form-input ref" value="{{ next_ref }}" readonly style="letter-spacing:2px;font-weight:700">
+                <input class="form-input ref" id="eRefPreview" value="—" readonly style="letter-spacing:2px;font-weight:700">
               </div>
               <div class="form-field">
                 <span class="form-label">Modelo</span>
@@ -323,10 +334,9 @@
               <div class="etq-box-tit">1. Buscar produto pelo código</div>
               <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
                 <div class="form-field" style="flex:1;min-width:120px">
-                  <span class="form-label">Código</span>
+                  <span class="form-label">Código (ex.: PL5, SL12)</span>
                   <div style="display:flex;align-items:center">
-                    <span class="etq-prefix">P</span>
-                    <input class="form-input etq-cod-input" type="number" id="etqCodigo" placeholder="1" min="1" oninput="etqBuscar(this.value)">
+                    <input class="form-input etq-cod-input" type="text" id="etqCodigo" placeholder="PL5" style="text-transform:uppercase" oninput="etqBuscar(this.value)">
                   </div>
                 </div>
                 <div class="form-field" style="width:90px">
@@ -535,6 +545,21 @@ function initMoeda(el, onChangeFn) {
   }
 }
 
+/* ── Roupa? Plus ou Slim — define o prefixo do código (PLn / SLn) ── */
+const NEXT_REF = { Plus: "{{ next_ref_plus }}", Slim: "{{ next_ref_slim }}" };
+function selRoupa(v){
+  document.getElementById('optRoupaPlus').classList.remove('sel-plus');
+  document.getElementById('optRoupaSlim').classList.remove('sel-slim');
+  if(v === 'Plus'){
+    document.getElementById('optRoupaPlus').classList.add('sel-plus');
+    document.getElementById('optRoupaPlus').querySelector('input').checked = true;
+  } else {
+    document.getElementById('optRoupaSlim').classList.add('sel-slim');
+    document.getElementById('optRoupaSlim').querySelector('input').checked = true;
+  }
+  document.getElementById('eRefPreview').value = NEXT_REF[v] || '—';
+}
+
 /* ── TROCA DE PAINEL (estoque / cadastro / etiquetas) ── */
 function mostrarPainel(id) {
   document.querySelectorAll('.etela').forEach(p => p.classList.remove('active'));
@@ -601,6 +626,8 @@ function eAtualizarTotais() {
 }
 
 function prepararEnvio() {
+  const roupa = document.querySelector('input[name="categoria_roupa"]:checked');
+  if (!roupa) { alert('Selecione se a peça é Plus ou Slim.'); return; }
   const custo = parseMoeda(document.getElementById('eCusto').value);
   const venda = parseMoeda(document.getElementById('eVenda').value);
   if (!custo || custo <= 0) { alert('Informe o custo unitário antes de salvar.'); return; }

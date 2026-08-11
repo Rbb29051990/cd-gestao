@@ -277,15 +277,14 @@
       <div class="step-sep">2. Itens da venda</div>
       <div class="form-field" id="buscaProdutoWrap" style="position:relative;margin-bottom:10px">
         <label class="form-label">Buscar produto por nome, descrição ou código</label>
-        <input class="form-input" type="text" id="buscaProduto" autocomplete="off" placeholder="Ex.: vestido, calça jeans, P12..." oninput="buscarProduto(this.value)">
+        <input class="form-input" type="text" id="buscaProduto" autocomplete="off" placeholder="Ex.: vestido, calça jeans, PL12..." oninput="buscarProduto(this.value)">
         <div id="produtoSugest" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;background:#fff;border:1.5px solid #e0e0e8;border-radius:10px;margin-top:4px;max-height:340px;overflow:auto;box-shadow:0 12px 30px rgba(0,0,0,.12)"></div>
       </div>
       <div class="add-item-bar">
         <div class="form-field" style="flex:1">
-          <label class="form-label">Código do produto (só números)</label>
+          <label class="form-label">Código do produto (ex.: PL5, SL12)</label>
           <div style="display:flex;align-items:center">
-            <span class="ref-prefix">P</span>
-            <input class="form-input ref-input" type="number" id="refInput" placeholder="1" min="1" oninput="buscarRef(this.value)">
+            <input class="form-input ref-input" type="text" id="refInput" placeholder="PL5" style="text-transform:uppercase" oninput="buscarRef(this.value)">
           </div>
         </div>
         <div class="form-field" style="width:80px">
@@ -765,7 +764,8 @@ function preencherRefInfo(){
 }
 
 async function buscarRef(v) {
-  if (!v || v < 1) { document.getElementById('refInfo').style.display='none'; refAtual=null; return; }
+  v = (v || '').trim();
+  if (!v) { document.getElementById('refInfo').style.display='none'; refAtual=null; return; }
   const r = await fetch('/vendas/buscar-ref?ref=' + encodeURIComponent(v));
   const d = await r.json();
   if (d.ok) { refAtual = d.item; preencherRefInfo(); }

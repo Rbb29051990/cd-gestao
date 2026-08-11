@@ -418,8 +418,9 @@ def ranking_vendedoras():
 
 @login_required
 def buscar_ref():
-    ref = request.args.get('ref', '').strip().upper()
-    busca = ref if ref.startswith('P') else f"P{ref}"
+    # v142: código completo agora (ex.: PL5, SL12) — não tem mais um prefixo único "P"
+    # pra completar sozinho.
+    busca = request.args.get('ref', '').strip().upper()
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT id as produto_id,codigo,modelo,descricao,tamanho,valor_venda,desconto_promo,quantidade FROM estoque WHERE codigo=%s AND ativo=TRUE AND quantidade>0", (busca,))
     item = cur.fetchone(); cur.close(); close_db(conn)

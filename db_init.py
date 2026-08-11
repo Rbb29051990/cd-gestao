@@ -226,6 +226,9 @@ def init_db():
         "ALTER TABLE vendas ADD COLUMN IF NOT EXISTS trocada BOOLEAN DEFAULT FALSE",
         "ALTER TABLE vendas ALTER COLUMN pct_desconto TYPE NUMERIC(6,2)",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS dias_estoque INTEGER DEFAULT 0",
+        # v142: categoria Plus/Slim — define o prefixo do código (PLn / SLn), sequências
+        # numéricas independentes por categoria (dá pra saber o total de cada uma só pelo código).
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS categoria_roupa VARCHAR(10)",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS margem_lucro NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'avulsa'",

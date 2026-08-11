@@ -84,6 +84,7 @@
             <button type="button" class="btn-acao" onclick="mostrarPainel('eCadastro')">➕ Cadastrar produto</button>
             <button type="button" class="btn-acao" style="background:#00838f" onclick="mostrarPainel('eEtiquetas')">🏷️ Imprimir etiquetas</button>
             <a id="btnExportarEstoque" href="/estoque/exportar?data_inicio={{ data_inicio }}&amp;data_fim={{ data_fim }}" class="btn-acao" style="background:#2e7d32">📤 Exportar dados</a>
+            <a href="/estoque/exportar-fotos" class="btn-acao" style="background:#00838f">📷 Exportar fotos</a>
           </div>
         </div>
         <!-- FILTRO DE PERÍODO (data de lançamento do produto) -->
@@ -149,23 +150,34 @@
           <input type="hidden" name="percentual" id="promoPctHidden">
           <input type="hidden" name="valor_desconto" id="promoValHidden">
         </form>
+        <!-- BARRA DE EXPORTAÇÃO SELECIONADA -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;padding:10px 14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)">
+          <span style="font-size:13px;font-weight:700;color:#1a1a2e">📦 Exportar selecionados</span>
+          <span style="font-size:12px;color:#888">Marque os produtos na coluna 📦 Exportar — o .zip sai com os dados (.xlsx) e as fotos só desses itens.</span>
+          <span id="expSelCount" style="font-size:12px;font-weight:700;color:#00838f">0 selecionado(s)</span>
+          <button type="button" class="btn-acao" style="background:#00838f;margin-left:auto" onclick="exportarSelecionadosEstoque()" disabled id="btnExportarSel">📦 Exportar selecionados</button>
+        </div>
+        <form method="POST" action="/estoque/exportar-selecionados" id="formExportarSel" style="display:none">
+          <input type="hidden" name="ids" id="expIds">
+        </form>
         <div class="table-wrap" style="max-height:520px;overflow-y:auto">
           <table class="etable" id="tabelaEstoque">
             <thead><tr>
               <th onclick="ordenarE(0)">Data entrada</th>
               <th onclick="ordenarE(1)" style="width:1%;white-space:nowrap">Cód</th>
               <th style="width:40px" title="Marcar para promoção">🏷️ Promo</th>
+              <th style="width:40px" title="Marcar para exportar">📦 Exportar</th>
               <th>Foto</th>
-              <th onclick="ordenarE(3)">Modelo</th>
+              <th onclick="ordenarE(5)">Modelo</th>
               <th>Descrição</th>
-              <th onclick="ordenarE(5)">TAM</th>
-              <th onclick="ordenarE(6)" title="Estoque inicial cadastrado">Inicial</th>
+              <th onclick="ordenarE(7)">TAM</th>
+              <th onclick="ordenarE(8)" title="Estoque inicial cadastrado">Inicial</th>
               <th title="Novas entradas adicionadas">Entradas</th>
-              <th onclick="ordenarE(7)" title="Unidades vendidas">Saídas</th>
-              <th onclick="ordenarE(8)" title="Saldo atual em estoque">Saldo</th>
-              <th onclick="ordenarE(9)">Custo</th>
-              <th onclick="ordenarE(10)">Venda</th>
-              <th onclick="ordenarE(11)">Dias estoque</th>
+              <th onclick="ordenarE(10)" title="Unidades vendidas">Saídas</th>
+              <th onclick="ordenarE(11)" title="Saldo atual em estoque">Saldo</th>
+              <th onclick="ordenarE(12)">Custo</th>
+              <th onclick="ordenarE(13)">Venda</th>
+              <th onclick="ordenarE(14)">Dias estoque</th>
               <th>Última venda</th>
             </tr></thead>
             <tbody id="tbodyEstoque">
@@ -174,6 +186,7 @@
                 <td>{{ item.criado_em.strftime('%d/%m/%Y') }}</td>
                 <td><span class="ref-code">{{ item.codigo }}</span></td>
                 <td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="promo-check" value="{{ item.id }}" data-preco="{{ item.valor_venda|float }}" onclick="updatePromoCount()"></td>
+                <td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="exp-check" value="{{ item.id }}" onclick="updateExpCount()"></td>
                 <td style="padding:4px 8px">
                   {% if item.foto %}
                   <img src="{{ item.foto }}" onclick="event.stopPropagation();abrirLightbox('{{ item.foto }}')"
@@ -211,7 +224,7 @@
                 <td>{{ item.ultima_venda.strftime('%d/%m/%Y') if item.ultima_venda else '—' }}</td>
               </tr>
               {% else %}
-              <tr><td colspan="15" class="empty-row">Nenhum item cadastrado ainda.</td></tr>
+              <tr><td colspan="16" class="empty-row">Nenhum item cadastrado ainda.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -686,6 +699,19 @@ function updatePromoCount(){
   const n = document.querySelectorAll('.promo-check:checked').length;
   document.getElementById('promoSelCount').textContent = n + ' selecionado(s)';
   promoCalcPct();  // recalcula o % se já houver um valor R$ digitado
+}
+
+/* ── EXPORTAR SELECIONADOS: dados (.xlsx) + fotos dos itens marcados, num só .zip ── */
+function updateExpCount(){
+  const n = document.querySelectorAll('.exp-check:checked').length;
+  document.getElementById('expSelCount').textContent = n + ' selecionado(s)';
+  document.getElementById('btnExportarSel').disabled = (n === 0);
+}
+function exportarSelecionadosEstoque(){
+  const ids = Array.from(document.querySelectorAll('.exp-check:checked')).map(c => c.value);
+  if(!ids.length) return;
+  document.getElementById('expIds').value = ids.join(',');
+  document.getElementById('formExportarSel').submit();
 }
 /* Máscara R$ no campo de valor de desconto (guarda os centavos em dataset.cents). */
 function promoValMask(el){

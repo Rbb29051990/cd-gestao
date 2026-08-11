@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="dash-wrap">
+  <div class="topbar">
+    <div class="topbar-logo"><span class="topbar-logo-main">{{ cliente.sigla }}</span><span class="topbar-logo-sub">Gestão Empresarial</span></div>
+    <div class="topbar-right">
+      <span class="topbar-user">{{ nome }}</span>
+      <div class="avatar" onclick="abrirFotoPerfil()" title="Alterar foto de perfil" style="cursor:pointer;overflow:hidden;padding:0">{% if usuario_foto %}<img src="/usuarios/avatar?t={{ avatar_v }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ nome[:2].upper() }}{% endif %}</div>
+    </div>
+  </div>
+  <div class="dash-layout">
+    {% include "_sidebar.html" %}
+    <main class="main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
+
+      <div class="page-header">
+        <div>
+          <div class="page-title">Exportar fotos do Estoque</div>
+          <div class="page-date">Baixa um .zip com a foto de cada produto da planilha</div>
+        </div>
+        <a href="/estoque" class="btn-cancelar" style="text-decoration:none">← Voltar pro Estoque</a>
+      </div>
+
+      <div style="background:#fff3e0;border:1.5px solid #ffe0b2;border-radius:10px;padding:14px 18px;margin-bottom:18px;font-size:13px;color:#7a4a00;line-height:1.7">
+        📷 Sobe a mesma planilha do botão <b>📤 Exportar dados</b> (pode estar editada — linhas
+        removidas, quantidades corrigidas etc., só a coluna <b>Código</b> precisa continuar lá).
+        Pra cada código encontrado com foto cadastrada, sai um arquivo de imagem nomeado com o
+        próprio código dentro do .zip. Código sem foto ou que não existir mais no sistema entra
+        listado num arquivo <code>_avisos.txt</code> junto no .zip.
+      </div>
+
+      <div style="max-width:480px;background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:24px 26px;box-shadow:0 4px 14px rgba(0,0,0,.05)">
+        <form method="POST" action="/estoque/exportar-fotos" enctype="multipart/form-data">
+          <div class="form-field">
+            <label class="form-label">Arquivo .xlsx *</label>
+            <input class="form-input" type="file" name="arquivo" accept=".xlsx" required>
+          </div>
+          <div class="modal-footer" style="justify-content:flex-end;margin-top:20px">
+            <button type="submit" class="btn-salvar" style="background:#00838f">📷 Gerar .zip das fotos</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+{% endblock %}

@@ -1,10 +1,12 @@
 """Rotas de Estoque: listagem, cadastro, nova entrada, modelos/tamanhos,
-etiquetas (lista por data e busca por código), ficha, edição, exclusão e
-exportação para .xlsx (v142)."""
+etiquetas (lista por data e busca por código), ficha, edição, exclusão,
+exportação para .xlsx e extração das fotos por código (v142/v143)."""
+import base64
 import io
+import zipfile
 from datetime import date
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 from db import get_db, close_db
@@ -22,6 +24,77 @@ def _proximo_codigo(cur, prefixo):
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM %s) AS INTEGER)), 0) as m "
                 "FROM estoque WHERE codigo ~ %s", (len(prefixo) + 1, f'^{prefixo}[0-9]+$'))
     return cur.fetchone()['m'] + 1
+
+
+def _foto_bytes_ext(foto):
+    """Decodifica o data URI (base64) de uma foto -> (bytes, extensão) ou None se
+    não tiver foto/for inválida. Usado tanto na exportação de fotos por planilha
+    quanto na exportação combinada dos itens marcados na tela."""
+    if not foto or not foto.startswith('data:'):
+        return None
+    try:
+        header, b64 = foto.split(',', 1)
+        mime = header.split(';')[0].replace('data:', '') or 'image/jpeg'
+        ext = mime.split('/')[-1].lower()
+        if ext == 'jpeg': ext = 'jpg'
+        return base64.b64decode(b64), ext
+    except Exception:
+        return None
+
+
+def _montar_wb_estoque(itens, entradas_map, hoje):
+    """Monta o workbook de exportação do Estoque (mesmas colunas do botão
+    'Exportar dados') a partir de uma lista de itens já carregada — reaproveitado
+    pela exportação por período E pela exportação dos itens marcados na tela."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Estoque'
+
+    headers = ['Código', 'Categoria', 'Data lançamento', 'Modelo', 'Descrição', 'Tamanho',
+               'Estoque inicial', 'Entradas adicionais', 'Saídas', 'Saldo atual',
+               'Custo unitário (R$)', 'Markup (%)', 'Valor de venda (R$)',
+               'Margem de lucro (%)', 'Desconto promo (%)', 'Valor promocional (R$)',
+               'Dias em estoque', 'Custo total do saldo (R$)', 'Valor total do saldo (R$)']
+    ws.append(headers)
+    header_fill = PatternFill(start_color='E65100', end_color='E65100', fill_type='solid')
+    for col in range(1, len(headers) + 1):
+        c = ws.cell(row=1, column=col)
+        c.font = Font(bold=True, color='FFFFFF')
+        c.fill = header_fill
+        c.alignment = Alignment(horizontal='center', vertical='center')
+
+    money_cols = {11, 13, 16, 18, 19}
+    pct_cols = {12, 14, 15}
+    for item in itens:
+        entradas_adicionais = entradas_map.get(item['id'], 0)
+        saldo = int(item.get('quantidade') or 0)
+        saidas = max(0, (item.get('estoque_inicial') or 0) + entradas_adicionais - saldo)
+        dias = (hoje - item['criado_em'].date()).days if item.get('criado_em') else None
+        custo = float(item.get('custo_unitario') or 0)
+        venda = float(item.get('valor_venda') or 0)
+        dp = float(item.get('desconto_promo') or 0)
+        valor_promo = round(venda * (1 - dp / 100), 2) if dp > 0 else None
+        ws.append([
+            item.get('codigo'), item.get('tipo_produto') or '',
+            item['criado_em'].strftime('%d/%m/%Y') if item.get('criado_em') else '',
+            item.get('modelo') or '', item.get('descricao') or '', item.get('tamanho') or '',
+            item.get('estoque_inicial') or 0, entradas_adicionais, saidas, saldo,
+            custo, float(item.get('markup') or 0), venda, float(item.get('margem_lucro') or 0),
+            dp if dp > 0 else None, valor_promo, dias,
+            round(custo * saldo, 2), round(venda * saldo, 2),
+        ])
+        row = ws.max_row
+        for col in money_cols:
+            ws.cell(row=row, column=col).number_format = '#,##0.00'
+        for col in pct_cols:
+            ws.cell(row=row, column=col).number_format = '0.00'
+
+    widths = [10, 10, 14, 20, 28, 9, 10, 12, 9, 10, 15, 10, 16, 14, 13, 16, 12, 18, 18]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = 'A2'
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+    return wb
 
 
 @login_required
@@ -316,61 +389,149 @@ def exportar_estoque():
     entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
     cur.close(); close_db(conn)
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = 'Estoque'
-
-    headers = ['Código', 'Categoria', 'Data lançamento', 'Modelo', 'Descrição', 'Tamanho',
-               'Estoque inicial', 'Entradas adicionais', 'Saídas', 'Saldo atual',
-               'Custo unitário (R$)', 'Markup (%)', 'Valor de venda (R$)',
-               'Margem de lucro (%)', 'Desconto promo (%)', 'Valor promocional (R$)',
-               'Dias em estoque', 'Custo total do saldo (R$)', 'Valor total do saldo (R$)']
-    ws.append(headers)
-    header_fill = PatternFill(start_color='E65100', end_color='E65100', fill_type='solid')
-    for col in range(1, len(headers) + 1):
-        c = ws.cell(row=1, column=col)
-        c.font = Font(bold=True, color='FFFFFF')
-        c.fill = header_fill
-        c.alignment = Alignment(horizontal='center', vertical='center')
-
-    money_cols = {11, 13, 16, 18, 19}
-    pct_cols = {12, 14, 15}
-    for item in itens:
-        entradas_adicionais = entradas_map.get(item['id'], 0)
-        saldo = int(item.get('quantidade') or 0)
-        saidas = max(0, (item.get('estoque_inicial') or 0) + entradas_adicionais - saldo)
-        dias = (hoje - item['criado_em'].date()).days if item.get('criado_em') else None
-        custo = float(item.get('custo_unitario') or 0)
-        venda = float(item.get('valor_venda') or 0)
-        dp = float(item.get('desconto_promo') or 0)
-        valor_promo = round(venda * (1 - dp / 100), 2) if dp > 0 else None
-        ws.append([
-            item.get('codigo'), item.get('tipo_produto') or '',
-            item['criado_em'].strftime('%d/%m/%Y') if item.get('criado_em') else '',
-            item.get('modelo') or '', item.get('descricao') or '', item.get('tamanho') or '',
-            item.get('estoque_inicial') or 0, entradas_adicionais, saidas, saldo,
-            custo, float(item.get('markup') or 0), venda, float(item.get('margem_lucro') or 0),
-            dp if dp > 0 else None, valor_promo, dias,
-            round(custo * saldo, 2), round(venda * saldo, 2),
-        ])
-        row = ws.max_row
-        for col in money_cols:
-            ws.cell(row=row, column=col).number_format = '#,##0.00'
-        for col in pct_cols:
-            ws.cell(row=row, column=col).number_format = '0.00'
-
-    widths = [10, 10, 14, 20, 28, 9, 10, 12, 9, 10, 15, 10, 16, 14, 13, 16, 12, 18, 18]
-    for i, w in enumerate(widths, start=1):
-        ws.column_dimensions[get_column_letter(i)].width = w
-    ws.freeze_panes = 'A2'
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
-
+    wb = _montar_wb_estoque(itens, entradas_map, hoje)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     nome_arquivo = f"estoque_{data_inicio}_a_{data_fim}.xlsx"
     return send_file(buf, as_attachment=True, download_name=nome_arquivo,
                       mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@login_required
+def exportar_fotos_estoque():
+    """v143: extrai as FOTOS (guardadas em base64 no banco) dos produtos cujo
+    código bate com a coluna 'Código' de um .xlsx (o mesmo formato do botão
+    'Exportar dados', já tratado pelo usuário). Gera um .zip com um arquivo de
+    imagem por código — usado pra levar as fotos separadamente antes de migrar
+    os DADOS de uma loja pro ERP unificado (a importação de estoque não carrega foto)."""
+    if request.method == 'GET':
+        return render_template('exportar_fotos_estoque.html', **get_ctx())
+    arquivo = request.files.get('arquivo')
+    if not arquivo or not arquivo.filename:
+        flash('Selecione o arquivo .xlsx exportado.', 'erro')
+        return redirect(url_for('exportar_fotos_estoque'))
+    try:
+        wb = load_workbook(io.BytesIO(arquivo.read()), data_only=True)
+        ws = wb['Estoque'] if 'Estoque' in wb.sheetnames else wb.active
+        linhas = list(ws.iter_rows(values_only=True))
+        if not linhas:
+            flash('Planilha vazia.', 'erro')
+            return redirect(url_for('exportar_fotos_estoque'))
+        cabecalho = [str(h).strip() if h is not None else '' for h in linhas[0]]
+        col = {nome: i for i, nome in enumerate(cabecalho)}
+        if 'Código' not in col:
+            flash('A planilha precisa ter a coluna "Código" (use o arquivo gerado pelo botão Exportar dados).', 'erro')
+            return redirect(url_for('exportar_fotos_estoque'))
+        codigos = []
+        for row in linhas[1:]:
+            idx = col['Código']
+            v = row[idx] if idx < len(row) else None
+            if v is not None and str(v).strip():
+                codigos.append(str(v).strip())
+    except Exception as e:
+        flash(f'Erro ao ler a planilha: {e}', 'erro')
+        return redirect(url_for('exportar_fotos_estoque'))
+    if not codigos:
+        flash('Nenhum código encontrado na planilha.', 'erro')
+        return redirect(url_for('exportar_fotos_estoque'))
+
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT codigo, foto FROM estoque WHERE codigo = ANY(%s)", (codigos,))
+    rows = [dict(r) for r in cur.fetchall()]
+    cur.close(); close_db(conn)
+    com_foto = [r for r in rows if r.get('foto')]
+    codigos_encontrados = {r['codigo'] for r in rows}
+    sem_foto = [c for c in codigos if c not in {r['codigo'] for r in com_foto}]
+    nao_encontrados = [c for c in codigos if c not in codigos_encontrados]
+
+    if not com_foto:
+        flash('Nenhum dos códigos da planilha tem foto cadastrada no sistema.', 'erro')
+        return redirect(url_for('exportar_fotos_estoque'))
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        usados = set()
+        for r in com_foto:
+            decoded = _foto_bytes_ext(r['foto'])
+            if not decoded:
+                continue
+            dados, ext = decoded
+            nome = r['codigo']
+            sufixo = 1
+            nome_final = nome
+            while nome_final in usados:
+                sufixo += 1
+                nome_final = f"{nome}_{sufixo}"
+            usados.add(nome_final)
+            zf.writestr(f"{nome_final}.{ext}", dados)
+        avisos = []
+        if sem_foto:
+            avisos.append('Códigos SEM foto cadastrada:\n' + '\n'.join(sem_foto))
+        if nao_encontrados:
+            avisos.append('Códigos não encontrados no sistema:\n' + '\n'.join(nao_encontrados))
+        if avisos:
+            zf.writestr('_avisos.txt', '\n\n'.join(avisos))
+    buf.seek(0)
+    if sem_foto or nao_encontrados:
+        flash(f"{len(com_foto)} foto(s) exportada(s). {len(sem_foto)} código(s) sem foto e "
+              f"{len(nao_encontrados)} não encontrado(s) — detalhes no arquivo _avisos.txt do zip.", 'ok')
+    nome_arquivo = f"fotos_estoque_{hoje_app().strftime('%Y%m%d')}.zip"
+    return send_file(buf, as_attachment=True, download_name=nome_arquivo, mimetype='application/zip')
+
+
+@login_required
+def exportar_selecionados_estoque():
+    """v143: exporta DADOS (.xlsx, mesmas colunas do 'Exportar dados') + FOTOS dos
+    produtos marcados na coluna 'Exportar' da tabela — tudo num único .zip. Feito
+    pra levar só um recorte do estoque (ex.: parte do inventário sendo migrada) já
+    com dado e foto juntos, sem precisar exportar tudo e depois filtrar manualmente."""
+    ids_raw = request.form.get('ids', '')
+    ids = [int(x) for x in ids_raw.split(',') if x.strip().isdigit()]
+    if not ids:
+        flash('Marque ao menos um produto (coluna "Exportar") antes de exportar.', 'erro')
+        return redirect(url_for('estoque'))
+    conn = get_db(); cur = conn.cursor()
+    hoje = hoje_app()
+    cur.execute("SELECT * FROM estoque WHERE id = ANY(%s) ORDER BY codigo", (ids,))
+    itens = [dict(i) for i in cur.fetchall()]
+    cur.execute("SELECT estoque_id, COALESCE(SUM(quantidade),0) as total FROM estoque_entradas "
+                "WHERE estoque_id = ANY(%s) GROUP BY estoque_id", (ids,))
+    entradas_map = {r['estoque_id']: int(r['total']) for r in cur.fetchall()}
+    cur.close(); close_db(conn)
+    if not itens:
+        flash('Nenhum dos produtos marcados foi encontrado.', 'erro')
+        return redirect(url_for('estoque'))
+
+    wb = _montar_wb_estoque(itens, entradas_map, hoje)
+    xlsx_buf = io.BytesIO()
+    wb.save(xlsx_buf)
+    xlsx_buf.seek(0)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('dados_selecionados.xlsx', xlsx_buf.read())
+        usados = set()
+        sem_foto = []
+        for item in itens:
+            decoded = _foto_bytes_ext(item.get('foto'))
+            if not decoded:
+                sem_foto.append(item.get('codigo') or f"id{item['id']}")
+                continue
+            dados, ext = decoded
+            nome = item.get('codigo') or f"id{item['id']}"
+            sufixo = 1
+            nome_final = nome
+            while nome_final in usados:
+                sufixo += 1
+                nome_final = f"{nome}_{sufixo}"
+            usados.add(nome_final)
+            zf.writestr(f"fotos/{nome_final}.{ext}", dados)
+        if sem_foto:
+            zf.writestr('_avisos.txt', 'Códigos sem foto cadastrada:\n' + '\n'.join(sem_foto))
+    buf.seek(0)
+    nome_arquivo = f"estoque_selecionados_{hoje.strftime('%Y%m%d')}.zip"
+    return send_file(buf, as_attachment=True, download_name=nome_arquivo, mimetype='application/zip')
 
 
 def register(app):
@@ -383,6 +544,8 @@ def register(app):
     app.add_url_rule('/estoque/etiqueta-busca', 'etiqueta_busca', etiqueta_busca)
     app.add_url_rule('/estoque/promocao', 'aplicar_promocao', aplicar_promocao, methods=['POST'])
     app.add_url_rule('/estoque/exportar', 'exportar_estoque', exportar_estoque)
+    app.add_url_rule('/estoque/exportar-fotos', 'exportar_fotos_estoque', exportar_fotos_estoque, methods=['GET', 'POST'])
+    app.add_url_rule('/estoque/exportar-selecionados', 'exportar_selecionados_estoque', exportar_selecionados_estoque, methods=['POST'])
     app.add_url_rule('/estoque/<int:eid>', 'ficha_estoque', ficha_estoque)
     app.add_url_rule('/estoque/<int:eid>/editar', 'editar_estoque', editar_estoque, methods=['GET', 'POST'])
     app.add_url_rule('/estoque/<int:eid>/excluir', 'excluir_estoque', excluir_estoque, methods=['POST'])

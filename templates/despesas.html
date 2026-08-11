@@ -7,24 +7,7 @@
 .table th.sortable::after{content:' ⇅';font-size:10px;color:#ccc}
 .table th.sortable.asc::after{content:' ↑';color:#1a1a2e}
 .table th.sortable.desc::after{content:' ↓';color:#1a1a2e}
-.desp-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-@media(max-width:700px){.desp-charts{grid-template-columns:1fr}}
-.chart-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:18px 20px;box-shadow:0 4px 14px rgba(0,0,0,.05)}
 .chart-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#aaa;margin-bottom:16px}
-.donut2{position:relative;width:140px;height:140px;border-radius:50%;flex-shrink:0}
-.donut2 .hole{position:absolute;inset:20px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px #f4f4f8}
-.donut2 .hole b{font-size:20px;font-weight:800;color:#1a1a2e;line-height:1}
-.donut2 .hole small{font-size:8.5px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
-.donut3{position:relative;width:74px;height:74px;border-radius:50%;flex-shrink:0}
-.donut3 .hole3{position:absolute;inset:11px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px #f4f4f8}
-.donut3 .hole3 b{font-size:13px;font-weight:800;color:#1a1a2e}
-.tri-wrap{display:flex;justify-content:space-around;gap:10px;flex-wrap:wrap}
-.tri-mes{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:92px;flex:1}
-.donut-legend{display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
-.leg-item{display:flex;align-items:center;gap:8px;font-size:13px}
-.leg-dot{width:11px;height:11px;border-radius:3px;flex-shrink:0}
-.leg-item .leg-name{color:#555;font-weight:600;flex:1}
-.leg-item .leg-val{font-weight:800;color:#1a1a2e}
 .bar-row{margin-bottom:11px}
 .bar-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
 .bar-top .bn{font-weight:600;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
@@ -66,9 +49,6 @@
 .sit-badge{display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;border-radius:20px}
 .sit-pago{background:#e8f5e9;color:#2e7d32}.sit-pend{background:#fff8e1;color:#f57f17}
 .recorrente-info{font-size:11px;color:#2e7d32;background:#e8f5e9;border-radius:8px;padding:8px 10px;margin-top:8px;font-weight:600}
-.fechamento-grid{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-.fechamento-metric{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:13px;margin-bottom:8px}
-.fechamento-metric b{font-size:15px}
 </style>
 <style>.modal-tall{max-height:90vh;overflow-y:auto}
 /* v140: linhas padronizadas de edição das parcelas/meses no detalhamento */
@@ -108,7 +88,7 @@
       <div class="page-header" style="flex-wrap:wrap;gap:16px">
         <div>
           <div class="page-title">Despesas</div>
-          <div class="page-date">Total no período: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong> · {{ lista|length }} despesa(s)</div>
+          <div class="page-date">Total geral: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong> · {{ lista|length }} despesa(s)</div>
         </div>
         <form method="GET" id="formFiltroDespesas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div>
@@ -128,45 +108,6 @@
           </div>
         </form>
         <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
-      </div>
-
-      <!-- PAINEL DE GRÁFICOS -->
-      {% set pct_mensal = (total_mensal / total * 100) if total > 0 else 0 %}
-      <div class="desp-charts">
-        <!-- FECHAMENTO DO MÊS: PAGAS vs A PAGAR -->
-        <div class="chart-card">
-          <div class="chart-title">Fechamento do mês · Pagas × A pagar</div>
-          {% if despesas_total_mes > 0 %}
-          <div class="fechamento-grid">
-            <div class="donut2" style="background:conic-gradient(#2e7d32 0 {{ despesas_pct_pago }}%,#c62828 {{ despesas_pct_pago }}% 100%)">
-              <div class="hole"><b>{{ "%.0f"|format(despesas_pct_pago) }}%</b><small>pagas</small></div>
-            </div>
-            <div class="donut-legend">
-              <div class="fechamento-metric"><span><span class="leg-dot" style="background:#2e7d32;display:inline-block;margin-right:7px"></span>Pagas</span><b style="color:#2e7d32">{{ moeda(despesas_pagas_mes) }}</b></div>
-              <div class="fechamento-metric"><span><span class="leg-dot" style="background:#c62828;display:inline-block;margin-right:7px"></span>A pagar</span><b style="color:#c62828">{{ moeda(despesas_abertas_mes) }}</b></div>
-              <div class="fechamento-metric" style="border-top:1px solid #f0f0f5;padding-top:9px"><span>Total do período</span><b style="color:#1a1a2e">{{ moeda(despesas_total_mes) }}</b></div>
-            </div>
-          </div>
-          {% else %}<div class="chart-empty">Nenhuma despesa com vencimento no período.</div>{% endif %}
-        </div>
-
-        <!-- DONUT: MENSAL vs AVULSA -->
-        <div class="chart-card">
-          <div class="chart-title">Despesa mensal × avulsa</div>
-          {% if total > 0 %}
-          <div style="display:flex;align-items:center;gap:20px">
-            <div class="donut2" style="background:conic-gradient(#3949ab 0 {{ pct_mensal }}%,#e65100 {{ pct_mensal }}% 100%)">
-              <div class="hole"><b>{{ "%.0f"|format(pct_mensal) }}%</b><small>mensal</small></div>
-            </div>
-            <div class="donut-legend">
-              <div class="leg-item"><span class="leg-dot" style="background:#3949ab"></span><span class="leg-name">Mensal ({{ qtd_mensal }})</span><span class="leg-val">{{ moeda(total_mensal) }}</span></div>
-              <div class="leg-item"><span class="leg-dot" style="background:#e65100"></span><span class="leg-name">Avulsa ({{ qtd_avulsa }})</span><span class="leg-val">{{ moeda(total_avulsa) }}</span></div>
-              <div class="leg-item" style="border-top:1px solid #f0f0f5;padding-top:9px"><span class="leg-dot" style="background:#1a1a2e"></span><span class="leg-name">Total</span><span class="leg-val">{{ moeda(total) }}</span></div>
-            </div>
-          </div>
-          {% else %}<div class="chart-empty">Nenhuma despesa no período.</div>{% endif %}
-        </div>
-
       </div>
 
       <!-- CONTAS DO PERÍODO: A PAGAR E PAGAS -->
@@ -247,24 +188,24 @@
         <table class="table">
           <thead><tr>
             <th class="sortable" onclick="sortDesp(this,0)">Cód</th>
-            <th class="sortable" onclick="sortDesp(this,1)">Vencimento</th>
+            <th class="sortable" onclick="sortDesp(this,1)">Tipo</th>
+            <th class="sortable" onclick="sortDesp(this,2)">Categoria</th>
+            <th class="sortable" onclick="sortDesp(this,3)">Descrição</th>
+            <th class="sortable" onclick="sortDesp(this,4)">Vencimento</th>
             <th>REF</th>
-            <th class="sortable" onclick="sortDesp(this,3)">Categoria</th>
-            <th class="sortable" onclick="sortDesp(this,4)">Descrição</th>
-            <th class="sortable" onclick="sortDesp(this,5)">Tipo</th>
-            <th class="sortable" onclick="sortDesp(this,6)">Situação</th>
-            <th>Forma</th><th>Origem</th>
-            <th class="sortable" onclick="sortDesp(this,9)">Valor</th>
+            <th class="sortable" onclick="sortDesp(this,6)">Valor</th>
+            <th class="sortable" onclick="sortDesp(this,7)">Situação</th>
           </tr></thead>
           <tbody>
             {% for d in lista %}
             <tr style="cursor:pointer" onclick="abrirDetalheDespesa({{ d.id }})" title="Ver detalhamento">
               <td><span style="font-size:11px;font-weight:700;color:#e65100;background:#fff3e0;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ d.codigo }}</span></td>
-              <td data-sv="{{ d.data_vencimento.strftime('%Y%m%d') if d.data_vencimento else '' }}">{{ d.data_vencimento.strftime('%d/%m/%Y') if d.data_vencimento else '—' }}</td>
-              <td style="font-size:11px;color:#888;font-weight:600">{{ d.referencia.strftime('%m/%Y') if d.referencia else '—' }}</td>
+              <td><span class="bdg-tipo {% if d.tipo == 'mensal' %}bdg-mensal{% else %}bdg-avulsa{% endif %}">{{ d.tipo }}</span></td>
               <td style="font-weight:600;color:#3949ab">{{ d.categoria or '—' }}</td>
               <td style="color:#3949ab">{{ d.descricao or '—' }}</td>
-              <td><span class="bdg-tipo {% if d.tipo == 'mensal' %}bdg-mensal{% else %}bdg-avulsa{% endif %}">{{ d.tipo }}</span></td>
+              <td data-sv="{{ d.data_vencimento.strftime('%Y%m%d') if d.data_vencimento else '' }}">{{ d.data_vencimento.strftime('%d/%m/%Y') if d.data_vencimento else '—' }}</td>
+              <td style="font-size:11px;color:#888;font-weight:600">{{ d.referencia.strftime('%m/%Y') if d.referencia else '—' }}</td>
+              <td data-sv="{{ d.valor|float }}" style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
               <td>
                 {% if d.parcelado %}
                   <span class="sit-badge {% if d.parc_pagas == d.num_parcelas %}sit-pago{% else %}sit-pend{% endif %}">{{ d.parc_pagas }}/{{ d.num_parcelas }} pagas</span>
@@ -274,12 +215,9 @@
                   <span class="sit-badge sit-pago">Pago</span>
                 {% endif %}
               </td>
-              <td>{{ d.forma_pagamento or '—' }}</td>
-              <td>{% if d.local_retirada == 'caixa' %}🏦 Caixa{% elif d.local_retirada == 'pix' %}⚡ PIX{% else %}—{% endif %}</td>
-              <td data-sv="{{ d.valor|float }}" style="font-weight:700;color:#c62828">R$ {{ "{:,.2f}".format(d.valor|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="10" class="empty-row">Nenhuma despesa neste período.</td></tr>
+            <tr><td colspan="8" class="empty-row">Nenhuma despesa cadastrada.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -330,46 +268,47 @@
         </div>
       </div>
 
-      <!-- 5. PARCELAMENTO -->
-      <div class="step-sep"><span class="stn">5</span> Tem parcelamento?</div>
-      <div class="seg">
-        <label class="seg-opt sel" id="parcNao" onclick="selParc('nao')"><input type="radio" name="parc_opt" value="nao" checked>Não</label>
-        <label class="seg-opt" id="parcSim" onclick="selParc('sim')"><input type="radio" name="parc_opt" value="sim">Sim</label>
-      </div>
-      <div id="secVencUnico" style="margin-top:12px">
-        <div class="form-field" id="vencUnicoWrap" style="margin:0">
-          <label class="form-label">Data de vencimento *</label>
-          <input class="form-input" type="date" name="data_vencimento_unica" id="vencUnico" style="width:200px">
-          <div style="font-size:11px;color:#aaa;margin-top:4px">Entra como conta a pagar e só sai do caixa quando você marcar como paga.</div>
-        </div>
-        <div class="step-sep" style="margin-top:16px"><span class="stn">6</span> É uma despesa recorrente?</div>
-        <input type="hidden" name="recorrente" id="recorrenteHidden" value="nao">
-        <div class="seg">
-          <label class="seg-opt sel" id="recNao" onclick="selRecorrente('nao')"><input type="radio" name="rec_opt" value="nao" checked>Não</label>
-          <label class="seg-opt" id="recSim" onclick="selRecorrente('sim')"><input type="radio" name="rec_opt" value="sim">Sim</label>
-        </div>
-        <div class="parc-box" id="recGridBox" style="display:none;margin-top:12px">
+      <!-- 5. MENSAL: grade dos 12 meses (sempre recorrente, sem pergunta extra) -->
+      <div id="secMensal" style="margin-top:12px">
+        <div class="step-sep"><span class="stn">5</span> Vencimento dos 12 meses</div>
+        <div class="parc-box" id="recGridBox">
           <div class="parc-head"><span>Mês</span><span>Vencimento</span><span>REF (competência)</span></div>
           <div id="recRows"></div>
         </div>
-        <div id="recGridHint" class="recorrente-info" style="display:none">
+        <div class="recorrente-info">
           Ajuste o vencimento do 1º mês — os demais 11 seguem automaticamente no mesmo dia (ajustando para meses mais curtos). REF é o mês a que a despesa se refere (ex.: aluguel que vence 10/10 mas é referente a 08/2026) — vem preenchido igual ao mês do vencimento; edite só se for diferente.
         </div>
       </div>
-      <div id="secParcelas" style="display:none;margin-top:12px">
-        <div class="form-field" style="margin:0 0 10px">
-          <label class="form-label">Quantidade de parcelas (máx. 24x)</label>
-          <select class="form-input" name="num_parcelas" id="numParc" style="cursor:pointer;width:160px" onchange="gerarParcelasDesp()">
-            <option value="">Selecione...</option>
-            {% for i in range(2,25) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
-          </select>
+
+      <!-- 5. AVULSA: parcelamento (só se aplica à Avulsa) -->
+      <div id="secAvulsa" style="display:none;margin-top:12px">
+        <div class="step-sep"><span class="stn">5</span> Tem parcelamento?</div>
+        <div class="seg">
+          <label class="seg-opt sel" id="parcNao" onclick="selParc('nao')"><input type="radio" name="parc_opt" value="nao" checked>Não</label>
+          <label class="seg-opt" id="parcSim" onclick="selParc('sim')"><input type="radio" name="parc_opt" value="sim">Sim</label>
         </div>
-        <div class="parc-box" id="parcBox" style="display:none">
-          <div class="parc-head"><span>#</span><span>Vencimento</span><span>Valor (R$)</span></div>
-          <div id="parcRows"></div>
-          <div class="parc-conf"><span style="color:#888">Soma das parcelas</span><span id="parcSoma" style="color:#e65100">R$ 0,00</span></div>
+        <div id="secVencUnico" style="margin-top:12px">
+          <div class="form-field" style="margin:0">
+            <label class="form-label">Data de vencimento *</label>
+            <input class="form-input" type="date" name="data_vencimento_unica" id="vencUnico" style="width:200px">
+            <div style="font-size:11px;color:#aaa;margin-top:4px">Entra como conta a pagar e só sai do caixa quando você marcar como paga.</div>
+          </div>
         </div>
-        <div style="font-size:11px;color:#aaa;margin-top:6px">Vencimentos sugeridos a cada 30 dias (30/60/90…). Edite as datas e valores se precisar. As parcelas só entram no caixa quando você marcar como pagas.</div>
+        <div id="secParcelas" style="display:none;margin-top:12px">
+          <div class="form-field" style="margin:0 0 10px">
+            <label class="form-label">Quantidade de parcelas (máx. 24x)</label>
+            <select class="form-input" name="num_parcelas" id="numParc" style="cursor:pointer;width:160px" onchange="gerarParcelasDesp()">
+              <option value="">Selecione...</option>
+              {% for i in range(2,25) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
+            </select>
+          </div>
+          <div class="parc-box" id="parcBox" style="display:none">
+            <div class="parc-head"><span>#</span><span>Vencimento</span><span>Valor (R$)</span></div>
+            <div id="parcRows"></div>
+            <div class="parc-conf"><span style="color:#888">Soma das parcelas</span><span id="parcSoma" style="color:#e65100">R$ 0,00</span></div>
+          </div>
+          <div style="font-size:11px;color:#aaa;margin-top:6px">Vencimentos sugeridos a cada 30 dias (30/60/90…). Edite as datas e valores se precisar. As parcelas só entram no caixa quando você marcar como pagas.</div>
+        </div>
       </div>
 
       <div class="recorrente-info" style="background:#f8f8fc;color:#777">
@@ -1039,13 +978,23 @@ function abrirEditarDespesa(btn){
 }
 </script>
 <script>
-(function(){ var vu=document.getElementById('vencUnico'); if(vu) vu.value = localISODate(new Date()); })();
+(function(){ var vu=document.getElementById('vencUnico'); if(vu) vu.value = localISODate(new Date()); initRecGrid(); })();
 
+/* v143: tipo define direto o comportamento — Mensal sempre recorrente (grade dos 12
+   meses), Avulsa é quem pergunta parcelamento. Sem pergunta extra de "é recorrente?". */
 function selTipo(t){
   const f=document.getElementById('optMensal'), a=document.getElementById('optAvulsa');
   f.classList.remove('sel-mensal'); a.classList.remove('sel-avulsa');
-  if(t==='mensal'){ f.classList.add('sel-mensal'); f.querySelector('input').checked=true; }
-  else { a.classList.add('sel-avulsa'); a.querySelector('input').checked=true; }
+  if(t==='mensal'){
+    f.classList.add('sel-mensal'); f.querySelector('input').checked=true;
+    document.getElementById('secMensal').style.display='block';
+    document.getElementById('secAvulsa').style.display='none';
+    initRecGrid();
+  } else {
+    a.classList.add('sel-avulsa'); a.querySelector('input').checked=true;
+    document.getElementById('secMensal').style.display='none';
+    document.getElementById('secAvulsa').style.display='block';
+  }
 }
 
 function selParc(v){
@@ -1055,37 +1004,16 @@ function selParc(v){
   if(v==='sim'){ sim.classList.add('sel'); sim.querySelector('input').checked=true;
     document.getElementById('secParcelas').style.display='block';
     document.getElementById('secVencUnico').style.display='none';
-    selRecorrente('nao');
     gerarParcelasDesp(); }
   else { nao.classList.add('sel'); nao.querySelector('input').checked=true;
     document.getElementById('secParcelas').style.display='none';
     document.getElementById('secVencUnico').style.display='block'; }
 }
 
-function selRecorrente(v){
-  const nao=document.getElementById('recNao'), sim=document.getElementById('recSim');
-  const hidden=document.getElementById('recorrenteHidden');
-  if(!nao || !sim || !hidden) return;
-  nao.classList.remove('sel'); sim.classList.remove('sel');
-  hidden.value = v;
-  if(v==='sim'){
-    sim.classList.add('sel'); sim.querySelector('input').checked=true;
-    document.getElementById('vencUnicoWrap').style.display='none';
-    document.getElementById('recGridBox').style.display='block';
-    document.getElementById('recGridHint').style.display='block';
-    initRecGrid();
-  } else {
-    nao.classList.add('sel'); nao.querySelector('input').checked=true;
-    document.getElementById('vencUnicoWrap').style.display='block';
-    document.getElementById('recGridBox').style.display='none';
-    document.getElementById('recGridHint').style.display='none';
-  }
-}
-
-/* ── v143: grade dos 12 meses da despesa RECORRENTE (vencimento em cascata + REF) ── */
+/* ── v143: grade dos 12 meses da despesa MENSAL (vencimento em cascata + REF) ── */
 let recRows = [];
 function initRecGrid(){
-  const base = document.getElementById('vencUnico').value || localISODate(new Date());
+  const base = localISODate(new Date());
   recRows = [];
   for(let i=0;i<12;i++){
     const d = i===0 ? base : addMeses(base, i);
@@ -1202,6 +1130,11 @@ function validarDespesa(){
   if(!cat){ alert('⚠️ Selecione ou cadastre a categoria.'); return false; }
   const val=parseMoedaD(document.getElementById('valorDesp').value);
   if(val<=0){ alert('⚠️ Informe o valor total da despesa.'); return false; }
+  const tipoSel = document.querySelector('input[name="tipo"]:checked').value;
+  if(tipoSel === 'mensal'){
+    if(recRows.some(r=>!r.data)){ alert('⚠️ Preencha o vencimento dos 12 meses.'); return false; }
+    return confirm('Confirmar despesa mensal? O sistema vai gerar 12 contas a pagar mensais em aberto, do mês '+recRows[0].data.split('-').reverse().slice(1).join('/')+' ao '+recRows[11].data.split('-').reverse().slice(1).join('/')+'.');
+  }
   if(document.getElementById('parceladoHidden').value==='sim'){
     const n=parseInt(document.getElementById('numParc').value)||0;
     if(n<2){ alert('⚠️ Selecione a quantidade de parcelas (mínimo 2x).'); return false; }
@@ -1210,10 +1143,6 @@ function validarDespesa(){
     if(Math.abs(soma-val)>0.05){
       if(!confirm('A soma das parcelas ('+brl(soma)+') é diferente do valor total ('+brl(val)+'). Deseja continuar mesmo assim?')) return false;
     }
-  }
-  if(document.getElementById('parceladoHidden').value!=='sim' && document.getElementById('recorrenteHidden') && document.getElementById('recorrenteHidden').value==='sim'){
-    if(recRows.some(r=>!r.data)){ alert('⚠️ Preencha o vencimento dos 12 meses.'); return false; }
-    return confirm('Confirmar despesa recorrente? O sistema vai gerar 12 contas a pagar mensais em aberto, do mês '+recRows[0].data.split('-').reverse().slice(1).join('/')+' ao '+recRows[11].data.split('-').reverse().slice(1).join('/')+'.');
   }
   return true;
 }

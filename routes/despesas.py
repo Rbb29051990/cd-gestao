@@ -125,46 +125,32 @@ def despesas():
     except: data_inicio = hoje.strftime('%Y-01-01')
     try: date.fromisoformat(data_fim)
     except: data_fim = hoje.strftime('%Y-%m-%d')
-    # v115: o período da aba Despesas é sempre baseado no VENCIMENTO DAS PARCELAS.
-    # Isso evita somar o valor total de uma despesa parcelada/recorrente dentro de um único mês.
-    # Ex.: empréstimo de 18x R$ 750 aparece no mês como R$ 750, e não como R$ 13.500.
+    # v143: a tabela principal mostra TODOS os registros (não filtra por período) —
+    # o filtro de data acima passa a valer só para os cards de Contas a pagar/Contas pagas.
     cur.execute("""SELECT d.*,
-                          COALESCE(SUM(p.valor),0) AS valor_periodo,
-                          MIN(p.data_vencimento) AS vencimento_periodo,
-                          MIN(p.referencia) AS referencia_periodo,
-                          COUNT(p.id) AS parcelas_periodo
+                          COALESCE(SUM(p.valor),0) AS valor_calc,
+                          MIN(p.data_vencimento) AS vencimento_calc,
+                          MIN(p.referencia) AS referencia_calc,
+                          COUNT(p.id) AS parcelas_calc
                    FROM despesas d
                    JOIN despesa_parcelas p ON p.despesa_id=d.id
-                   WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
                    GROUP BY d.id
-                   ORDER BY MIN(p.data_vencimento) DESC, d.id DESC""", (data_inicio, data_fim))
+                   ORDER BY MIN(p.data_vencimento) DESC, d.id DESC""")
     lista = [dict(d) for d in cur.fetchall()]
-    # Carregar parcelas de cada despesa para status; o valor exibido/contabilizado é somente o valor vencido no período.
+    def _norm_tipo(t):
+        # v143: 'mensal' é o nome atual do tipo; 'fixa'/'fixo' ficam como sinônimo legado.
+        return 'mensal' if (t or '').strip().lower() in ('mensal', 'fixa', 'fixo') else 'avulsa'
     for d in lista:
         cur.execute("SELECT * FROM despesa_parcelas WHERE despesa_id=%s ORDER BY numero", (d['id'],))
         d['parcelas'] = [dict(p) for p in cur.fetchall()]
         d['parc_pagas'] = sum(1 for p in d['parcelas'] if p['pago'])
         d['valor_total_original'] = d.get('valor')
-        d['valor'] = float(d.get('valor_periodo') or 0)
-        if not d.get('data_vencimento') and d.get('vencimento_periodo'):
-            d['data_vencimento'] = d.get('vencimento_periodo')
-        d['referencia'] = d.get('referencia_periodo')
-    cur.execute("""SELECT COALESCE(SUM(valor),0) as t
-                   FROM despesa_parcelas
-                   WHERE DATE(data_vencimento) BETWEEN %s AND %s""", (data_inicio, data_fim))
-    total = float(cur.fetchone()['t'])
-    # Fechamento mensal: parcelas/despesas do período por vencimento.
-    # Verde = pagas; vermelho = em aberto/a pagar.
-    cur.execute("""SELECT
-                    COALESCE(SUM(CASE WHEN pago=TRUE THEN valor ELSE 0 END),0) AS pagas,
-                    COALESCE(SUM(CASE WHEN pago=FALSE THEN valor ELSE 0 END),0) AS abertas
-                   FROM despesa_parcelas
-                   WHERE DATE(data_vencimento) BETWEEN %s AND %s""", (data_inicio, data_fim))
-    fm = cur.fetchone()
-    despesas_pagas_mes = round(float(fm['pagas'] or 0), 2)
-    despesas_abertas_mes = round(float(fm['abertas'] or 0), 2)
-    despesas_total_mes = round(despesas_pagas_mes + despesas_abertas_mes, 2)
-    despesas_pct_pago = round((despesas_pagas_mes / despesas_total_mes * 100), 1) if despesas_total_mes else 0
+        d['valor'] = float(d.get('valor_calc') or 0)
+        if not d.get('data_vencimento') and d.get('vencimento_calc'):
+            d['data_vencimento'] = d.get('vencimento_calc')
+        d['referencia'] = d.get('referencia_calc')
+        d['tipo'] = _norm_tipo(d.get('tipo'))
+    total = round(sum(float(d['valor'] or 0) for d in lista), 2)
     cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)), 0) as m FROM despesas WHERE codigo ~ '^D[0-9]+$'")
     n = cur.fetchone()['m']
     # Categorias para o cadastro (ordenadas)
@@ -196,65 +182,12 @@ def despesas():
                    ORDER BY p.data_pagamento DESC, d.id DESC, p.numero DESC""", (data_inicio, data_fim))
     pagas_periodo = [dict(r) for r in cur.fetchall()]
     total_pagas_periodo = round(sum(float(p['valor'] or 0) for p in pagas_periodo), 2)
-    # ── 3 pizzas: Mensal × Avulsa dos 3 meses ANTERIORES ao mês atual (independe do filtro) ──
-    MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
-                'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-    def _add_months(y, mth, delta):
-        idx = (y * 12 + (mth - 1)) + delta
-        return idx // 12, idx % 12 + 1
-    tri_meses = []
-    for back in (3, 2, 1):
-        yy, mm = _add_months(hoje.year, hoje.month, -back)
-        ini_m = date(yy, mm, 1)
-        ny, nm = _add_months(yy, mm, 1)
-        fim_m = date(ny, nm, 1) - timedelta(days=1)
-        cur.execute("""SELECT LOWER(COALESCE(d.tipo,'')) as tp, COALESCE(SUM(p.valor),0) as t
-                       FROM despesa_parcelas p
-                       JOIN despesas d ON d.id=p.despesa_id
-                       WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
-                       GROUP BY LOWER(COALESCE(d.tipo,''))""", (ini_m, fim_m))
-        fx = av = 0.0
-        for r in cur.fetchall():
-            # v143: 'fixa'/'fixo' aceitos como sinônimo legado (dado antigo já gravado antes do rename).
-            if (r['tp'] or '') in ('mensal', 'fixa', 'fixo'): fx += float(r['t'])
-            else: av += float(r['t'])
-        tot_m = round(fx + av, 2)
-        tri_meses.append({'label': f"{MESES_PT[mm-1]}/{yy}", 'mensal': round(fx, 2),
-                          'avulsa': round(av, 2), 'total': tot_m,
-                          'pct_mensal': round(fx / tot_m * 100, 1) if tot_m else 0})
     cur.close(); close_db(conn)
-    # ── Agregações para gráficos (mensal vs avulsa + descrições + categorias) ──
-    def _norm_tipo(t):
-        return 'mensal' if (t or '').strip().lower() in ('mensal', 'fixa', 'fixo') else 'avulsa'
-    total_mensal = total_avulsa = 0.0
-    qtd_mensal = qtd_avulsa = 0
-    cat_mensal, cat_avulsa = {}, {}
-    for d in lista:
-        v = float(d['valor'] or 0)
-        tp = _norm_tipo(d.get('tipo'))
-        d['tipo'] = tp  # normaliza para o template
-        chave = (d.get('categoria') or d.get('descricao') or '—').strip() or '—'
-        if tp == 'mensal':
-            total_mensal += v; qtd_mensal += 1
-            cat_mensal[chave] = cat_mensal.get(chave, 0.0) + v
-        else:
-            total_avulsa += v; qtd_avulsa += 1
-            cat_avulsa[chave] = cat_avulsa.get(chave, 0.0) + v
-    def _ranked(dic):
-        itens = sorted(dic.items(), key=lambda kv: kv[1], reverse=True)
-        return [{'descricao': k, 'valor': round(v, 2)} for k, v in itens]
-    desc_mensal_list = _ranked(cat_mensal)
-    desc_avulsa_list = _ranked(cat_avulsa)
     ctx = get_ctx()
     ctx.update(lista=lista, total=total, data_inicio=data_inicio, data_fim=data_fim, next_cod=f"D{n+1}",
-               total_mensal=round(total_mensal, 2), total_avulsa=round(total_avulsa, 2),
-               qtd_mensal=qtd_mensal, qtd_avulsa=qtd_avulsa,
-               desc_mensal=desc_mensal_list, desc_avulsa=desc_avulsa_list, tri_meses=tri_meses,
                categorias=categorias, a_pagar=a_pagar, total_a_pagar=total_a_pagar,
                pagas_periodo=pagas_periodo, total_pagas_periodo=total_pagas_periodo,
-               n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas,
-               despesas_pagas_mes=despesas_pagas_mes, despesas_abertas_mes=despesas_abertas_mes,
-               despesas_total_mes=despesas_total_mes, despesas_pct_pago=despesas_pct_pago)
+               n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas)
     return render_template('despesas.html', **ctx)
 
 
@@ -272,21 +205,27 @@ def nova_despesa():
     if tipo not in ('mensal', 'avulsa'): tipo = 'avulsa'
     local_ret = None
     obs_ret = None
-    parcelado = request.form.get('parcelado', 'nao').strip().lower() == 'sim'
-    # Regra de negócio: despesa parcelada tem início e fim; portanto não é recorrente.
-    recorrente = (not parcelado) and (request.form.get('recorrente', 'nao').strip().lower() == 'sim')
-    try:
-        num_parc = int(request.form.get('num_parcelas', '1') or 1)
-    except ValueError:
+    # v143: Mensal é sempre recorrente (gera as 12 contas mensais); parcelamento
+    # só existe para Avulsa — o tipo já define o comportamento, sem pergunta extra.
+    if tipo == 'mensal':
+        recorrente = True
+        parcelado = False
         num_parc = 1
-    if not parcelado or num_parc < 2:
-        parcelado = False; num_parc = 1
-    num_parc = min(max(num_parc, 1), 24)
-    if parcelado:
+        venc_unico = hoje_app().isoformat()
+        venc_base = hoje_app()
+    else:
         recorrente = False
-    # Vencimento (despesa sem parcelamento = 1 conta a pagar; recorrente gera 12 contas)
-    venc_unico = request.form.get('data_vencimento_unica') or hoje_app().isoformat()
-    venc_base = _parse_iso_date(venc_unico, hoje_app())
+        parcelado = request.form.get('parcelado', 'nao').strip().lower() == 'sim'
+        try:
+            num_parc = int(request.form.get('num_parcelas', '1') or 1)
+        except ValueError:
+            num_parc = 1
+        if not parcelado or num_parc < 2:
+            parcelado = False; num_parc = 1
+        num_parc = min(max(num_parc, 1), 24)
+        # Vencimento da conta a pagar única (avulsa sem parcelamento)
+        venc_unico = request.form.get('data_vencimento_unica') or hoje_app().isoformat()
+        venc_base = _parse_iso_date(venc_unico, hoje_app())
     # Rótulo da despesa para histórico (categoria + descrição livre)
     rotulo = categoria or descricao or 'Despesa'
     if categoria and descricao:

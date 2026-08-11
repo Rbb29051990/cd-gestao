@@ -92,8 +92,9 @@ def visao_geral():
         val_condicional = round(float(rc['v']), 2); n_condicional = int(rc['n'])
     except: val_condicional = 0.0; n_condicional = 0
     # Despesas do período pelo VENCIMENTO das parcelas (valores que SERÃO pagos
-    # dentro do período selecionado), separadas em fixas e avulsas — mesmo
-    # critério da aba Despesas (d.tipo = 'fixa'/'fixo' → fixa; o resto → avulsa).
+    # dentro do período selecionado), separadas em mensais e avulsas — mesmo
+    # critério da aba Despesas (d.tipo = 'mensal' → mensal; 'fixa'/'fixo' → sinônimo
+    # legado; o resto → avulsa).
     despesas_fixas = despesas_avulsas = 0.0
     try:
         cur.execute("""SELECT LOWER(COALESCE(d.tipo,'')) as tp, COALESCE(SUM(p.valor),0) as t
@@ -102,7 +103,7 @@ def visao_geral():
                        WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
                        GROUP BY LOWER(COALESCE(d.tipo,''))""", (data_inicio, data_fim))
         for r in cur.fetchall():
-            if (r['tp'] or '') in ('fixa', 'fixo'): despesas_fixas += float(r['t'])
+            if (r['tp'] or '') in ('mensal', 'fixa', 'fixo'): despesas_fixas += float(r['t'])
             else: despesas_avulsas += float(r['t'])
     except Exception:
         pass

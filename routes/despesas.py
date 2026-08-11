@@ -1,4 +1,4 @@
-"""Rotas de Despesas: listagem com período e gráficos (fixa×avulsa, categorias,
+"""Rotas de Despesas: listagem com período e gráficos (mensal×avulsa, categorias,
 formas), novo lançamento passo a passo (parcelado ou conta a pagar única),
 pagamento de parcela (lança saída no caixa) e exclusão (só N1)."""
 from datetime import datetime, date, timedelta
@@ -85,7 +85,7 @@ def _add_novos_vencimentos(cur, did, grupo):
         tpl = dict(tpl_row) if tpl_row else {}
         categoria = tpl.get('categoria') or request.form.get('categoria', '').strip() or None
         descricao = tpl.get('descricao') or request.form.get('descricao', '').strip() or None
-        tipo = tpl.get('tipo') or 'fixa'
+        tipo = tpl.get('tipo') or 'mensal'
         obs = tpl.get('obs_retirada')
         rec_total = tpl.get('recorrencia_total')
         rec_base = tpl.get('recorrencia_base')
@@ -131,6 +131,7 @@ def despesas():
     cur.execute("""SELECT d.*,
                           COALESCE(SUM(p.valor),0) AS valor_periodo,
                           MIN(p.data_vencimento) AS vencimento_periodo,
+                          MIN(p.referencia) AS referencia_periodo,
                           COUNT(p.id) AS parcelas_periodo
                    FROM despesas d
                    JOIN despesa_parcelas p ON p.despesa_id=d.id
@@ -147,6 +148,7 @@ def despesas():
         d['valor'] = float(d.get('valor_periodo') or 0)
         if not d.get('data_vencimento') and d.get('vencimento_periodo'):
             d['data_vencimento'] = d.get('vencimento_periodo')
+        d['referencia'] = d.get('referencia_periodo')
     cur.execute("""SELECT COALESCE(SUM(valor),0) as t
                    FROM despesa_parcelas
                    WHERE DATE(data_vencimento) BETWEEN %s AND %s""", (data_inicio, data_fim))
@@ -169,7 +171,7 @@ def despesas():
     cur.execute("SELECT nome FROM despesa_categorias WHERE ativo=TRUE ORDER BY nome")
     categorias = [r['nome'] for r in cur.fetchall()]
     # Contas a pagar (parcelas pendentes do período filtrado)
-    cur.execute("""SELECT p.id as parcela_id, p.numero, p.valor, p.data_vencimento,
+    cur.execute("""SELECT p.id as parcela_id, p.numero, p.valor, p.data_vencimento, p.referencia,
                           d.id as despesa_id, d.codigo, d.descricao, d.categoria,
                           d.forma_pagamento, d.local_retirada, d.num_parcelas
                    FROM despesa_parcelas p JOIN despesas d ON d.id=p.despesa_id
@@ -184,7 +186,7 @@ def despesas():
 
     # v116: contas pagas do período ao lado das pendentes.
     # Base: data_pagamento dentro do período filtrado, para o fechamento financeiro real.
-    cur.execute("""SELECT p.id as parcela_id, p.numero, p.valor, p.data_vencimento, p.data_pagamento,
+    cur.execute("""SELECT p.id as parcela_id, p.numero, p.valor, p.data_vencimento, p.data_pagamento, p.referencia,
                           p.forma_pagamento as forma_pagamento_parcela, p.obs_pagamento,
                           d.id as despesa_id, d.codigo, d.descricao, d.categoria,
                           d.forma_pagamento, d.local_retirada, d.num_parcelas
@@ -194,7 +196,7 @@ def despesas():
                    ORDER BY p.data_pagamento DESC, d.id DESC, p.numero DESC""", (data_inicio, data_fim))
     pagas_periodo = [dict(r) for r in cur.fetchall()]
     total_pagas_periodo = round(sum(float(p['valor'] or 0) for p in pagas_periodo), 2)
-    # ── 3 pizzas: Fixa × Avulsa dos 3 meses ANTERIORES ao mês atual (independe do filtro) ──
+    # ── 3 pizzas: Mensal × Avulsa dos 3 meses ANTERIORES ao mês atual (independe do filtro) ──
     MESES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
                 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
     def _add_months(y, mth, delta):
@@ -213,40 +215,41 @@ def despesas():
                        GROUP BY LOWER(COALESCE(d.tipo,''))""", (ini_m, fim_m))
         fx = av = 0.0
         for r in cur.fetchall():
-            if (r['tp'] or '') in ('fixa', 'fixo'): fx += float(r['t'])
+            # v143: 'fixa'/'fixo' aceitos como sinônimo legado (dado antigo já gravado antes do rename).
+            if (r['tp'] or '') in ('mensal', 'fixa', 'fixo'): fx += float(r['t'])
             else: av += float(r['t'])
         tot_m = round(fx + av, 2)
-        tri_meses.append({'label': f"{MESES_PT[mm-1]}/{yy}", 'fixa': round(fx, 2),
+        tri_meses.append({'label': f"{MESES_PT[mm-1]}/{yy}", 'mensal': round(fx, 2),
                           'avulsa': round(av, 2), 'total': tot_m,
-                          'pct_fixa': round(fx / tot_m * 100, 1) if tot_m else 0})
+                          'pct_mensal': round(fx / tot_m * 100, 1) if tot_m else 0})
     cur.close(); close_db(conn)
-    # ── Agregações para gráficos (fixa vs avulsa + descrições + categorias) ──
+    # ── Agregações para gráficos (mensal vs avulsa + descrições + categorias) ──
     def _norm_tipo(t):
-        return 'fixa' if (t or '').strip().lower() in ('fixa', 'fixo') else 'avulsa'
-    total_fixa = total_avulsa = 0.0
-    qtd_fixa = qtd_avulsa = 0
-    cat_fixa, cat_avulsa = {}, {}
+        return 'mensal' if (t or '').strip().lower() in ('mensal', 'fixa', 'fixo') else 'avulsa'
+    total_mensal = total_avulsa = 0.0
+    qtd_mensal = qtd_avulsa = 0
+    cat_mensal, cat_avulsa = {}, {}
     for d in lista:
         v = float(d['valor'] or 0)
         tp = _norm_tipo(d.get('tipo'))
         d['tipo'] = tp  # normaliza para o template
         chave = (d.get('categoria') or d.get('descricao') or '—').strip() or '—'
-        if tp == 'fixa':
-            total_fixa += v; qtd_fixa += 1
-            cat_fixa[chave] = cat_fixa.get(chave, 0.0) + v
+        if tp == 'mensal':
+            total_mensal += v; qtd_mensal += 1
+            cat_mensal[chave] = cat_mensal.get(chave, 0.0) + v
         else:
             total_avulsa += v; qtd_avulsa += 1
             cat_avulsa[chave] = cat_avulsa.get(chave, 0.0) + v
     def _ranked(dic):
         itens = sorted(dic.items(), key=lambda kv: kv[1], reverse=True)
         return [{'descricao': k, 'valor': round(v, 2)} for k, v in itens]
-    desc_fixa_list = _ranked(cat_fixa)
+    desc_mensal_list = _ranked(cat_mensal)
     desc_avulsa_list = _ranked(cat_avulsa)
     ctx = get_ctx()
     ctx.update(lista=lista, total=total, data_inicio=data_inicio, data_fim=data_fim, next_cod=f"D{n+1}",
-               total_fixa=round(total_fixa, 2), total_avulsa=round(total_avulsa, 2),
-               qtd_fixa=qtd_fixa, qtd_avulsa=qtd_avulsa,
-               desc_fixa=desc_fixa_list, desc_avulsa=desc_avulsa_list, tri_meses=tri_meses,
+               total_mensal=round(total_mensal, 2), total_avulsa=round(total_avulsa, 2),
+               qtd_mensal=qtd_mensal, qtd_avulsa=qtd_avulsa,
+               desc_mensal=desc_mensal_list, desc_avulsa=desc_avulsa_list, tri_meses=tri_meses,
                categorias=categorias, a_pagar=a_pagar, total_a_pagar=total_a_pagar,
                pagas_periodo=pagas_periodo, total_pagas_periodo=total_pagas_periodo,
                n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas,
@@ -266,7 +269,7 @@ def nova_despesa():
     # v116: forma/origem/observação são informadas somente no pagamento.
     forma = ''
     tipo = request.form.get('tipo', 'avulsa').strip().lower()
-    if tipo not in ('fixa', 'avulsa'): tipo = 'avulsa'
+    if tipo not in ('mensal', 'avulsa'): tipo = 'avulsa'
     local_ret = None
     obs_ret = None
     parcelado = request.form.get('parcelado', 'nao').strip().lower() == 'sim'
@@ -298,7 +301,12 @@ def nova_despesa():
         if recorrente:
             grupo = 'REC-' + hoje_app().strftime('%Y%m%d') + '-' + secrets.token_hex(4).upper()
             for idx in range(12):
-                venc = _add_months_clamped(venc_base, idx)
+                # v143: vencimento e REF (mês de competência) vêm da grade de 12 meses
+                # preenchida no cadastro; cai para o cálculo automático (+1 mês) se faltar.
+                venc_form = request.form.get(f'rec_data_{idx+1}', '').strip()
+                venc = _parse_iso_date(venc_form, None) if venc_form else _add_months_clamped(venc_base, idx)
+                ref_form = request.form.get(f'rec_ref_{idx+1}', '').strip()
+                referencia = f"{ref_form}-01" if ref_form else None
                 cod = f"D{n+1+idx}"
                 cur.execute("""INSERT INTO despesas
                     (codigo,descricao,categoria,valor,data_despesa,forma_pagamento,tipo,
@@ -310,8 +318,8 @@ def nova_despesa():
                      forma or None, tipo, False, 1, local_ret, obs_ret, status, venc.isoformat(),
                      session['uid'], session['nome'], True, grupo, idx + 1, 12, venc_base.isoformat()))
                 desp_id_mes = cur.fetchone()['id']
-                cur.execute("""INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento)
-                    VALUES (%s,1,%s,%s)""", (desp_id_mes, valor, venc.isoformat()))
+                cur.execute("""INSERT INTO despesa_parcelas (despesa_id,numero,valor,data_vencimento,referencia)
+                    VALUES (%s,1,%s,%s,%s)""", (desp_id_mes, valor, venc.isoformat(), referencia))
             flash('Despesa recorrente registrada! Foram geradas 12 contas a pagar mensais em aberto.', 'ok')
         else:
             data_venc_desp = None if parcelado else venc_unico
@@ -419,7 +427,7 @@ def editar_despesa(did):
         descricao = request.form.get('descricao', '').strip()
         forma = request.form.get('forma_pagamento', '').strip()
         tipo = request.form.get('tipo', 'avulsa').strip().lower()
-        if tipo not in ('fixa', 'avulsa'): tipo = 'avulsa'
+        if tipo not in ('mensal', 'avulsa'): tipo = 'avulsa'
         local_ret = request.form.get('local_retirada', '').strip().lower()
         if local_ret not in ('caixa', 'pix'): local_ret = None
         obs_ret = request.form.get('obs_retirada', '').strip() or None
@@ -454,7 +462,7 @@ def editar_despesa(did):
 def detalhe_despesa(did):
     """JSON com tudo da despesa + parcelas — usado no detalhamento (clique na linha).
 
-    v140: se a despesa for RECORRENTE (fixa que gerou 12 contas mensais no mesmo grupo),
+    v140: se a despesa for RECORRENTE (mensal que gerou 12 contas mensais no mesmo grupo),
     o detalhamento agrega TODAS as contas do grupo em uma única tela. Cada mês vira uma
     "parcela" editável (valor/vencimento), evitando ter de abrir mês a mês. Para despesas
     parceladas/únicas mantém o comportamento anterior (as parcelas da própria despesa)."""
@@ -482,6 +490,7 @@ def detalhe_despesa(did):
             out_parc.append({
                 'id': p['id'], 'despesa_id': p['dp_id'], 'numero': i, 'rotulo_mes': rot,
                 'valor': float(p['valor'] or 0), 'data_vencimento': ds(p.get('data_vencimento')),
+                'referencia': ds(p.get('referencia')),
                 'pago': bool(p['pago']), 'data_pagamento': ds(p.get('data_pagamento')),
                 'forma_pagamento': p.get('forma_pagamento'), 'obs_pagamento': p.get('obs_pagamento'),
             })
@@ -490,8 +499,8 @@ def detalhe_despesa(did):
         parcelas = [dict(p) for p in cur.fetchall()]
         out_parc = [{
             'id': p['id'], 'despesa_id': did, 'numero': p['numero'], 'valor': float(p['valor'] or 0),
-            'data_vencimento': ds(p.get('data_vencimento')), 'pago': bool(p['pago']),
-            'data_pagamento': ds(p.get('data_pagamento')),
+            'data_vencimento': ds(p.get('data_vencimento')), 'referencia': ds(p.get('referencia')),
+            'pago': bool(p['pago']), 'data_pagamento': ds(p.get('data_pagamento')),
             'forma_pagamento': p.get('forma_pagamento'), 'obs_pagamento': p.get('obs_pagamento'),
         } for p in parcelas]
     total_geral = round(sum(p['valor'] for p in out_parc), 2) if grupo else float(d.get('valor') or 0)
@@ -524,7 +533,7 @@ def salvar_despesa(did):
         categoria = request.form.get('categoria', '').strip()
         descricao = request.form.get('descricao', '').strip()
         tipo = request.form.get('tipo', 'avulsa').strip().lower()
-        if tipo not in ('fixa', 'avulsa'): tipo = 'avulsa'
+        if tipo not in ('mensal', 'avulsa'): tipo = 'avulsa'
         obs = request.form.get('obs_retirada', '').strip() or None
         if categoria:
             cur.execute("INSERT INTO despesa_categorias (nome) VALUES (%s) ON CONFLICT (nome) DO NOTHING", (categoria,))

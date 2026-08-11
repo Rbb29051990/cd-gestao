@@ -14,7 +14,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v142'})
+        return jsonify({'status': 'ok', 'version': 'v143'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -162,7 +162,9 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v142 — 2026-07-02</b><br>
+    Versão: <b style='color:green'>v143 — 2026-08-11</b><br>
+    v143: Despesas — cadastro de despesa RECORRENTE (renomeada de "Fixa" para "Mensal") ganhou a grade dos 12 meses já no lançamento: informe o vencimento do 1º mês e os outros 11 se ajustam automaticamente (mesmo dia, com o clamp de sempre para meses mais curtos), com um campo REF por mês para marcar a que competência aquele mês se refere (ex.: aluguel que vence 10/10 mas é REF 08/2026). A REF aparece na tabela, nos cards de contas a pagar/pagas e no detalhamento. ✅<br>
+    v143: Despesas — o tipo "Fixa" passou a se chamar "Mensal" (mesmo conceito) em todo o sistema: cadastro, tabela, gráficos, Dashboard e Visão Geral. Dados já lançados como "Fixa" são migrados automaticamente para "Mensal". ✅<br>
     v142: Estoque — botão "📤 Exportar dados" gera um arquivo .xlsx para download com todos os produtos do período filtrado (mesmo filtro da tela: data de lançamento), incluindo código, modelo, saldo, entradas/saídas, custo, valor de venda, promoção vigente e totais do saldo (custo × venda). Cabeçalho fixo, filtro automático e colunas formatadas. ✅<br>
     v142: Consolidação de versão — pasta renumerada de v141 para v142 para manter o padrão de numeração sequencial (sem mudança funcional em relação à v141). ✅<br>
     v141: Vendas — DESCONTO agora disponível em QUALQUER forma de pagamento (antes só pix/dinheiro) — inclusive crediário, pensado para liquidações. No crediário, a entrada/saldo/parcelas passam a ser calculados sobre o valor JÁ com desconto (antes ignorava). ✅<br>

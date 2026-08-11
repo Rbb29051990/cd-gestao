@@ -1,4 +1,9 @@
-# CD Gestão Empresarial — v142
+# CD Gestão Empresarial — v143
+
+## Novidades da v143
+
+- **Despesas — grade de 12 meses no lançamento recorrente**: ao cadastrar uma despesa recorrente (Mensal), aparece direto no formulário a grade dos 12 meses. Informe o vencimento do 1º mês e os outros 11 se ajustam automaticamente (mesmo dia, com o clamp de sempre para meses mais curtos). Cada mês tem um campo **REF (competência)**, editável individualmente, pra marcar a que mês a despesa se refere quando for diferente do vencimento (ex.: aluguel que vence 10/10 mas é REF 08/2026). A REF aparece na tabela de despesas, nos cards de contas a pagar/pagas e no detalhamento.
+- **Tipo de despesa "Fixa" renomeado para "Mensal"** (mesmo conceito, nome mais claro) — refletido no cadastro, tabela, gráficos, Dashboard e Visão Geral. Dados já lançados como "Fixa" são migrados automaticamente para "Mensal" na primeira execução.
 
 ## Novidades da v142
 

@@ -252,6 +252,12 @@ def init_db():
         "ALTER TABLE ajustes_financeiros ADD COLUMN IF NOT EXISTS usuario_nome VARCHAR(200)",
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS forma_pagamento VARCHAR(50)",
         "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS obs_pagamento TEXT",
+        # v143: REF (mês de competência) de cada mês/parcela — diferencia o mês em que a
+        # despesa venceu do mês a que ela se refere (ex.: aluguel vence 10/10 mas é REF 08/2026).
+        "ALTER TABLE despesa_parcelas ADD COLUMN IF NOT EXISTS referencia DATE",
+        # v143: renomeia o tipo de despesa "Fixa" para "Mensal" (mesmo conceito, nome mais
+        # claro). Migra os dados já gravados; idempotente (não faz nada depois da 1ª vez).
+        "UPDATE despesas SET tipo='mensal' WHERE tipo='fixa'",
         "ALTER TABLE crediarios ADD COLUMN IF NOT EXISTS observacao TEXT",
         "ALTER TABLE caixa ADD COLUMN IF NOT EXISTS parcelas INTEGER",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS desconto_promo NUMERIC(5,2) DEFAULT 0",

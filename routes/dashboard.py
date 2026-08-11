@@ -1,10 +1,10 @@
-"""Dashboard Executivo V142 — layout moderno em uma página só (estende base.html).
+"""Dashboard Executivo V143 — layout moderno em uma página só (estende base.html).
 
 Estrutura:
   • Cabeçalho com período e comparação
   • 7 KPIs com ícone, valor, comparação com o período anterior e barra de saúde
   • Gráficos: faturamento bruto/líquido (barras com rótulo + eixo), despesas
-    fixas × avulsas e evolução do lucro (linhas com rótulo), taxas por forma (donut)
+    mensais × avulsas e evolução do lucro (linhas com rótulo), taxas por forma (donut)
   • Top categorias, ranking de vendedoras, estoque parado, top clientes
   • Alertas inteligentes no rodapé
 """
@@ -161,7 +161,8 @@ def dashboard_view():
                            WHERE DATE(p.data_vencimento) BETWEEN %s AND %s
                            GROUP BY LOWER(COALESCE(d.tipo,''))""", (ini, fim))
             for r in cur.fetchall():
-                if (r['tp'] or '') in ('fixa', 'fixo'):
+                # v143: 'mensal' é o nome atual do tipo; 'fixa'/'fixo' ficam como sinônimo legado.
+                if (r['tp'] or '') in ('mensal', 'fixa', 'fixo'):
                     fixas += float(r['total'] or 0)
                 else:
                     avulsas += float(r['total'] or 0)
@@ -256,7 +257,7 @@ def dashboard_view():
             if i is None:
                 continue
             v = float(r['v'] or 0)
-            if (r['tp'] or '') in ('fixa', 'fixo'):
+            if (r['tp'] or '') in ('mensal', 'fixa', 'fixo'):
                 agg[i]['fixas'] += v
             else:
                 agg[i]['avulsas'] += v

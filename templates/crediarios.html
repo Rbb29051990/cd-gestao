@@ -256,6 +256,10 @@
     <form method="POST" id="formPagamento">
       <input type="hidden" name="pagamentos" id="pagCredJson" value="[]">
       <div class="form-field">
+        <label class="form-label">Data do recebimento</label>
+        <input class="form-input" type="date" name="data_pagamento" id="dataPagCred" required>
+      </div>
+      <div class="form-field">
         <label class="form-label">Vendedor (a)</label>
         <select name="vendedora_nome" class="form-input" style="cursor:pointer">
           {% for v in vendedoras %}<option>{{ v.nome }}</option>{% endfor %}
@@ -660,6 +664,7 @@ function abrirCorrigirForma(cid, pid, valor){
 function abrirPagamento(cid, pid, data, valor){
   document.getElementById('subPagamento').textContent = 'Parcela com vencimento em '+data+' — valor original: R$ '+parseFloat(valor).toFixed(2).replace('.',',');
   document.getElementById('valorPago').value = parseFloat(valor).toFixed(2);
+  document.getElementById('dataPagCred').value = localISODate(new Date());
   document.getElementById('formPagamento').action = '/crediarios/'+cid+'/parcela/'+pid+'/pagar';
   document.getElementById('formaPgCred').value = 'dinheiro';
   document.getElementById('secParcelasCred').style.display = 'none';

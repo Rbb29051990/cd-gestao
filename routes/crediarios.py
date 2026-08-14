@@ -125,11 +125,17 @@ def pagar_parcela(cid, pid):
     if forma_pg == 'credito_parcelado':
         try: parcelas_caixa = int(request.form.get('parcelas_cartao', 0) or 0) or None
         except ValueError: parcelas_caixa = None
+    # v143: data do recebimento agora vem do form (antes era sempre CURRENT_DATE) —
+    # o caixa passa a refletir a data informada, não a data em que foi digitado.
+    try:
+        data_pagamento = date_type.fromisoformat(request.form.get('data_pagamento', ''))
+    except ValueError:
+        data_pagamento = hoje_app()
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM crediarios WHERE id=%s", (cid,))
         cred = dict(cur.fetchone())
-        cur.execute("UPDATE crediario_parcelas SET pago=TRUE,valor=%s,data_pagamento=CURRENT_DATE WHERE id=%s", (valor_pago, pid))
+        cur.execute("UPDATE crediario_parcelas SET pago=TRUE,valor=%s,data_pagamento=%s WHERE id=%s", (valor_pago, data_pagamento, pid))
         novo_saldo = round(float(cred['saldo_devedor']) - valor_pago, 2)
         if novo_saldo <= 0.01:
             cur.execute("DELETE FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE", (cid,))
@@ -161,11 +167,11 @@ def pagar_parcela(cid, pid):
             if abs(soma - round(valor_pago, 2)) > 0.02:
                 raise ValueError(f'A soma das formas (R$ {soma:.2f}) não bate com o valor recebido (R$ {valor_pago:.2f}).')
             registrar_pagamentos_caixa(cur, pagamentos, f"Crediário - {cred['cliente_nome']}",
-                crediario_id=cid, parcela_id=pid, vendedora_nome=vendedora_nome)
+                crediario_id=cid, parcela_id=pid, vendedora_nome=vendedora_nome, criado_em=data_pagamento)
         else:
             descr = f"Crediário - {cred['cliente_nome']} ({forma_pg.replace('_',' ')})"
-            cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,parcela_id,vendedora_nome,parcelas) VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)",
-                (descr, valor_pago, forma_pg, cid, pid, vendedora_nome, parcelas_caixa))
+            cur.execute("INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,crediario_id,parcela_id,vendedora_nome,parcelas,criado_em) VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)",
+                (descr, valor_pago, forma_pg, cid, pid, vendedora_nome, parcelas_caixa, data_pagamento))
         conn.commit(); flash('Pagamento registrado!', 'ok')
     except Exception as e: conn.rollback(); flash(str(e), 'erro')
     finally: cur.close(); close_db(conn)

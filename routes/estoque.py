@@ -7,7 +7,7 @@ import io
 import os
 import zipfile
 from datetime import date, datetime
-from flask import render_template, request, redirect, url_for, flash, jsonify, send_file, session
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_file, session, Response
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
@@ -311,6 +311,26 @@ def etiqueta_busca():
 
 
 @login_required
+def foto_estoque(eid):
+    """v143: serve a foto do produto como imagem própria (não mais embutida em
+    base64 direto no HTML) — permite o navegador cachear, em vez de baixar de novo
+    a cada visita à página. Cache longo + cache-busting via ?v={{ item.foto_v }},
+    que só muda quando a foto é trocada/removida em editar_estoque()."""
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT foto FROM estoque WHERE id=%s", (eid,))
+    row = cur.fetchone(); cur.close(); close_db(conn)
+    foto = row['foto'] if row else None
+    decoded = _foto_bytes_ext(foto) if foto else None
+    if not decoded:
+        return ('', 404)
+    dados, ext = decoded
+    mime = 'image/jpeg' if ext == 'jpg' else f'image/{ext}'
+    resp = Response(dados, mimetype=mime)
+    resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return resp
+
+
+@login_required
 def ficha_estoque(eid):
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM estoque WHERE id=%s", (eid,))
@@ -339,8 +359,12 @@ def editar_estoque(eid):
         # Só mexe na foto se o usuário trocou/removeu (senão preserva a existente).
         if request.form.get('foto_alterada') == '1':
             foto = request.form.get('foto', '').strip() or None
+            # Segurança: só aceita data URI de imagem e limita o tamanho (~1.5MB de base64)
+            if foto and (not foto.startswith('data:image/') or len(foto) > 1_500_000):
+                foto = None
+            # foto_v muda pra invalidar o cache do navegador na foto nova (ver foto_estoque()).
             cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
-                custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s,foto=%s WHERE id=%s""",
+                custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s,foto=%s,foto_v=foto_v+1 WHERE id=%s""",
                 campos + (foto, eid))
         else:
             cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
@@ -668,6 +692,7 @@ def register(app):
     app.add_url_rule('/estoque/exportar', 'exportar_estoque', exportar_estoque)
     app.add_url_rule('/estoque/exportar-fotos', 'exportar_fotos_estoque', exportar_fotos_estoque, methods=['GET', 'POST'])
     app.add_url_rule('/estoque/importar', 'importar_estoque', importar_estoque, methods=['GET', 'POST'])
+    app.add_url_rule('/estoque/<int:eid>/foto', 'foto_estoque', foto_estoque)
     app.add_url_rule('/estoque/<int:eid>', 'ficha_estoque', ficha_estoque)
     app.add_url_rule('/estoque/<int:eid>/editar', 'editar_estoque', editar_estoque, methods=['GET', 'POST'])
     app.add_url_rule('/estoque/<int:eid>/excluir', 'excluir_estoque', excluir_estoque, methods=['POST'])

@@ -240,6 +240,12 @@ def init_db():
         # v143: quem cadastrou o produto — aparece na exportação (.xlsx) como "Cadastrado por".
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS usuario_id INTEGER",
         "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS usuario_nome VARCHAR(200)",
+        # v143: versão da foto — muda só quando a foto é trocada/removida, usada como
+        # cache-busting na URL da imagem (permite cache agressivo no navegador sem
+        # servir foto desatualizada depois de uma edição). Reduz MUITO a banda do
+        # Render: antes a foto ia embutida em base64 dentro do HTML (baixava de novo
+        # a cada visita à página); agora é uma imagem própria, cacheável.
+        "ALTER TABLE estoque ADD COLUMN IF NOT EXISTS foto_v INTEGER DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS markup NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE estoque_entradas ADD COLUMN IF NOT EXISTS margem_lucro NUMERIC(10,2) DEFAULT 0",
         "ALTER TABLE despesas ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'avulsa'",
@@ -357,7 +363,7 @@ def init_db():
             for cod, nome, senha in [('F1', 'Renan Barcellos', 'renan123'), ('F2', 'Carol Duarte', 'carol123')]:
                 cur.execute("SELECT id FROM usuarios WHERE nome=%s", (nome,))
                 if not cur.fetchone():
-                    perms = 'visao_geral,clientes,vendas,estoque,condicionais,caixa,crediarios,despesas,taxas,dashboards'
+                    perms = 'visao_geral,clientes,vendas,estoque,condicionais,caixa,crediarios,despesas,taxas'
                     cur.execute("INSERT INTO usuarios (codigo,nome,senha_hash,perfil,permissoes) VALUES (%s,%s,%s,'admin_n1',%s)",
                         (cod, nome, generate_password_hash(senha), perms))
             conn.commit()

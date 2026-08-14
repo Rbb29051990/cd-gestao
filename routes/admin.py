@@ -38,7 +38,7 @@ def reset_usuarios():
     try:
         for cod, nome, senha in [('F1', 'Renan Barcellos', 'renan123'), ('F2', 'Carol Duarte', 'carol123')]:
             h = generate_password_hash(senha)
-            perms = 'visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios,dashboards'
+            perms = 'visao_geral,clientes,vendas,estoque,caixa,crediarios,despesas,usuarios'
             cur.execute("SELECT id FROM usuarios WHERE nome=%s OR codigo=%s", (nome, cod))
             u = cur.fetchone()
             if u: cur.execute("UPDATE usuarios SET codigo=%s,senha_hash=%s,perfil='admin_n1',permissoes=%s,ativo=TRUE WHERE id=%s", (cod, h, perms, u['id']))

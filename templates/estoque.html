@@ -185,7 +185,7 @@
                 <td onclick="event.stopPropagation()" style="text-align:center"><input type="checkbox" class="promo-check" value="{{ item.id }}" data-preco="{{ item.valor_venda|float }}" onclick="updatePromoCount()"></td>
                 <td style="padding:4px 8px">
                   {% if item.foto %}
-                  <img src="{{ item.foto }}" onclick="event.stopPropagation();abrirLightbox('{{ item.foto }}')"
+                  <img src="/estoque/{{ item.id }}/foto?v={{ item.foto_v or 0 }}" onclick="event.stopPropagation();abrirLightbox('/estoque/{{ item.id }}/foto?v={{ item.foto_v or 0 }}')"
                        style="width:40px;height:40px;border-radius:8px;object-fit:cover;cursor:zoom-in;display:block"
                        title="Clique para ampliar">
                   {% else %}<span style="color:#ddd;font-size:18px">—</span>{% endif %}

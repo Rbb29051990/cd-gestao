@@ -32,7 +32,6 @@ ABAS = [
     ('crediarios',  'Crediários'),
     ('despesas',    'Despesas'),
     ('taxas',       'Taxas'),
-    ('dashboards',  'Dashboards'),
 ]
 ABAS_DICT = dict(ABAS)
 # Primeiro segmento da URL -> aba
@@ -40,14 +39,13 @@ SEG_ABA = {
     'visao-geral': 'visao_geral', 'clientes': 'clientes', 'estoque': 'estoque', 'consulta': 'consulta',
     'vendas': 'vendas', 'condicionais': 'condicionais', 'caixa': 'caixa', 'ajustes': 'ajustes',
     'crediarios': 'crediarios', 'despesas': 'despesas', 'taxas': 'taxas',
-    'dashboard': 'dashboards', 'usuarios': 'usuarios',
+    'usuarios': 'usuarios',
 }
 # aba -> endpoint (para montar a home dinâmica)
 ABA_ROUTE = {
     'visao_geral': 'visao_geral', 'clientes': 'clientes', 'estoque': 'estoque', 'consulta': 'consulta',
     'vendas': 'vendas', 'condicionais': 'condicionais', 'caixa': 'caixa', 'ajustes': 'ajustes',
     'crediarios': 'crediarios', 'despesas': 'despesas', 'taxas': 'taxas',
-    'dashboards': 'dashboard_view',
 }
 # Endpoints liberados para qualquer logado (helpers e utilitários compartilhados)
 ALLOW_ENDPOINTS = {'index', 'login', 'logout', 'setup', 'reset_usuarios', 'minha_senha',

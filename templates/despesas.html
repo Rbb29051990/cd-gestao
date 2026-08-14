@@ -1008,14 +1008,27 @@ function selParc(v){
     document.getElementById('secVencUnico').style.display='block'; }
 }
 
-/* ── v143: grade dos 12 meses da despesa MENSAL (vencimento em cascata + REF) ── */
+/* ── v143: grade dos 12 meses da despesa MENSAL (vencimento em cascata + REF) ──
+   REF é controlada por um ÚNICO deslocamento (em meses) em relação ao vencimento,
+   aplicado às 12 linhas — não por uma flag independente por linha (isso é que
+   travava a REF de uma linha quando só a data dela era editada). Editar a data
+   SEMPRE recalcula a REF de todas as linhas com o deslocamento atual; editar a
+   REF de qualquer linha redefine esse deslocamento e reaplica nas 12 linhas. */
 let recRows = [];
+let recRefOffset = 0; // em meses: REF = vencimento + recRefOffset
+function refDoVencimento(dataISO){
+  return addMeses(dataISO, recRefOffset).slice(0,7);
+}
+function aplicarRefOffset(){
+  recRows.forEach(r => { r.ref = refDoVencimento(r.data); });
+}
 function initRecGrid(){
   const base = localISODate(new Date());
   recRows = [];
+  recRefOffset = 0;
   for(let i=0;i<12;i++){
     const d = i===0 ? base : addMeses(base, i);
-    recRows.push({data:d, ref:d.slice(0,7), refAuto:true});
+    recRows.push({data:d, ref:d.slice(0,7)});
   }
   renderRecGrid();
 }
@@ -1030,23 +1043,29 @@ function renderRecGrid(){
       + '</div>';
   }).join('');
 }
-/* Mudou o vencimento de um mês → os seguintes seguem em cascata (+1 mês, mesmo dia). */
+/* Mudou o vencimento de um mês → os seguintes seguem em cascata (+1 mês, mesmo dia)
+   e a REF de TODAS as linhas é recalculada com o deslocamento atual. */
 function onRecDataChange(i, val){
   if(!val) return;
   recRows[i].data = val;
-  if(recRows[i].refAuto) recRows[i].ref = val.slice(0,7);
   let prev = val;
   for(let k=i+1;k<recRows.length;k++){
     prev = addMeses(prev, 1);
     recRows[k].data = prev;
-    if(recRows[k].refAuto) recRows[k].ref = prev.slice(0,7);
   }
+  aplicarRefOffset();
   renderRecGrid();
 }
-/* REF editado manualmente → não é mais recalculado automaticamente pela cascata. */
+/* Mudou a REF de uma linha → vira o novo deslocamento padrão (ex.: vence 10/10 mas é
+   referente a 08/2026 = -2 meses) e é reaplicado nas 12 linhas, mantendo o mesmo
+   "atraso" em todas — é assim que uma despesa recorrente costuma se comportar. */
 function onRecRefChange(i, val){
-  recRows[i].ref = val;
-  recRows[i].refAuto = false;
+  if(!val) return;
+  const [vy, vm] = recRows[i].data.slice(0,7).split('-').map(Number);
+  const [ry, rm] = val.split('-').map(Number);
+  recRefOffset = (ry - vy) * 12 + (rm - vm);
+  aplicarRefOffset();
+  renderRecGrid();
 }
 // Popula a grade dos 12 meses já no carregamento da página (Mensal é o tipo padrão).
 // Precisa vir DEPOIS de "let recRows" e das funções acima — chamar isso lá em cima,

@@ -3,6 +3,10 @@
 {% macro moeda(v) %}R$ {{ "{:,.2f}".format(v|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
 {% macro forma_lbl(f, n) %}{% if f=='dinheiro' %}💵 Dinheiro{% elif f=='pix' %}⚡ Pix{% elif f=='debito' %}💳 Débito{% elif f=='credito_vista' %}💳 Crédito à vista{% elif f=='credito_parcelado' %}💳 Crédito parcelado{% if n %} {{ n }}x{% endif %}{% elif f=='link' %}🔗 Link{% else %}{{ f or '—' }}{% endif %}{% endmacro %}
 <style>
+.pos-rel{position:relative}
+.cliente-sugest{position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e0e0e8;border-top:none;border-radius:0 0 8px 8px;z-index:50;max-height:200px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,0.1)}
+.cliente-item{padding:10px 14px;font-size:14px;font-weight:500;color:#333;cursor:pointer;border-bottom:1px solid #f4f4f6}
+.cliente-item:hover{background:#f0f8f2;color:#2e7d32;font-weight:600}
 .cred-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px}
 .kpi-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05);display:flex;align-items:center;gap:14px}
 .kpi-ico{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
@@ -442,7 +446,12 @@
     <form method="POST" action="/crediarios/avulso/novo">
       <div class="form-field">
         <label class="form-label">Cliente *</label>
-        <input class="form-input" type="text" name="cliente_nome" placeholder="Nome do cliente" required autocomplete="off">
+        <div class="pos-rel">
+          <input class="form-input" type="text" id="credBuscaCliente" name="cliente_nome" placeholder="Digite o nome..." required autocomplete="off" oninput="buscarClienteCred(this.value)">
+          <div class="cliente-sugest" id="credClienteSugest" style="display:none"></div>
+        </div>
+        <input type="hidden" name="cliente_id" id="credClienteId">
+        <div style="font-size:11px;color:#aaa;margin-top:4px">Selecione um cliente já cadastrado na lista. Se ele ainda não existir no sistema, pode digitar o nome mesmo assim.</div>
       </div>
       <div class="form-field">
         <label class="form-label">Observação</label>
@@ -489,6 +498,45 @@ function toggleAcc(id) {
     if (arrow) arrow.style.transform = 'rotate(0deg)';
   }
 }
+
+/* ── Cliente (Novo crediário avulso): busca/seleciona, evitando o match por nome
+   exato falhar silenciosamente (era o bug — digitava o nome mas não "puxava" o
+   cliente já cadastrado). Ao selecionar da lista, cliente_id vai junto no form. ── */
+let credClienteTimer;
+function buscarClienteCred(q) {
+  clearTimeout(credClienteTimer);
+  document.getElementById('credClienteId').value = '';
+  const el = document.getElementById('credClienteSugest');
+  if (q.length < 2) { el.style.display = 'none'; return; }
+  credClienteTimer = setTimeout(async () => {
+    const r = await fetch('/crediarios/buscar-cliente?q=' + encodeURIComponent(q));
+    const d = await r.json();
+    el.innerHTML = '';
+    if (!d.clientes || d.clientes.length === 0) {
+      el.innerHTML = '<div class="cliente-item" style="color:#888;cursor:default">Nenhum cliente encontrado — pode digitar o nome mesmo assim (dívida de cliente ainda não cadastrado).</div>';
+    } else {
+      d.clientes.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'cliente-item';
+        div.textContent = c.codigo + ' — ' + c.nome;
+        div.onclick = () => selecionarClienteCred(c);
+        el.appendChild(div);
+      });
+    }
+    el.style.display = 'block';
+  }, 300);
+}
+function selecionarClienteCred(c) {
+  document.getElementById('credBuscaCliente').value = c.nome;
+  document.getElementById('credClienteId').value = c.id;
+  document.getElementById('credClienteSugest').style.display = 'none';
+}
+document.addEventListener('click', function(e){
+  if (!e.target.closest('#modalNovoCredAvulso .pos-rel')) {
+    const el = document.getElementById('credClienteSugest');
+    if (el) el.style.display = 'none';
+  }
+});
 
 function filtrarCred(q) {
   const termo = q.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');

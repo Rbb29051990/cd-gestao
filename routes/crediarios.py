@@ -4,7 +4,7 @@ import math
 import calendar
 from datetime import date as date_type
 from collections import OrderedDict
-from flask import render_template, request, redirect, url_for, flash
+from flask import render_template, request, redirect, url_for, flash, jsonify
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx
@@ -368,6 +368,20 @@ def estornar_parcela(cid, pid):
 
 
 @login_required
+def buscar_cliente_cred():
+    """v143: busca de cliente pro autocomplete do 'Novo crediário'. Rota própria (em
+    vez de reaproveitar /vendas/buscar-cliente) pra não depender da permissão da aba
+    Vendas — um usuário pode ter acesso a Crediários sem ter acesso a Vendas."""
+    q = request.args.get('q', '').strip()
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id,codigo,nome FROM clientes WHERE ativo=TRUE AND (LOWER(nome) LIKE %s OR codigo ILIKE %s) ORDER BY nome LIMIT 8",
+        (f'%{q.lower()}%', f'%{q}%'))
+    lista = [dict(c) for c in cur.fetchall()]
+    cur.close(); close_db(conn)
+    return jsonify({'clientes': lista})
+
+
+@login_required
 def novo_crediario_avulso():
     cliente_nome = request.form.get('cliente_nome', '').strip()
     observacao   = request.form.get('observacao', '').strip()
@@ -392,9 +406,21 @@ def novo_crediario_avulso():
 
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("SELECT id FROM clientes WHERE LOWER(nome)=LOWER(%s) LIMIT 1", (cliente_nome,))
-        row = cur.fetchone()
-        cliente_id = row['id'] if row else None
+        # v143: se o cliente foi escolhido na lista de sugestões, o id vem direto no
+        # form — corrige o bug de não "puxar" o cliente (antes só existia o match por
+        # NOME EXATO, que falhava silenciosamente pra qualquer nome digitado diferente
+        # do cadastrado). Sem seleção (cliente ainda não cadastrado), cai no match antigo.
+        cliente_id_form = request.form.get('cliente_id', '').strip()
+        if cliente_id_form.isdigit():
+            cur.execute("SELECT id, nome FROM clientes WHERE id=%s", (int(cliente_id_form),))
+            row = cur.fetchone()
+            cliente_id = row['id'] if row else None
+            if row:
+                cliente_nome = row['nome']
+        else:
+            cur.execute("SELECT id FROM clientes WHERE LOWER(nome)=LOWER(%s) LIMIT 1", (cliente_nome,))
+            row = cur.fetchone()
+            cliente_id = row['id'] if row else None
 
         cur.execute("""INSERT INTO crediarios
             (venda_id,cliente_id,cliente_nome,valor_total,entrada,saldo_devedor,status,observacao)
@@ -421,6 +447,7 @@ def novo_crediario_avulso():
 
 def register(app):
     app.add_url_rule('/crediarios', 'crediarios', crediarios)
+    app.add_url_rule('/crediarios/buscar-cliente', 'buscar_cliente_cred', buscar_cliente_cred)
     app.add_url_rule('/crediarios/avulso/novo', 'novo_crediario_avulso', novo_crediario_avulso, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/editar', 'editar_crediario', editar_crediario, methods=['POST'])
     app.add_url_rule('/crediarios/<int:cid>/excluir', 'excluir_crediario', excluir_crediario, methods=['POST'])

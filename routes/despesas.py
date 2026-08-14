@@ -219,7 +219,7 @@ def nova_despesa():
             num_parc = 1
         if not parcelado or num_parc < 2:
             parcelado = False; num_parc = 1
-        num_parc = min(max(num_parc, 1), 24)
+        num_parc = min(max(num_parc, 1), 48)
         # Vencimento da conta a pagar única (avulsa sem parcelamento)
         venc_unico = request.form.get('data_vencimento_unica') or hoje_app().isoformat()
         venc_base = _parse_iso_date(venc_unico, hoje_app())

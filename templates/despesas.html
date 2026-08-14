@@ -294,10 +294,10 @@
         </div>
         <div id="secParcelas" style="display:none;margin-top:12px">
           <div class="form-field" style="margin:0 0 10px">
-            <label class="form-label">Quantidade de parcelas (máx. 24x)</label>
+            <label class="form-label">Quantidade de parcelas (máx. 48x)</label>
             <select class="form-input" name="num_parcelas" id="numParc" style="cursor:pointer;width:160px" onchange="gerarParcelasDesp()">
               <option value="">Selecione...</option>
-              {% for i in range(2,25) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
+              {% for i in range(2,49) %}<option value="{{ i }}">{{ i }}x</option>{% endfor %}
             </select>
           </div>
           <div class="parc-box" id="parcBox" style="display:none">
@@ -305,7 +305,7 @@
             <div id="parcRows"></div>
             <div class="parc-conf"><span style="color:#888">Soma das parcelas</span><span id="parcSoma" style="color:#e65100">R$ 0,00</span></div>
           </div>
-          <div style="font-size:11px;color:#aaa;margin-top:6px">Vencimentos sugeridos a cada 30 dias (30/60/90…). Edite as datas e valores se precisar. As parcelas só entram no caixa quando você marcar como pagas.</div>
+          <div style="font-size:11px;color:#aaa;margin-top:6px">Vencimentos sugeridos a cada 30 dias (30/60/90…). Ao mudar a data de uma parcela, as seguintes se ajustam sozinhas (+1 mês, mesmo dia). Edite os valores se precisar. As parcelas só entram no caixa quando você marcar como pagas.</div>
         </div>
       </div>
 
@@ -976,7 +976,7 @@ function abrirEditarDespesa(btn){
 }
 </script>
 <script>
-(function(){ var vu=document.getElementById('vencUnico'); if(vu) vu.value = localISODate(new Date()); initRecGrid(); })();
+(function(){ var vu=document.getElementById('vencUnico'); if(vu) vu.value = localISODate(new Date()); })();
 
 /* v143: tipo define direto o comportamento — Mensal sempre recorrente (grade dos 12
    meses), Avulsa é quem pergunta parcelamento. Sem pergunta extra de "é recorrente?". */
@@ -1048,6 +1048,11 @@ function onRecRefChange(i, val){
   recRows[i].ref = val;
   recRows[i].refAuto = false;
 }
+// Popula a grade dos 12 meses já no carregamento da página (Mensal é o tipo padrão).
+// Precisa vir DEPOIS de "let recRows" e das funções acima — chamar isso lá em cima,
+// antes dessas declarações rodarem, dava ReferenceError (recRows em temporal dead
+// zone) e a grade ficava sem nenhuma linha, só com o cabeçalho.
+initRecGrid();
 
 function selLocal(v){
   const c=document.getElementById('locCaixa'), p=document.getElementById('locPix');
@@ -1096,12 +1101,28 @@ function gerarParcelasDesp(){
     const row=document.createElement('div');
     row.className='parc-row';
     row.innerHTML='<span class="pn">'+i+'</span>'+
-      '<input type="date" name="parcela_data_'+i+'" value="'+dataSug+'">'+
+      '<input type="date" name="parcela_data_'+i+'" value="'+dataSug+'" onchange="onParcelaDataChange(this)">'+
       '<input type="number" step="0.01" min="0" name="parcela_valor_'+i+'" value="'+val.toFixed(2)+'" oninput="somarParcelas()">';
     rows.appendChild(row);
   }
   box.style.display='block';
   document.getElementById('parcSoma').textContent=brl(soma);
+}
+
+/* Mudou o vencimento de uma parcela → as seguintes seguem em cascata (+1 mês, mesmo
+   dia, ajustando pra meses mais curtos) — mesma lógica da grade da despesa Mensal. */
+function onParcelaDataChange(el){
+  if(!el.value) return;
+  const m = el.name.match(/^parcela_data_(\d+)$/);
+  if(!m) return;
+  const idx = parseInt(m[1], 10);
+  const n = parseInt(document.getElementById('numParc').value)||0;
+  let prev = el.value;
+  for(let k=idx+1; k<=n; k++){
+    prev = addMeses(prev, 1);
+    const inp = document.querySelector('[name="parcela_data_'+k+'"]');
+    if(inp) inp.value = prev;
+  }
 }
 
 function somarParcelas(){

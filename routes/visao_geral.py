@@ -26,26 +26,39 @@ def visao_geral():
     formas_com_taxa = ['credito_vista', 'credito_parcelado', 'debito', 'link']
     fat     = {f: 0.0 for f in formas}   # bruto por forma
     fat_liq = {f: 0.0 for f in formas}   # líquido por forma (após taxas de cartão)
+    # v143: fat_total_geral/fat_total_liq_geral somam TODA entrada do caixa no período,
+    # inclusive as que não têm uma forma de pagamento "de venda" conhecida (ex.: Ajuste
+    # de Caixa, forma='transferencia') — antes essas linhas eram puladas (`if f not in
+    # fat: continue`) e ficavam de fora até do "Total em caixa", te dando um saldo menor
+    # que o real da aba Caixa. fat/fat_liq/fat_total continuam só com as formas de venda
+    # conhecidas — servem pros quadrantes de faturamento por forma e % de taxa, que são
+    # sobre a VENDA, não sobre ajustes manuais.
+    fat_total_geral = 0.0
+    fat_total_liq_geral = 0.0
     try:
         cur.execute("""SELECT forma_pagamento, valor, criado_em, parcelas FROM caixa
                        WHERE tipo='entrada' AND DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
         for r in cur.fetchall():
             f = r['forma_pagamento'] or ''
-            if f not in fat: continue   # ignora 'crediario' legado / nulos
             bruto = float(r['valor'] or 0)
-            fat[f] += bruto
             if f in formas_com_taxa:
                 taxa_data = get_taxa_vigente(r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje_app())
                 liq, _d, _p = calcular_liquido(bruto, f, taxa_data, r.get('parcelas'))
-                fat_liq[f] += liq
             else:
-                fat_liq[f] += bruto
+                liq = bruto
+            fat_total_geral += bruto
+            fat_total_liq_geral += liq
+            if f in fat:
+                fat[f] += bruto
+                fat_liq[f] += liq
     except Exception:
         pass
     fat     = {k: round(v, 2) for k, v in fat.items()}
     fat_liq = {k: round(v, 2) for k, v in fat_liq.items()}
     fat_total     = round(sum(fat.values()), 2)
     fat_total_liq = round(sum(fat_liq.values()), 2)
+    fat_total_geral     = round(fat_total_geral, 2)
+    fat_total_liq_geral = round(fat_total_liq_geral, 2)
     # Agrupamentos do faturamento BRUTO para os quadrantes
     fat_dinheiro_pix = round(fat['dinheiro'] + fat['pix'], 2)            # 1º quadrante
     fat_cartao       = round(fat_total - fat_dinheiro_pix, 2)           # 2º (crédito/débito/link)
@@ -122,7 +135,7 @@ def visao_geral():
         saidas_caixa = round(float(cur.fetchone()['s']), 2)
     except Exception:
         saidas_caixa = 0.0
-    saldo_caixa = round(fat_total_liq - saidas_caixa, 2)
+    saldo_caixa = round(fat_total_liq_geral - saidas_caixa, 2)
     # Movimentações recentes (filtradas pelo período)
     try:
         cur.execute("""SELECT id,criado_em,vendedora_nome,cliente_nome,valor_total,forma_pagamento

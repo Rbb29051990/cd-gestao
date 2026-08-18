@@ -35,20 +35,19 @@
 .parc-box{border:1.5px solid #ffe0b2;border-radius:9px;overflow:hidden;margin-top:6px}
 .parc-conf{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f0;font-size:12px;font-weight:700}
 .apagar-pay{padding:7px 13px;background:#e65100;color:#fff;border:none;border-radius:7px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
-.totais-periodo{display:flex;justify-content:center;margin-bottom:20px}
-.totais-periodo-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:460px;width:100%}
-.mg-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:14px 18px;box-shadow:0 3px 12px rgba(0,0,0,.05);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:2px}
-.mg-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:13px 13px 0 0}
+.totais-periodo{display:flex;justify-content:center;margin-bottom:12px}
+.totais-periodo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:340px;width:100%}
+.mg-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;padding:8px 12px;box-shadow:0 2px 8px rgba(0,0,0,.04);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:1px}
+.mg-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:11px 11px 0 0}
 .mg-card.c-laranja::before{background:#e65100}
 .mg-card.c-verde::before{background:#2e7d32}
-.mg-top{display:flex;align-items:center;gap:7px}
-.mg-icon{font-size:16px}
-.mg-label{font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a0a0ad}
-.mg-val{font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;color:#1a1a2e;line-height:1.1}
+.mg-top{display:flex;align-items:center;gap:5px}
+.mg-icon{font-size:12px}
+.mg-label{font-size:8.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#a0a0ad}
+.mg-val{font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:#1a1a2e;line-height:1.1}
 .mg-val.pos{color:#2e7d32}
 .mg-val.neg{color:#c62828}
-.mg-sub{font-size:10px;color:#a0a0ad;margin-top:1px}
-@media(max-width:520px){.totais-periodo-grid{gap:9px}.mg-card{padding:11px 13px}.mg-val{font-size:17px}}
+.mg-sub{font-size:9px;color:#a0a0ad;margin-top:0}
 .pagamento-resumo{background:#f8f8fc;border:1.5px solid #eee;border-radius:10px;padding:12px;margin-bottom:12px}
 .pagamento-resumo b{color:#1a1a2e}
 .sit-badge{display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;border-radius:20px}
@@ -93,7 +92,6 @@
       <div class="page-header" style="flex-wrap:wrap;gap:16px">
         <div>
           <div class="page-title">Despesas</div>
-          <div class="page-date">Total geral: <strong style="color:#c62828">R$ {{ "{:,.2f}".format(total)|replace(",","X")|replace(".",",")|replace("X",".") }}</strong> · {{ lista|length }} conta(s)</div>
         </div>
         <form method="GET" id="formFiltroDespesas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div>
@@ -135,7 +133,7 @@
         <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:300px;font-weight:500" type="text" placeholder="Buscar por descrição, categoria..." oninput="filtrarDesp(this.value)">
       </div>
 
-      <div class="table-wrap" style="max-height:680px;overflow-y:auto">
+      <div class="table-wrap" style="max-height:calc(100vh - 300px);min-height:500px;overflow-y:auto">
         <table class="table">
           <thead><tr>
             <th class="sortable" onclick="sortDesp(this,0)">Cód</th>

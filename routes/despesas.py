@@ -126,14 +126,19 @@ def despesas():
     try: date.fromisoformat(data_fim)
     except: data_fim = hoje.strftime('%Y-%m-%d')
     # v143: a tabela principal mostra UMA LINHA POR PARCELA (não por despesa) — cada
-    # conta a pagar/paga aparece no seu próprio vencimento/valor, sem agregação. Não
-    # filtra por período (o filtro acima vale só para os cards de Contas a pagar/pagas).
+    # conta a pagar/paga aparece no seu próprio vencimento/valor, sem agregação. Segue o
+    # mesmo período do filtro De/Até: pendente entra pelo vencimento, paga pela data do
+    # pagamento — igual ao critério dos cards de Total a pagar/Total pago. Ordena sempre
+    # do vencimento mais próximo para o mais distante.
     cur.execute("""SELECT p.id AS parcela_id, p.numero, p.valor, p.data_vencimento, p.referencia, p.pago,
                           d.id AS despesa_id, d.codigo, d.categoria, d.descricao, d.tipo,
                           d.parcelado, d.num_parcelas
                    FROM despesa_parcelas p
                    JOIN despesas d ON d.id = p.despesa_id
-                   ORDER BY p.data_vencimento DESC, d.id DESC, p.numero DESC""")
+                   WHERE (p.pago = FALSE AND DATE(p.data_vencimento) BETWEEN %s AND %s)
+                      OR (p.pago = TRUE AND DATE(p.data_pagamento) BETWEEN %s AND %s)
+                   ORDER BY p.data_vencimento ASC, d.id ASC, p.numero ASC""",
+                (data_inicio, data_fim, data_inicio, data_fim))
     lista = [dict(r) for r in cur.fetchall()]
     def _norm_tipo(t):
         # v143: 'mensal' é o nome atual do tipo; 'fixa'/'fixo' ficam como sinônimo legado.

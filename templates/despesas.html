@@ -106,7 +106,9 @@
           <div style="display:flex;gap:6px">
             <button type="button" class="filtro-btn" onclick="atalhoDesp('hoje')">Hoje</button>
             <button type="button" class="filtro-btn" onclick="atalhoDesp('semana')">7 dias</button>
-            <button type="button" class="filtro-btn" onclick="atalhoDesp('mes')">Mês</button>
+            <button type="button" class="filtro-btn" onclick="atalhoDesp('mes_passado')">Mês passado</button>
+            <button type="button" class="filtro-btn" onclick="atalhoDesp('mes')">Mês atual</button>
+            <button type="button" class="filtro-btn" onclick="atalhoDesp('mes_proximo')">Próximo mês</button>
           </div>
         </form>
         <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
@@ -1149,6 +1151,8 @@ function atalhoDesp(tipo) {
   if (tipo === 'hoje') ini = fmt(hoje);
   else if (tipo === 'semana') { const d=new Date(hoje); d.setDate(d.getDate()-6); ini=fmt(d); }
   else if (tipo === 'mes') { ini = fmt(hoje).slice(0,7)+'-01'; fim = fmt(new Date(hoje.getFullYear(), hoje.getMonth()+1, 0)); }
+  else if (tipo === 'mes_passado') { const d=new Date(hoje.getFullYear(), hoje.getMonth()-1, 1); ini=fmt(d); fim=fmt(new Date(d.getFullYear(), d.getMonth()+1, 0)); }
+  else if (tipo === 'mes_proximo') { const d=new Date(hoje.getFullYear(), hoje.getMonth()+1, 1); ini=fmt(d); fim=fmt(new Date(d.getFullYear(), d.getMonth()+1, 0)); }
   const form = document.getElementById('formFiltroDespesas');
   form.querySelector('[name=data_inicio]').value = ini;
   form.querySelector('[name=data_fim]').value = fim;

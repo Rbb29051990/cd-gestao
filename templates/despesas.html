@@ -35,9 +35,8 @@
 .parc-box{border:1.5px solid #ffe0b2;border-radius:9px;overflow:hidden;margin-top:6px}
 .parc-conf{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f0;font-size:12px;font-weight:700}
 .apagar-pay{padding:7px 13px;background:#e65100;color:#fff;border:none;border-radius:7px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
-.totais-periodo{display:flex;justify-content:center;margin-bottom:12px}
-.totais-periodo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:340px;width:100%}
-.mg-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;padding:8px 12px;box-shadow:0 2px 8px rgba(0,0,0,.04);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:1px}
+.totais-periodo-grid{display:flex;gap:10px;flex-shrink:0}
+.mg-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:10px;padding:8px 14px;box-shadow:0 2px 8px rgba(0,0,0,.04);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:1px;width:170px;flex-shrink:0}
 .mg-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:11px 11px 0 0}
 .mg-card.c-laranja::before{background:#e65100}
 .mg-card.c-verde::before{background:#2e7d32}
@@ -113,24 +112,21 @@
         <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
       </div>
 
-      <!-- TOTAIS DO PERÍODO: A PAGAR E PAGO (acompanham o filtro De/Até acima) -->
-      <div class="totais-periodo">
+      <!-- TOTAIS DO PERÍODO (acompanham o filtro De/Até acima) + BUSCA, na mesma linha -->
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap">
         <div class="totais-periodo-grid">
-          <div class="mg-card c-laranja">
-            <div class="mg-top"><span class="mg-icon">🗓️</span><span class="mg-label">Total a pagar</span></div>
-            <div class="mg-val neg">{{ moeda(total_a_pagar) }}</div>
-            {% if n_atrasadas > 0 %}<div class="mg-sub" style="color:#c62828;font-weight:700">{{ n_atrasadas }} atrasada(s)</div>{% endif %}
-          </div>
           <div class="mg-card c-verde">
             <div class="mg-top"><span class="mg-icon">✅</span><span class="mg-label">Total pago</span></div>
             <div class="mg-val pos">{{ moeda(total_pagas_periodo) }}</div>
             <div class="mg-sub">No período selecionado</div>
           </div>
+          <div class="mg-card c-laranja">
+            <div class="mg-top"><span class="mg-icon">🗓️</span><span class="mg-label">Total a pagar</span></div>
+            <div class="mg-val neg">{{ moeda(total_a_pagar) }}</div>
+            {% if n_atrasadas > 0 %}<div class="mg-sub" style="color:#c62828;font-weight:700">{{ n_atrasadas }} atrasada(s)</div>{% endif %}
+          </div>
         </div>
-      </div>
-
-      <div style="margin-bottom:12px">
-        <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;width:300px;font-weight:500" type="text" placeholder="Buscar por descrição, categoria..." oninput="filtrarDesp(this.value)">
+        <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;flex:1;min-width:240px;max-width:420px;font-weight:500" type="text" placeholder="Buscar por descrição, categoria..." oninput="filtrarDesp(this.value)">
       </div>
 
       <div class="table-wrap" style="max-height:calc(100vh - 300px);min-height:500px;overflow-y:auto">

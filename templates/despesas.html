@@ -414,13 +414,20 @@
       <div id="detEditHint" style="display:none;font-size:12px;color:#00838f;font-weight:600;margin-bottom:8px">✏️ Editando — ajuste valor e vencimento das parcelas <b>em aberto</b> (renegociação). Parcelas pagas não mudam.</div>
       <div id="detRecHint" style="display:none;font-size:12px;color:#2e7d32;font-weight:600;margin-bottom:8px">✏️ Editando despesa recorrente — ajuste valor e vencimento de <b>cada mês em aberto</b>. Meses já pagos não mudam.</div>
       <!-- v140: aplicar em massa a todos os meses em aberto de uma despesa recorrente -->
-      <div id="detRecBulk" style="display:none;background:#e8f5e9;border:1.5px solid #c8e6c9;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:2.1">
-        <b>Aplicar a todos os meses em aberto:</b><br>
-        novo valor <input type="text" inputmode="numeric" id="bulkValor" placeholder="R$ 0,00" oninput="mascaraMoedaDet(this)" style="width:110px;padding:5px 8px;border:1.5px solid #c8e6c9;border-radius:6px">
-        <button type="button" onclick="aplicarBulkValor()" style="padding:6px 12px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Aplicar valor</button>
-        <span style="color:#aaa">·</span>
-        1º venc. <input type="date" id="bulkData" style="padding:5px 8px;border:1.5px solid #c8e6c9;border-radius:6px">
-        <button type="button" onclick="aplicarBulkData()" style="padding:6px 12px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;cursor:pointer">Aplicar vencimentos (a cada 30 dias)</button>
+      <div id="detRecBulk" style="display:none;background:#e8f5e9;border:1.5px solid #c8e6c9;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:#1a1a2e;margin-bottom:10px">Aplicar a todos os meses em aberto</div>
+        <div style="display:flex;flex-wrap:wrap;gap:12px 24px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px;color:#2e7d32;font-weight:600;white-space:nowrap">Novo valor</span>
+            <input type="text" inputmode="numeric" id="bulkValor" placeholder="R$ 0,00" oninput="mascaraMoedaDet(this)" style="width:110px;padding:7px 10px;border:1.5px solid #c8e6c9;border-radius:6px;font-family:'Outfit',sans-serif;font-size:13px">
+            <button type="button" onclick="aplicarBulkValor()" style="padding:7px 14px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap">Aplicar valor</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:12px;color:#2e7d32;font-weight:600;white-space:nowrap">1º vencimento</span>
+            <input type="date" id="bulkData" style="padding:7px 10px;border:1.5px solid #c8e6c9;border-radius:6px;font-family:'Outfit',sans-serif;font-size:13px">
+            <button type="button" onclick="aplicarBulkData()" style="padding:7px 14px;background:#2e7d32;color:#fff;border:none;border-radius:6px;font-weight:700;font-size:12.5px;cursor:pointer;white-space:nowrap">Aplicar vencimentos (a cada 30 dias)</button>
+          </div>
+        </div>
       </div>
       <!-- v140: painel de renegociação — edita valor total, nº de parcelas, datas e valores -->
       <div id="detReneg" class="reneg-box" style="display:none">

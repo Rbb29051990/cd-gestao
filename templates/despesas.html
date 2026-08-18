@@ -7,7 +7,6 @@
 .table th.sortable::after{content:' ⇅';font-size:10px;color:#ccc}
 .table th.sortable.asc::after{content:' ↑';color:#1a1a2e}
 .table th.sortable.desc::after{content:' ↓';color:#1a1a2e}
-.chart-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#aaa;margin-bottom:16px}
 .bar-row{margin-bottom:11px}
 .bar-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
 .bar-top .bn{font-weight:600;color:#444;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
@@ -15,7 +14,6 @@
 .bar-pct{font-size:11px;color:#aaa;font-weight:700;margin-left:6px}
 .bar-track{height:9px;background:#f0f0f5;border-radius:6px;overflow:hidden}
 .bar-fill{height:100%;border-radius:6px}
-.chart-empty{padding:24px;text-align:center;color:#bbb;font-size:12.5px;font-style:italic}
 .bdg-tipo{display:inline-block;padding:2px 9px;font-size:10px;font-weight:700;border-radius:20px;text-transform:uppercase;letter-spacing:.5px}
 .bdg-mensal{background:#e8eaf6;color:#3949ab}.bdg-avulsa{background:#fff3e0;color:#e65100}
 .tipo-opts{display:flex;gap:10px}
@@ -36,14 +34,21 @@
 .parc-row input{padding:8px 10px;border:1.5px solid #e0e0e8;border-radius:7px;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#1a1a2e;outline:none;background:#fff;width:100%}
 .parc-box{border:1.5px solid #ffe0b2;border-radius:9px;overflow:hidden;margin-top:6px}
 .parc-conf{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#fff8f0;font-size:12px;font-weight:700}
-.financeiro-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;align-items:start}
-.apagar-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:14px;padding:16px 18px;box-shadow:0 4px 14px rgba(0,0,0,.05);margin-bottom:18px;min-width:0}
-.apagar-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;border:1.5px solid #eee;border-radius:9px;margin-bottom:8px}
-.apagar-item.atr{border-color:#f3c0c0;background:#fdf3f3}
-.apagar-item.paga{border-color:#c8e6c9;background:#f6fff7}
-.apagar-desc{font-size:11px;color:#777;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .apagar-pay{padding:7px 13px;background:#e65100;color:#fff;border:none;border-radius:7px;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
-@media(max-width:900px){.financeiro-duo{grid-template-columns:1fr}.apagar-item{align-items:flex-start}.apagar-desc{white-space:normal}}
+.totais-periodo{display:flex;justify-content:center;margin-bottom:20px}
+.totais-periodo-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:460px;width:100%}
+.mg-card{background:#fff;border:1.5px solid #e8e8f0;border-radius:12px;padding:14px 18px;box-shadow:0 3px 12px rgba(0,0,0,.05);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.mg-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:13px 13px 0 0}
+.mg-card.c-laranja::before{background:#e65100}
+.mg-card.c-verde::before{background:#2e7d32}
+.mg-top{display:flex;align-items:center;gap:7px}
+.mg-icon{font-size:16px}
+.mg-label{font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#a0a0ad}
+.mg-val{font-family:'Outfit',sans-serif;font-size:20px;font-weight:700;color:#1a1a2e;line-height:1.1}
+.mg-val.pos{color:#2e7d32}
+.mg-val.neg{color:#c62828}
+.mg-sub{font-size:10px;color:#a0a0ad;margin-top:1px}
+@media(max-width:520px){.totais-periodo-grid{gap:9px}.mg-card{padding:11px 13px}.mg-val{font-size:17px}}
 .pagamento-resumo{background:#f8f8fc;border:1.5px solid #eee;border-radius:10px;padding:12px;margin-bottom:12px}
 .pagamento-resumo b{color:#1a1a2e}
 .sit-badge{display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;border-radius:20px}
@@ -110,73 +115,19 @@
         <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
       </div>
 
-      <!-- CONTAS DO PERÍODO: A PAGAR E PAGAS -->
-      <div class="financeiro-duo">
-        <div class="apagar-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-            <div class="chart-title" style="margin:0">🗓️ Contas a pagar</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <span style="font-size:12px;font-weight:700;color:#e65100">Total: {{ moeda(total_a_pagar) }}</span>
-              {% if n_atrasadas > 0 %}<span style="font-size:12px;font-weight:700;color:#c62828">{{ n_atrasadas }} atrasada(s)</span>{% endif %}
-            </div>
+      <!-- TOTAIS DO PERÍODO: A PAGAR E PAGO (acompanham o filtro De/Até acima) -->
+      <div class="totais-periodo">
+        <div class="totais-periodo-grid">
+          <div class="mg-card c-laranja">
+            <div class="mg-top"><span class="mg-icon">🗓️</span><span class="mg-label">Total a pagar</span></div>
+            <div class="mg-val neg">{{ moeda(total_a_pagar) }}</div>
+            {% if n_atrasadas > 0 %}<div class="mg-sub" style="color:#c62828;font-weight:700">{{ n_atrasadas }} atrasada(s)</div>{% endif %}
           </div>
-          {% if a_pagar %}
-          <div style="max-height:420px;overflow-y:auto;padding-right:4px">
-            {% for p in a_pagar %}
-            <div class="apagar-item {% if p.atrasada %}atr{% endif %}">
-              <div style="min-width:0;flex:1">
-                <div style="font-size:13px;font-weight:700;color:#1a1a2e">{{ p.categoria or 'Despesa' }}
-                  <span style="font-size:11px;font-weight:600;color:#888">· parc. {{ p.numero }}/{{ p.num_parcelas }}</span></div>
-                {% if p.descricao %}<div class="apagar-desc">{{ p.descricao }}</div>{% endif %}
-                <div style="font-size:11px;color:{% if p.atrasada %}#c62828{% else %}#aaa{% endif %};font-weight:600;margin-top:1px">
-                  {{ p.codigo }} · vence {{ p.data_vencimento.strftime('%d/%m/%Y') if p.data_vencimento else '—' }}
-                  {% if p.referencia %}· REF {{ p.referencia.strftime('%m/%Y') }}{% endif %}
-                  {% if p.atrasada %}· ⏰ vencida{% endif %}</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
-                <span style="font-size:14px;font-weight:800;color:#c62828">{{ moeda(p.valor) }}</span>
-                <button type="button" class="apagar-pay"
-                        data-action="/despesas/{{ p.despesa_id }}/parcela/{{ p.parcela_id }}/pagar"
-                        data-titulo="{{ (p.categoria or 'Despesa')|e }}"
-                        data-desc="{{ (p.descricao or '')|e }}"
-                        data-valor="{{ moeda(p.valor)|e }}"
-                        data-venc="{{ p.data_vencimento.strftime('%d/%m/%Y') if p.data_vencimento else '—' }}"
-                        onclick="abrirPagamentoDespesa(this)">✅ Pagar</button>
-              </div>
-            </div>
-            {% endfor %}
+          <div class="mg-card c-verde">
+            <div class="mg-top"><span class="mg-icon">✅</span><span class="mg-label">Total pago</span></div>
+            <div class="mg-val pos">{{ moeda(total_pagas_periodo) }}</div>
+            <div class="mg-sub">No período selecionado</div>
           </div>
-          {% else %}
-            <div class="chart-empty">Nenhuma conta pendente no período.</div>
-          {% endif %}
-        </div>
-
-        <div class="apagar-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-            <div class="chart-title" style="margin:0">✅ Contas pagas</div>
-            <span style="font-size:12px;font-weight:700;color:#2e7d32">Total: {{ moeda(total_pagas_periodo) }}</span>
-          </div>
-          {% if pagas_periodo %}
-          <div style="max-height:420px;overflow-y:auto;padding-right:4px">
-            {% for p in pagas_periodo %}
-            <div class="apagar-item paga">
-              <div style="min-width:0;flex:1">
-                <div style="font-size:13px;font-weight:700;color:#1a1a2e">{{ p.categoria or 'Despesa' }}
-                  <span style="font-size:11px;font-weight:600;color:#888">· parc. {{ p.numero }}/{{ p.num_parcelas }}</span></div>
-                {% if p.descricao %}<div class="apagar-desc">{{ p.descricao }}</div>{% endif %}
-                <div style="font-size:11px;color:#2e7d32;font-weight:600;margin-top:1px">
-                  {{ p.codigo }} · pago em {{ p.data_pagamento.strftime('%d/%m/%Y') if p.data_pagamento else '—' }}
-                  {% if p.referencia %}· REF {{ p.referencia.strftime('%m/%Y') }}{% endif %}
-                  {% if p.forma_pagamento_parcela or p.forma_pagamento %}· {{ p.forma_pagamento_parcela or p.forma_pagamento }}{% endif %}</div>
-                {% if p.obs_pagamento %}<div class="apagar-desc">Obs.: {{ p.obs_pagamento }}</div>{% endif %}
-              </div>
-              <span style="font-size:14px;font-weight:800;color:#2e7d32;flex-shrink:0">{{ moeda(p.valor) }}</span>
-            </div>
-            {% endfor %}
-          </div>
-          {% else %}
-            <div class="chart-empty">Nenhuma conta paga no período.</div>
-          {% endif %}
         </div>
       </div>
 
@@ -195,6 +146,7 @@
             <th>REF</th>
             <th class="sortable" onclick="sortDesp(this,6)">Valor</th>
             <th class="sortable" onclick="sortDesp(this,7)">Situação</th>
+            <th>Ação</th>
           </tr></thead>
           <tbody>
             {% for d in lista %}
@@ -213,9 +165,20 @@
                   <span class="sit-badge sit-pend">A pagar</span>
                 {% endif %}
               </td>
+              <td>
+                {% if not d.pago %}
+                <button type="button" class="apagar-pay"
+                        data-action="/despesas/{{ d.despesa_id }}/parcela/{{ d.parcela_id }}/pagar"
+                        data-titulo="{{ (d.categoria or 'Despesa')|e }}"
+                        data-desc="{{ (d.descricao or '')|e }}"
+                        data-valor="{{ moeda(d.valor)|e }}"
+                        data-venc="{{ d.data_vencimento.strftime('%d/%m/%Y') if d.data_vencimento else '—' }}"
+                        onclick="event.stopPropagation();abrirPagamentoDespesa(this)">✅ Pagar</button>
+                {% endif %}
+              </td>
             </tr>
             {% else %}
-            <tr><td colspan="8" class="empty-row">Nenhuma despesa cadastrada.</td></tr>
+            <tr><td colspan="9" class="empty-row">Nenhuma despesa cadastrada.</td></tr>
             {% endfor %}
           </tbody>
         </table>

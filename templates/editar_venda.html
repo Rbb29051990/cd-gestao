@@ -21,6 +21,17 @@
         <form method="POST" id="formEditarVenda">
           <input type="hidden" name="pagamentos" id="pagamentosJson" value="[]">
 
+          {% if pode_excluir %}
+          <div style="background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;padding:14px 16px;margin-bottom:18px">
+            <div style="font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#e65100;margin-bottom:8px">🔒 Apenas Administrador N1</div>
+            <div class="form-field" style="margin:0;max-width:220px">
+              <span class="form-label">Data da venda</span>
+              <input class="form-input" type="date" name="data_venda" value="{{ venda.criado_em.strftime('%Y-%m-%d') }}">
+            </div>
+            <div style="font-size:11px;color:#a1730f;margin-top:8px">Corrige a data em que a venda realmente ocorreu (lançamento retroativo). O lançamento no Caixa desta venda acompanha essa data. Não afeta parcelas de crediário já pagas.</div>
+          </div>
+          {% endif %}
+
           <div class="section-sep">Informações da venda</div>
           <div class="form-grid">
             <div class="form-field">

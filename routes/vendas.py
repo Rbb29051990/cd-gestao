@@ -1,7 +1,7 @@
 """Rotas de Vendas: listagem com período, nova venda (com baixa de estoque e
 crediário), ficha, exclusão (restaura estoque/caixa), edição, ranking e buscas."""
 import json
-from datetime import date
+from datetime import date, datetime
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from db import get_db, close_db
 from config import agora_app, hoje_app, fim_mes_app
@@ -323,12 +323,35 @@ def editar_venda(vid):
             vrow = dict(cur.fetchone())
             forma_atual = vrow['forma_pagamento']
             valor_final = round(float(vrow['valor_total'] or 0) - float(vrow['desconto'] or 0), 2)
-            cur.execute("""UPDATE vendas SET cliente_nome=%s, vendedora_nome=%s,
-                          forma_pagamento=%s, parcelas=%s WHERE id=%s""",
-                       (cliente_nome, vendedora_nome, forma_pagamento, parcelas, vid))
-            # Reconcilia o caixa à-vista desta venda (preservando a data original do
-            # lançamento). NÃO mexe em vendas de crediário, cuja entrada/parcelas têm
-            # tratamento próprio com a forma de pagamento real.
+
+            # v143: só o Administrador N1 pode corrigir a DATA da venda (lançamento feito
+            # depois, retroativo, quando a vendedora manda por WhatsApp e o master registra
+            # mais tarde). Mantém a HORA original, só troca o dia — e propaga pro(s)
+            # lançamento(s) de caixa da própria venda (à vista/dividido/entrada de
+            # crediário), sem mexer em parcelas de crediário já pagas.
+            criado_em_novo = None
+            if pode_excluir():
+                data_venda_str = request.form.get('data_venda', '').strip()
+                if data_venda_str:
+                    try:
+                        d = date.fromisoformat(data_venda_str)
+                    except ValueError:
+                        raise ValueError('Data da venda inválida.')
+                    hora_orig = vrow['criado_em'].time() if vrow.get('criado_em') else datetime.min.time()
+                    criado_em_novo = datetime.combine(d, hora_orig)
+            criado_em_efetivo = criado_em_novo or vrow.get('criado_em')
+
+            if criado_em_novo:
+                cur.execute("""UPDATE vendas SET cliente_nome=%s, vendedora_nome=%s,
+                              forma_pagamento=%s, parcelas=%s, criado_em=%s WHERE id=%s""",
+                           (cliente_nome, vendedora_nome, forma_pagamento, parcelas, criado_em_novo, vid))
+            else:
+                cur.execute("""UPDATE vendas SET cliente_nome=%s, vendedora_nome=%s,
+                              forma_pagamento=%s, parcelas=%s WHERE id=%s""",
+                           (cliente_nome, vendedora_nome, forma_pagamento, parcelas, vid))
+            # Reconcilia o caixa à-vista desta venda (preservando a data do lançamento —
+            # a original, ou a corrigida pelo master acima). NÃO mexe na forma/valor de
+            # vendas de crediário, cuja entrada/parcelas têm tratamento próprio.
             formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
             if forma_atual != 'crediario' and forma_pagamento != 'crediario':
                 cur.execute("DELETE FROM caixa WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada'", (vid,))
@@ -341,15 +364,21 @@ def editar_venda(vid):
                         raise ValueError(f'A soma das formas (R$ {soma:.2f}) não bate com o valor da venda (R$ {valor_final:.2f}).')
                     registrar_pagamentos_caixa(cur, pagamentos, f"Venda {vrow['codigo']} - {cliente_nome}",
                         venda_id=vid, usuario_id=vrow.get('usuario_id'), vendedora_nome=vendedora_nome,
-                        criado_em=vrow.get('criado_em'))
+                        criado_em=criado_em_efetivo)
                 elif forma_pagamento in formas_a_vista:
                     parcelas_caixa = parcelas if forma_pagamento == 'credito_parcelado' else None
                     cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas,criado_em)
                         VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s,%s)""",
                         (f"Venda {vrow['codigo']} - {cliente_nome}", valor_final, forma_pagamento, vid,
-                         vrow.get('usuario_id'), vendedora_nome, parcelas_caixa, vrow.get('criado_em')))
+                         vrow.get('usuario_id'), vendedora_nome, parcelas_caixa, criado_em_efetivo))
+            elif criado_em_novo:
+                # Crediário: não reconcilia forma/valor aqui — só corrige a data da entrada
+                # (se houve), sem tocar nas parcelas (cada uma já tem sua própria data real).
+                cur.execute("UPDATE caixa SET criado_em=%s WHERE venda_id=%s AND tipo='entrada'", (criado_em_novo, vid))
+
             audit_log(cur, 'ALTERAR_VENDA', 'vendas', vid,
-                      {'forma_pagamento': forma_pagamento, 'cliente': cliente_nome})
+                      {'forma_pagamento': forma_pagamento, 'cliente': cliente_nome,
+                       **({'data_corrigida': criado_em_novo.strftime('%Y-%m-%d')} if criado_em_novo else {})})
             conn.commit()
             flash('Venda atualizada com sucesso!', 'ok')
             return redirect(url_for('ficha_venda', vid=vid))

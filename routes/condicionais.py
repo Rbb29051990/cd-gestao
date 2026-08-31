@@ -8,6 +8,7 @@ from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import parse_brl, parse_pagamentos, registrar_pagamentos_caixa
+from routes.vales import consumir_vale
 
 # Destinos possíveis de uma transferência (as lojas do grupo). Configurável por
 # env LOJAS_TRANSFERENCIA (separado por vírgula); padrão = as duas lojas atuais.
@@ -198,23 +199,49 @@ def gerar_venda_condicional(cid):
                 cur.execute("UPDATE estoque SET quantidade=quantidade+%s, reservado=GREATEST(0,COALESCE(reservado,0)-%s) WHERE id=%s", (devolver, devolver, pid))
             novo = 'vendido' if (k > 0 and devolver == 0) else ('parcial' if k > 0 else 'devolvido')
             cur.execute("UPDATE condicional_itens SET status=%s WHERE id=%s", (novo, it['id']))
+
+        # ── Vale(s) (crédito da loja): abatem do valor da venda ANTES de registrar o
+        # caixa. Mesma regra de Vendas — pode combinar vários, não se aplica ao
+        # crediário. O saldo que sobrar continua no vale. ──
+        vales_ids = []
+        try:
+            vales_ids = [int(x) for x in json.loads(request.form.get('vales_ids', '[]')) if str(x).isdigit()]
+        except Exception:
+            vales_ids = []
+        vale_usado = 0.0
+        if vales_ids and forma != 'crediario':
+            restante = valor_final
+            for vale_id in vales_ids:
+                if restante <= 0.01:
+                    break
+                u = consumir_vale(cur, vale_id, restante, venda_id)
+                restante = round(restante - u, 2)
+                vale_usado = round(vale_usado + u, 2)
+            if vale_usado > 0:
+                cur.execute("UPDATE vendas SET forma_pagamento='multiplo' WHERE id=%s", (venda_id,))
+
         # Caixa / crediário
         formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
         if forma == 'multiplo':
             # Pagamento dividido: cada forma vira uma linha no caixa (com sua taxa).
+            alvo = round(valor_final - vale_usado, 2)   # o que sobra p/ as formas cobrirem
             pagamentos = parse_pagamentos(request.form.get('pagamentos'))
-            if not pagamentos:
-                raise Exception('Pagamento dividido sem formas válidas.')
-            soma = round(sum(p['valor'] for p in pagamentos), 2)
-            if abs(soma - valor_final) > 0.02:
-                raise Exception(f'A soma das formas (R$ {soma:.2f}) não bate com o valor da venda (R$ {valor_final:.2f}).')
-            registrar_pagamentos_caixa(cur, pagamentos, f"Venda {vcod} - {cliente_nome} (condicional {cond['codigo']})",
-                venda_id=venda_id, usuario_id=usuario_id or None, vendedora_nome=vendedora_nome)
+            if alvo > 0.01:
+                if not pagamentos:
+                    raise Exception('Pagamento dividido sem formas válidas.')
+                soma = round(sum(p['valor'] for p in pagamentos), 2)
+                if abs(soma - alvo) > 0.02:
+                    raise Exception(f'A soma das formas (R$ {soma:.2f}) não bate com o valor a pagar (R$ {alvo:.2f}).')
+                registrar_pagamentos_caixa(cur, pagamentos, f"Venda {vcod} - {cliente_nome} (condicional {cond['codigo']})",
+                    venda_id=venda_id, usuario_id=usuario_id or None, vendedora_nome=vendedora_nome)
+            # alvo <= 0: pago integralmente com o vale — nenhuma linha de caixa.
         elif forma in formas_a_vista:
             parcelas_caixa = parcelas if forma == 'credito_parcelado' else None
-            cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas)
-                VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
-                (f"Venda {vcod} - {cliente_nome} (condicional {cond['codigo']})", valor_final, forma, venda_id, usuario_id or None, vendedora_nome, parcelas_caixa))
+            a_receber = round(valor_final - vale_usado, 2)   # já descontado o vale
+            if a_receber > 0.01:
+                cur.execute("""INSERT INTO caixa (descricao,valor,tipo,forma_pagamento,venda_id,usuario_id,vendedora_nome,parcelas)
+                    VALUES (%s,%s,'entrada',%s,%s,%s,%s,%s)""",
+                    (f"Venda {vcod} - {cliente_nome} (condicional {cond['codigo']})", a_receber, forma, venda_id, usuario_id or None, vendedora_nome, parcelas_caixa))
         elif forma == 'crediario':
             entrada = parse_brl(request.form.get('entrada', '0'))
             saldo = round(valor_final - entrada, 2)

@@ -89,6 +89,7 @@
           <input type="hidden" name="forma_pagamento" id="formaPagamento">
           <input type="hidden" name="pagamentos" id="pagamentosJson" value="[]">
           <input type="hidden" name="entrada_pagamentos" id="entradaPagamentosJson" value="[]">
+          <input type="hidden" name="vales_ids" id="valesIds" value="[]">
           {% for it in itens %}
           <div class="it-row">
             <span class="ref-badge">{{ it.codigo_produto }}</span>
@@ -106,6 +107,22 @@
             <span class="total-label">Total da venda</span>
             <span class="total-valor" id="totalVenda">{{ brl(cond.valor_total) }}</span>
           </div>
+
+          {% if cond.tipo == 'condicional' %}
+          <!-- VALE / CRÉDITO DA LOJA -->
+          <div id="valePanel" style="background:#f0faf4;border:1.5px solid #c5e1a5;border-radius:10px;padding:14px 18px;margin:14px 0">
+            <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#2e7d32;margin-bottom:10px">🎟️ Vale / crédito da loja
+              <span style="text-transform:none;letter-spacing:0;color:#9aa;font-weight:600">— pode somar vários vales; o que sobrar fica de saldo</span></div>
+            <div id="valeSugestoes" style="display:none;margin-bottom:10px;font-size:12.5px"></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <input type="text" id="valeCodigo" class="form-input" placeholder="Código do vale (ex.: VL5)" autocomplete="off"
+                     style="max-width:220px" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarValeCodigo();}">
+              <button type="button" onclick="aplicarValeCodigo()" style="padding:9px 16px;background:#2e7d32;color:#fff;border:none;border-radius:8px;font-family:Outfit,sans-serif;font-size:13px;font-weight:700;cursor:pointer">+ Adicionar vale</button>
+            </div>
+            <div id="valeErro" style="display:none;margin-top:8px;color:#c62828;font-size:12.5px;font-weight:700"></div>
+            <div id="valeResumo" style="display:none;margin-top:10px;background:#fff;border:1.5px solid #c8e6c9;border-radius:8px;padding:12px 14px;font-size:13px"></div>
+          </div>
+          {% endif %}
 
           <div class="step-sep">Forma de pagamento</div>
           <div class="pg-opts">
@@ -127,7 +144,7 @@
             <button type="button" id="btnAddSplit" style="margin-top:4px;padding:8px 14px;background:#fff;color:#3949ab;border:1.5px solid #c5cae9;border-radius:6px;font-family:Outfit,sans-serif;font-size:12px;font-weight:700;cursor:pointer">+ Adicionar forma</button>
             <div class="conf-box" style="margin-top:14px">
               <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:13px">
-                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Total da venda</div><div style="font-weight:700" id="splitAlvo">—</div></div>
+                <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px" id="splitAlvoLbl">Total da venda</div><div style="font-weight:700" id="splitAlvo">—</div></div>
                 <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Soma das formas</div><div style="font-weight:700" id="splitSoma">—</div></div>
                 <div><div style="font-size:10px;color:#aaa;font-weight:700;text-transform:uppercase;margin-bottom:4px">Diferença</div><div style="font-weight:700;font-size:15px" id="splitDif">—</div></div>
               </div>
@@ -268,6 +285,114 @@ function recalcTotal(){
   if(document.getElementById('secCrediario').style.display!=='none') calcSaldo();
 }
 
+/* ══════════ VALE / CRÉDITO DA LOJA ══════════
+   O cliente já é fixo (o da condicional) — os vales dele carregam sozinhos. Vários
+   vales podem ser combinados (abatem em ordem, o que sobrar fica de saldo). Vale à
+   vista e no dividido; não se aplica ao crediário. */
+let valesAplicados = [];   // [{id, codigo, saldo}]
+function calcAbatimentos(){
+  let restante = valorFinal();
+  return valesAplicados.map(function(v){
+    const usado = Math.round(Math.max(0, Math.min(v.saldo, restante))*100)/100;
+    restante = Math.round((restante - usado)*100)/100;
+    return {id:v.id, codigo:v.codigo, saldo:v.saldo, usado:usado, sobra:Math.round((v.saldo-usado)*100)/100};
+  });
+}
+function valeAbatido(){ return Math.round(calcAbatimentos().reduce(function(s,a){return s+a.usado;},0)*100)/100; }
+function aPagarLiquido(){ return Math.max(0, Math.round((valorFinal()-valeAbatido())*100)/100); }
+function syncValesHidden(){ const el=document.getElementById('valesIds'); if(el) el.value = JSON.stringify(valesAplicados.map(function(v){return v.id;})); }
+
+async function carregarVales(c){
+  const box = document.getElementById('valeSugestoes');
+  if(box){ box.style.display='none'; box.innerHTML=''; }
+  if(!c || (!c.id && !c.nome)) return;
+  let d; try{
+    const q = c.id ? ('cliente_id='+c.id) : ('nome='+encodeURIComponent(c.nome));
+    d = await (await fetch('/vales/cliente?'+q)).json();
+  }catch(e){ return; }
+  if(!d.vales || !d.vales.length || !box) return;
+  box.innerHTML = '<span style="color:#2e7d32;font-weight:700">Vales deste cliente:</span> '
+    + d.vales.map(function(v){
+        return '<button type="button" onclick="aplicarValeSugestao('+v.id+',\''+v.codigo+'\','+v.saldo+')" '
+             + 'style="margin:2px 4px 2px 0;padding:4px 10px;background:#fff;border:1.5px solid #2e7d32;color:#2e7d32;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer">🎟️ '
+             + v.codigo+' · '+fmt(v.saldo)+'</button>';
+      }).join('');
+  box.style.display='block';
+}
+function aplicarValeSugestao(id, codigo, saldo){ addVale({id:id, codigo:codigo, saldo:saldo}); }
+async function aplicarValeCodigo(){
+  const cod = (document.getElementById('valeCodigo').value||'').trim();
+  const err = document.getElementById('valeErro');
+  err.style.display='none';
+  if(!cod){ err.textContent='Digite o código do vale (ex.: VL5).'; err.style.display='block'; return; }
+  let d; try{ d = await (await fetch('/vales/buscar?codigo='+encodeURIComponent(cod))).json(); }
+  catch(e){ err.textContent='Erro ao buscar o vale. Tente novamente.'; err.style.display='block'; return; }
+  if(!d.ok){ err.textContent = d.erro || 'Vale não encontrado.'; err.style.display='block'; return; }
+  addVale(d.vale);
+}
+function addVale(v){
+  const err = document.getElementById('valeErro');
+  if(valesAplicados.some(function(x){return x.id===v.id;})){
+    if(err){ err.textContent='O vale '+v.codigo+' já foi adicionado.'; err.style.display='block'; }
+    return;
+  }
+  if(document.getElementById('formaPagamento').value==='crediario'){
+    if(err){ err.textContent='O vale não se aplica ao crediário.'; err.style.display='block'; }
+    return;
+  }
+  valesAplicados.push({id:v.id, codigo:v.codigo, saldo:parseFloat(v.saldo)||0});
+  if(err) err.style.display='none';
+  document.getElementById('valeCodigo').value='';
+  syncValesHidden(); renderValeResumo(); atualizarPagamentoAlvos();
+}
+function removerValeItem(id){
+  valesAplicados = valesAplicados.filter(function(v){return v.id!==id;});
+  syncValesHidden(); renderValeResumo(); atualizarPagamentoAlvos();
+}
+function removerVale(){   // limpa TODOS (usado ao escolher crediário)
+  valesAplicados = [];
+  const cod=document.getElementById('valeCodigo'); if(cod) cod.value='';
+  const err=document.getElementById('valeErro'); if(err) err.style.display='none';
+  syncValesHidden(); renderValeResumo(); atualizarPagamentoAlvos();
+}
+function renderValeResumo(){
+  const box = document.getElementById('valeResumo');
+  if(!box) return;
+  if(!valesAplicados.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const ab = calcAbatimentos();
+  const totalAbate = valeAbatido();
+  const apagar = aPagarLiquido();
+  let html = ab.map(function(a){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed #eee">'
+      + '<span>🎟️ <b>'+a.codigo+'</b> · saldo '+fmt(a.saldo)+'</span>'
+      + '<span style="white-space:nowrap"><b style="color:#2e7d32">− '+fmt(a.usado)+'</b>'
+      + (a.sobra>0.005 ? ' <span style="color:#00838f;font-size:12px">(sobra '+fmt(a.sobra)+')</span>' : '')
+      + ' <a onclick="removerValeItem('+a.id+')" style="color:#c62828;cursor:pointer;font-weight:700;margin-left:8px">✕</a></span>'
+      + '</div>';
+  }).join('');
+  html += '<div style="display:flex;justify-content:space-between;margin-top:6px;color:#2e7d32"><span>Total abatido em vales</span><b>− '+fmt(totalAbate)+'</b></div>'
+    + '<div style="display:flex;justify-content:space-between;border-top:1px solid #eee;padding-top:6px;margin-top:4px;font-size:15px"><span style="font-weight:700">A pagar</span><b style="color:'+(apagar<=0.005?'#2e7d32':'#1a1a2e')+'">'+fmt(apagar)+(apagar<=0.005?'  ✅ pago com vale(s)':'')+'</b></div>';
+  if(apagar>0.005){
+    html += '<div style="margin-top:6px;font-size:12px;color:#e65100;font-weight:600">➜ Restou '+fmt(apagar)+' — escolha a forma de pagamento abaixo para lançar no caixa.</div>';
+  }
+  box.innerHTML = html;
+  box.style.display='block';
+}
+/* Reflete o abatimento do(s) vale(s) no alvo do pagamento dividido e barra o crediário. */
+function atualizarPagamentoAlvos(){
+  const forma = document.getElementById('formaPagamento').value;
+  if(valesAplicados.length && forma==='crediario'){
+    alert('O vale não se aplica ao crediário. Ele foi removido — use o(s) vale(s) numa venda à vista ou dividida.');
+    removerVale();
+    return;
+  }
+  const lbl = document.getElementById('splitAlvoLbl');
+  if(lbl) lbl.textContent = valesAplicados.length ? 'A pagar (após vale)' : 'Total da venda';
+  if(vendaSplit && document.getElementById('secDividido').style.display!=='none'){
+    vendaSplit.recompute();
+  }
+}
+
 let vendaSplit=null, entradaSplit=null;
 function selPg(tipo,btn){
   document.querySelectorAll('.pg-opt').forEach(b=>b.classList.remove('active'));
@@ -288,6 +413,10 @@ function selPg(tipo,btn){
     document.getElementById('descontoValorHidden').value='0';
     document.getElementById('pctDescontoHidden').value='0';
   }
+  // Vale não se aplica ao crediário → esconde o painel (remove o vale se estiver aplicado).
+  const vp = document.getElementById('valePanel');
+  if (vp) vp.style.display = (tipo==='crediario') ? 'none' : 'block';
+  if (typeof atualizarPagamentoAlvos === 'function') atualizarPagamentoAlvos();
   if(tipo==='crediario') calcSaldo();
 }
 function toggleDesconto(on){ document.getElementById('camposDesconto').style.display=on?'block':'none'; if(!on){ document.getElementById('descontoValor').value=''; document.getElementById('descontoPct').value=''; document.getElementById('descontoValorHidden').value='0'; document.getElementById('pctDescontoHidden').value='0'; } calcDesconto(); }
@@ -309,6 +438,7 @@ function calcDesconto(){
   document.getElementById('descontoValorHidden').value=val.toFixed(2);
   document.getElementById('pctDescontoHidden').value=pct.toFixed(2);
   if(vendaSplit) vendaSplit.recompute();
+  if (typeof renderValeResumo === 'function') { renderValeResumo(); atualizarPagamentoAlvos(); }
 }
 
 function valorFinal(){ const total=totalVendaCalc(); const val=parseFloat(document.getElementById('descontoValorHidden').value||0); return Math.max(0,Math.round((total-val)*100)/100); }
@@ -370,13 +500,19 @@ document.querySelectorAll('#entradaVal').forEach(el=>el.addEventListener('input'
 function prepararVenda(){
   const total=totalVendaCalc();
   if(total<=0){ alert('⚠️ Selecione ao menos uma peça que ficou com o cliente (qtd maior que zero).'); return false; }
-  const forma=document.getElementById('formaPagamento').value;
-  if(!forma){ alert('⚠️ Selecione a forma de pagamento.'); return false; }
-  if(forma==='credito_parcelado'){
+  let forma=document.getElementById('formaPagamento').value;
+  // Vale cobre 100% da venda → não precisa escolher outra forma de pagamento.
+  if (typeof syncValesHidden === 'function') syncValesHidden();
+  const pagoTotalVale = typeof valesAplicados!=='undefined' && !!(valesAplicados.length && aPagarLiquido()<=0.01 && valeAbatido()>0);
+  if(!forma){
+    if(pagoTotalVale){ forma='dinheiro'; document.getElementById('formaPagamento').value='dinheiro'; }
+    else { alert('⚠️ Selecione a forma de pagamento.'); return false; }
+  }
+  if(forma==='credito_parcelado' && !pagoTotalVale){
     const p=document.querySelector('[name=parcelas]').value;
     if(!p||p==='1'){ alert('⚠️ Informe o número de parcelas (mín. 2x).'); return false; }
   }
-  if(forma==='multiplo'){
+  if(forma==='multiplo' && !pagoTotalVale){
     const pgs=vendaSplit.serialize();
     if(pgs.length===0){ alert('⚠️ Adicione ao menos uma forma de pagamento.'); return false; }
     let falta=false;
@@ -386,7 +522,7 @@ function prepararVenda(){
       if(f==='credito_parcelado' && !row.querySelector('.split-parc').value) falta=true;
     });
     if(falta){ alert('⚠️ Cada valor precisa de uma forma (e o nº de parcelas no crédito parcelado).'); return false; }
-    if(!vendaSplit.recompute().ok){ alert('⚠️ A soma das formas precisa fechar com o total da venda.'); return false; }
+    if(!vendaSplit.recompute().ok){ alert('⚠️ A soma das formas precisa fechar com o valor a pagar.'); return false; }
     document.getElementById('pagamentosJson').value=JSON.stringify(pgs);
   }
   if(forma==='crediario'){
@@ -420,10 +556,17 @@ function prepararVenda(){
 document.addEventListener('DOMContentLoaded', function(){
   vendaSplit = criarSplitEditor({rowsId:'splitRows', addBtnId:'btnAddSplit',
     alvoId:'splitAlvo', somaId:'splitSoma', difId:'splitDif', alertaId:'splitAlerta',
-    target: function(){ return valorFinal(); }});
+    target: function(){ return (typeof aPagarLiquido==='function') ? aPagarLiquido() : valorFinal(); }});
   entradaSplit = criarSplitEditor({rowsId:'entradaSplitRows', addBtnId:'btnAddEntradaSplit',
     alvoId:'entradaSplitAlvo', somaId:'entradaSplitSoma', difId:'entradaSplitDif', alertaId:'entradaSplitAlerta',
     target: function(){ return parseMoeda(document.getElementById('entradaVal').value); }});
+  // Cliente já é o da condicional — carrega os vales dele automaticamente (se houver).
+  // Não se aplica à transferência (não tem cliente real, cliente_nome é o destino).
+  {% if cond.tipo == 'condicional' %}
+  if (typeof carregarVales === 'function') {
+    carregarVales({id: {{ cond.cliente_id|default('null', true) }}, nome: {{ (cond.cliente_nome or '')|tojson }}});
+  }
+  {% endif %}
 });
 </script>
 {% endblock %}

@@ -95,12 +95,12 @@
         <form method="GET" id="formFiltroDespesas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">De</div>
-            <input type="date" name="data_inicio" class="form-input" style="width:auto;padding:9px 14px"
+            <input type="date" name="data_inicio" id="filtroDataInicio" class="form-input" style="width:auto;padding:9px 14px"
                    value="{{ data_inicio }}" onchange="this.form.submit()">
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#aaa;margin-bottom:4px">Até</div>
-            <input type="date" name="data_fim" class="form-input" style="width:auto;padding:9px 14px"
+            <input type="date" name="data_fim" id="filtroDataFim" class="form-input" style="width:auto;padding:9px 14px"
                    value="{{ data_fim }}" onchange="this.form.submit()">
           </div>
           <div style="display:flex;gap:6px">
@@ -111,7 +111,10 @@
             <button type="button" class="filtro-btn" onclick="atalhoDesp('mes_proximo')">Próximo mês</button>
           </div>
         </form>
-        <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
+        <div style="display:flex;gap:10px">
+          <button type="button" class="btn-acao" style="background:#2e7d32" onclick="abrirExportarDespesas()">📤 Exportar dados</button>
+          <button onclick="document.getElementById('modalDespesa').style.display='flex'" class="btn-acao">+ Nova despesa</button>
+        </div>
       </div>
 
       <!-- TOTAIS DO PERÍODO (acompanham o filtro De/Até acima) + BUSCA, na mesma linha -->
@@ -180,6 +183,31 @@
         </table>
       </div>
     </main>
+  </div>
+</div>
+
+<!-- MODAL EXPORTAR DADOS -->
+<div class="modal-overlay" id="modalExportarDespesas" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <button class="modal-close" onclick="document.getElementById('modalExportarDespesas').style.display='none'">✕</button>
+    <div class="modal-title">📤 Exportar dados</div>
+    <div class="modal-sub">Escolha o período que você quer exportar</div>
+    <form method="GET" action="/despesas/exportar" id="formExportarDespesas">
+      <div class="form-grid2" style="margin-bottom:6px">
+        <div class="form-field">
+          <label class="form-label">De</label>
+          <input class="form-input" type="date" name="data_inicio" id="expDataInicio" required>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Até</label>
+          <input class="form-input" type="date" name="data_fim" id="expDataFim" required>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top:8px">
+        <button type="submit" class="btn-salvar">📤 Exportar</button>
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalExportarDespesas').style.display='none'">Cancelar</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -1149,6 +1177,12 @@ function validarDespesa(){
     }
   }
   return true;
+}
+
+function abrirExportarDespesas(){
+  document.getElementById('expDataInicio').value = document.getElementById('filtroDataInicio').value;
+  document.getElementById('expDataFim').value = document.getElementById('filtroDataFim').value;
+  document.getElementById('modalExportarDespesas').style.display = 'flex';
 }
 
 function atalhoDesp(tipo) {

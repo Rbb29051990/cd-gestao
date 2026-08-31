@@ -3,8 +3,12 @@ formas), novo lançamento passo a passo (parcelado ou conta a pagar única),
 pagamento de parcela (lança saída no caixa) e exclusão (só N1)."""
 from datetime import datetime, date, timedelta
 import calendar
+import io
 import secrets
-from flask import render_template, request, redirect, url_for, session, flash, jsonify
+from flask import render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir, is_admin
@@ -191,6 +195,77 @@ def despesas():
                pagas_periodo=pagas_periodo, total_pagas_periodo=total_pagas_periodo,
                n_a_pagar=len(a_pagar), n_atrasadas=n_atrasadas)
     return render_template('despesas.html', **ctx)
+
+
+@login_required
+def exportar_despesas():
+    """Gera um .xlsx com as despesas do período escolhido (mesmo critério da tabela
+    principal: pendente entra pelo vencimento, paga pela data de pagamento)."""
+    conn = get_db(); cur = conn.cursor()
+    hoje = hoje_app()
+    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    try: date.fromisoformat(data_inicio)
+    except ValueError: data_inicio = hoje.strftime('%Y-01-01')
+    try: date.fromisoformat(data_fim)
+    except ValueError: data_fim = hoje.strftime('%Y-%m-%d')
+    cur.execute("""SELECT p.numero, p.valor, p.data_vencimento, p.referencia, p.pago,
+                          p.data_pagamento, p.forma_pagamento as forma_pagamento_parcela,
+                          d.codigo, d.categoria, d.descricao, d.tipo, d.parcelado, d.num_parcelas
+                   FROM despesa_parcelas p
+                   JOIN despesas d ON d.id = p.despesa_id
+                   WHERE (p.pago = FALSE AND DATE(p.data_vencimento) BETWEEN %s AND %s)
+                      OR (p.pago = TRUE AND DATE(p.data_pagamento) BETWEEN %s AND %s)
+                   ORDER BY p.data_vencimento ASC, d.id ASC, p.numero ASC""",
+                (data_inicio, data_fim, data_inicio, data_fim))
+    lista = [dict(r) for r in cur.fetchall()]
+    cur.close(); close_db(conn)
+
+    def _norm_tipo(t):
+        return 'Mensal' if (t or '').strip().lower() in ('mensal', 'fixa', 'fixo') else 'Avulsa'
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Despesas'
+    headers = ['Código', 'Tipo', 'Categoria', 'Descrição', 'Vencimento', 'REF', 'Valor (R$)',
+               'Situação', 'Data de pagamento', 'Forma de pagamento']
+    ws.append(headers)
+    header_fill = PatternFill(start_color='E65100', end_color='E65100', fill_type='solid')
+    for col in range(1, len(headers) + 1):
+        c = ws.cell(row=1, column=col)
+        c.font = Font(bold=True, color='FFFFFF')
+        c.fill = header_fill
+        c.alignment = Alignment(horizontal='center', vertical='center')
+
+    for r in lista:
+        if r.get('referencia'):
+            ref = r['referencia'].strftime('%m/%Y')
+        elif r.get('parcelado') and (r.get('num_parcelas') or 1) > 1:
+            ref = f"{r['numero']:02d}/{r['num_parcelas']}"
+        else:
+            ref = ''
+        ws.append([
+            r.get('codigo'), _norm_tipo(r.get('tipo')), r.get('categoria') or '', r.get('descricao') or '',
+            r['data_vencimento'].strftime('%d/%m/%Y') if r.get('data_vencimento') else '', ref,
+            float(r.get('valor') or 0),
+            'Pago' if r.get('pago') else 'A pagar',
+            r['data_pagamento'].strftime('%d/%m/%Y') if r.get('data_pagamento') else '',
+            (r.get('forma_pagamento_parcela') or '').replace('_', ' ').title(),
+        ])
+        ws.cell(row=ws.max_row, column=7).number_format = '#,##0.00'
+
+    widths = [10, 9, 20, 28, 12, 10, 14, 10, 16, 18]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = 'A2'
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}1"
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    nome_arquivo = f"despesas_{data_inicio}_a_{data_fim}.xlsx"
+    return send_file(buf, as_attachment=True, download_name=nome_arquivo,
+                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
 @login_required
@@ -620,6 +695,7 @@ def excluir_despesa(did):
 
 def register(app):
     app.add_url_rule('/despesas', 'despesas', despesas)
+    app.add_url_rule('/despesas/exportar', 'exportar_despesas', exportar_despesas)
     app.add_url_rule('/despesas/nova', 'nova_despesa', nova_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/parcela/<int:pid>/pagar', 'pagar_parcela_despesa', pagar_parcela_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/editar', 'editar_despesa', editar_despesa, methods=['POST'])

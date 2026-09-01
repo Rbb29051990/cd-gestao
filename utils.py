@@ -2,11 +2,40 @@
 taxas/líquido, taxa vigente, baixa segura de estoque, auditoria e validação de foto."""
 import json
 import logging
+import time
+from datetime import date
 from flask import session, request
 from db import get_db, close_db
 from config import hoje_app
 
 logger = logging.getLogger('cd-gestao')
+
+PERIODO_JANELA_SEG = 60   # tempo parado até o período voltar ao padrão da tela
+
+
+def resolver_periodo(chave, data_inicio_padrao, data_fim_padrao):
+    """Lê data_inicio/data_fim da querystring. Se a tela foi aberta SEM período na URL
+    (ex.: voltando de editar uma venda/despesa), reaproveita o último período que o
+    usuário tinha selecionado nesta aba — mas só enquanto ele estiver ativo (até
+    PERIODO_JANELA_SEG desde a última vez). Passado esse tempo parado, volta ao padrão
+    da tela. `chave` identifica a aba (ex.: 'periodo_despesas') para não misturar o
+    período de telas diferentes na mesma sessão."""
+    data_inicio = request.args.get('data_inicio')
+    data_fim = request.args.get('data_fim')
+    veio_da_url = data_inicio is not None or data_fim is not None
+    if not veio_da_url:
+        salvo = session.get(chave)
+        if salvo and time.time() - salvo.get('ts', 0) <= PERIODO_JANELA_SEG:
+            data_inicio = salvo.get('inicio')
+            data_fim = salvo.get('fim')
+    data_inicio = data_inicio or data_inicio_padrao
+    data_fim = data_fim or data_fim_padrao
+    try: date.fromisoformat(data_inicio)
+    except Exception: data_inicio = data_inicio_padrao
+    try: date.fromisoformat(data_fim)
+    except Exception: data_fim = data_fim_padrao
+    session[chave] = {'inicio': data_inicio, 'fim': data_fim, 'ts': time.time()}
+    return data_inicio, data_fim
 
 
 def get_taxa_vigente(data=None):

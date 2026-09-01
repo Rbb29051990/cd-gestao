@@ -134,22 +134,37 @@
         <input style="padding:9px 14px 9px 34px;border:1.5px solid #e0e0e8;background:#f8f8fc url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23aaa'%3E%3Cpath d='M11.7 10.3a6 6 0 10-1.4 1.4l3.6 3.6 1.4-1.4-3.6-3.6zM7 11a4 4 0 110-8 4 4 0 010 8z'/%3E%3C/svg%3E&quot;) 10px center no-repeat;border-radius:8px;font-family:'Outfit',sans-serif;font-size:13px;color:#1a1a2e;outline:none;flex:1;min-width:240px;max-width:420px;font-weight:500" type="text" placeholder="Buscar por descrição, categoria..." oninput="filtrarDesp(this.value)">
       </div>
 
+      <!-- BARRA DE PAGAMENTO EM LOTE (aparece ao marcar 1+ conta pendente) -->
+      <div id="barraLoteDesp" style="display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;padding:10px 16px;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:#e65100"><span id="loteQtd">0</span> selecionada(s) · Total <span id="loteTotal">R$ 0,00</span></div>
+        <div style="display:flex;gap:8px">
+          <button type="button" onclick="limparSelecaoLote()" style="padding:8px 14px;background:#fff;color:#888;border:1.5px solid #e0e0e8;border-radius:7px;font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer">Limpar seleção</button>
+          <button type="button" onclick="abrirPagarLote()" style="padding:8px 16px;background:#2e7d32;color:#fff;border:none;border-radius:7px;font-family:'Outfit',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer">✅ Pagar selecionadas</button>
+        </div>
+      </div>
+
       <div class="table-wrap" style="max-height:calc(100vh - 300px);min-height:500px;overflow-y:auto">
         <table class="table">
           <thead><tr>
-            <th class="sortable" onclick="sortDesp(this,0)">Cód</th>
-            <th class="sortable" onclick="sortDesp(this,1)">Tipo</th>
-            <th class="sortable" onclick="sortDesp(this,2)">Categoria</th>
-            <th class="sortable" onclick="sortDesp(this,3)">Descrição</th>
-            <th class="sortable" onclick="sortDesp(this,4)">Vencimento</th>
+            <th style="width:34px"><input type="checkbox" id="chkTodasDesp" onchange="toggleTodasDesp(this)" title="Selecionar todas as pendentes"></th>
+            <th class="sortable" onclick="sortDesp(this,1)">Cód</th>
+            <th class="sortable" onclick="sortDesp(this,2)">Tipo</th>
+            <th class="sortable" onclick="sortDesp(this,3)">Categoria</th>
+            <th class="sortable" onclick="sortDesp(this,4)">Descrição</th>
+            <th class="sortable" onclick="sortDesp(this,5)">Vencimento</th>
             <th>REF</th>
-            <th class="sortable" onclick="sortDesp(this,6)">Valor</th>
-            <th class="sortable" onclick="sortDesp(this,7)">Situação</th>
+            <th class="sortable" onclick="sortDesp(this,7)">Valor</th>
+            <th class="sortable" onclick="sortDesp(this,8)">Situação</th>
             <th>Ação</th>
           </tr></thead>
           <tbody>
             {% for d in lista %}
             <tr style="cursor:pointer" onclick="abrirDetalheDespesa({{ d.despesa_id }})" title="Ver detalhamento">
+              <td onclick="event.stopPropagation()">
+                {% if not d.pago %}
+                <input type="checkbox" class="chk-desp-lote" value="{{ d.parcela_id }}" data-valor="{{ d.valor|float }}" onchange="atualizarBarraLote()">
+                {% endif %}
+              </td>
               <td><span style="font-size:11px;font-weight:700;color:#e65100;background:#fff3e0;padding:3px 8px;border-radius:4px;letter-spacing:1px">{{ d.codigo }}</span></td>
               <td><span class="bdg-tipo {% if d.tipo == 'mensal' %}bdg-mensal{% else %}bdg-avulsa{% endif %}">{{ d.tipo }}</span></td>
               <td style="font-weight:600;color:#3949ab">{{ d.categoria or '—' }}</td>
@@ -177,7 +192,7 @@
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="9" class="empty-row">Nenhuma despesa cadastrada.</td></tr>
+            <tr><td colspan="10" class="empty-row">Nenhuma despesa cadastrada.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -344,6 +359,43 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-cancelar" onclick="document.getElementById('modalPagarDespesa').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" style="background:#2e7d32">✅ Confirmar pagamento</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL PAGAR EM LOTE -->
+<div class="modal-overlay" id="modalPagarLote" style="display:none">
+  <div class="modal" style="max-width:420px">
+    <button class="modal-close" onclick="document.getElementById('modalPagarLote').style.display='none'">✕</button>
+    <div class="modal-title">Pagar contas selecionadas</div>
+    <div class="modal-sub"><span id="loteModalQtd">0</span> conta(s) · Total <span id="loteModalTotal">R$ 0,00</span></div>
+    <form method="POST" action="/despesas/pagar-lote" id="formPagarLote">
+      <input type="hidden" name="parcela_ids" id="loteParcelaIds" value="">
+      <div class="form-field">
+        <label class="form-label">Data do pagamento *</label>
+        <input class="form-input" type="date" name="data_pagamento" id="loteData" required>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Forma de pagamento *</label>
+        <select class="form-input" name="forma_pagamento" required style="cursor:pointer">
+          <option value="">Selecione...</option>
+          <option value="Pix">⚡ Pix</option>
+          <option value="Dinheiro">💵 Dinheiro</option>
+          <option value="Boleto">🧾 Boleto</option>
+          <option value="Débito">💳 Débito</option>
+          <option value="Cartão à vista">💳 Cartão à vista</option>
+          <option value="Cartão parcelado">💳 Cartão parcelado</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Observação do pagamento (opcional)</label>
+        <input class="form-input" type="text" name="obs_pagamento" placeholder="Aplica a todas as contas selecionadas">
+      </div>
+      <div style="font-size:11px;color:#aaa;margin-top:4px">A mesma data, forma e observação serão aplicadas a todas as contas marcadas.</div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalPagarLote').style.display='none'">Cancelar</button>
         <button type="submit" class="btn-salvar" style="background:#2e7d32">✅ Confirmar pagamento</button>
       </div>
     </form>
@@ -1155,6 +1207,43 @@ function abrirPagamentoDespesa(btn){
   document.getElementById('pgVenc').textContent=btn.dataset.venc || '—';
   document.getElementById('pgData').value=localISODate(new Date());
   modal.style.display='flex';
+}
+
+/* ── PAGAMENTO EM LOTE: marca várias contas pendentes e paga todas de uma vez,
+   com a mesma data/forma/observação (v143). ── */
+function toggleTodasDesp(chk){
+  document.querySelectorAll('.chk-desp-lote').forEach(el => {
+    const tr = el.closest('tr');
+    if(!tr || tr.style.display !== 'none') el.checked = chk.checked;
+  });
+  atualizarBarraLote();
+}
+function atualizarBarraLote(){
+  const marcados = Array.from(document.querySelectorAll('.chk-desp-lote:checked'));
+  const barra = document.getElementById('barraLoteDesp');
+  if(!marcados.length){ barra.style.display='none'; return; }
+  const total = marcados.reduce((s,el) => s + (parseFloat(el.dataset.valor)||0), 0);
+  document.getElementById('loteQtd').textContent = marcados.length;
+  document.getElementById('loteTotal').textContent = brl(total);
+  barra.style.display='flex';
+  const todos = document.querySelectorAll('.chk-desp-lote');
+  const chkTodas = document.getElementById('chkTodasDesp');
+  if(chkTodas) chkTodas.checked = todos.length>0 && marcados.length===todos.length;
+}
+function limparSelecaoLote(){
+  document.querySelectorAll('.chk-desp-lote').forEach(el => el.checked = false);
+  const chkTodas = document.getElementById('chkTodasDesp'); if(chkTodas) chkTodas.checked = false;
+  atualizarBarraLote();
+}
+function abrirPagarLote(){
+  const marcados = Array.from(document.querySelectorAll('.chk-desp-lote:checked'));
+  if(!marcados.length) return;
+  const total = marcados.reduce((s,el) => s + (parseFloat(el.dataset.valor)||0), 0);
+  document.getElementById('loteParcelaIds').value = marcados.map(el => el.value).join(',');
+  document.getElementById('loteModalQtd').textContent = marcados.length;
+  document.getElementById('loteModalTotal').textContent = brl(total);
+  document.getElementById('loteData').value = localISODate(new Date());
+  document.getElementById('modalPagarLote').style.display='flex';
 }
 
 function validarDespesa(){

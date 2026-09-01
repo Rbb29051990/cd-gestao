@@ -8,7 +8,7 @@ from config import agora_app, hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir
 from utils import (parse_brl, bloquear_estoque_negativo, audit_log, get_taxa_vigente,
                    calcular_liquido, parse_pagamentos, registrar_pagamentos_caixa,
-                   liquido_caixa_por_venda)
+                   liquido_caixa_por_venda, resolver_periodo)
 from routes.vales import gerar_vale, consumir_vale
 
 # Formas de cartão (sofrem taxa da maquininha no momento da venda à vista).
@@ -51,12 +51,11 @@ def vendas():
         cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE ORDER BY nome")
         clientes_lista = [dict(c) for c in cur.fetchall()]
         hoje = hoje_app()
-        data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-%m-01'))
-        data_fim    = request.args.get('data_fim',    fim_mes_app())
-        try: date.fromisoformat(data_inicio)
-        except: data_inicio = hoje.strftime('%Y-%m-01')
-        try: date.fromisoformat(data_fim)
-        except: data_fim = fim_mes_app()
+        # v143: se a tela foi aberta sem período na URL (ex.: voltando de editar uma
+        # venda), reaproveita o período selecionado antes, contanto que não tenha
+        # ficado mais de 1 min parado nesse meio tempo (resolver_periodo).
+        data_inicio, data_fim = resolver_periodo('periodo_vendas',
+            hoje.strftime('%Y-%m-01'), fim_mes_app())
         cur.execute("""SELECT v.*, COUNT(vi.id) as qtd_itens FROM vendas v
             LEFT JOIN venda_itens vi ON vi.venda_id=v.id
             WHERE DATE(v.criado_em) BETWEEN %s AND %s

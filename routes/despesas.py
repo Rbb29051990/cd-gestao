@@ -12,7 +12,7 @@ from openpyxl.utils import get_column_letter
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx, pode_excluir, is_admin
-from utils import parse_brl
+from utils import parse_brl, resolver_periodo
 
 
 def _add_months_clamped(base_date, months):
@@ -123,12 +123,11 @@ def _add_novos_vencimentos(cur, did, grupo):
 def despesas():
     conn = get_db(); cur = conn.cursor()
     hoje = hoje_app()
-    data_inicio = request.args.get('data_inicio', hoje.strftime('%Y-01-01'))
-    data_fim    = request.args.get('data_fim',    hoje.strftime('%Y-%m-%d'))
-    try: date.fromisoformat(data_inicio)
-    except: data_inicio = hoje.strftime('%Y-01-01')
-    try: date.fromisoformat(data_fim)
-    except: data_fim = hoje.strftime('%Y-%m-%d')
+    # v143: se a tela foi aberta sem período na URL (ex.: voltando de editar uma
+    # despesa), reaproveita o período que o usuário tinha selecionado, contanto que
+    # não tenha ficado mais de 1 min parado nesse meio tempo (resolver_periodo).
+    data_inicio, data_fim = resolver_periodo('periodo_despesas',
+        hoje.strftime('%Y-01-01'), hoje.strftime('%Y-%m-%d'))
     # v143: a tabela principal mostra UMA LINHA POR PARCELA (não por despesa) — cada
     # conta a pagar/paga aparece no seu próprio vencimento/valor, sem agregação. Segue o
     # mesmo período do filtro De/Até: pendente entra pelo vencimento, paga pela data do
@@ -424,6 +423,60 @@ def pagar_parcela_despesa(did, pid):
 
 
 @login_required
+def pagar_lote_despesas():
+    """v143: paga VÁRIAS parcelas pendentes de uma vez (marcadas na tabela), com a
+    mesma data/forma/observação para todas — acelera quando o usuário vai lançar um
+    lote de contas (ex.: várias faturas do mesmo cartão) em vez de uma por uma."""
+    conn = get_db(); cur = conn.cursor()
+    try:
+        parcela_ids = [int(x) for x in request.form.get('parcela_ids', '').split(',') if x.strip().isdigit()]
+        if not parcela_ids:
+            raise ValueError('Selecione ao menos uma conta para pagar.')
+        forma_pagamento = (request.form.get('forma_pagamento') or '').strip()
+        if not forma_pagamento:
+            raise ValueError('Informe a forma de pagamento.')
+        data_pagamento = request.form.get('data_pagamento') or hoje_app().isoformat()
+        try: date.fromisoformat(data_pagamento)
+        except Exception: data_pagamento = hoje_app().isoformat()
+        obs_pagamento = (request.form.get('obs_pagamento') or '').strip() or None
+
+        n_pagas = 0
+        despesas_afetadas = set()
+        for pid in parcela_ids:
+            cur.execute("""SELECT p.*, d.categoria, d.descricao AS despesa_descricao, d.num_parcelas
+                           FROM despesa_parcelas p JOIN despesas d ON d.id = p.despesa_id
+                           WHERE p.id=%s""", (pid,))
+            p = cur.fetchone()
+            if not p or p['pago']:
+                continue   # já paga (ou apagada) enquanto o usuário selecionava — ignora
+            p = dict(p)
+            did = p['despesa_id']
+            cur.execute("""UPDATE despesa_parcelas
+                           SET pago=TRUE,data_pagamento=%s,forma_pagamento=%s,obs_pagamento=%s
+                           WHERE id=%s""", (data_pagamento, forma_pagamento, obs_pagamento, pid))
+            rotulo = p.get('categoria') or p.get('despesa_descricao') or 'Despesa'
+            descr_caixa = f"Despesa: {rotulo} (parc. {p['numero']}/{p.get('num_parcelas')})"
+            if obs_pagamento:
+                descr_caixa += f" — {obs_pagamento}"
+            cur.execute("""INSERT INTO caixa
+                           (descricao,valor,tipo,forma_pagamento,despesa_id,parcela_id,usuario_id,vendedora_nome,criado_em)
+                           VALUES (%s,%s,'saida',%s,%s,%s,%s,%s,%s)""",
+                (descr_caixa, float(p['valor']), forma_pagamento, did, pid, session['uid'], session['nome'], data_pagamento))
+            despesas_afetadas.add(did)
+            n_pagas += 1
+        if n_pagas == 0:
+            raise ValueError('Nenhuma das contas selecionadas pôde ser paga (já estavam pagas?).')
+        for did in despesas_afetadas:
+            cur.execute("SELECT COUNT(*) as t FROM despesa_parcelas WHERE despesa_id=%s AND pago=FALSE", (did,))
+            if cur.fetchone()['t'] == 0:
+                cur.execute("UPDATE despesas SET status='pago' WHERE id=%s", (did,))
+        conn.commit(); flash(f"{n_pagas} conta(s) paga(s) e lançada(s) no caixa!", 'ok')
+    except Exception as e: conn.rollback(); flash(str(e), 'erro')
+    finally: cur.close(); close_db(conn)
+    return redirect(url_for('despesas'))
+
+
+@login_required
 def editar_despesa(did):
     """Edita uma despesa. Liberado para N1 e N2.
     Categoria/descrição/tipo/forma/origem podem ser alterados sempre.
@@ -698,6 +751,7 @@ def register(app):
     app.add_url_rule('/despesas/exportar', 'exportar_despesas', exportar_despesas)
     app.add_url_rule('/despesas/nova', 'nova_despesa', nova_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/parcela/<int:pid>/pagar', 'pagar_parcela_despesa', pagar_parcela_despesa, methods=['POST'])
+    app.add_url_rule('/despesas/pagar-lote', 'pagar_lote_despesas', pagar_lote_despesas, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/editar', 'editar_despesa', editar_despesa, methods=['POST'])
     app.add_url_rule('/despesas/<int:did>/detalhe', 'detalhe_despesa', detalhe_despesa)
     app.add_url_rule('/despesas/<int:did>/salvar', 'salvar_despesa', salvar_despesa, methods=['POST'])

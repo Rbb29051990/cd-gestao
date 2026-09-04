@@ -126,16 +126,38 @@ def visao_geral():
     # Lucro líquido = entradas líquidas − (despesas fixas + avulsas) do período
     # (pelo VENCIMENTO — inclui o que ainda está a pagar).
     lucro_liquido = round(fat_total_liq - val_despesas, 2)
-    # Total em caixa = saldo líquido REAL (igual ao "saldo líquido" da aba Caixa):
-    # entradas líquidas − SAÍDAS já pagas (lançamentos tipo 'saida' no caixa). O que
-    # ainda está só "a pagar" (despesa vincenda) NÃO entra aqui.
+    # Total em caixa = saldo ACUMULADO (não é só do período em exibição): soma de TODAS
+    # as entradas líquidas e saídas do caixa desde o início até o fim do período
+    # selecionado. Antes esse card somava só o que aconteceu DENTRO do período — então
+    # virar o mês (contas do início do mês pagas com o caixa que sobrou do mês anterior,
+    # antes de entrar faturamento novo) fazia parecer que a loja estava no negativo,
+    # mesmo com saldo real positivo. Ignora data_inicio de propósito.
     try:
-        cur.execute("SELECT COALESCE(SUM(valor),0) s FROM caixa WHERE tipo='saida' AND DATE(criado_em) BETWEEN %s AND %s",
-                    (data_inicio, data_fim))
-        saidas_caixa = round(float(cur.fetchone()['s']), 2)
+        cur.execute("""SELECT forma_pagamento, valor, criado_em, parcelas, tipo FROM caixa
+                       WHERE DATE(criado_em) <= %s""", (data_fim,))
+        taxa_cache_acum = {}
+        entradas_liq_acum = 0.0
+        saidas_acum = 0.0
+        for r in cur.fetchall():
+            if r['tipo'] == 'saida':
+                saidas_acum += float(r['valor'] or 0)
+                continue
+            if r['tipo'] != 'entrada':
+                continue
+            f = r['forma_pagamento'] or ''
+            bruto = float(r['valor'] or 0)
+            if f in formas_com_taxa:
+                d = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje_app()
+                chave = d.isoformat()
+                if chave not in taxa_cache_acum:
+                    taxa_cache_acum[chave] = get_taxa_vigente(d)
+                liq, _d, _p = calcular_liquido(bruto, f, taxa_cache_acum[chave], r.get('parcelas'))
+            else:
+                liq = bruto
+            entradas_liq_acum += liq
+        saldo_caixa = round(entradas_liq_acum - saidas_acum, 2)
     except Exception:
-        saidas_caixa = 0.0
-    saldo_caixa = round(fat_total_liq_geral - saidas_caixa, 2)
+        saldo_caixa = 0.0
     # Movimentações recentes (filtradas pelo período)
     try:
         cur.execute("""SELECT id,criado_em,vendedora_nome,cliente_nome,valor_total,forma_pagamento
@@ -152,6 +174,7 @@ def visao_geral():
     ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
                fat_dinheiro_pix=fat_dinheiro_pix, fat_cartao=fat_cartao, pct_liquido=pct_liquido,
                pct_taxa=pct_taxa, total_taxas=total_taxas, saldo_caixa=saldo_caixa,
+               data_fim_br=date.fromisoformat(data_fim).strftime('%d/%m/%Y'),
                estoque_30=estoque_30, estoque_60=estoque_60,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,

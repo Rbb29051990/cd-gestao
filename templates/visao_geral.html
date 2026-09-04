@@ -222,11 +222,11 @@
           <div class="mg-sub">Líquido − despesas do período (a vencer incluído)</div>
         </div>
 
-        <!-- 13 · Total em caixa (saldo líquido real — só o que já foi pago) -->
+        <!-- 13 · Total em caixa (saldo ACUMULADO até o fim do período — não reseta a cada período) -->
         <a href="/caixa" class="mg-card c-verde">
           <div class="mg-top"><span class="mg-icon">🏦</span><span class="mg-label">Total em caixa</span></div>
           <div class="mg-val {% if saldo_caixa >= 0 %}pos{% else %}neg{% endif %}">{{ brl(saldo_caixa) }}</div>
-          <div class="mg-sub">Entradas líquidas − saídas JÁ pagas (saldo da Caixa)</div>
+          <div class="mg-sub">Saldo acumulado até {{ data_fim_br }} · entradas líquidas − saídas já pagas</div>
         </a>
 
         <!-- 14 · Crediário em aberto -->

@@ -150,6 +150,75 @@ def ficha_condicional(cid):
 
 
 @login_required
+def editar_condicional(cid):
+    """Corrige uma condicional/transferência AINDA ABERTA: cliente, vendedor(a),
+    peças (código/quantidade) e observação. Como enquanto está 'aberta' todos os
+    itens continuam 'pendente' (nada foi vendido/devolvido ainda), a correção libera
+    TODA a reserva atual e reserva de novo a lista corrigida — mesmo mecanismo já
+    usado em devolver_condicional (libera) e nova_condicional (reserva), evitando
+    lógica nova e arriscada de comparar item a item."""
+    conn = get_db(); cur = conn.cursor()
+    try:
+        cur.execute("SELECT * FROM condicionais WHERE id=%s", (cid,))
+        cond = cur.fetchone()
+        if not cond: raise Exception('Condicional não encontrada.')
+        cond = dict(cond)
+        if cond['status'] != 'aberta':
+            raise Exception('Só é possível editar enquanto a condicional está em aberto.')
+
+        vendedora_nome = request.form.get('vendedora_nome', '').strip()
+        usuario_id = request.form.get('usuario_id') or cond.get('usuario_id')
+        obs = request.form.get('observacao', '').strip() or None
+        itens = json.loads(request.form.get('itens', '[]'))
+        if not itens:
+            raise Exception('A condicional precisa ter pelo menos uma peça.')
+
+        if cond['tipo'] == 'condicional':
+            cliente_id = request.form.get('cliente_id') or None
+            cliente_nome = request.form.get('cliente_nome', '').strip()
+            if not cliente_nome:
+                raise Exception('Informe o cliente da condicional.')
+        else:
+            # Transferência: destino não muda por aqui.
+            cliente_id = cond.get('cliente_id'); cliente_nome = cond.get('cliente_nome')
+
+        # ── Libera TODA a reserva atual (itens ainda 'pendente') ──
+        cur.execute("SELECT * FROM condicional_itens WHERE condicional_id=%s", (cid,))
+        antigos = [dict(i) for i in cur.fetchall()]
+        for it in antigos:
+            if it['produto_id']:
+                cur.execute("UPDATE estoque SET quantidade=quantidade+%s, reservado=GREATEST(0,COALESCE(reservado,0)-%s) WHERE id=%s",
+                    (it['quantidade'], it['quantidade'], it['produto_id']))
+        cur.execute("DELETE FROM condicional_itens WHERE condicional_id=%s", (cid,))
+
+        # ── Reserva a lista corrigida ──
+        total = 0.0
+        for it in itens:
+            pid = it.get('produto_id'); qtd = int(it.get('quantidade', 1)); vu = float(it.get('valor_unitario', 0))
+            total += vu * qtd
+            if pid:
+                cur.execute("SELECT quantidade FROM estoque WHERE id=%s", (pid,))
+                row = cur.fetchone(); disp = int(row['quantidade']) if row else 0
+                if qtd > disp:
+                    raise Exception(f"Saldo insuficiente para {it.get('codigo')} (disponível: {disp}).")
+                cur.execute("UPDATE estoque SET quantidade=quantidade-%s, reservado=COALESCE(reservado,0)+%s WHERE id=%s", (qtd, qtd, pid))
+            cur.execute("""INSERT INTO condicional_itens (condicional_id,produto_id,codigo_produto,modelo,descricao,tamanho,valor_unitario,quantidade)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (cid, pid or None, it.get('codigo'), it.get('modelo'), it.get('descricao'), it.get('tamanho'), vu, qtd))
+        total = round(total, 2)
+
+        cur.execute("""UPDATE condicionais SET cliente_id=%s, cliente_nome=%s, vendedora_nome=%s,
+                       usuario_id=%s, observacao=%s, valor_total=%s WHERE id=%s""",
+                    (cliente_id, cliente_nome, vendedora_nome, usuario_id or None, obs, total, cid))
+        conn.commit(); flash(f'{cond["codigo"]} atualizada!', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('ficha_condicional', cid=cid))
+
+
+@login_required
 def gerar_venda_condicional(cid):
     conn = get_db(); cur = conn.cursor()
     try:
@@ -350,6 +419,7 @@ def register(app):
     app.add_url_rule('/condicionais', 'condicionais', condicionais)
     app.add_url_rule('/condicionais/nova', 'nova_condicional', nova_condicional, methods=['POST'])
     app.add_url_rule('/condicionais/<int:cid>', 'ficha_condicional', ficha_condicional)
+    app.add_url_rule('/condicionais/<int:cid>/editar', 'editar_condicional', editar_condicional, methods=['POST'])
     app.add_url_rule('/condicionais/<int:cid>/gerar-venda', 'gerar_venda_condicional', gerar_venda_condicional, methods=['POST'])
     app.add_url_rule('/condicionais/<int:cid>/devolver', 'devolver_condicional', devolver_condicional, methods=['POST'])
     app.add_url_rule('/condicionais/<int:cid>/confirmar-transferencia', 'confirmar_transferencia', confirmar_transferencia, methods=['POST'])

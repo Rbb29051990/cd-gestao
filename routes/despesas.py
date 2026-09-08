@@ -123,7 +123,7 @@ def _add_novos_vencimentos(cur, did, grupo):
 def despesas():
     conn = get_db(); cur = conn.cursor()
     hoje = hoje_app()
-    # v143: se a tela foi aberta sem período na URL (ex.: voltando de editar uma
+    # v144: se a tela foi aberta sem período na URL (ex.: voltando de editar uma
     # despesa), reaproveita o período que o usuário tinha selecionado, contanto que
     # não tenha ficado mais de 1 min parado nesse meio tempo (resolver_periodo).
     data_inicio, data_fim = resolver_periodo('periodo_despesas',
@@ -424,7 +424,7 @@ def pagar_parcela_despesa(did, pid):
 
 @login_required
 def pagar_lote_despesas():
-    """v143: paga VÁRIAS parcelas pendentes de uma vez (marcadas na tabela), com a
+    """v144: paga VÁRIAS parcelas pendentes de uma vez (marcadas na tabela), com a
     mesma data/forma/observação para todas — acelera quando o usuário vai lançar um
     lote de contas (ex.: várias faturas do mesmo cartão) em vez de uma por uma."""
     conn = get_db(); cur = conn.cursor()

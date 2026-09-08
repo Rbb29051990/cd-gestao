@@ -51,7 +51,7 @@ def vendas():
         cur.execute("SELECT id,codigo,nome,crediario FROM clientes WHERE ativo=TRUE ORDER BY nome")
         clientes_lista = [dict(c) for c in cur.fetchall()]
         hoje = hoje_app()
-        # v143: se a tela foi aberta sem período na URL (ex.: voltando de editar uma
+        # v144: se a tela foi aberta sem período na URL (ex.: voltando de editar uma
         # venda), reaproveita o período selecionado antes, contanto que não tenha
         # ficado mais de 1 min parado nesse meio tempo (resolver_periodo).
         data_inicio, data_fim = resolver_periodo('periodo_vendas',
@@ -323,7 +323,7 @@ def editar_venda(vid):
             forma_atual = vrow['forma_pagamento']
             valor_final = round(float(vrow['valor_total'] or 0) - float(vrow['desconto'] or 0), 2)
 
-            # v143: só o Administrador N1 pode corrigir a DATA da venda (lançamento feito
+            # v144: só o Administrador N1 pode corrigir a DATA da venda (lançamento feito
             # depois, retroativo, quando a vendedora manda por WhatsApp e o master registra
             # mais tarde). Mantém a HORA original, só troca o dia — e propaga pro(s)
             # lançamento(s) de caixa da própria venda (à vista/dividido/entrada de

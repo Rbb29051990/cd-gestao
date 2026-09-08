@@ -1,4 +1,17 @@
-# CD Gestão Empresarial — v143
+# CD Gestão Empresarial — v144
+
+## Novidades da v144 (2026-09-08)
+
+- **Despesas — tela reorganizada**: as duas listas grandes ("Contas a pagar" / "Contas pagas") viraram dois quadrantes pequenos e centralizados ("Total pago" / "Total a pagar"), no estilo dos quadrantes da Visão Geral. O botão **"✅ Pagar"** de cada conta foi pra tabela principal.
+- **Despesas — filtro de período agora vale pra tabela inteira** (antes só valia pros cards de total), com ordenação padrão por vencimento mais próximo primeiro. Atalhos novos: **"Mês passado"** e **"Próximo mês"** (o antigo "Mês" virou "Mês atual").
+- **Despesas — Exportar dados**: botão **"📤 Exportar dados"** abre um modal pra escolher o período e baixa um **.xlsx** (Código, Tipo, Categoria, Descrição, Vencimento, REF, Valor, Situação, Data de pagamento, Forma de pagamento).
+- **Despesas — pagamento em lote**: marque várias contas pendentes (checkbox por linha, ou "marcar todas") e pague todas de uma vez só, informando uma única data/forma/observação pra todas.
+- **Despesas — layout do "Aplicar a todos os meses em aberto"** (edição de despesa recorrente) corrigido: campos e botões alinhados em grupos, sem ficar um em cima do outro.
+- **Vendas — Administrador N1 pode corrigir a data de uma venda** ao editá-la (pra lançamentos retroativos pedidos pela vendedora). A data do lançamento no Caixa dessa venda acompanha a correção.
+- **Despesas e Vendas — o período selecionado não reseta mais** ao entrar pra editar uma despesa/venda e voltar pra lista: fica lembrado por até 1 minuto parado; depois disso volta ao padrão da tela sozinho.
+- **Visão Geral — "Total em caixa" agora é o saldo ACUMULADO** até o fim do período selecionado (não só o que aconteceu dentro do período) — corrige a impressão de saldo negativo ao virar o mês, quando as contas do início do mês são pagas com o caixa que sobrou do mês anterior.
+- **Condicional — uso de VALE (crédito da loja) ao gerar a venda**, igual em Vendas: os vales em aberto do cliente aparecem sugeridos automaticamente, dá pra digitar o código manualmente e combinar vários. Não se aplica à transferência (sem cliente real) nem ao crediário.
+- **Condicional — nova opção "✏️ Editar condicional"** enquanto ainda está em aberto: corrige cliente, vendedor(a), código/quantidade das peças e observação, pra quando a vendedora erra algum desses dados no lançamento.
 
 ## Novidades da v143
 

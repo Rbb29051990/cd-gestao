@@ -39,6 +39,26 @@
 .conf-box{background:#f8f8fc;border:1.5px solid #e0e0e8;border-radius:10px;padding:14px 18px;margin-top:12px;display:none}
 .step-sep{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#aaa;margin:18px 0 12px;display:flex;align-items:center;gap:10px}
 .step-sep::after{content:'';flex:1;height:1px;background:#eee}
+/* Editar condicional: reaproveita o padrão do carrinho de "Nova condicional" */
+.pos-rel{position:relative}
+.cliente-sugest{position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e0e0e8;border-top:none;border-radius:0 0 8px 8px;z-index:50;max-height:200px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,0.1)}
+.cliente-item{padding:10px 14px;font-size:14px;font-weight:500;color:#333;cursor:pointer;border-bottom:1px solid #f4f4f6}
+.cliente-item:hover{background:#e0f2f1;color:#00695c;font-weight:600}
+.add-item-bar{display:flex;gap:8px;margin-bottom:14px;align-items:flex-end}
+.btn-add-item{padding:11px 16px;background:#e0f2f1;color:#00695c;border:1.5px solid #b2dfdb;font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;cursor:pointer;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.ref-input{width:140px;text-align:center;font-weight:700;letter-spacing:1px}
+.ref-info{background:#e0f2f1;border:1.5px solid #b2dfdb;border-radius:8px;padding:12px 16px;margin-bottom:12px;font-size:13px;display:none}
+.ref-info-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ri-label{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.ri-val{font-weight:600;color:#1a1a2e}.ri-preco{font-weight:700;color:#00695c;font-size:16px}
+.carrinho-wrap{border:1.5px solid #e8e8f0;border-radius:10px;overflow:hidden;margin-bottom:14px}
+.carrinho-head{display:grid;grid-template-columns:80px 1fr 1fr 60px 80px 36px;gap:8px;padding:10px 14px;background:#f8f8fc;border-bottom:2px solid #eeeef5;font-size:10px;font-weight:700;color:#1a1a2e;text-transform:uppercase}
+.carrinho-row{display:grid;grid-template-columns:80px 1fr 1fr 60px 80px 36px;gap:8px;padding:11px 14px;border-bottom:1px solid #f4f4f6;align-items:center;font-size:13px;font-weight:500;color:#333}
+.carrinho-row:last-child{border-bottom:none}
+.ref-badge{font-size:11px;font-weight:700;color:#3949ab;background:#e8eaf6;padding:3px 8px;border-radius:4px;letter-spacing:1px}
+.qtd-input{width:52px;padding:6px 8px;border:1.5px solid #e0e0e8;border-radius:6px;font-size:14px;font-weight:600;text-align:center;background:#f8f8fc;color:#1a1a2e;outline:none}
+.btn-rm{width:30px;height:30px;background:#fce4ec;border:none;border-radius:6px;color:#c62828;font-size:16px;cursor:pointer;font-weight:700}
+.empty-carrinho{padding:20px;text-align:center;color:#ccc;font-size:13px;font-style:italic}
 </style>
 <div class="dash-wrap">
   <div class="topbar">
@@ -71,7 +91,12 @@
             {% if cond.observacao %}<div><small>Observação</small><b>{{ cond.observacao }}</b></div>{% endif %}
           </div>
         </div>
-        {% if venda %}<a href="/vendas/{{ cond.venda_id }}" class="btn-finalizar" style="text-decoration:none">Ver venda {{ venda.codigo }} →</a>{% endif %}
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          {% if cond.status == 'aberta' %}
+          <button type="button" class="btn-sec" onclick="abrirEditarCond()">✏️ Editar {{ 'transferência' if cond.tipo=='transferencia' else 'condicional' }}</button>
+          {% endif %}
+          {% if venda %}<a href="/vendas/{{ cond.venda_id }}" class="btn-finalizar" style="text-decoration:none">Ver venda {{ venda.codigo }} →</a>{% endif %}
+        </div>
       </div>
 
       <!-- ITENS -->
@@ -263,6 +288,87 @@
     </main>
   </div>
 </div>
+
+{% if cond.status == 'aberta' %}
+<!-- MODAL EDITAR CONDICIONAL -->
+<div class="modal-overlay" id="modalEditarCond" style="display:none">
+  <div class="modal" style="max-width:700px">
+    <button class="modal-close" onclick="document.getElementById('modalEditarCond').style.display='none'">✕</button>
+    <div class="modal-title">Editar {{ cond.codigo }}</div>
+    <div class="modal-sub">Corrija cliente, vendedor(a), peças ou observação</div>
+    <form method="POST" action="/condicionais/{{ cond.id }}/editar" id="formEditarCond">
+      <input type="hidden" name="itens" id="itensJsonEdit" value="[]">
+      <input type="hidden" name="usuario_id" id="usuarioIdEdit" value="{{ cond.usuario_id or '' }}">
+      {% if cond.tipo != 'condicional' %}
+      <input type="hidden" name="cliente_id" value="{{ cond.cliente_id or '' }}">
+      <input type="hidden" name="cliente_nome" value="{{ (cond.cliente_nome or '')|e }}">
+      {% endif %}
+
+      <div class="form-grid2">
+        <div class="form-field">
+          <label class="form-label">Vendedor (a) *</label>
+          <select class="form-select" id="selVendedoraEdit" name="vendedora_nome">
+            <option value="">Selecione...</option>
+            {% for v in vendedoras %}<option value="{{ v.nome }}" {% if v.nome == cond.vendedora_nome %}selected{% endif %}>{{ v.nome }}</option>{% endfor %}
+          </select>
+        </div>
+        {% if cond.tipo == 'condicional' %}
+        <div class="form-field">
+          <label class="form-label">Cliente *</label>
+          <div class="pos-rel">
+            <input class="form-input" type="text" id="buscaClienteEdit" placeholder="Digite o nome..." autocomplete="off"
+                   value="{{ (cond.cliente_nome or '')|e }}" oninput="buscarClienteEdit(this.value)">
+            <div class="cliente-sugest" id="clienteSugestEdit" style="display:none"></div>
+          </div>
+          <input type="hidden" name="cliente_id" id="clienteIdEdit" value="{{ cond.cliente_id or '' }}">
+          <input type="hidden" name="cliente_nome" id="clienteNomeEdit" value="{{ (cond.cliente_nome or '')|e }}">
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="step-sep">Peças</div>
+      <div class="add-item-bar">
+        <div class="form-field" style="flex:1;margin:0">
+          <label class="form-label">Código do produto (ex.: AC5, PS12, SL8)</label>
+          <input class="form-input ref-input" type="text" id="refInputEdit" placeholder="PS5" style="text-transform:uppercase;width:100%" oninput="buscarRefEdit(this.value)">
+        </div>
+        <div class="form-field" style="width:80px;margin:0">
+          <label class="form-label">Qtd</label>
+          <input class="form-input" type="number" id="refQtdEdit" value="1" min="1" style="text-align:center">
+        </div>
+        <button type="button" class="btn-add-item" onclick="addItemCarrinhoEdit()">+ Adicionar</button>
+      </div>
+      <div class="ref-info" id="refInfoEdit">
+        <div class="ref-info-grid">
+          <div><div class="ri-label">Modelo</div><div class="ri-val" id="rModeloEdit">—</div></div>
+          <div><div class="ri-label">Descrição</div><div class="ri-val" id="rDescEdit">—</div></div>
+          <div><div class="ri-label">Tamanho</div><div class="ri-val" id="rTamEdit">—</div></div>
+          <div><div class="ri-label">Valor</div><div class="ri-preco" id="rValEdit">—</div></div>
+          <div id="rSaldoWrapEdit"><div class="ri-label">Saldo disponível</div><div class="ri-val" id="rSaldoEdit" style="font-weight:700">—</div></div>
+        </div>
+      </div>
+      <div class="carrinho-wrap">
+        <div class="carrinho-head"><span>Ref</span><span>Modelo</span><span>Desc/TAM</span><span>Qtd</span><span>Valor</span><span></span></div>
+        <div id="carrinhoBodyEdit"><div class="empty-carrinho">Nenhuma peça</div></div>
+      </div>
+      <div class="total-bar">
+        <span class="total-label">Valor total reservado</span>
+        <span class="total-valor" id="totalCondEdit">R$ 0,00</span>
+      </div>
+
+      <div class="step-sep">Observação (opcional)</div>
+      <div class="form-field" style="margin-bottom:6px">
+        <input class="form-input" type="text" name="observacao" id="obsEdit" value="{{ (cond.observacao or '')|e }}" placeholder="Ex: levou para provar, devolve sexta...">
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-cancelar" onclick="document.getElementById('modalEditarCond').style.display='none'">Cancelar</button>
+        <button type="submit" class="btn-salvar" onclick="return prepararEnvioEdit()">💾 Salvar correções</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 <script>
 function parseMoeda(s){ if(!s) return 0; return parseFloat(String(s).replace(/\./g,'').replace(',','.'))||0; }
@@ -568,5 +674,127 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   {% endif %}
 });
+
+/* ══════════ EDITAR CONDICIONAL (cliente, vendedor(a), peças, observação) ══════════
+   Reaproveita o mesmo padrão de carrinho da tela "Nova condicional": busca por
+   código, adiciona/remove peça, ajusta quantidade. Ao abrir, recarrega a partir
+   dos itens atuais da condicional — assim cancelar não deixa lixo de uma edição
+   anterior aberta de novo. */
+const ITENS_INICIAIS_EDIT = [
+  {% for it in itens %}
+  {produto_id: {{ it.produto_id or 'null' }}, codigo: {{ (it.codigo_produto or '')|tojson }},
+   modelo: {{ (it.modelo or '')|tojson }}, descricao: {{ (it.descricao or '')|tojson }},
+   tamanho: {{ (it.tamanho or '')|tojson }}, valor_unitario: {{ it.valor_unitario|float }},
+   quantidade: {{ it.quantidade|int }}},
+  {% endfor %}
+];
+let carrinhoItensEdit = [], refAtualEdit = null;
+
+function abrirEditarCond(){
+  carrinhoItensEdit = JSON.parse(JSON.stringify(ITENS_INICIAIS_EDIT));
+  renderCarrinhoEdit();
+  document.getElementById('modalEditarCond').style.display='flex';
+}
+
+let clienteTimerEdit;
+function buscarClienteEdit(q){
+  clearTimeout(clienteTimerEdit);
+  const el=document.getElementById('clienteSugestEdit');
+  if(!el) return;
+  if(q.length<2){ el.style.display='none'; return; }
+  clienteTimerEdit=setTimeout(async()=>{
+    const r=await fetch('/vendas/buscar-cliente?q='+encodeURIComponent(q));
+    const d=await r.json();
+    el.innerHTML='';
+    if(!d.clientes || d.clientes.length===0){
+      el.innerHTML='<div class="cliente-item" style="color:#c62828">Não encontrado — <a href="/clientes" style="color:#1565c0">cadastrar</a></div>';
+    } else {
+      d.clientes.forEach(c=>{
+        const div=document.createElement('div');
+        div.className='cliente-item';
+        div.textContent=c.codigo+' — '+c.nome+(c.crediario?' ✅':'');
+        div.onclick=()=>selecionarClienteEdit(c);
+        el.appendChild(div);
+      });
+    }
+    el.style.display='block';
+  },300);
+}
+function selecionarClienteEdit(c){
+  document.getElementById('buscaClienteEdit').value=c.codigo+' — '+c.nome;
+  document.getElementById('clienteIdEdit').value=c.id;
+  document.getElementById('clienteNomeEdit').value=c.nome;
+  document.getElementById('clienteSugestEdit').style.display='none';
+}
+document.addEventListener('click', e=>{
+  const el=document.getElementById('clienteSugestEdit');
+  if(el && !e.target.closest('.pos-rel')) el.style.display='none';
+});
+
+async function buscarRefEdit(v){
+  v=(v||'').trim();
+  if(!v){ document.getElementById('refInfoEdit').style.display='none'; refAtualEdit=null; return; }
+  const r=await fetch('/vendas/buscar-ref?ref='+encodeURIComponent(v));
+  const d=await r.json();
+  if(d.ok){
+    refAtualEdit=d.item;
+    document.getElementById('rModeloEdit').textContent=d.item.modelo||'—';
+    document.getElementById('rDescEdit').textContent=(d.item.descricao||'—')+' / '+(d.item.tamanho||'—');
+    document.getElementById('rTamEdit').textContent=d.item.tamanho||'—';
+    document.getElementById('rValEdit').textContent='R$ '+parseFloat(d.item.valor_venda).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    document.getElementById('rSaldoEdit').textContent=d.item.quantidade+' disponível(is)';
+    document.getElementById('rSaldoWrapEdit').style.color=d.item.quantidade<=0?'#c62828':d.item.quantidade<=2?'#f57f17':'#2e7d32';
+    document.getElementById('refInfoEdit').style.display='block';
+  } else { refAtualEdit=null; document.getElementById('refInfoEdit').style.display='none'; }
+}
+function addItemCarrinhoEdit(){
+  if(!refAtualEdit){ alert('Digite um código de produto válido.'); return; }
+  const qtd=parseInt(document.getElementById('refQtdEdit').value)||1;
+  // Saldo já considera que o item antigo (se for o mesmo produto) foi liberado ao editar.
+  const saldoDisp=parseInt(refAtualEdit.quantidade)||0;
+  const jaNoCarrinho=carrinhoItensEdit.filter(i=>i.produto_id===refAtualEdit.produto_id).reduce((s,i)=>s+i.quantidade,0);
+  if(qtd>saldoDisp-jaNoCarrinho){
+    alert('⚠️ Disponível: '+Math.max(0,saldoDisp-jaNoCarrinho)+' unidade(s).');
+    return;
+  }
+  carrinhoItensEdit.push({produto_id:refAtualEdit.produto_id,codigo:refAtualEdit.codigo,modelo:refAtualEdit.modelo,descricao:refAtualEdit.descricao,tamanho:refAtualEdit.tamanho,valor_unitario:parseFloat(refAtualEdit.valor_venda),quantidade:qtd});
+  renderCarrinhoEdit();
+  document.getElementById('refInputEdit').value='';
+  document.getElementById('refInfoEdit').style.display='none';
+  document.getElementById('refQtdEdit').value=1;
+  refAtualEdit=null;
+}
+function renderCarrinhoEdit(){
+  const body=document.getElementById('carrinhoBodyEdit');
+  if(carrinhoItensEdit.length===0){
+    body.innerHTML='<div class="empty-carrinho">Nenhuma peça</div>';
+    document.getElementById('totalCondEdit').textContent='R$ 0,00';
+    return;
+  }
+  let total=0;
+  body.innerHTML=carrinhoItensEdit.map((item,i)=>{
+    const sub=item.valor_unitario*item.quantidade; total+=sub;
+    return `<div class="carrinho-row">
+      <span class="ref-badge">${item.codigo}</span>
+      <span>${item.modelo||'—'}</span>
+      <span>${(item.descricao||'—')} / ${item.tamanho||'—'}</span>
+      <input class="qtd-input" type="number" value="${item.quantidade}" min="1" onchange="updateQtdEdit(${i},this.value)">
+      <span style="font-weight:700;color:#00695c">R$ ${sub.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+      <button type="button" class="btn-rm" onclick="removerItemEdit(${i})">✕</button>
+    </div>`;
+  }).join('');
+  document.getElementById('totalCondEdit').textContent='R$ '+total.toLocaleString('pt-BR',{minimumFractionDigits:2});
+}
+function updateQtdEdit(idx,val){ carrinhoItensEdit[idx].quantidade=parseInt(val)||1; renderCarrinhoEdit(); }
+function removerItemEdit(idx){ carrinhoItensEdit.splice(idx,1); renderCarrinhoEdit(); }
+
+function prepararEnvioEdit(){
+  if(!document.getElementById('selVendedoraEdit').value){ alert('⚠️ Selecione o(a) Vendedor (a).'); return false; }
+  const campoCliente=document.getElementById('clienteNomeEdit');
+  if(campoCliente && !campoCliente.value.trim()){ alert('⚠️ Informe o cliente da condicional.'); return false; }
+  if(carrinhoItensEdit.length===0){ alert('⚠️ A condicional precisa ter pelo menos uma peça.'); return false; }
+  document.getElementById('itensJsonEdit').value=JSON.stringify(carrinhoItensEdit);
+  return true;
+}
 </script>
 {% endblock %}

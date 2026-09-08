@@ -14,7 +14,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v143'})
+        return jsonify({'status': 'ok', 'version': 'v144'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -162,7 +162,17 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v143 — 2026-08-11</b><br>
+    Versão: <b style='color:green'>v144 — 2026-09-08</b><br>
+    v144: Despesas — quadrantes "Total pago"/"Total a pagar" pequenos e centralizados no lugar das duas listas grandes; botão "✅ Pagar" movido pra tabela principal (com colspan ajustado). ✅<br>
+    v144: Despesas — filtro de período agora vale também pra tabela principal (antes só valia pros cards), ordenação padrão por vencimento mais próximo primeiro, e atalhos novos "Mês passado" / "Próximo mês" (o antigo "Mês" virou "Mês atual"). ✅<br>
+    v144: Despesas — botão "📤 Exportar dados": abre um modal pra escolher o período e gera um .xlsx (Código, Tipo, Categoria, Descrição, Vencimento, REF, Valor, Situação, Data de pagamento, Forma de pagamento). ✅<br>
+    v144: Despesas — PAGAMENTO EM LOTE: marque várias contas pendentes na tabela (checkbox por linha + "marcar todas") e pague todas de uma vez, com uma única data/forma/observação aplicada a todas. ✅<br>
+    v144: Despesas — layout do painel "Aplicar a todos os meses em aberto" (edição de recorrente) corrigido: campos e botões alinhados em grupos, sem mais ficar um em cima do outro. ✅<br>
+    v144: Vendas — Administrador N1 (master) agora pode corrigir a DATA de uma venda ao editá-la (lançamento retroativo pedido pela vendedora); a data do lançamento no Caixa dessa venda acompanha a correção. ✅<br>
+    v144: Despesas e Vendas — o período selecionado (De/Até) não reseta mais ao entrar pra editar uma despesa/venda e voltar: fica lembrado por até 1 minuto parado, depois volta ao padrão da tela sozinho. ✅<br>
+    v144: Visão Geral — "Total em caixa" deixou de ser só do período filtrado (o que fazia parecer saldo negativo virando o mês) e passou a ser o saldo ACUMULADO até o fim do período selecionado, batendo com a realidade do caixa. ✅<br>
+    v144: Condicional — dá pra usar VALE (crédito da loja) do cliente ao gerar a venda a partir de uma condicional, igual em Vendas: os vales em aberto do cliente já aparecem sugeridos, dá pra digitar o código manualmente e combinar vários. Não se aplica à transferência (sem cliente real) nem ao crediário. ✅<br>
+    v144: Condicional — nova opção "✏️ Editar condicional" enquanto ainda está aberta: corrige cliente, vendedor(a), código/quantidade das peças e observação (para quando a vendedora erra algum desses dados no lançamento). ✅<br>
     v143: Despesas — cadastro de despesa RECORRENTE (renomeada de "Fixa" para "Mensal") ganhou a grade dos 12 meses já no lançamento: informe o vencimento do 1º mês e os outros 11 se ajustam automaticamente (mesmo dia, com o clamp de sempre para meses mais curtos), com um campo REF por mês para marcar a que competência aquele mês se refere (ex.: aluguel que vence 10/10 mas é REF 08/2026). A REF aparece na tabela, nos cards de contas a pagar/pagas e no detalhamento. ✅<br>
     v143: Despesas — o tipo "Fixa" passou a se chamar "Mensal" (mesmo conceito) em todo o sistema: cadastro, tabela, gráficos, Dashboard e Visão Geral. Dados já lançados como "Fixa" são migrados automaticamente para "Mensal". ✅<br>
     v142: Estoque — botão "📤 Exportar dados" gera um arquivo .xlsx para download com todos os produtos do período filtrado (mesmo filtro da tela: data de lançamento), incluindo código, modelo, saldo, entradas/saídas, custo, valor de venda, promoção vigente e totais do saldo (custo × venda). Cabeçalho fixo, filtro automático e colunas formatadas. ✅<br>

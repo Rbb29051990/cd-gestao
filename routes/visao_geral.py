@@ -160,24 +160,22 @@ def visao_geral():
     # v145: PONTE Despesas → Caixa real, no lugar do antigo "Lucro líquido" (que
     # comparava entradas RECEBIDAS no período com despesas A VENCER no período —
     # bases de tempo diferentes, dava número catastrófico sempre que uma conta
-    # grande vencia no meio do período). Agora tudo em regime de CAIXA:
-    #   Em caixa (início do período) + Recebido − Pago = Em caixa (fim do período)
-    #   Em caixa (fim) − Ainda falta pagar no período = Saldo projetado
+    # grande vencia no meio do período). Agora:
+    #   Em caixa (início do período) + Faturamento líquido − Total de despesas do
+    #   período = Saldo projetado (versão enxuta, aprovada pelo usuário — usa o
+    #   TOTAL de despesas a vencer, não só o que falta pagar, então "cobre" tanto
+    #   o que já foi pago quanto o que ainda vai vencer no período).
     try:
         dia_ant = date.fromisoformat(data_inicio)
         saldo_caixa_inicio = _saldo_acumulado(cur, formas_com_taxa, dia_ant, operador='<')
     except Exception:
         saldo_caixa_inicio = 0.0
+    # Em caixa AGORA (acumulado até o fim do período) — só como referência na
+    # seção "Diversos"; o saldo projetado acima não depende dele.
     try:
         saldo_caixa = _saldo_acumulado(cur, formas_com_taxa, data_fim, operador='<=')
     except Exception:
         saldo_caixa = 0.0
-    try:
-        cur.execute("SELECT COALESCE(SUM(valor),0) s FROM caixa WHERE tipo='saida' AND DATE(criado_em) BETWEEN %s AND %s",
-                    (data_inicio, data_fim))
-        pago_periodo = round(float(cur.fetchone()['s']), 2)
-    except Exception:
-        pago_periodo = 0.0
     try:
         cur.execute("""SELECT COALESCE(SUM(p.valor),0) v FROM despesa_parcelas p
                        WHERE p.pago=FALSE AND DATE(p.data_vencimento) BETWEEN %s AND %s""",
@@ -185,7 +183,8 @@ def visao_geral():
         despesas_pendentes_periodo = round(float(cur.fetchone()['v']), 2)
     except Exception:
         despesas_pendentes_periodo = 0.0
-    saldo_projetado = round(saldo_caixa - despesas_pendentes_periodo, 2)
+    despesas_pagas_periodo = round(val_despesas - despesas_pendentes_periodo, 2)
+    saldo_projetado = round(saldo_caixa_inicio + fat_total_liq - val_despesas, 2)
     # Movimentações recentes (filtradas pelo período)
     try:
         cur.execute("""SELECT id,criado_em,vendedora_nome,cliente_nome,valor_total,forma_pagamento
@@ -204,8 +203,8 @@ def visao_geral():
                fat_dinheiro_pix=fat_dinheiro_pix, fat_cartao=fat_cartao, pct_liquido=pct_liquido,
                pct_taxa=pct_taxa, total_taxas=total_taxas,
                saldo_caixa=saldo_caixa, saldo_caixa_inicio=saldo_caixa_inicio,
-               fat_total_liq_geral=fat_total_liq_geral, pago_periodo=pago_periodo,
-               despesas_pendentes_periodo=despesas_pendentes_periodo, saldo_projetado=saldo_projetado,
+               despesas_pendentes_periodo=despesas_pendentes_periodo,
+               despesas_pagas_periodo=despesas_pagas_periodo, saldo_projetado=saldo_projetado,
                data_fim_br=date.fromisoformat(data_fim).strftime('%d/%m/%Y'),
                data_inicio_ant_br=(dia_inicio_dt - timedelta(days=1)).strftime('%d/%m/%Y'),
                estoque_30=estoque_30, estoque_60=estoque_60,

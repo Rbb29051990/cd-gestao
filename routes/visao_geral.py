@@ -1,11 +1,44 @@
 """Rota da Visão Geral: faturamento por forma (caixa real), estoque, crediários,
-condicionais, despesas do período e lucro líquido."""
+condicionais, despesas do período e a ponte despesas → caixa real (saldo
+acumulado e saldo projetado após as pendências do período)."""
 from flask import render_template, request
-from datetime import date
+from datetime import date, timedelta
 from db import get_db, close_db
 from config import agora_app, hoje_app, fim_mes_app
 from auth import login_required, get_ctx
 from utils import get_taxa_vigente, calcular_liquido
+
+
+def _saldo_acumulado(cur, formas_com_taxa, data_limite, operador='<='):
+    """v145: soma TODAS as entradas líquidas (com taxa de cartão descontada) menos
+    todas as saídas do caixa até uma data — usado pra montar a ponte 'Em caixa
+    (início) + recebido − pago = Em caixa (fim)'. `operador` é '<=' (inclui a data)
+    ou '<' (até o dia anterior), sempre um literal fixo do código — nunca vem do
+    usuário, então não há risco de injeção ao montar a query com ele."""
+    cmp = '<=' if operador == '<=' else '<'
+    cur.execute(f"""SELECT forma_pagamento, valor, criado_em, parcelas, tipo FROM caixa
+                   WHERE DATE(criado_em) {cmp} %s""", (data_limite,))
+    taxa_cache = {}
+    entradas_liq = 0.0
+    saidas = 0.0
+    for r in cur.fetchall():
+        if r['tipo'] == 'saida':
+            saidas += float(r['valor'] or 0)
+            continue
+        if r['tipo'] != 'entrada':
+            continue
+        f = r['forma_pagamento'] or ''
+        bruto = float(r['valor'] or 0)
+        if f in formas_com_taxa:
+            d = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje_app()
+            chave = d.isoformat()
+            if chave not in taxa_cache:
+                taxa_cache[chave] = get_taxa_vigente(d)
+            liq, _d, _p = calcular_liquido(bruto, f, taxa_cache[chave], r.get('parcelas'))
+        else:
+            liq = bruto
+        entradas_liq += liq
+    return round(entradas_liq - saidas, 2)
 
 
 @login_required
@@ -123,41 +156,36 @@ def visao_geral():
     despesas_fixas   = round(despesas_fixas, 2)
     despesas_avulsas = round(despesas_avulsas, 2)
     val_despesas     = round(despesas_fixas + despesas_avulsas, 2)
-    # Lucro líquido = entradas líquidas − (despesas fixas + avulsas) do período
-    # (pelo VENCIMENTO — inclui o que ainda está a pagar).
-    lucro_liquido = round(fat_total_liq - val_despesas, 2)
-    # Total em caixa = saldo ACUMULADO (não é só do período em exibição): soma de TODAS
-    # as entradas líquidas e saídas do caixa desde o início até o fim do período
-    # selecionado. Antes esse card somava só o que aconteceu DENTRO do período — então
-    # virar o mês (contas do início do mês pagas com o caixa que sobrou do mês anterior,
-    # antes de entrar faturamento novo) fazia parecer que a loja estava no negativo,
-    # mesmo com saldo real positivo. Ignora data_inicio de propósito.
+
+    # v145: PONTE Despesas → Caixa real, no lugar do antigo "Lucro líquido" (que
+    # comparava entradas RECEBIDAS no período com despesas A VENCER no período —
+    # bases de tempo diferentes, dava número catastrófico sempre que uma conta
+    # grande vencia no meio do período). Agora tudo em regime de CAIXA:
+    #   Em caixa (início do período) + Recebido − Pago = Em caixa (fim do período)
+    #   Em caixa (fim) − Ainda falta pagar no período = Saldo projetado
     try:
-        cur.execute("""SELECT forma_pagamento, valor, criado_em, parcelas, tipo FROM caixa
-                       WHERE DATE(criado_em) <= %s""", (data_fim,))
-        taxa_cache_acum = {}
-        entradas_liq_acum = 0.0
-        saidas_acum = 0.0
-        for r in cur.fetchall():
-            if r['tipo'] == 'saida':
-                saidas_acum += float(r['valor'] or 0)
-                continue
-            if r['tipo'] != 'entrada':
-                continue
-            f = r['forma_pagamento'] or ''
-            bruto = float(r['valor'] or 0)
-            if f in formas_com_taxa:
-                d = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje_app()
-                chave = d.isoformat()
-                if chave not in taxa_cache_acum:
-                    taxa_cache_acum[chave] = get_taxa_vigente(d)
-                liq, _d, _p = calcular_liquido(bruto, f, taxa_cache_acum[chave], r.get('parcelas'))
-            else:
-                liq = bruto
-            entradas_liq_acum += liq
-        saldo_caixa = round(entradas_liq_acum - saidas_acum, 2)
+        dia_ant = date.fromisoformat(data_inicio)
+        saldo_caixa_inicio = _saldo_acumulado(cur, formas_com_taxa, dia_ant, operador='<')
+    except Exception:
+        saldo_caixa_inicio = 0.0
+    try:
+        saldo_caixa = _saldo_acumulado(cur, formas_com_taxa, data_fim, operador='<=')
     except Exception:
         saldo_caixa = 0.0
+    try:
+        cur.execute("SELECT COALESCE(SUM(valor),0) s FROM caixa WHERE tipo='saida' AND DATE(criado_em) BETWEEN %s AND %s",
+                    (data_inicio, data_fim))
+        pago_periodo = round(float(cur.fetchone()['s']), 2)
+    except Exception:
+        pago_periodo = 0.0
+    try:
+        cur.execute("""SELECT COALESCE(SUM(p.valor),0) v FROM despesa_parcelas p
+                       WHERE p.pago=FALSE AND DATE(p.data_vencimento) BETWEEN %s AND %s""",
+                    (data_inicio, data_fim))
+        despesas_pendentes_periodo = round(float(cur.fetchone()['v']), 2)
+    except Exception:
+        despesas_pendentes_periodo = 0.0
+    saldo_projetado = round(saldo_caixa - despesas_pendentes_periodo, 2)
     # Movimentações recentes (filtradas pelo período)
     try:
         cur.execute("""SELECT id,criado_em,vendedora_nome,cliente_nome,valor_total,forma_pagamento
@@ -170,17 +198,22 @@ def visao_geral():
         estoque_baixo = [dict(r) for r in cur.fetchall()]
     except: estoque_baixo = []
     cur.close(); close_db(conn)
+    dia_inicio_dt = date.fromisoformat(data_inicio)
     ctx = get_ctx()
     ctx.update(fat=fat, fat_liq=fat_liq, fat_total=fat_total, fat_total_liq=fat_total_liq,
                fat_dinheiro_pix=fat_dinheiro_pix, fat_cartao=fat_cartao, pct_liquido=pct_liquido,
-               pct_taxa=pct_taxa, total_taxas=total_taxas, saldo_caixa=saldo_caixa,
+               pct_taxa=pct_taxa, total_taxas=total_taxas,
+               saldo_caixa=saldo_caixa, saldo_caixa_inicio=saldo_caixa_inicio,
+               fat_total_liq_geral=fat_total_liq_geral, pago_periodo=pago_periodo,
+               despesas_pendentes_periodo=despesas_pendentes_periodo, saldo_projetado=saldo_projetado,
                data_fim_br=date.fromisoformat(data_fim).strftime('%d/%m/%Y'),
+               data_inicio_ant_br=(dia_inicio_dt - timedelta(days=1)).strftime('%d/%m/%Y'),
                estoque_30=estoque_30, estoque_60=estoque_60,
                custo_estoque=custo_estoque, val_estoque=val_estoque,
                lucro_potencial=lucro_potencial, val_crediarios=val_crediarios,
                val_condicional=val_condicional, n_condicional=n_condicional, val_vales=val_vales,
                val_despesas=val_despesas, despesas_fixas=despesas_fixas,
-               despesas_avulsas=despesas_avulsas, lucro_liquido=lucro_liquido,
+               despesas_avulsas=despesas_avulsas,
                movs=movs, estoque_baixo=estoque_baixo,
                data_inicio=data_inicio, data_fim=data_fim,
                mes_atual=hoje.strftime('%B / %Y').capitalize(),

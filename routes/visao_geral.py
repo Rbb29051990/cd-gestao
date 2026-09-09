@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from db import get_db, close_db
 from config import agora_app, hoje_app, fim_mes_app
 from auth import login_required, get_ctx
-from utils import get_taxa_vigente, calcular_liquido
+from utils import get_taxa_vigente, calcular_liquido, data_extenso_br
 
 
 def _saldo_acumulado(cur, formas_com_taxa, data_limite, operador='<='):
@@ -215,8 +215,7 @@ def visao_geral():
                despesas_avulsas=despesas_avulsas,
                movs=movs, estoque_baixo=estoque_baixo,
                data_inicio=data_inicio, data_fim=data_fim,
-               mes_atual=hoje.strftime('%B / %Y').capitalize(),
-               hoje=hoje.strftime('%A, %d de %B de %Y').capitalize())
+               hoje=data_extenso_br(hoje))
     return render_template('visao_geral.html', **ctx)
 
 

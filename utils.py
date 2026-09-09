@@ -12,6 +12,20 @@ logger = logging.getLogger('cd-gestao')
 
 PERIODO_JANELA_SEG = 60   # tempo parado até o período voltar ao padrão da tela
 
+MESES_PT = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho',
+            'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+DIAS_SEMANA_PT = ['segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira',
+                   'sexta-feira', 'sábado', 'domingo']
+
+
+def data_extenso_br(d):
+    """v145: 'Quarta-feira, 09 de setembro de 2026' sem depender do locale do
+    servidor — strftime('%A')/('%B') variam com a instalação (no Render vinham
+    em inglês: 'Wednesday, 09 de september de 2026', misturado com o resto em
+    português)."""
+    dia_semana = DIAS_SEMANA_PT[d.weekday()].capitalize()
+    return f"{dia_semana}, {d.day:02d} de {MESES_PT[d.month - 1]} de {d.year}"
+
 
 def resolver_periodo(chave, data_inicio_padrao, data_fim_padrao):
     """Lê data_inicio/data_fim da querystring. Se a tela foi aberta SEM período na URL

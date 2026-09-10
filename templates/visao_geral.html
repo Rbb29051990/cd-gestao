@@ -248,31 +248,31 @@
       </div>
 
       <div class="vg-sec">
-        <div class="vg-sec-head">Controle de caixa</div>
+        <div class="vg-sec-head">Controle de caixa <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#a0a0ad">— sempre mensal, não segue o filtro De/Até acima</span></div>
         <div class="vg-sec-body">
           <div class="vg-eqrow">
             <div class="mg-card c-teal">
-              <div class="mg-top"><span class="mg-icon">🏦</span><span class="mg-label">Em caixa ({{ data_inicio_ant_br }})</span></div>
-              <div class="mg-val {% if saldo_caixa_inicio >= 0 %}pos{% else %}neg{% endif %}">{{ brl(saldo_caixa_inicio) }}</div>
-              <div class="mg-sub">Saldo acumulado até o início do período</div>
+              <div class="mg-top"><span class="mg-icon">🏦</span><span class="mg-label">Em caixa ({{ mes_anterior_fim_br }})</span></div>
+              <div class="mg-val {% if saldo_caixa_mes_anterior >= 0 %}pos{% else %}neg{% endif %}">{{ brl(saldo_caixa_mes_anterior) }}</div>
+              <div class="mg-sub">Saldo acumulado até o fim do mês anterior</div>
             </div>
             <div class="vg-op">+</div>
             <div class="mg-card c-verde">
               <div class="mg-top"><span class="mg-icon">✅</span><span class="mg-label">Faturamento líquido</span></div>
-              <div class="mg-val pos">{{ brl(fat_total_liq) }}</div>
-              <div class="mg-sub">Após taxas de cartão</div>
+              <div class="mg-val pos">{{ brl(fat_liq_mes) }}</div>
+              <div class="mg-sub">Acumulado do mês atual, após taxas</div>
             </div>
             <div class="vg-op">−</div>
             <div class="mg-card c-laranja">
               <div class="mg-top"><span class="mg-icon">🧮</span><span class="mg-label">Total de despesas</span></div>
-              <div class="mg-val">{{ brl(val_despesas) }}</div>
-              <div class="mg-sub">Mensais + avulsas do período</div>
+              <div class="mg-val">{{ brl(despesas_mes) }}</div>
+              <div class="mg-sub">Mensais + avulsas do mês atual</div>
             </div>
             <div class="vg-op">=</div>
             <div class="mg-card c-teal">
               <div class="mg-top"><span class="mg-icon">🧭</span><span class="mg-label">Saldo projetado</span></div>
-              <div class="mg-val {% if saldo_projetado >= 0 %}pos{% else %}neg{% endif %}">{{ brl(saldo_projetado) }}</div>
-              <div class="mg-sub">Se quitasse hoje tudo que vence no período</div>
+              <div class="mg-val {% if saldo_projetado_mes >= 0 %}pos{% else %}neg{% endif %}">{{ brl(saldo_projetado_mes) }}</div>
+              <div class="mg-sub">O que precisa ter em caixa até o fim do mês</div>
             </div>
           </div>
         </div>

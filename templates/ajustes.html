@@ -13,7 +13,7 @@
       <div class="page-header" style="flex-wrap:wrap;gap:16px">
         <div>
           <div class="page-title">Ajustes Financeiros</div>
-          <div class="page-date">Lançamentos manuais de entrada para saldo inicial, correções e recebimentos avulsos.</div>
+          <div class="page-date">Lançamentos manuais de entrada ou saída — saldo inicial, correções, recebimentos avulsos e reconciliação com o saldo real.</div>
         </div>
         <form method="GET" id="formFiltroAjustes" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
           <div>
@@ -38,7 +38,14 @@
           <form method="POST" action="/ajustes/novo" class="aj-form">
             <div class="aj-field"><label>Data</label><input type="date" name="data_ajuste" value="{{ hoje }}" required></div>
             <div class="aj-field"><label>Tipo</label><select name="tipo_ajuste" required>{% for v,l in tipos_ajuste %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
-            <div class="aj-field full"><label>Descrição</label><input name="descricao" placeholder="Ex.: Saldo inicial das vendas antes do sistema" required></div>
+            <div class="aj-field full">
+              <label>Lançamento</label>
+              <div style="display:flex;gap:10px">
+                <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;color:#1a1a2e;cursor:pointer"><input type="radio" name="tipo_lancamento" value="entrada" checked style="width:auto"> ➕ Entrada (soma no caixa)</label>
+                <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;color:#1a1a2e;cursor:pointer"><input type="radio" name="tipo_lancamento" value="saida" style="width:auto"> ➖ Saída (subtrai do caixa)</label>
+              </div>
+            </div>
+            <div class="aj-field full"><label>Descrição</label><input name="descricao" placeholder="Ex.: Saldo inicial das vendas antes do sistema, ou Correção de reconciliação bancária" required></div>
             <div class="aj-field"><label>Forma de pagamento</label><select name="forma_pagamento" required>{% for v,l in formas_pagamento %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
             <div class="aj-field"><label>Valor</label><input name="valor" placeholder="0,00" required></div>
             <div class="aj-field full"><label>Observação opcional</label><textarea name="observacao" placeholder="Detalhes para auditoria, se necessário"></textarea></div>
@@ -47,7 +54,7 @@
         </div>
         <div class="aj-card">
           <div class="aj-title">Resumo do período</div>
-          <div class="aj-total">{{ moeda(totais.total) }}</div>
+          <div class="aj-total" style="color:{% if totais.total < 0 %}#c62828{% else %}#2e7d32{% endif %}">{{ moeda(totais.total) }}</div>
           <div class="aj-break"><span>Saldo Inicial</span><b>{{ moeda(totais.saldo_inicial) }}</b></div>
           <div class="aj-break"><span>Ajuste de Caixa</span><b>{{ moeda(totais.ajuste_caixa) }}</b></div>
           <div class="aj-break"><span>Recebimento Avulso</span><b>{{ moeda(totais.recebimento_avulso) }}</b></div>
@@ -61,14 +68,16 @@
       <div class="table-wrap" style="max-height:430px;overflow-y:auto">
         <table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Forma</th><th>Valor Bruto</th><th>Desc. Taxa</th><th>Líquido</th><th>Usuário</th><th>Observação</th><th>Ações</th></tr></thead><tbody>
         {% for a in lista %}
+          {% set saida = (a.tipo_lancamento == 'saida') %}
           <tr>
             <td>{{ a.data_ajuste.strftime('%d/%m/%Y') if a.data_ajuste else '—' }}</td>
-            <td><span class="bdg-aj">{{ tipos_dict.get(a.tipo_ajuste, a.tipo_ajuste) }}</span></td>
+            <td><span class="bdg-aj">{{ tipos_dict.get(a.tipo_ajuste, a.tipo_ajuste) }}</span>
+                <span class="bdg-aj" style="background:{% if saida %}#fdecea;color:#c62828{% else %}#e8f5e9;color:#2e7d32{% endif %};margin-left:4px">{{ 'Saída' if saida else 'Entrada' }}</span></td>
             <td style="font-weight:700">{{ a.descricao }}</td>
             <td>{{ formas_dict.get(a.forma_pagamento, a.forma_pagamento) }}</td>
-            <td style="font-weight:800;color:#2e7d32">+ {{ moeda(a.valor_bruto) }}</td>
+            <td style="font-weight:800;color:{% if saida %}#c62828{% else %}#2e7d32{% endif %}">{{ '-' if saida else '+' }} {{ moeda(a.valor_bruto) }}</td>
             <td style="color:{% if a.desconto_taxa > 0 %}#c62828{% else %}#aaa{% endif %}">{% if a.desconto_taxa > 0 %}- {{ moeda(a.desconto_taxa) }}<br><span style="font-size:10px;color:#aaa">{{ "%.2f"|format(a.taxa_pct) }}%</span>{% else %}—{% endif %}</td>
-            <td style="font-weight:800;color:#1565c0">{{ moeda(a.valor_liquido) }}</td>
+            <td style="font-weight:800;color:{% if saida %}#c62828{% else %}#1565c0{% endif %}">{{ '-' if saida else '' }} {{ moeda(a.valor_liquido) }}</td>
             <td>{{ a.usuario_nome or '—' }}</td>
             <td>{{ a.observacao or '—' }}</td>
             <td>
@@ -78,6 +87,7 @@
                   data-id="{{ a.id }}"
                   data-data="{{ a.data_ajuste.strftime('%Y-%m-%d') if a.data_ajuste else hoje }}"
                   data-tipo="{{ a.tipo_ajuste }}"
+                  data-tipolanc="{{ a.tipo_lancamento or 'entrada' }}"
                   data-descricao="{{ a.descricao }}"
                   data-forma="{{ a.forma_pagamento or '' }}"
                   data-valor="{{ a.valor_bruto }}"
@@ -105,6 +115,13 @@
     <form method="POST" id="formEditar" class="aj-form">
       <div class="aj-field"><label>Data</label><input type="date" name="data_ajuste" id="editData" required></div>
       <div class="aj-field"><label>Tipo</label><select name="tipo_ajuste" id="editTipo" required>{% for v,l in tipos_ajuste %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+      <div class="aj-field full">
+        <label>Lançamento</label>
+        <div style="display:flex;gap:10px">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;color:#1a1a2e;cursor:pointer"><input type="radio" name="tipo_lancamento" id="editLancEntrada" value="entrada" style="width:auto"> ➕ Entrada</label>
+          <label style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;color:#1a1a2e;cursor:pointer"><input type="radio" name="tipo_lancamento" id="editLancSaida" value="saida" style="width:auto"> ➖ Saída</label>
+        </div>
+      </div>
       <div class="aj-field full"><label>Descrição</label><input name="descricao" id="editDescricao" required></div>
       <div class="aj-field"><label>Forma de pagamento</label><select name="forma_pagamento" id="editForma" required>{% for v,l in formas_pagamento %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
       <div class="aj-field"><label>Valor</label><input name="valor" id="editValor" placeholder="0,00" required></div>
@@ -141,6 +158,8 @@ function abrirEditar(btn){
   var d = btn.dataset;
   document.getElementById('editData').value = d.data;
   document.getElementById('editTipo').value = d.tipo;
+  document.getElementById('editLancSaida').checked = (d.tipolanc === 'saida');
+  document.getElementById('editLancEntrada').checked = (d.tipolanc !== 'saida');
   document.getElementById('editDescricao').value = d.descricao;
   document.getElementById('editForma').value = d.forma;
   document.getElementById('editValor').value = String(d.valor).replace('.', ',');

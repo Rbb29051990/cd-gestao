@@ -20,6 +20,12 @@ TIPOS_AJUSTE = [
     ('outros', 'Outros'),
 ]
 
+# v145: direção do lançamento — Entrada soma no caixa, Saída subtrai. Antes só
+# existia Entrada; sem Saída não dava pra corrigir o saldo pra baixo quando o
+# caixa do app ficava MAIOR que o saldo real (reconciliação bancária).
+TIPOS_LANCAMENTO = [('entrada', 'Entrada'), ('saida', 'Saída')]
+TIPOS_LANCAMENTO_DICT = dict(TIPOS_LANCAMENTO)
+
 FORMAS_PAGAMENTO = [
     ('dinheiro', 'Dinheiro'),
     ('pix', 'PIX'),
@@ -48,15 +54,23 @@ def _timestamp_do_ajuste(data_ajuste):
 
 
 def _enriquecer_liquido(lista):
-    """Calcula valor_bruto, desconto_taxa e valor_liquido para cada ajuste."""
+    """Calcula valor_bruto, desconto_taxa e valor_liquido para cada ajuste.
+    v145: Saída não sofre taxa de cartão (não é uma cobrança, é dinheiro saindo
+    do caixa) — só Entrada passa pelo cálculo de taxa."""
     taxas_cache = {}
     for a in lista:
+        bruto = float(a.get('valor') or 0)
+        if (a.get('tipo_lancamento') or 'entrada') == 'saida':
+            a['valor_bruto'] = bruto
+            a['desconto_taxa'] = 0.0
+            a['valor_liquido'] = bruto
+            a['taxa_pct'] = 0.0
+            continue
         data = a.get('data_ajuste')
         data_key = data.strftime('%Y-%m-%d') if hasattr(data, 'strftime') else str(data or '')
         if data_key not in taxas_cache:
             taxas_cache[data_key] = get_taxa_vigente(data)
         taxa = taxas_cache[data_key]
-        bruto = float(a.get('valor') or 0)
         liquido, desconto, taxa_pct = calcular_liquido(bruto, a.get('forma_pagamento'), taxa)
         a['valor_bruto'] = bruto
         a['desconto_taxa'] = desconto
@@ -80,14 +94,16 @@ def ajustes():
                    ORDER BY data_ajuste DESC, id DESC""", (data_inicio, data_fim))
     lista = [dict(a) for a in cur.fetchall()]
 
+    # v145: soma com SINAL — saída entra negativa na conta, senão o total do
+    # período ficaria inflado em vez de refletir a correção pra baixo.
     cur.execute("""SELECT
-        COALESCE(SUM(valor),0) AS total,
-        COALESCE(SUM(CASE WHEN tipo_ajuste='saldo_inicial' THEN valor ELSE 0 END),0) AS saldo_inicial,
-        COALESCE(SUM(CASE WHEN tipo_ajuste='ajuste_caixa' THEN valor ELSE 0 END),0) AS ajuste_caixa,
-        COALESCE(SUM(CASE WHEN tipo_ajuste='recebimento_avulso' THEN valor ELSE 0 END),0) AS recebimento_avulso,
-        COALESCE(SUM(CASE WHEN tipo_ajuste='aporte_socios' THEN valor ELSE 0 END),0) AS aporte_socios,
-        COALESCE(SUM(CASE WHEN tipo_ajuste='transferencia' THEN valor ELSE 0 END),0) AS transferencia,
-        COALESCE(SUM(CASE WHEN tipo_ajuste='outros' THEN valor ELSE 0 END),0) AS outros
+        COALESCE(SUM(CASE WHEN tipo_lancamento='saida' THEN -valor ELSE valor END),0) AS total,
+        COALESCE(SUM(CASE WHEN tipo_ajuste='saldo_inicial' THEN (CASE WHEN tipo_lancamento='saida' THEN -valor ELSE valor END) ELSE 0 END),0) AS saldo_inicial,
+        COALESCE(SUM(CASE WHEN tipo_ajuste='ajuste_caixa' THEN (CASE WHEN tipo_lancamento='saida' THEN -valor ELSE valor END) ELSE 0 END),0) AS ajuste_caixa,
+        COALESCE(SUM(CASE WHEN tipo_ajuste='recebimento_avulso' THEN (CASE WHEN tipo_lancamento='saida' THEN -valor ELSE valor END) ELSE 0 END),0) AS recebimento_avulso,
+        COALESCE(SUM(CASE WHEN tipo_ajuste='aporte_socios' THEN (CASE WHEN tipo_lancamento='saida' THEN -valor ELSE valor END) ELSE 0 END),0) AS aporte_socios,
+        COALESCE(SUM(CASE WHEN tipo_ajuste='transferencia' THEN (CASE WHEN tipo_lancamento='saida' THEN -valor ELSE valor END) ELSE 0 END),0) AS transferencia,
+        COALESCE(SUM(CASE WHEN tipo_ajuste='outros' THEN (CASE WHEN tipo_lancamento='saida' THEN -valor ELSE valor END) ELSE 0 END),0) AS outros
         FROM ajustes_financeiros
         WHERE DATE(data_ajuste) BETWEEN %s AND %s""", (data_inicio, data_fim))
     totais = dict(cur.fetchone())
@@ -97,6 +113,7 @@ def ajustes():
 
     ctx = get_ctx()
     ctx.update(lista=lista, totais=totais, tipos_ajuste=TIPOS_AJUSTE,
+               tipos_lancamento=TIPOS_LANCAMENTO, tipos_lancamento_dict=TIPOS_LANCAMENTO_DICT,
                formas_pagamento=FORMAS_PAGAMENTO, tipos_dict=TIPOS_DICT,
                formas_dict=FORMAS_DICT, data_inicio=data_inicio, data_fim=data_fim,
                hoje=hoje.strftime('%Y-%m-%d'))
@@ -107,6 +124,9 @@ def ajustes():
 def novo_ajuste():
     data_ajuste = _parse_iso_date(request.form.get('data_ajuste'), hoje_app())
     tipo_ajuste = request.form.get('tipo_ajuste') or ''
+    tipo_lancamento = request.form.get('tipo_lancamento') or 'entrada'
+    if tipo_lancamento not in TIPOS_LANCAMENTO_DICT:
+        tipo_lancamento = 'entrada'
     forma_pagamento = request.form.get('forma_pagamento') or ''
     descricao = (request.form.get('descricao') or '').strip()
     observacao = (request.form.get('observacao') or '').strip()
@@ -125,25 +145,25 @@ def novo_ajuste():
         descricao = TIPOS_DICT.get(tipo_ajuste, 'Ajuste financeiro')
 
     criado_em = _timestamp_do_ajuste(data_ajuste)
-    desc_caixa = f"Ajuste Financeiro - {TIPOS_DICT[tipo_ajuste]}: {descricao}"
+    desc_caixa = f"Ajuste Financeiro ({TIPOS_LANCAMENTO_DICT[tipo_lancamento]}) - {TIPOS_DICT[tipo_ajuste]}: {descricao}"
 
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("""INSERT INTO caixa
             (descricao, valor, tipo, forma_pagamento, usuario_id, vendedora_nome, criado_em)
-            VALUES (%s,%s,'entrada',%s,%s,%s,%s) RETURNING id""",
-            (desc_caixa, valor, forma_pagamento, session.get('uid'), session.get('nome'), criado_em))
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (desc_caixa, valor, tipo_lancamento, forma_pagamento, session.get('uid'), session.get('nome'), criado_em))
         caixa_id = cur.fetchone()['id']
 
         cur.execute("""INSERT INTO ajustes_financeiros
-            (data_ajuste, tipo_ajuste, descricao, forma_pagamento, valor, observacao,
+            (data_ajuste, tipo_ajuste, tipo_lancamento, descricao, forma_pagamento, valor, observacao,
              caixa_id, usuario_id, usuario_nome, criado_em)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-            (data_ajuste, tipo_ajuste, descricao, forma_pagamento, valor, observacao or None,
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (data_ajuste, tipo_ajuste, tipo_lancamento, descricao, forma_pagamento, valor, observacao or None,
              caixa_id, session.get('uid'), session.get('nome'), criado_em))
         ajuste_id = cur.fetchone()['id']
         audit_log(cur, 'CRIAR_AJUSTE_FINANCEIRO', 'ajustes_financeiros', ajuste_id,
-                  {'tipo': tipo_ajuste, 'forma': forma_pagamento, 'valor': valor, 'caixa_id': caixa_id})
+                  {'tipo': tipo_ajuste, 'direcao': tipo_lancamento, 'forma': forma_pagamento, 'valor': valor, 'caixa_id': caixa_id})
         conn.commit()
         flash('Ajuste financeiro lançado e integrado ao caixa.', 'sucesso')
     except Exception as exc:
@@ -162,6 +182,9 @@ def editar_ajuste(ajuste_id):
 
     data_ajuste = _parse_iso_date(request.form.get('data_ajuste'), hoje_app())
     tipo_ajuste = request.form.get('tipo_ajuste') or ''
+    tipo_lancamento = request.form.get('tipo_lancamento') or 'entrada'
+    if tipo_lancamento not in TIPOS_LANCAMENTO_DICT:
+        tipo_lancamento = 'entrada'
     forma_pagamento = request.form.get('forma_pagamento') or ''
     descricao = (request.form.get('descricao') or '').strip()
     observacao = (request.form.get('observacao') or '').strip()
@@ -180,7 +203,7 @@ def editar_ajuste(ajuste_id):
         descricao = TIPOS_DICT.get(tipo_ajuste, 'Ajuste financeiro')
 
     criado_em = _timestamp_do_ajuste(data_ajuste)
-    desc_caixa = f"Ajuste Financeiro - {TIPOS_DICT[tipo_ajuste]}: {descricao}"
+    desc_caixa = f"Ajuste Financeiro ({TIPOS_LANCAMENTO_DICT[tipo_lancamento]}) - {TIPOS_DICT[tipo_ajuste]}: {descricao}"
 
     conn = get_db(); cur = conn.cursor()
     try:
@@ -191,20 +214,20 @@ def editar_ajuste(ajuste_id):
             return redirect(url_for('ajustes'))
 
         cur.execute("""UPDATE ajustes_financeiros
-            SET data_ajuste=%s, tipo_ajuste=%s, descricao=%s, forma_pagamento=%s,
+            SET data_ajuste=%s, tipo_ajuste=%s, tipo_lancamento=%s, descricao=%s, forma_pagamento=%s,
                 valor=%s, observacao=%s, criado_em=%s
             WHERE id=%s""",
-            (data_ajuste, tipo_ajuste, descricao, forma_pagamento, valor,
+            (data_ajuste, tipo_ajuste, tipo_lancamento, descricao, forma_pagamento, valor,
              observacao or None, criado_em, ajuste_id))
 
         caixa_id = ajuste.get('caixa_id')
         if caixa_id:
-            cur.execute("""UPDATE caixa SET descricao=%s, valor=%s, forma_pagamento=%s, criado_em=%s
+            cur.execute("""UPDATE caixa SET descricao=%s, valor=%s, tipo=%s, forma_pagamento=%s, criado_em=%s
                 WHERE id=%s""",
-                (desc_caixa, valor, forma_pagamento, criado_em, caixa_id))
+                (desc_caixa, valor, tipo_lancamento, forma_pagamento, criado_em, caixa_id))
 
         audit_log(cur, 'EDITAR_AJUSTE_FINANCEIRO', 'ajustes_financeiros', ajuste_id,
-                  {'tipo': tipo_ajuste, 'forma': forma_pagamento, 'valor': valor, 'caixa_id': caixa_id})
+                  {'tipo': tipo_ajuste, 'direcao': tipo_lancamento, 'forma': forma_pagamento, 'valor': valor, 'caixa_id': caixa_id})
         conn.commit()
         flash('Ajuste financeiro atualizado.', 'sucesso')
     except Exception as exc:

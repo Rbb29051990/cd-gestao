@@ -306,6 +306,11 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_ajustes_tipo ON ajustes_financeiros (tipo_ajuste)",
         "CREATE INDEX IF NOT EXISTS idx_crediario_parcelas_vencimento ON crediario_parcelas (data_vencimento, pago)",
         "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='chk_estoque_quantidade_nao_negativa') THEN ALTER TABLE estoque ADD CONSTRAINT chk_estoque_quantidade_nao_negativa CHECK (quantidade >= 0) NOT VALID; END IF; END $$;",
+        # v145: Ajustes Financeiros ganha direção (entrada/saída) — antes só dava pra
+        # SOMAR dinheiro no caixa por aqui, sem jeito de corrigir pra baixo quando o
+        # saldo do app ficava maior que o saldo real (reconciliação bancária).
+        # Default 'entrada' preserva o comportamento de todo ajuste já lançado.
+        "ALTER TABLE ajustes_financeiros ADD COLUMN IF NOT EXISTS tipo_lancamento VARCHAR(10) DEFAULT 'entrada'",
     ]
     for sql in migracoes:
         try:

@@ -7,39 +7,7 @@ import calendar
 from db import get_db, close_db
 from config import agora_app, hoje_app, fim_mes_app
 from auth import login_required, get_ctx
-from utils import get_taxa_vigente, calcular_liquido, data_extenso_br
-
-
-def _saldo_acumulado(cur, formas_com_taxa, data_limite, operador='<='):
-    """v145: soma TODAS as entradas líquidas (com taxa de cartão descontada) menos
-    todas as saídas do caixa até uma data — usado pra montar a ponte 'Em caixa
-    (início) + recebido − pago = Em caixa (fim)'. `operador` é '<=' (inclui a data)
-    ou '<' (até o dia anterior), sempre um literal fixo do código — nunca vem do
-    usuário, então não há risco de injeção ao montar a query com ele."""
-    cmp = '<=' if operador == '<=' else '<'
-    cur.execute(f"""SELECT forma_pagamento, valor, criado_em, parcelas, tipo FROM caixa
-                   WHERE DATE(criado_em) {cmp} %s""", (data_limite,))
-    taxa_cache = {}
-    entradas_liq = 0.0
-    saidas = 0.0
-    for r in cur.fetchall():
-        if r['tipo'] == 'saida':
-            saidas += float(r['valor'] or 0)
-            continue
-        if r['tipo'] != 'entrada':
-            continue
-        f = r['forma_pagamento'] or ''
-        bruto = float(r['valor'] or 0)
-        if f in formas_com_taxa:
-            d = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje_app()
-            chave = d.isoformat()
-            if chave not in taxa_cache:
-                taxa_cache[chave] = get_taxa_vigente(d)
-            liq, _d, _p = calcular_liquido(bruto, f, taxa_cache[chave], r.get('parcelas'))
-        else:
-            liq = bruto
-        entradas_liq += liq
-    return round(entradas_liq - saidas, 2)
+from utils import get_taxa_vigente, calcular_liquido, data_extenso_br, saldo_caixa_acumulado
 
 
 @login_required
@@ -161,7 +129,7 @@ def visao_geral():
     # Em caixa AGORA (acumulado até o fim do período) — só como referência na
     # seção "Diversos".
     try:
-        saldo_caixa = _saldo_acumulado(cur, formas_com_taxa, data_fim, operador='<=')
+        saldo_caixa = saldo_caixa_acumulado(cur, data_fim, operador='<=', formas_com_taxa=formas_com_taxa)
     except Exception:
         saldo_caixa = 0.0
     try:
@@ -185,7 +153,7 @@ def visao_geral():
     ultimo_dia_mes = calendar.monthrange(mes_ini_dt.year, mes_ini_dt.month)[1]
     mes_fim_dt = mes_ini_dt.replace(day=ultimo_dia_mes)
     try:
-        saldo_caixa_mes_anterior = _saldo_acumulado(cur, formas_com_taxa, mes_ini_dt, operador='<')
+        saldo_caixa_mes_anterior = saldo_caixa_acumulado(cur, mes_ini_dt, operador='<', formas_com_taxa=formas_com_taxa)
     except Exception:
         saldo_caixa_mes_anterior = 0.0
     try:

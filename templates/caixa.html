@@ -124,7 +124,7 @@
         <div style="background:#e8f5e9;border:1.5px solid #c5e1a5;border-radius:12px;padding:20px 24px;box-shadow:0 4px 14px rgba(0,0,0,0.05);border-top:3px solid #2e7d32">
           <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;margin-bottom:8px">💰 Saldo líquido</div>
           <div style="font-size:22px;font-weight:700;color:{% if saldo_liquido|default(0) >= 0 %}#2e7d32{% else %}#c62828{% endif %}">R$ {{ "{:,.2f}".format(saldo_liquido|default(0))|replace(",","X")|replace(".",",")|replace("X",".") }}</div>
-          <div style="font-size:11px;color:#aaa;margin-top:4px">bruto − taxas − saídas</div>
+          <div style="font-size:11px;color:#aaa;margin-top:4px">Saldo real acumulado até {{ data_fim_br }} (não é só do período filtrado)</div>
         </div>
 
       </div>

@@ -5,7 +5,7 @@ from flask import render_template, request
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
 from auth import login_required, get_ctx
-from utils import get_taxa_vigente, calcular_liquido
+from utils import get_taxa_vigente, calcular_liquido, saldo_caixa_acumulado
 
 
 @login_required
@@ -39,6 +39,12 @@ def caixa():
     entradas_cred_entrada  = float(tots['entradas_cred_entrada'])
     entradas_cred_parcelas = float(tots['entradas_cred_parcelas'])
     entradas_crediarios    = round(entradas_cred_entrada + entradas_cred_parcelas, 2)
+    # v145: "Saldo líquido" era bruto−saídas SÓ do período filtrado — então um
+    # período curto (ex.: "Hoje") com uma despesa grande paga com o dinheiro que
+    # sobrou de dias/meses anteriores aparecia negativo, mesmo com caixa real
+    # positivo. Agora é o saldo REAL acumulado (mesma conta do "Em caixa" da
+    # Visão Geral) até o fim do período — não some quando o filtro é estreito.
+    saldo_liquido = saldo_caixa_acumulado(cur, data_fim, operador='<=')
     cur.close(); close_db(conn)
     taxa_vigente_hoje = get_taxa_vigente()
     ctx = get_ctx()
@@ -67,7 +73,6 @@ def caixa():
             m['desconto_taxa'] = 0
             m['taxa_total_pct'] = 0
     saldo_bruto   = round(entradas - total_desconto, 2)
-    saldo_liquido = round(saldo_bruto - saidas, 2)
     ctx.update(movs=movs, entradas=entradas, saidas=saidas,
                entradas_vendas=entradas_vendas, entradas_crediarios=entradas_crediarios,
                entradas_cred_entrada=entradas_cred_entrada,
@@ -80,7 +85,8 @@ def caixa():
                desconto_cred_entrada=round(desconto_cred_entrada, 2),
                desconto_cred_parcela=round(desconto_cred_parcela, 2),
                taxa_vigente=taxa_vigente_hoje,
-               data_inicio=data_inicio, data_fim=data_fim)
+               data_inicio=data_inicio, data_fim=data_fim,
+               data_fim_br=date.fromisoformat(data_fim).strftime('%d/%m/%Y'))
     return render_template('caixa.html', **ctx)
 
 

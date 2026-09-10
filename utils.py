@@ -113,6 +113,44 @@ def calcular_liquido(valor_bruto, forma_pagamento, taxa, num_parcelas=None):
     return liquido, desconto, taxa_op
 
 
+FORMAS_COM_TAXA = ['credito_vista', 'credito_parcelado', 'debito', 'link']
+
+
+def saldo_caixa_acumulado(cur, data_limite, operador='<=', formas_com_taxa=None):
+    """v145: soma TODAS as entradas líquidas (com taxa de cartão descontada) menos
+    todas as saídas do caixa até uma data — o saldo REAL acumulado, não o
+    movimento de um período isolado. Compartilhada entre Visão Geral (ponte
+    Despesas→Caixa) e Caixa ("Saldo líquido") pra não ter duas contas diferentes
+    de "quanto eu tenho" no mesmo sistema. `operador` é '<=' (inclui a data) ou
+    '<' (até o dia anterior), sempre um literal fixo do código chamador — nunca
+    vem do usuário, então não há risco de injeção ao montar a query com ele."""
+    formas_com_taxa = formas_com_taxa or FORMAS_COM_TAXA
+    cmp = '<=' if operador == '<=' else '<'
+    cur.execute(f"""SELECT forma_pagamento, valor, criado_em, parcelas, tipo FROM caixa
+                   WHERE DATE(criado_em) {cmp} %s""", (data_limite,))
+    taxa_cache = {}
+    entradas_liq = 0.0
+    saidas = 0.0
+    for r in cur.fetchall():
+        if r['tipo'] == 'saida':
+            saidas += float(r['valor'] or 0)
+            continue
+        if r['tipo'] != 'entrada':
+            continue
+        f = r['forma_pagamento'] or ''
+        bruto = float(r['valor'] or 0)
+        if f in formas_com_taxa:
+            d = r['criado_em'].date() if hasattr(r['criado_em'], 'date') else hoje_app()
+            chave = d.isoformat()
+            if chave not in taxa_cache:
+                taxa_cache[chave] = get_taxa_vigente(d)
+            liq, _d, _p = calcular_liquido(bruto, f, taxa_cache[chave], r.get('parcelas'))
+        else:
+            liq = bruto
+        entradas_liq += liq
+    return round(entradas_liq - saidas, 2)
+
+
 # Formas de pagamento "à vista" válidas para uma parcela de pagamento dividido.
 FORMAS_PAGAMENTO_VALIDAS = ('dinheiro', 'pix', 'debito', 'credito_vista', 'credito_parcelado', 'link')
 

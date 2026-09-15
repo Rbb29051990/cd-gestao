@@ -1,4 +1,13 @@
-# CD Gestão Empresarial — v144
+# CD Gestão Empresarial — v146
+
+## Novidades da v146 (2026-09-15)
+
+- **Vales — botão "+ Adicionar vale"**: nova forma de lançar um vale (crédito da loja) sem que ele venha de uma troca/devolução. Abre um modal com busca de cliente (ou nome digitado livre), valor e um campo de motivo/observação. Serve pra prêmio de sorteio/consórcio ou qualquer outro crédito dado manualmente.
+
+## Novidades da v145 (2026-09-15)
+
+- **Vendas — FIX Trocar/Devolver usava o valor de tabela, não o valor pago**: quando a venda tinha desconto (ex.: peça de R$270 vendida por R$250), a troca/devolução gerava o vale pelo valor cheio (R$270) em vez do valor realmente pago (R$250). Agora o desconto da venda é rateado entre os itens e o vale/diferença usa o valor líquido.
+- **Vendas — ficha da venda mostra o desconto dado**: a tela de detalhe da venda agora exibe o valor do desconto (e %) e o "Valor total" passa a ser o valor líquido (já com desconto aplicado), igual ao que a cliente pagou.
 
 ## Novidades da v144 (2026-09-08)
 

@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 {% macro brl(v) %}R$ {{ "{:,.2f}".format(v|default(0)|float)|replace(",","X")|replace(".",",")|replace("X",".") }}{% endmacro %}
+<style>
+.pos-rel{position:relative}
+.cliente-sugest{position:absolute;left:0;right:0;top:100%;background:#fff;border:1.5px solid #e0e0e8;border-top:none;border-radius:0 0 8px 8px;z-index:50;max-height:200px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,0.1)}
+.cliente-item{padding:10px 14px;font-size:14px;font-weight:500;color:#333;cursor:pointer;border-bottom:1px solid #f4f4f6}
+.cliente-item:hover{background:#f0f8f2;color:#2e7d32;font-weight:600}
+</style>
 <div class="dash-wrap">
   <div class="topbar">
     <div class="topbar-logo"><span class="topbar-logo-main">{{ cliente.sigla }}</span><span class="topbar-logo-sub">Gestão Empresarial</span></div>
@@ -14,8 +20,11 @@
     <main class="main-content">
       {% with messages = get_flashed_messages(with_categories=true) %}{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}{% endwith %}
 
-      <div class="page-title" style="margin-bottom:1px">Vales</div>
-      <div class="page-date" style="margin-bottom:14px">Créditos da loja a favor dos clientes (gerados em trocas/devoluções)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1px">
+        <div class="page-title" style="margin-bottom:0">Vales</div>
+        <button type="button" class="btn-acao" onclick="abrirNovoVale()">+ Adicionar vale</button>
+      </div>
+      <div class="page-date" style="margin-bottom:14px">Créditos da loja a favor dos clientes (gerados em trocas/devoluções ou lançados manualmente — ex.: prêmio de sorteio)</div>
 
       <!-- FILTRO DE PERÍODO (data de criação do vale) -->
       <form method="GET" action="/vales" id="formPeriodoVale" style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
@@ -101,6 +110,40 @@
     </main>
   </div>
 </div>
+
+<!-- MODAL NOVO VALE (avulso, sem venda de origem — ex.: prêmio de sorteio/consórcio) -->
+<div class="modal-overlay" id="modalNovoVale" style="display:none" onclick="if(event.target===this)fecharNovoVale()">
+  <div class="modal" style="max-width:440px">
+    <button class="modal-close" onclick="fecharNovoVale()">✕</button>
+    <div class="modal-title">🎟️ Adicionar vale</div>
+    <p style="color:#888;font-size:12.5px;margin:-6px 0 18px;line-height:1.5">Gera um vale de crédito pra cliente sem depender de uma troca/devolução — use pra prêmios de sorteio, consórcio ou qualquer outra concessão manual.</p>
+    <form method="POST" action="/vales/novo" onsubmit="return prepararNovoVale()">
+      <div class="form-field" style="margin-bottom:14px">
+        <label class="form-label">Cliente *</label>
+        <div class="pos-rel">
+          <input class="form-input" type="text" id="nvCliBusca" autocomplete="off" placeholder="Digite o nome..." oninput="buscarClienteVale(this.value)">
+          <div class="cliente-sugest" id="nvCliSugest" style="display:none"></div>
+        </div>
+        <input type="hidden" name="cliente_id" id="nvCliId">
+        <input type="hidden" name="cliente_nome" id="nvCliNome">
+        <div style="font-size:11px;color:#aaa;margin-top:4px">Não achou o nome? Pode digitar e usar assim mesmo — o vale grava só o nome.</div>
+      </div>
+      <div class="form-field" style="margin-bottom:14px">
+        <label class="form-label">Valor do vale (R$) *</label>
+        <input class="form-input" type="text" id="nvValor" name="valor" inputmode="numeric" placeholder="0,00" autocomplete="off">
+      </div>
+      <div class="form-field" style="margin-bottom:20px">
+        <label class="form-label">Motivo / observação</label>
+        <input class="form-input" type="text" name="observacao" placeholder="Ex.: Sorteio Consórcio — setembro/2026">
+      </div>
+      <div style="display:flex;gap:12px;justify-content:flex-end">
+        <button type="button" class="btn-cancelar" onclick="fecharNovoVale()">Cancelar</button>
+        <button type="submit" class="btn-salvar">🎟️ Gerar vale</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 function toggleGrupoVale(i){
   const det = document.getElementById('valeDet'+i);
@@ -119,6 +162,92 @@ function atalhoVale(tipo){
   document.getElementById('valDataInicio').value = ini;
   document.getElementById('valDataFim').value = fim;
   document.getElementById('formPeriodoVale').submit();
+}
+
+/* ── Modal Novo Vale (avulso) ── */
+let nvCliTimer = null, nvValorDigits = '';
+
+function abrirNovoVale(){
+  document.getElementById('modalNovoVale').style.display = 'flex';
+  document.getElementById('nvCliBusca').focus();
+}
+function fecharNovoVale(){
+  document.getElementById('modalNovoVale').style.display = 'none';
+  document.getElementById('nvCliBusca').value = '';
+  document.getElementById('nvCliId').value = '';
+  document.getElementById('nvCliNome').value = '';
+  document.getElementById('nvCliSugest').style.display = 'none';
+  document.getElementById('nvValor').value = '';
+  nvValorDigits = '';
+  document.querySelector('#modalNovoVale input[name="observacao"]').value = '';
+}
+function buscarClienteVale(q){
+  clearTimeout(nvCliTimer);
+  document.getElementById('nvCliId').value = '';
+  document.getElementById('nvCliNome').value = q;
+  const el = document.getElementById('nvCliSugest');
+  if (q.length < 2) { el.style.display = 'none'; return; }
+  nvCliTimer = setTimeout(async () => {
+    const r = await fetch('/vendas/buscar-cliente?q=' + encodeURIComponent(q));
+    const d = await r.json();
+    el.innerHTML = '';
+    if (!d.clientes || d.clientes.length === 0) {
+      el.innerHTML = '<div class="cliente-item" style="color:#aaa">Nenhum cliente cadastrado com esse nome — pode continuar, o vale grava só o nome digitado.</div>';
+    } else {
+      d.clientes.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'cliente-item';
+        div.textContent = c.codigo + ' — ' + c.nome;
+        div.onclick = () => selecionarClienteVale(c);
+        el.appendChild(div);
+      });
+    }
+    el.style.display = 'block';
+  }, 300);
+}
+function selecionarClienteVale(c){
+  document.getElementById('nvCliBusca').value = c.codigo + ' — ' + c.nome;
+  document.getElementById('nvCliId').value = c.id;
+  document.getElementById('nvCliNome').value = c.nome;
+  document.getElementById('nvCliSugest').style.display = 'none';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#nvCliBusca') && !e.target.closest('#nvCliSugest')) {
+    const el = document.getElementById('nvCliSugest');
+    if (el) el.style.display = 'none';
+  }
+});
+
+/* Máscara "caixa registradora" no valor do vale (digita da direita pra esquerda). */
+document.addEventListener('DOMContentLoaded', () => {
+  const vEl = document.getElementById('nvValor');
+  if (!vEl) return;
+  vEl.addEventListener('keydown', function(e){
+    if (/^[0-9]$/.test(e.key)) {
+      e.preventDefault(); if (nvValorDigits.length >= 10) return; nvValorDigits += e.key;
+    } else if (e.key === 'Backspace') {
+      e.preventDefault(); nvValorDigits = nvValorDigits.slice(0, -1);
+    } else if (e.key.length === 1) {
+      e.preventDefault(); return;
+    } else {
+      return;
+    }
+    if (!nvValorDigits) { vEl.value = ''; return; }
+    const num = parseInt(nvValorDigits, 10);
+    const val = (num / 100).toFixed(2);
+    const parts = val.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    vEl.value = parts[0] + ',' + parts[1];
+  });
+});
+function prepararNovoVale(){
+  if (!document.getElementById('nvCliNome').value.trim()) {
+    alert('Informe o cliente do vale.'); return false;
+  }
+  if (!nvValorDigits || parseInt(nvValorDigits, 10) <= 0) {
+    alert('Informe o valor do vale.'); return false;
+  }
+  return true;
 }
 </script>
 {% endblock %}

@@ -14,7 +14,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v144'})
+        return jsonify({'status': 'ok', 'version': 'v146'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -162,7 +162,10 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v144 — 2026-09-08</b><br>
+    Versão: <b style='color:green'>v146 — 2026-09-15</b><br>
+    v146: Vales — novo botão "+ Adicionar vale" na aba Vales: abre um modal pra lançar um vale AVULSO (sem venda de origem), com busca de cliente, valor e motivo/observação. Uso: prêmios de sorteio/consórcio ou qualquer crédito dado por fora de uma troca/devolução. ✅<br>
+    v145: Vendas — Trocar/Devolver calculava o vale/diferença pelo valor de TABELA da peça, ignorando o desconto dado na venda (ex.: peça de R$270 vendida com desconto por R$250 gerava vale de R$270). Agora o vale usa o valor realmente pago, rateando o desconto da venda entre os itens. ✅<br>
+    v145: Vendas — a ficha da venda agora mostra o desconto dado (valor e %) e o "Valor total" exibido passa a ser o valor líquido (já com desconto), igual ao que a cliente pagou de fato. ✅<br>
     v144: Despesas — quadrantes "Total pago"/"Total a pagar" pequenos e centralizados no lugar das duas listas grandes; botão "✅ Pagar" movido pra tabela principal (com colspan ajustado). ✅<br>
     v144: Despesas — filtro de período agora vale também pra tabela principal (antes só valia pros cards), ordenação padrão por vencimento mais próximo primeiro, e atalhos novos "Mês passado" / "Próximo mês" (o antigo "Mês" virou "Mês atual"). ✅<br>
     v144: Despesas — botão "📤 Exportar dados": abre um modal pra escolher o período e gera um .xlsx (Código, Tipo, Categoria, Descrição, Vencimento, REF, Valor, Situação, Data de pagamento, Forma de pagamento). ✅<br>

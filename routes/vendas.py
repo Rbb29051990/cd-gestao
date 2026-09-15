@@ -259,6 +259,9 @@ def ficha_venda(vid):
     fator_liq = _fator_liquido(venda)
     for it in itens:
         it['valor_liquido'] = round(float(it.get('valor_total') or 0) * fator_liq, 2)
+    # v145: valor líquido da venda (bruto - desconto) pra exibir na ficha — é o valor que a
+    # cliente pagou de fato, o mesmo usado como referência na troca/devolução.
+    venda['valor_liquido'] = round(float(venda.get('valor_total') or 0) - float(venda.get('desconto') or 0), 2)
     crediario = None
     if venda.get('forma_pagamento') == 'crediario':
         cur.execute("SELECT * FROM crediarios WHERE venda_id=%s", (vid,))

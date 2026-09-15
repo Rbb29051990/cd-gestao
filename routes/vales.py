@@ -6,6 +6,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify, s
 from db import get_db, close_db
 from config import hoje_app
 from auth import login_required, get_ctx, pode_excluir
+from utils import parse_brl, audit_log
 
 
 def _prox_codigo_vale(cur):
@@ -142,6 +143,35 @@ def buscar_vale():
 
 
 @login_required
+def novo_vale():
+    """v146: cria um vale AVULSO (sem venda de origem) — pra crédito dado por fora de uma
+    troca/devolução, ex.: prêmio de sorteio/consórcio da loja. cliente_id é opcional
+    (quando o vendedor não encontra/seleciona um cliente já cadastrado, grava só o nome)."""
+    cliente_id = request.form.get('cliente_id', '').strip()
+    cliente_nome = request.form.get('cliente_nome', '').strip()
+    valor = parse_brl(request.form.get('valor', '0'))
+    observacao = request.form.get('observacao', '').strip()
+    if not cliente_nome:
+        flash('Informe o cliente do vale.', 'erro'); return redirect(url_for('vales'))
+    if valor <= 0:
+        flash('Informe um valor válido para o vale.', 'erro'); return redirect(url_for('vales'))
+    conn = get_db(); cur = conn.cursor()
+    try:
+        vale_id, cod = gerar_vale(cur, cliente_id=int(cliente_id) if cliente_id.isdigit() else None,
+                                   cliente_nome=cliente_nome, valor=valor,
+                                   observacao=observacao or 'Vale avulso')
+        audit_log(cur, 'CRIAR_VALE_AVULSO', 'vales', vale_id,
+                  {'codigo': cod, 'cliente': cliente_nome, 'valor': valor, 'observacao': observacao})
+        conn.commit()
+        flash(f'Vale {cod} de R$ {valor:.2f} criado para {cliente_nome}.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
+    return redirect(url_for('vales'))
+
+
+@login_required
 def excluir_vale(vid):
     if not pode_excluir():
         flash('Apenas o Administrador N1 pode excluir dados.', 'erro'); return redirect(url_for('vales'))
@@ -160,4 +190,5 @@ def register(app):
     app.add_url_rule('/vales', 'vales', vales)
     app.add_url_rule('/vales/cliente', 'vales_cliente', vales_cliente)
     app.add_url_rule('/vales/buscar', 'buscar_vale', buscar_vale)
+    app.add_url_rule('/vales/novo', 'novo_vale', novo_vale, methods=['POST'])
     app.add_url_rule('/vales/<int:vid>/excluir', 'excluir_vale', excluir_vale, methods=['POST'])

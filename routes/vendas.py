@@ -42,6 +42,16 @@ def _fin_venda(v, taxa_cache, split_map=None):
     return bruto, desconto, 0.0, pago
 
 
+def _fator_liquido(venda):
+    """Proporção do valor bruto que a cliente de fato pagou (bruto-desconto)/bruto.
+    Usado pra ratear o desconto da venda entre os itens na troca/devolução."""
+    bruto = float(venda.get('valor_total') or 0)
+    desconto = float(venda.get('desconto') or 0)
+    if bruto <= 0:
+        return 1.0
+    return (bruto - desconto) / bruto
+
+
 @login_required
 def vendas():
     try:
@@ -243,6 +253,12 @@ def ficha_venda(vid):
                    FROM venda_itens vi LEFT JOIN estoque e ON e.id = vi.produto_id
                    WHERE vi.venda_id=%s ORDER BY vi.id""", (vid,))
     itens = [dict(i) for i in cur.fetchall()]
+    # Rateia o desconto da venda entre os itens (proporcional ao valor bruto de cada um),
+    # pra troca/devolução gerar vale pelo valor que a cliente de fato pagou na peça, não
+    # pelo valor de tabela. Ex.: peça de R$270 com desconto vira R$250 na devolução.
+    fator_liq = _fator_liquido(venda)
+    for it in itens:
+        it['valor_liquido'] = round(float(it.get('valor_total') or 0) * fator_liq, 2)
     crediario = None
     if venda.get('forma_pagamento') == 'crediario':
         cur.execute("SELECT * FROM crediarios WHERE venda_id=%s", (vid,))
@@ -492,12 +508,20 @@ def trocar_venda(vid):
         if not devolver_ids and not novos:
             raise ValueError('Selecione itens para devolver e/ou adicione peças novas.')
         # ── Itens devolvidos: voltam ao estoque e saem da venda (guardando o snapshot p/ registro) ──
+        # v144: o vale/diferença usa o valor LÍQUIDO (com o desconto da venda rateado),
+        # não o valor de tabela — a cliente só pode receber de volta o que ela pagou de fato
+        # (ex.: peça de R$270 com desconto que ela pagou R$250 gera vale de R$250, não R$270).
+        # valor_devolvido continua em valor BRUTO — é o que abate do valor_total (também bruto)
+        # da venda; valor_devolvido_liquido é só pra calcular a diferença/vale.
+        fator_liq = _fator_liquido(venda)
         valor_devolvido = 0.0
+        valor_devolvido_liquido = 0.0
         itens_devolvidos = []
         if devolver_ids:
             cur.execute("SELECT * FROM venda_itens WHERE id = ANY(%s) AND venda_id=%s", (devolver_ids, vid))
             for it in [dict(i) for i in cur.fetchall()]:
                 valor_devolvido += float(it['valor_total'] or 0)
+                valor_devolvido_liquido += float(it['valor_total'] or 0) * fator_liq
                 itens_devolvidos.append(it)   # snapshot antes de apagar
                 if it.get('produto_id'):
                     cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s", (int(it['quantidade']), it['produto_id']))
@@ -517,9 +541,10 @@ def trocar_venda(vid):
             if pid:
                 bloquear_estoque_negativo(cur, pid, qtd)
         valor_devolvido = round(valor_devolvido, 2)
+        valor_devolvido_liquido = round(valor_devolvido_liquido, 2)
         valor_novos = round(valor_novos, 2)
         novo_total = round(float(venda['valor_total'] or 0) - valor_devolvido + valor_novos, 2)
-        dif = round(valor_novos - valor_devolvido, 2)
+        dif = round(valor_novos - valor_devolvido_liquido, 2)
         extra = ''
         forma_dif = None
         vale_id_gerado = None; vale_cod_gerado = None

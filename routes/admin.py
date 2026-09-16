@@ -14,7 +14,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v146'})
+        return jsonify({'status': 'ok', 'version': 'v147'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -162,7 +162,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v146 — 2026-09-15</b><br>
+    Versão: <b style='color:green'>v147 — 2026-09-16</b><br>
+    v147: Estoque — TODAS as colunas da tabela agora são clicáveis pra ordenar (com a setinha ⇅ indicando). Antes só Promo/Foto/Descrição/Entradas mostravam essa opção; as outras (Data entrada, Cód, Modelo, TAM, Inicial, Saídas, Saldo, Custo, Venda, Dias estoque) tinham um ordenamento próprio sem indicador visual — e o de "Data entrada" ordenava errado (comparava a data como número em vez de cronologicamente). Removida a função antiga; agora usa o mesmo ordenamento universal do resto do sistema, com data corrigida. ✅<br>
     v146: Vales — novo botão "+ Adicionar vale" na aba Vales: abre um modal pra lançar um vale AVULSO (sem venda de origem), com busca de cliente, valor e motivo/observação. Uso: prêmios de sorteio/consórcio ou qualquer crédito dado por fora de uma troca/devolução. ✅<br>
     v145: Vendas — Trocar/Devolver calculava o vale/diferença pelo valor de TABELA da peça, ignorando o desconto dado na venda (ex.: peça de R$270 vendida com desconto por R$250 gerava vale de R$270). Agora o vale usa o valor realmente pago, rateando o desconto da venda entre os itens. ✅<br>
     v145: Vendas — a ficha da venda agora mostra o desconto dado (valor e %) e o "Valor total" exibido passa a ser o valor líquido (já com desconto), igual ao que a cliente pagou de fato. ✅<br>

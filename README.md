@@ -1,4 +1,8 @@
-# CD Gestão Empresarial — v146
+# CD Gestão Empresarial — v147
+
+## Novidades da v147 (2026-09-16)
+
+- **Estoque — todas as colunas da tabela ficaram ordenáveis** (com a setinha ⇅ clicável), igual ao resto do sistema. Antes só Promo/Foto/Descrição/Entradas tinham essa opção visível; as demais colunas até respondiam ao clique mas sem indicador, e a coluna "Data entrada" ordenava errado (não respeitava a ordem cronológica real).
 
 ## Novidades da v146 (2026-09-15)
 

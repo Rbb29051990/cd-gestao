@@ -161,20 +161,20 @@
         <div class="table-wrap" style="max-height:520px;overflow-y:auto">
           <table class="etable" id="tabelaEstoque">
             <thead><tr>
-              <th onclick="ordenarE(0)">Data entrada</th>
-              <th onclick="ordenarE(1)" style="width:1%;white-space:nowrap">Cód</th>
+              <th>Data entrada</th>
+              <th style="width:1%;white-space:nowrap">Cód</th>
               <th style="width:40px" title="Marcar para promoção">🏷️ Promo</th>
               <th>Foto</th>
-              <th onclick="ordenarE(4)">Modelo</th>
+              <th>Modelo</th>
               <th>Descrição</th>
-              <th onclick="ordenarE(6)">TAM</th>
-              <th onclick="ordenarE(7)" title="Estoque inicial cadastrado">Inicial</th>
+              <th>TAM</th>
+              <th title="Estoque inicial cadastrado">Inicial</th>
               <th title="Novas entradas adicionadas">Entradas</th>
-              <th onclick="ordenarE(9)" title="Unidades vendidas">Saídas</th>
-              <th onclick="ordenarE(10)" title="Saldo atual em estoque">Saldo</th>
-              <th onclick="ordenarE(11)">Custo</th>
-              <th onclick="ordenarE(12)">Venda</th>
-              <th onclick="ordenarE(13)">Dias estoque</th>
+              <th title="Unidades vendidas">Saídas</th>
+              <th title="Saldo atual em estoque">Saldo</th>
+              <th>Custo</th>
+              <th>Venda</th>
+              <th>Dias estoque</th>
               <th>Última venda</th>
             </tr></thead>
             <tbody id="tbodyEstoque">
@@ -702,23 +702,6 @@ function prepararEnvio() {
       else { alert('Erro ao salvar. Tente novamente.'); btn.disabled = false; btn.textContent = '💾 Salvar item'; }
     })
     .catch(() => { alert('Erro de conexão. Tente novamente.'); btn.disabled = false; btn.textContent = '💾 Salvar item'; });
-}
-
-/* ── ORDENAR TABELA ── */
-let eSortDir = {};
-function ordenarE(col) {
-  const tbody = document.getElementById('tbodyEstoque');
-  const rows  = Array.from(tbody.querySelectorAll('tr'));
-  eSortDir[col] = !eSortDir[col];
-  rows.sort((a, b) => {
-    let av = a.cells[col]?.textContent.trim() || '';
-    let bv = b.cells[col]?.textContent.trim() || '';
-    const an = parseFloat(av.replace(/[^\d,.-]/g,'').replace(',','.'));
-    const bn = parseFloat(bv.replace(/[^\d,.-]/g,'').replace(',','.'));
-    if (!isNaN(an) && !isNaN(bn)) return eSortDir[col] ? an - bn : bn - an;
-    return eSortDir[col] ? av.localeCompare(bv,'pt-BR') : bv.localeCompare(av,'pt-BR');
-  });
-  rows.forEach(r => tbody.appendChild(r));
 }
 
 /* ── FILTRO DE PERÍODO (lançamento) ── */

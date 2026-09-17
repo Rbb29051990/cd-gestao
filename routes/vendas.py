@@ -101,18 +101,28 @@ def vendas():
         # Decompõe cada venda (bruto/desconto/taxa/líquido) e soma os totais do período
         taxa_cache = {}
         tot_bruto = tot_desc = tot_taxa = tot_liq = 0.0
+        # v150: 3 quadrantes sem sobreposição — Valor Líquido (só dinheiro recebido de
+        # vendas à vista, sem crediário), Valor de Crediário (valor total vendido no
+        # crediário, mesmo o que ainda vai ser recebido em parcelas) e Valor total de
+        # Vendas = soma dos dois. A entrada do crediário já recebida fica DENTRO do
+        # valor de crediário (é parte do valor daquela venda) — não conta de novo no
+        # Valor Líquido, senão o quadrante 3 ficaria com dinheiro contado duas vezes.
+        valor_liquido_avista = 0.0
+        valor_crediario = 0.0
         for v in lista_vendas:
             bruto, desc, taxa, liq = _fin_venda(v, taxa_cache, split_map)
             v['taxa_valor'] = round(taxa, 2)
             v['valor_liquido'] = round(liq, 2)
             tot_bruto += bruto; tot_desc += desc; tot_taxa += taxa; tot_liq += liq
+            if (v.get('forma_pagamento') or '') == 'crediario':
+                valor_crediario += round(bruto - desc, 2)
+            else:
+                valor_liquido_avista += liq
         n_vendas = len(lista_vendas)
         ticket_liq = round(tot_liq / n_vendas, 2) if n_vendas else 0.0
-        # v149: "Total vendido" = valor_total - desconto de cada venda, independente de
-        # quanto já entrou no caixa (crediário conta pelo valor cheio, mesmo com parcelas
-        # futuras) — é a métrica de "quanto vendemos". Diferente de "Líquido período"
-        # (total_liquido), que só conta dinheiro já recebido — a de fluxo de caixa.
-        total_vendido = round(tot_bruto - tot_desc, 2)
+        valor_liquido_avista = round(valor_liquido_avista, 2)
+        valor_crediario = round(valor_crediario, 2)
+        total_vendas_periodo = round(valor_liquido_avista + valor_crediario, 2)
         ctx = get_ctx()
         ctx.update(vendedoras=vendedoras, clientes=clientes_lista,
                    lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
@@ -120,7 +130,8 @@ def vendas():
                    data_inicio=data_inicio, data_fim=data_fim,
                    total_bruto=round(tot_bruto, 2), total_desconto=round(tot_desc, 2),
                    total_taxa=round(tot_taxa, 2), total_liquido=round(tot_liq, 2),
-                   total_vendido=total_vendido,
+                   valor_liquido_avista=valor_liquido_avista, valor_crediario=valor_crediario,
+                   total_vendas_periodo=total_vendas_periodo,
                    n_vendas_periodo=n_vendas, ticket_liquido=ticket_liq,
                    vendas_com_vale=vendas_com_vale)
         return render_template('vendas.html', **ctx)

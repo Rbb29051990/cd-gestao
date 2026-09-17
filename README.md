@@ -1,4 +1,8 @@
-# CD Gestão Empresarial — v149
+# CD Gestão Empresarial — v150
+
+## Novidades da v150 (2026-09-17)
+
+- **Vendas — 3 quadrantes sem sobreposição**: "Valor líquido" (dinheiro recebido de vendas à vista, sem crediário), "Valor de crediário" (valor total vendido no crediário — inclui as parcelas futuras) e "Total de vendas" (soma dos dois). Substitui os quadrantes "Total vendido"/"Líquido recebido" da v149, que misturavam os dois conceitos.
 
 ## Novidades da v149 (2026-09-17)
 

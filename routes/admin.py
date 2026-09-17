@@ -14,7 +14,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v149'})
+        return jsonify({'status': 'ok', 'version': 'v150'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -162,7 +162,8 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v149 — 2026-09-17</b><br>
+    Versão: <b style='color:green'>v150 — 2026-09-17</b><br>
+    v150: Vendas — os quadrantes viraram 3, sem sobreposição: "Valor líquido" (só dinheiro recebido de vendas à vista, sem crediário), "Valor de crediário" (valor total vendido no crediário, incluindo parcelas futuras) e "Total de vendas" (soma dos dois — tudo que foi vendido no período, recebido ou a receber). Substitui os quadrantes "Total vendido"/"Líquido recebido" da v149. ✅<br>
     v149: Vendas — novo quadrante "Total vendido" ao lado do "Líquido recebido" (antigo "Líquido período"): mostra o valor de tabela das vendas do período (menos desconto), independente de quanto já entrou no caixa — crediário conta pelo valor cheio aqui, diferente do "Líquido recebido" que só conta o que já foi pago de fato. Resolve a confusão criada pela v148: agora dá pra ver as duas métricas lado a lado (quanto vendemos x quanto já recebemos). ✅<br>
     v148: Vendas — FIX Faturamento Líquido diferente entre Vendas e Visão Geral/Caixa: vendas em CREDIÁRIO contavam o valor TOTAL da venda como "líquido do dia", incluindo parcelas que ainda nem foram pagas — só a ENTRADA de fato entrou no caixa. Agora o líquido do crediário na tela de Vendas (e no ranking de vendedoras) vem da entrada realmente recebida no caixa, batendo com o Faturamento Líquido da Visão Geral. ✅<br>
     v147: Estoque — TODAS as colunas da tabela agora são clicáveis pra ordenar (com a setinha ⇅ indicando). Antes só Promo/Foto/Descrição/Entradas mostravam essa opção; as outras (Data entrada, Cód, Modelo, TAM, Inicial, Saídas, Saldo, Custo, Venda, Dias estoque) tinham um ordenamento próprio sem indicador visual — e o de "Data entrada" ordenava errado (comparava a data como número em vez de cronologicamente). Removida a função antiga; agora usa o mesmo ordenamento universal do resto do sistema, com data corrigida. ✅<br>

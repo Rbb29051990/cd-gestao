@@ -149,8 +149,9 @@
             </div>
           </form>
           <div class="top-summary" id="topSummary">
-            <div class="top-chip" title="Valor de tabela das vendas do período, menos desconto — inclui crediário pelo valor cheio, mesmo com parcelas futuras ainda não pagas."><b id="tsVendido">R$ {{ "{:,.2f}".format(total_vendido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Total vendido</small></div>
-            <div class="top-chip" title="Dinheiro que já entrou de fato no caixa no período — no crediário, só a entrada; as parcelas futuras contam quando forem pagas."><b id="tsTotal">R$ {{ "{:,.2f}".format(total_liquido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Líquido recebido</small></div>
+            <div class="top-chip" title="Dinheiro recebido de vendas à vista (pix/dinheiro/débito/crédito), já com a taxa do cartão descontada. Não inclui crediário — esse fica no quadrante ao lado."><b id="tsLiquido">R$ {{ "{:,.2f}".format(valor_liquido_avista)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Valor líquido</small></div>
+            <div class="top-chip" title="Valor total vendido no crediário no período (menos desconto) — inclui as parcelas que ainda vão ser pagas aos poucos, não só a entrada."><b id="tsCrediario">R$ {{ "{:,.2f}".format(valor_crediario)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Valor de crediário</small></div>
+            <div class="top-chip" title="Valor líquido + valor de crediário — tudo que foi vendido no período, recebido ou ainda a receber."><b id="tsTotalVendas">R$ {{ "{:,.2f}".format(total_vendas_periodo)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Total de vendas</small></div>
             <div class="top-chip"><b id="tsQtd">{{ n_vendas_periodo }}</b><small>Vendas</small></div>
             <div class="top-chip"><b id="tsTicket">R$ {{ "{:,.2f}".format(ticket_liquido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Ticket médio</small></div>
           </div>
@@ -1344,7 +1345,7 @@ function calcResumo() {
   });
   const ticket = count>0?total/count:0;
   const fmt = v => 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  document.getElementById('tsTotal').textContent = fmt(total);
+  document.getElementById('tsTotalVendas').textContent = fmt(total);
   document.getElementById('tsQtd').textContent = count;
   document.getElementById('tsTicket').textContent = fmt(ticket);
 }

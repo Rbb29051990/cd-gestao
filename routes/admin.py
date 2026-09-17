@@ -14,7 +14,7 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v147'})
+        return jsonify({'status': 'ok', 'version': 'v149'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
@@ -162,7 +162,9 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v147 — 2026-09-16</b><br>
+    Versão: <b style='color:green'>v149 — 2026-09-17</b><br>
+    v149: Vendas — novo quadrante "Total vendido" ao lado do "Líquido recebido" (antigo "Líquido período"): mostra o valor de tabela das vendas do período (menos desconto), independente de quanto já entrou no caixa — crediário conta pelo valor cheio aqui, diferente do "Líquido recebido" que só conta o que já foi pago de fato. Resolve a confusão criada pela v148: agora dá pra ver as duas métricas lado a lado (quanto vendemos x quanto já recebemos). ✅<br>
+    v148: Vendas — FIX Faturamento Líquido diferente entre Vendas e Visão Geral/Caixa: vendas em CREDIÁRIO contavam o valor TOTAL da venda como "líquido do dia", incluindo parcelas que ainda nem foram pagas — só a ENTRADA de fato entrou no caixa. Agora o líquido do crediário na tela de Vendas (e no ranking de vendedoras) vem da entrada realmente recebida no caixa, batendo com o Faturamento Líquido da Visão Geral. ✅<br>
     v147: Estoque — TODAS as colunas da tabela agora são clicáveis pra ordenar (com a setinha ⇅ indicando). Antes só Promo/Foto/Descrição/Entradas mostravam essa opção; as outras (Data entrada, Cód, Modelo, TAM, Inicial, Saídas, Saldo, Custo, Venda, Dias estoque) tinham um ordenamento próprio sem indicador visual — e o de "Data entrada" ordenava errado (comparava a data como número em vez de cronologicamente). Removida a função antiga; agora usa o mesmo ordenamento universal do resto do sistema, com data corrigida. ✅<br>
     v146: Vales — novo botão "+ Adicionar vale" na aba Vales: abre um modal pra lançar um vale AVULSO (sem venda de origem), com busca de cliente, valor e motivo/observação. Uso: prêmios de sorteio/consórcio ou qualquer crédito dado por fora de uma troca/devolução. ✅<br>
     v145: Vendas — Trocar/Devolver calculava o vale/diferença pelo valor de TABELA da peça, ignorando o desconto dado na venda (ex.: peça de R$270 vendida com desconto por R$250 gerava vale de R$270). Agora o vale usa o valor realmente pago, rateando o desconto da venda entre os itens. ✅<br>

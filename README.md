@@ -1,4 +1,12 @@
-# CD Gestão Empresarial — v147
+# CD Gestão Empresarial — v149
+
+## Novidades da v149 (2026-09-17)
+
+- **Vendas — novo quadrante "Total vendido"**: ao lado do "Líquido recebido" (renomeado de "Líquido período"), mostra quanto foi vendido no período pelo valor de tabela (menos desconto), sem depender de quanto já entrou no caixa — crediário conta pelo valor cheio. Agora dá pra ver lado a lado "quanto vendemos" e "quanto já recebemos".
+
+## Novidades da v148 (2026-09-17)
+
+- **Vendas — FIX Faturamento Líquido diferente do Caixa/Visão Geral**: vendas em crediário contavam o valor total (incluindo parcelas futuras ainda não pagas) como se já tivesse entrado tudo no caixa no dia da venda. Agora só a entrada realmente recebida entra na conta — o "Líquido período" da tela de Vendas volta a bater com o "Faturamento líquido" da Visão Geral.
 
 ## Novidades da v147 (2026-09-16)
 

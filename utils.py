@@ -212,14 +212,17 @@ def registrar_pagamentos_caixa(cur, pagamentos, descricao, *, venda_id=None,
 
 
 def liquido_caixa_por_venda(cur, venda_ids):
-    """Para vendas com pagamento dividido (forma='multiplo'): soma o líquido (após
-    Taxa Flex) das linhas de caixa à-vista (sem crediario_id) de cada venda.
+    """Para vendas com pagamento dividido (forma='multiplo') e crediário (só a ENTRADA):
+    soma o líquido (após Taxa Flex) das linhas de caixa de cada venda. Filtra só por
+    venda_id — não exclui crediario_id porque a linha de ENTRADA do crediário grava os
+    dois (venda_id e crediario_id); as parcelas pagas depois nunca têm venda_id (só
+    crediario_id/parcela_id), então já ficam de fora sozinhas.
     Retorna {venda_id: (bruto, taxa, liquido)}."""
     ids = [int(v) for v in venda_ids if v is not None]
     if not ids:
         return {}
     cur.execute("""SELECT venda_id, forma_pagamento, valor, criado_em, parcelas FROM caixa
-                   WHERE tipo='entrada' AND crediario_id IS NULL AND venda_id = ANY(%s)""", (ids,))
+                   WHERE tipo='entrada' AND venda_id = ANY(%s)""", (ids,))
     cache = {}
     out = {}
     for r in cur.fetchall():

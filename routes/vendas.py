@@ -21,15 +21,19 @@ FORMAS_A_VISTA = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcela
 def _fin_venda(v, taxa_cache, split_map=None):
     """Decompõe uma venda em (bruto, desconto, taxa, líquido).
     Líquido = bruto - desconto - taxa do cartão (o que de fato entra na conta).
-    Para pagamento dividido (forma='multiplo'), a taxa e o líquido vêm das linhas
-    de caixa daquela venda (split_map: {venda_id: (bruto, taxa, liquido)})."""
+    Para pagamento dividido (forma='multiplo') e crediário, a taxa e o líquido vêm das
+    linhas de caixa daquela venda (split_map: {venda_id: (bruto, taxa, liquido)}) — no
+    crediário só a ENTRADA já entrou no caixa; as parcelas futuras não contam como
+    líquido "recebido" na data da venda (senão o Faturamento Líquido da Vendas destoa
+    do Caixa/Visão Geral, que só contam dinheiro que de fato entrou)."""
     bruto = float(v.get('valor_total') or 0)
     desconto = float(v.get('desconto') or 0)
     pago = round(bruto - desconto, 2)
     forma = v.get('forma_pagamento') or ''
-    if forma == 'multiplo':
-        # Líquido vem das linhas do caixa desta venda (split / troca / vale). Sem linhas
-        # (ex.: pago totalmente com vale), o líquido em caixa é 0.
+    if forma in ('multiplo', 'crediario'):
+        # Líquido vem das linhas do caixa desta venda (split / troca / vale / entrada do
+        # crediário). Sem linhas (ex.: pago totalmente com vale, ou crediário sem entrada),
+        # o líquido em caixa é 0.
         _b, taxa_split, liq_split = (split_map or {}).get(v.get('id'), (0.0, 0.0, 0.0))
         return bruto, desconto, round(taxa_split, 2), round(liq_split, 2)
     if forma in FORMAS_CARTAO:
@@ -71,8 +75,10 @@ def vendas():
             WHERE DATE(v.criado_em) BETWEEN %s AND %s
             GROUP BY v.id ORDER BY v.criado_em DESC""", (data_inicio, data_fim))
         lista_vendas = [dict(v) for v in cur.fetchall()]
-        # Líquido das vendas com pagamento dividido vem das linhas do caixa.
-        split_map = liquido_caixa_por_venda(cur, [v['id'] for v in lista_vendas if v.get('forma_pagamento') == 'multiplo'])
+        # Líquido das vendas com pagamento dividido E crediário (só a entrada) vem das
+        # linhas do caixa — ver _fin_venda.
+        split_map = liquido_caixa_por_venda(cur, [v['id'] for v in lista_vendas
+                                                   if v.get('forma_pagamento') in ('multiplo', 'crediario')])
         # v141: quais vendas do período GERARAM um vale (para a etiqueta 🎟️ na lista).
         ids_periodo = [v['id'] for v in lista_vendas]
         vendas_com_vale = set()
@@ -102,6 +108,11 @@ def vendas():
             tot_bruto += bruto; tot_desc += desc; tot_taxa += taxa; tot_liq += liq
         n_vendas = len(lista_vendas)
         ticket_liq = round(tot_liq / n_vendas, 2) if n_vendas else 0.0
+        # v149: "Total vendido" = valor_total - desconto de cada venda, independente de
+        # quanto já entrou no caixa (crediário conta pelo valor cheio, mesmo com parcelas
+        # futuras) — é a métrica de "quanto vendemos". Diferente de "Líquido período"
+        # (total_liquido), que só conta dinheiro já recebido — a de fluxo de caixa.
+        total_vendido = round(tot_bruto - tot_desc, 2)
         ctx = get_ctx()
         ctx.update(vendedoras=vendedoras, clientes=clientes_lista,
                    lista_vendas=lista_vendas, lista_crediarios=lista_crediarios,
@@ -109,6 +120,7 @@ def vendas():
                    data_inicio=data_inicio, data_fim=data_fim,
                    total_bruto=round(tot_bruto, 2), total_desconto=round(tot_desc, 2),
                    total_taxa=round(tot_taxa, 2), total_liquido=round(tot_liq, 2),
+                   total_vendido=total_vendido,
                    n_vendas_periodo=n_vendas, ticket_liquido=ticket_liq,
                    vendas_com_vale=vendas_com_vale)
         return render_template('vendas.html', **ctx)
@@ -438,7 +450,8 @@ def ranking_vendedoras():
     cur.execute("""SELECT id, vendedora_nome, valor_total, desconto, forma_pagamento, criado_em, cliente_id
         FROM vendas WHERE DATE(criado_em) BETWEEN %s AND %s""", (data_inicio, data_fim))
     vendas_periodo = [dict(r) for r in cur.fetchall()]
-    split_map = liquido_caixa_por_venda(cur, [v['id'] for v in vendas_periodo if v.get('forma_pagamento') == 'multiplo'])
+    split_map = liquido_caixa_por_venda(cur, [v['id'] for v in vendas_periodo
+                                               if v.get('forma_pagamento') in ('multiplo', 'crediario')])
     cur.close(); close_db(conn)
     # Agrega por vendedora calculando o líquido (bruto - desconto - taxa)
     taxa_cache = {}

@@ -149,7 +149,8 @@
             </div>
           </form>
           <div class="top-summary" id="topSummary">
-            <div class="top-chip"><b id="tsTotal">R$ {{ "{:,.2f}".format(total_liquido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Líquido período</small></div>
+            <div class="top-chip" title="Valor de tabela das vendas do período, menos desconto — inclui crediário pelo valor cheio, mesmo com parcelas futuras ainda não pagas."><b id="tsVendido">R$ {{ "{:,.2f}".format(total_vendido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Total vendido</small></div>
+            <div class="top-chip" title="Dinheiro que já entrou de fato no caixa no período — no crediário, só a entrada; as parcelas futuras contam quando forem pagas."><b id="tsTotal">R$ {{ "{:,.2f}".format(total_liquido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Líquido recebido</small></div>
             <div class="top-chip"><b id="tsQtd">{{ n_vendas_periodo }}</b><small>Vendas</small></div>
             <div class="top-chip"><b id="tsTicket">R$ {{ "{:,.2f}".format(ticket_liquido)|replace(",","X")|replace(".",",")|replace("X",".") }}</b><small>Ticket médio</small></div>
           </div>

@@ -1,4 +1,8 @@
-# CD Gestão Empresarial — v150
+# CD Gestão Empresarial — v151
+
+## Novidades da v151 (2026-10-03)
+
+- **Despesas — tabela enxuta e botão Pagar sempre visível**: menos espaçamento entre as colunas, Categoria/Descrição longas quebram linha em vez de alargar a tabela, e a coluna "Ação" (✅ Pagar) fica fixa na borda direita — não precisa mais rolar de lado pra achar o botão.
 
 ## Novidades da v150 (2026-09-17)
 

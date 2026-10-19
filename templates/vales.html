@@ -22,7 +22,7 @@
 
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1px">
         <div class="page-title" style="margin-bottom:0">Vales</div>
-        <button type="button" class="btn-acao" onclick="abrirNovoVale()">+ Adicionar vale</button>
+        {% if is_admin_user %}<button type="button" class="btn-acao" onclick="abrirNovoVale()">+ Adicionar vale</button>{% endif %}
       </div>
       <div class="page-date" style="margin-bottom:14px">Créditos da loja a favor dos clientes (gerados em trocas/devoluções ou lançados manualmente — ex.: prêmio de sorteio)</div>
 
@@ -84,10 +84,10 @@
                       <td style="padding:6px 8px">{{ brl(v.valor) }}</td>
                       <td style="padding:6px 8px;font-weight:700;color:{% if v.saldo > 0 %}#2e7d32{% else %}#aaa{% endif %}">{{ brl(v.saldo) }}</td>
                       <td style="padding:6px 8px">{% if v.status == 'aberto' %}<span class="badge badge-hab">🎟️ Aberto</span>{% else %}<span class="badge badge-nao">✔️ Usado</span>{% endif %}</td>
-                      <td style="padding:6px 8px;color:#888">{% if v.venda_origem %}<a href="/vendas/{{ v.venda_origem }}" style="color:#1565c0">Venda #{{ '%04d'|format(v.venda_origem) }}</a>{% else %}—{% endif %}</td>
+                      <td style="padding:6px 8px;color:#888">{% if v.venda_origem and v.venda_origem_codigo %}<a href="/vendas/{{ v.venda_origem }}" style="color:#1565c0">Venda {{ v.venda_origem_codigo }}</a>{% elif v.venda_origem %}<span title="A venda de origem foi excluída">Venda excluída</span>{% else %}—{% endif %}</td>
                       <td style="padding:6px 8px">
                         {% if v.usos %}{% for u in v.usos %}
-                          <div style="white-space:nowrap">🛍️ <a href="/vendas/{{ u.venda_id }}" style="color:#2e7d32;font-weight:600" title="Ver os produtos e fotos desta venda">{{ u.venda_codigo or ('Venda #' ~ '%04d'|format(u.venda_id)) }}</a>
+                          <div style="white-space:nowrap">🛍️ <a href="/vendas/{{ u.venda_id }}" style="color:#2e7d32;font-weight:600" title="Ver os produtos e fotos desta venda">{{ u.venda_codigo or 'Venda excluída' }}</a>
                           <span style="color:#888">· {{ brl(u.valor) }}{% if u.criado_em %} · {{ u.criado_em.strftime('%d/%m/%Y') }}{% endif %}</span></div>
                         {% endfor %}{% else %}<span style="color:#ccc">—</span>{% endif %}
                       </td>

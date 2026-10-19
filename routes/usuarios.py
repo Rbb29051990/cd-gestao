@@ -141,6 +141,9 @@ def usuario_editar(uid):
             cur.close(); close_db(conn); return redirect(url_for('usuarios'))
         perms = _perms_do_form(perfil)
         nova_senha = request.form.get('nova_senha', '').strip()
+        if not nome or (nova_senha and len(nova_senha) < 4):
+            flash('Informe o nome do usuário (e, se trocar a senha, ao menos 4 caracteres).', 'erro')
+            cur.close(); close_db(conn); return redirect(url_for('usuario_editar', uid=uid))
         if nova_senha:
             cur.execute("UPDATE usuarios SET nome=%s,perfil=%s,permissoes=%s,senha_hash=%s WHERE id=%s",
                         (nome, perfil, perms, generate_password_hash(nova_senha), uid))
@@ -199,6 +202,11 @@ def minha_senha():
     if request.method == 'POST':
         atual = request.form.get('senha_atual', '')
         nova = request.form.get('nova_senha', '')
+        # v152: esta tela aceitava senha nova VAZIA (a conta ficava sem senha) — mesma regra
+        # mínima da troca de senha em Usuários (4 caracteres).
+        if len(nova) < 4:
+            flash('A nova senha deve ter ao menos 4 caracteres.', 'erro')
+            return render_template('minha_senha.html', **ctx)
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT senha_hash FROM usuarios WHERE id=%s", (session['uid'],))
         u = cur.fetchone()

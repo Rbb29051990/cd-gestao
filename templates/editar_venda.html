@@ -15,7 +15,7 @@
 
       <a href="/vendas/{{ venda.id }}" class="voltar-btn">← Voltar para ficha</a>
       <div class="page-title" style="margin-bottom:4px">Editar venda</div>
-      <div class="page-date" style="margin-bottom:24px">Venda #{{ '%04d'|format(venda.id) }} — {{ venda.criado_em.strftime('%d/%m/%Y') }}</div>
+      <div class="page-date" style="margin-bottom:24px">Venda {{ venda.codigo or ('#' ~ '%04d'|format(venda.id)) }} — {{ venda.criado_em.strftime('%d/%m/%Y') }}</div>
 
       <div class="table-wrap" style="padding:32px;max-width:660px">
         <form method="POST" id="formEditarVenda">
@@ -48,20 +48,20 @@
             </div>
             <div class="form-field">
               <span class="form-label">Forma de pagamento</span>
-              <select class="form-input" name="forma_pagamento" style="cursor:pointer">
+              <select class="form-input" name="forma_pagamento" style="cursor:pointer" {% if pag_travado %}disabled title="Travada: a venda já teve troca/devolução ou usou vale"{% elif venda.forma_pagamento == 'crediario' %}disabled title="Venda no crediário: a forma de pagamento não pode ser alterada por aqui"{% endif %}>
                 <option value="dinheiro" {% if venda.forma_pagamento=='dinheiro' %}selected{% endif %}>💵 Dinheiro</option>
                 <option value="pix" {% if venda.forma_pagamento=='pix' %}selected{% endif %}>⚡ Pix</option>
                 <option value="debito" {% if venda.forma_pagamento=='debito' %}selected{% endif %}>💳 Débito</option>
                 <option value="credito_vista" {% if venda.forma_pagamento=='credito_vista' %}selected{% endif %}>💳 Crédito à vista</option>
                 <option value="credito_parcelado" {% if venda.forma_pagamento=='credito_parcelado' %}selected{% endif %}>💳 Crédito parcelado</option>
                 <option value="multiplo" {% if venda.forma_pagamento=='multiplo' %}selected{% endif %}>🔀 Dividido</option>
-                <option value="crediario" {% if venda.forma_pagamento=='crediario' %}selected{% endif %}>📋 Crediário</option>
+                <option value="crediario" {% if venda.forma_pagamento=='crediario' %}selected{% else %}disabled{% endif %}>📋 Crediário</option>
                 <option value="link" {% if venda.forma_pagamento=='link' %}selected{% endif %}>🔗 Link</option>
               </select>
             </div>
             <div class="form-field" id="campoParcelasEdit" style="{% if venda.forma_pagamento != 'credito_parcelado' %}display:none{% endif %}">
               <span class="form-label">Nº de parcelas</span>
-              <select class="form-input" name="parcelas" style="cursor:pointer">
+              <select class="form-input" name="parcelas" style="cursor:pointer" {% if pag_travado %}disabled{% endif %}>
                 {% for n in range(2,13) %}
                 <option value="{{ n }}" {% if venda.parcelas == n %}selected{% endif %}>{{ n }}x</option>
                 {% endfor %}
@@ -69,7 +69,43 @@
             </div>
           </div>
 
-          <div id="secDividido" style="display:{% if venda.forma_pagamento=='multiplo' %}block{% else %}none{% endif %};margin:6px 0 14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:16px 18px">
+          {% if pag_travado %}
+          <div style="background:#eef6ff;border:1.5px solid #bbdefb;border-radius:10px;padding:12px 14px;margin:6px 0 14px;font-size:12.5px;color:#1565c0;line-height:1.5">
+            🔒 Esta venda já teve <b>troca/devolução</b> ou usou <b>vale</b>. A forma de pagamento e os itens ficam travados aqui para não desajustar o caixa — para tirar uma peça use <b>Trocar / Devolver</b> na ficha da venda.
+          </div>
+          {% endif %}
+
+          <!-- v152: ITENS DA VENDA — dá pra remover um item lançado por engano -->
+          <div class="section-sep">Itens da venda</div>
+          <div class="table-wrap" style="margin-bottom:10px">
+            <table class="etable">
+              <thead><tr>
+                <th>Ref</th><th>Item</th><th>Qtd</th><th>Subtotal</th>
+                {% if not pag_travado and itens|length > 1 %}<th title="Marque para tirar o item desta venda">Remover</th>{% endif %}
+              </tr></thead>
+              <tbody>
+                {% for it in itens %}
+                <tr id="linhaItem{{ it.id }}">
+                  <td><span class="ref-code">{{ it.codigo_produto or '—' }}</span></td>
+                  <td style="white-space:normal;min-width:140px">{{ it.modelo or '' }} {{ it.descricao or '' }}{% if it.tamanho %} · Tam {{ it.tamanho }}{% endif %}</td>
+                  <td style="font-weight:700">{{ it.quantidade }}</td>
+                  <td style="font-weight:700;color:#2e7d32">R$ {{ "{:,.2f}".format(it.valor_total|float)|replace(",","X")|replace(".",",")|replace("X",".") }}</td>
+                  {% if not pag_travado and itens|length > 1 %}
+                  <td style="text-align:center"><input type="checkbox" class="chk-remover" name="remover_item" value="{{ it.id }}" data-valor="{{ it.valor_total|float }}" data-linha="linhaItem{{ it.id }}" onchange="recalcRemocao(this)" style="width:17px;height:17px;accent-color:#c62828;cursor:pointer"></td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if not pag_travado and itens|length > 1 %}
+          <div id="boxNovoValor" style="display:none;background:#fff3e0;border:1.5px solid #ffcc80;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#a1520a;line-height:1.5"></div>
+          <div style="font-size:11px;color:#999;margin:-2px 0 14px">Itens marcados voltam ao estoque e saem do valor da venda (o desconto, se houver, acompanha na mesma proporção). Só vale depois de clicar em "Salvar alterações".</div>
+          {% elif not pag_travado %}
+          <div style="font-size:11px;color:#999;margin:-2px 0 14px">A venda tem um único item — para cancelá-la por completo use "Excluir venda" na ficha (Administrador N1).</div>
+          {% endif %}
+
+          <div id="secDividido" style="display:{% if venda.forma_pagamento=='multiplo' and not pag_travado %}block{% else %}none{% endif %};margin:6px 0 14px;background:#eef2ff;border:1.5px solid #c5cae9;border-radius:10px;padding:16px 18px">
             <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#3949ab;margin-bottom:6px">🔀 Pagamento dividido</div>
             <div style="font-size:12px;color:#777;margin-bottom:12px">A soma das formas precisa igualar o valor da venda — cada forma calcula sua própria taxa no caixa.</div>
             <div id="splitRows"></div>
@@ -97,9 +133,46 @@
   </div>
 </div>
 <script>
-const VALOR_FINAL = {{ valor_final|default(0) }};
+let VALOR_FINAL = {{ valor_final|default(0) }};
+const VALOR_TOTAL_ORIG = {{ venda.valor_total|float }};
+const DESCONTO_ORIG = {{ venda.desconto|float }};
+const VALOR_FINAL_ORIG = VALOR_FINAL;
+const PAG_TRAVADO = {{ 'true' if pag_travado else 'false' }};
 const PAG_EXISTENTES = {{ pagamentos|default([])|tojson }};
 let editVendaSplit = null;
+
+function fmtBRL(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+/* v152: itens marcados saem da venda — recalcula o novo valor (desconto na mesma proporção)
+   e atualiza o alvo do pagamento dividido. Nunca deixa marcar TODOS os itens. */
+function recalcRemocao(chk){
+  const todos = document.querySelectorAll('.chk-remover');
+  const marcados = document.querySelectorAll('.chk-remover:checked');
+  if (marcados.length >= todos.length) {
+    chk.checked = false;
+    alert('A venda precisa ficar com pelo menos 1 item. Para cancelar a venda inteira, use "Excluir venda" na ficha (Administrador N1).');
+    return;
+  }
+  let removido = 0;
+  todos.forEach(function(c){
+    const linha = document.getElementById(c.dataset.linha);
+    if (linha) { linha.style.opacity = c.checked ? '.45' : '1'; linha.style.textDecoration = c.checked ? 'line-through' : 'none'; }
+    if (c.checked) removido += parseFloat(c.dataset.valor) || 0;
+  });
+  const novoTotal = Math.round((VALOR_TOTAL_ORIG - removido) * 100) / 100;
+  const novoDesc = VALOR_TOTAL_ORIG > 0 ? Math.round(DESCONTO_ORIG * novoTotal / VALOR_TOTAL_ORIG * 100) / 100 : 0;
+  VALOR_FINAL = Math.round((novoTotal - novoDesc) * 100) / 100;
+  const box = document.getElementById('boxNovoValor');
+  if (box) {
+    if (marcados.length) {
+      box.style.display = 'block';
+      box.innerHTML = '🗑️ <b>' + marcados.length + ' item(ns)</b> serão removidos e voltam ao estoque. Valor da venda: <s>' + fmtBRL(VALOR_FINAL_ORIG) + '</s> → <b>' + fmtBRL(VALOR_FINAL) + '</b>';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+  if (editVendaSplit) editVendaSplit.recompute();
+}
 
 function atualizarCamposPg(forma){
   document.getElementById('campoParcelasEdit').style.display = (forma === 'credito_parcelado') ? '' : 'none';
@@ -119,7 +192,9 @@ document.addEventListener('DOMContentLoaded', function(){
   if (PAG_EXISTENTES && PAG_EXISTENTES.length) editVendaSplit.load(PAG_EXISTENTES);
 
   document.getElementById('formEditarVenda').addEventListener('submit', function(e){
-    if (document.querySelector('[name=forma_pagamento]').value !== 'multiplo'){ document.getElementById('pagamentosJson').value='[]'; return; }
+    const nRem = document.querySelectorAll('.chk-remover:checked').length;
+    if (nRem > 0 && !confirm('Remover ' + nRem + ' item(ns) desta venda? Eles voltam ao estoque e o valor da venda passa a ser ' + fmtBRL(VALOR_FINAL) + '.')) { e.preventDefault(); return; }
+    if (PAG_TRAVADO || document.querySelector('[name=forma_pagamento]').value !== 'multiplo'){ document.getElementById('pagamentosJson').value='[]'; return; }
     const pgs = editVendaSplit.serialize();
     if (pgs.length === 0){ e.preventDefault(); alert('⚠️ Adicione ao menos uma forma de pagamento.'); return; }
     let falta=false;

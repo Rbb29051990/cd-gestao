@@ -16,6 +16,7 @@ import os
 from flask import Flask
 
 from config import resolve_secret_key, is_production
+from db import liberar_conexoes_pendentes
 from db_init import init_db
 from auth import (controle_acesso_abas, security_headers,
                   pagina_nao_encontrada, erro_interno)
@@ -39,6 +40,7 @@ app.secret_key = resolve_secret_key()
 # ── Handlers globais ──
 app.before_request(controle_acesso_abas)
 app.after_request(security_headers)
+app.teardown_appcontext(liberar_conexoes_pendentes)
 app.errorhandler(404)(pagina_nao_encontrada)
 app.errorhandler(500)(erro_interno)
 

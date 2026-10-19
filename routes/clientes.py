@@ -162,7 +162,7 @@ def criar_cliente_rapido():
 @login_required
 def verificar_cliente():
     campo = request.args.get('campo'); valor = request.args.get('valor', '').strip()
-    if not campo or not valor: return jsonify({'ok': True})
+    if campo not in ('nome', 'cpf', 'telefone') or not valor: return jsonify({'ok': True})
     conn = get_db(); cur = conn.cursor()
     if campo == 'nome': cur.execute("SELECT id FROM clientes WHERE LOWER(nome)=LOWER(%s)", (valor,))
     elif campo == 'cpf': cur.execute("SELECT id FROM clientes WHERE cpf=%s", (valor,))
@@ -189,25 +189,40 @@ def ficha_cliente(cid):
 def editar_cliente(cid):
     conn = get_db(); cur = conn.cursor()
     if request.method == 'POST':
-        cur.execute("""UPDATE clientes SET nome=%s,cpf=%s,data_nascimento=%s,telefone=%s,
-            telefone2=%s,cep=%s,logradouro=%s,numero=%s,complemento=%s,bairro=%s,
-            cidade=%s,uf=%s,promocoes=%s,crediario=%s WHERE id=%s""",
-            (request.form.get('nome', '').strip(),
-             request.form.get('cpf', '').strip() or None,
-             request.form.get('data_nascimento') or None,
-             request.form.get('telefone', '').strip() or None,
-             request.form.get('telefone2', '').strip() or None,
-             request.form.get('cep', '').strip() or None,
-             request.form.get('logradouro', '').strip() or None,
-             request.form.get('numero', '').strip() or None,
-             request.form.get('complemento', '').strip() or None,
-             request.form.get('bairro', '').strip() or None,
-             request.form.get('cidade', '').strip() or None,
-             request.form.get('uf', '').strip() or None,
-             request.form.get('promocoes', '0') == '1',
-             request.form.get('crediario', '0') == '1', cid))
-        conn.commit(); cur.close(); close_db(conn)
-        flash('Cliente atualizado!', 'ok')
+        nome = request.form.get('nome', '').strip()
+        try:
+            # v152: nome vazio era aceito (cliente "sem nome" no sistema todo) e erro de banco
+            # deixava a conexão presa. Agora valida e protege com try/except.
+            if not nome:
+                raise ValueError('O nome do cliente é obrigatório.')
+            cur.execute("""UPDATE clientes SET nome=%s,cpf=%s,data_nascimento=%s,telefone=%s,
+                telefone2=%s,cep=%s,logradouro=%s,numero=%s,complemento=%s,bairro=%s,
+                cidade=%s,uf=%s,promocoes=%s,crediario=%s WHERE id=%s""",
+                (nome,
+                 request.form.get('cpf', '').strip() or None,
+                 request.form.get('data_nascimento') or None,
+                 request.form.get('telefone', '').strip() or None,
+                 request.form.get('telefone2', '').strip() or None,
+                 request.form.get('cep', '').strip() or None,
+                 request.form.get('logradouro', '').strip() or None,
+                 request.form.get('numero', '').strip() or None,
+                 request.form.get('complemento', '').strip() or None,
+                 request.form.get('bairro', '').strip() or None,
+                 request.form.get('cidade', '').strip() or None,
+                 request.form.get('uf', '').strip() or None,
+                 request.form.get('promocoes', '0') == '1',
+                 request.form.get('crediario', '0') == '1', cid))
+            # O nome do cliente também fica gravado (texto) em vendas, crediários, vales e
+            # condicionais — se mudar só em Clientes, o mesmo cliente aparece com 2 nomes
+            # (e o Crediário agrupa por nome, separando a dívida). Propaga o novo nome.
+            for tabela in ('vendas', 'crediarios', 'vales', 'condicionais'):
+                cur.execute(f"UPDATE {tabela} SET cliente_nome=%s WHERE cliente_id=%s", (nome, cid))
+            conn.commit()
+            flash('Cliente atualizado!', 'ok')
+        except Exception as e:
+            conn.rollback(); flash(str(e), 'erro')
+        finally:
+            cur.close(); close_db(conn)
         return redirect(url_for('ficha_cliente', cid=cid))
     cur.execute("SELECT * FROM clientes WHERE id=%s", (cid,))
     c = cur.fetchone(); cur.close(); close_db(conn)

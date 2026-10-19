@@ -2,6 +2,7 @@
 Inclui o decorator login_required, o contexto de template (get_ctx) e os
 handlers de before/after request e de erro — registrados no app.py."""
 import logging
+import time
 from functools import wraps
 from flask import session, request, redirect, url_for, render_template
 from config import CLIENTE
@@ -40,6 +41,9 @@ SEG_ABA = {
     'vendas': 'vendas', 'condicionais': 'condicionais', 'caixa': 'caixa', 'ajustes': 'ajustes',
     'crediarios': 'crediarios', 'despesas': 'despesas', 'taxas': 'taxas',
     'usuarios': 'usuarios',
+    # v152: /vales não estava mapeado — qualquer usuário logado abria a tela (e, na v146,
+    # podia lançar vale). Agora segue a permissão da aba Vendas, onde os vales são usados.
+    'vales': 'vendas',
 }
 # aba -> endpoint (para montar a home dinâmica)
 ABA_ROUTE = {
@@ -49,7 +53,9 @@ ABA_ROUTE = {
 }
 # Endpoints liberados para qualquer logado (helpers e utilitários compartilhados)
 ALLOW_ENDPOINTS = {'index', 'login', 'logout', 'setup', 'reset_usuarios', 'minha_senha',
-    'versao', 'buscar_ref', 'buscar_cliente', 'usuarios_trocar_senha', 'limpar_caixa_orfaos'}
+    'versao', 'buscar_ref', 'buscar_cliente', 'usuarios_trocar_senha', 'limpar_caixa_orfaos',
+    # consultas JSON de vale usadas dentro de Vendas e de Condicional (somente leitura)
+    'vales_cliente', 'buscar_vale'}
 PERFIL_LABELS = {'admin_n1': 'Administrador (a) N1', 'admin_n2': 'Administrador (a) N2', 'vendedor': 'Vendedor (a)'}
 
 
@@ -120,11 +126,45 @@ def _perms_do_form(perfil):
 
 
 # ── Handlers registrados no app.py (before/after request e erros) ──
+REVALIDAR_USUARIO_SEG = 60   # de quanto em quanto tempo reconfere o usuário no banco
+
+
+def _usuario_ainda_valido():
+    """v152: perfil/permissões/ativo ficavam gravados na sessão desde o login — usuário
+    DESATIVADO (ou com abas retiradas) continuava com acesso total até fechar o navegador.
+    A cada ~60s reconfere no banco: se foi desativado/excluído, derruba a sessão; senão
+    atualiza perfil e permissões. Falha de banco NÃO derruba ninguém."""
+    agora = time.time()
+    if agora - session.get('_val_ts', 0) < REVALIDAR_USUARIO_SEG:
+        return True
+    try:
+        from db import get_db, close_db
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT nome, perfil, permissoes, ativo FROM usuarios WHERE id=%s", (session.get('uid'),))
+        u = cur.fetchone()
+        cur.close(); close_db(conn)
+    except Exception:
+        logger.exception('Falha ao revalidar o usuário da sessão')
+        return True
+    if not u or not u['ativo']:
+        return False
+    session['perfil'] = norm_perfil(u['perfil'])
+    session['permissoes'] = u.get('permissoes') or ''
+    session['nome'] = u['nome']
+    session['_val_ts'] = agora
+    return True
+
+
 def controle_acesso_abas():
     if 'uid' not in session:
         return  # rotas públicas / login_required cuida do redirect
     ep = request.endpoint
-    if ep is None or ep in ALLOW_ENDPOINTS or ep.startswith('static'):
+    if ep is None or ep.startswith('static') or ep == 'logout':
+        return
+    if not _usuario_ainda_valido():
+        session.clear()
+        return redirect(url_for('index'))
+    if ep in ALLOW_ENDPOINTS:
         return
     seg = request.path.strip('/').split('/')[0] if request.path.strip('/') else ''
     aba = SEG_ABA.get(seg)

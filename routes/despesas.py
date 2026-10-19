@@ -275,6 +275,11 @@ def nova_despesa():
     valor = parse_brl(request.form.get('valor', '0'))
     descricao = request.form.get('descricao', '').strip()
     categoria = request.form.get('categoria', '').strip()
+    # v152: despesa com valor zero/negativo era aceita (e no tipo Mensal gerava 12 contas zeradas).
+    if valor <= 0:
+        cur.close(); close_db(conn)
+        flash('Informe um valor maior que zero para a despesa.', 'erro')
+        return redirect(url_for('despesas'))
     # v116: forma/origem/observação são informadas somente no pagamento.
     forma = ''
     tipo = request.form.get('tipo', 'avulsa').strip().lower()
@@ -401,9 +406,13 @@ def pagar_parcela_despesa(did, pid):
             date.fromisoformat(data_pagamento)
         except Exception:
             data_pagamento = hoje_app().isoformat()
+        # v152: "AND pago=FALSE" + conferência do rowcount — duplo clique em "Pagar" gravava a
+        # saída no caixa 2x (a 2ª requisição ainda lia pago=FALSE antes da 1ª terminar).
         cur.execute("""UPDATE despesa_parcelas
                        SET pago=TRUE,data_pagamento=%s,forma_pagamento=%s,obs_pagamento=%s
-                       WHERE id=%s""", (data_pagamento, forma_pagamento, obs_pagamento, pid))
+                       WHERE id=%s AND pago=FALSE""", (data_pagamento, forma_pagamento, obs_pagamento, pid))
+        if cur.rowcount == 0:
+            flash('Esta parcela já está paga.', 'erro'); conn.rollback(); return redirect(url_for('despesas'))
         rotulo = d.get('categoria') or d.get('descricao') or 'Despesa'
         descr_caixa = f"Despesa: {rotulo} (parc. {p['numero']}/{d.get('num_parcelas')})"
         if obs_pagamento:
@@ -453,7 +462,9 @@ def pagar_lote_despesas():
             did = p['despesa_id']
             cur.execute("""UPDATE despesa_parcelas
                            SET pago=TRUE,data_pagamento=%s,forma_pagamento=%s,obs_pagamento=%s
-                           WHERE id=%s""", (data_pagamento, forma_pagamento, obs_pagamento, pid))
+                           WHERE id=%s AND pago=FALSE""", (data_pagamento, forma_pagamento, obs_pagamento, pid))
+            if cur.rowcount == 0:
+                continue   # outra requisição já pagou esta parcela agora há pouco
             rotulo = p.get('categoria') or p.get('despesa_descricao') or 'Despesa'
             descr_caixa = f"Despesa: {rotulo} (parc. {p['numero']}/{p.get('num_parcelas')})"
             if obs_pagamento:

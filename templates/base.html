@@ -97,6 +97,19 @@
     })();
   </script>
 
+  <!-- v152: trava de duplo clique — formulário POST enviado 2x (ex.: "Finalizar venda" ou "Receber"
+       com a internet lenta) duplicava venda/pagamento. O 2º envio em até 10s é ignorado. Roda DEPOIS
+       dos onsubmit de cada tela (se uma validação cancelar o envio, não conta como enviado). -->
+  <script>
+    document.addEventListener('submit', function(e){
+      var f = e.target;
+      if(!f || !f.method || f.method.toLowerCase() !== 'post' || e.defaultPrevented) return;
+      if(f.dataset.enviando === '1'){ e.preventDefault(); return; }
+      f.dataset.enviando = '1';
+      setTimeout(function(){ f.dataset.enviando = ''; }, 10000);
+    });
+  </script>
+
   <!-- v106: no celular o menu vira barra horizontal — rola até a aba ativa ficar visível -->
   <script>
     document.addEventListener('DOMContentLoaded', function(){

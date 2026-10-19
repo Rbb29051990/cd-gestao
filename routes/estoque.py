@@ -348,30 +348,43 @@ def ficha_estoque(eid):
 def editar_estoque(eid):
     conn = get_db(); cur = conn.cursor()
     if request.method == 'POST':
-        qtd = int(request.form.get('quantidade', 1) or 1)
-        campos = (request.form.get('modelo', '').strip(),
-                  request.form.get('descricao', '').strip() or None,
-                  request.form.get('tamanho', '').strip(), qtd,
-                  parse_brl(request.form.get('custo_unitario', '0')),
-                  parse_brl(request.form.get('markup', '0')),
-                  parse_brl(request.form.get('valor_venda', '0')),
-                  parse_brl(request.form.get('margem_lucro', '0')))
-        # Só mexe na foto se o usuário trocou/removeu (senão preserva a existente).
-        if request.form.get('foto_alterada') == '1':
-            foto = request.form.get('foto', '').strip() or None
-            # Segurança: só aceita data URI de imagem e limita o tamanho (~1.5MB de base64)
-            if foto and (not foto.startswith('data:image/') or len(foto) > 1_500_000):
-                foto = None
-            # foto_v muda pra invalidar o cache do navegador na foto nova (ver foto_estoque()).
-            cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
-                custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s,foto=%s,foto_v=foto_v+1 WHERE id=%s""",
-                campos + (foto, eid))
-        else:
-            cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
-                custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s WHERE id=%s""",
-                campos + (eid,))
-        conn.commit(); cur.close(); close_db(conn)
-        flash('Produto atualizado!', 'ok')
+        # v152: validação + try/except (antes um valor inválido dava erro 500 e deixava a
+        # conexão presa; e quantidade/valor negativos ou zerados eram aceitos).
+        try:
+            qtd = int(request.form.get('quantidade', 1) or 1)
+            if qtd < 0:
+                raise ValueError('A quantidade não pode ser negativa.')
+            campos = (request.form.get('modelo', '').strip(),
+                      request.form.get('descricao', '').strip() or None,
+                      request.form.get('tamanho', '').strip(), qtd,
+                      parse_brl(request.form.get('custo_unitario', '0')),
+                      parse_brl(request.form.get('markup', '0')),
+                      parse_brl(request.form.get('valor_venda', '0')),
+                      parse_brl(request.form.get('margem_lucro', '0')))
+            if campos[4] < 0 or campos[6] <= 0:
+                raise ValueError('Informe um valor de venda maior que zero (e custo não negativo).')
+            # Só mexe na foto se o usuário trocou/removeu (senão preserva a existente).
+            if request.form.get('foto_alterada') == '1':
+                foto = request.form.get('foto', '').strip() or None
+                # Segurança: só aceita data URI de imagem e limita o tamanho (~1.5MB de base64)
+                if foto and (not foto.startswith('data:image/') or len(foto) > 1_500_000):
+                    foto = None
+                # foto_v muda pra invalidar o cache do navegador na foto nova (ver foto_estoque()).
+                cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
+                    custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s,foto=%s,foto_v=foto_v+1 WHERE id=%s""",
+                    campos + (foto, eid))
+            else:
+                cur.execute("""UPDATE estoque SET modelo=%s,descricao=%s,tamanho=%s,quantidade=%s,
+                    custo_unitario=%s,markup=%s,valor_venda=%s,margem_lucro=%s WHERE id=%s""",
+                    campos + (eid,))
+            if cur.rowcount == 0:
+                raise ValueError('Produto não encontrado.')
+            conn.commit()
+            flash('Produto atualizado!', 'ok')
+        except Exception as e:
+            conn.rollback(); flash(str(e), 'erro')
+        finally:
+            cur.close(); close_db(conn)
         return redirect(url_for('ficha_estoque', eid=eid))
     cur.execute("SELECT * FROM estoque WHERE id=%s", (eid,))
     item = cur.fetchone()
@@ -435,12 +448,17 @@ def excluir_estoque(eid):
     if not pode_excluir():
         flash('Apenas o Administrador N1 pode excluir dados.', 'erro'); return redirect(url_for('estoque'))
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT codigo,modelo,descricao,tamanho,quantidade FROM estoque WHERE id=%s", (eid,))
-    _old = cur.fetchone()
-    cur.execute("DELETE FROM estoque WHERE id=%s", (eid,))
-    audit_log(cur, 'EXCLUIR_PRODUTO', 'estoque', eid, dict(_old) if _old else None)
-    conn.commit(); cur.close(); close_db(conn)
-    flash('Produto excluido.', 'ok')
+    try:
+        cur.execute("SELECT codigo,modelo,descricao,tamanho,quantidade FROM estoque WHERE id=%s", (eid,))
+        _old = cur.fetchone()
+        cur.execute("DELETE FROM estoque WHERE id=%s", (eid,))
+        audit_log(cur, 'EXCLUIR_PRODUTO', 'estoque', eid, dict(_old) if _old else None)
+        conn.commit()
+        flash('Produto excluido.', 'ok')
+    except Exception as e:
+        conn.rollback(); flash(str(e), 'erro')
+    finally:
+        cur.close(); close_db(conn)
     return redirect(url_for('estoque'))
 
 

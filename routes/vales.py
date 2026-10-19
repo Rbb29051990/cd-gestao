@@ -5,7 +5,7 @@ from datetime import date
 from flask import render_template, request, redirect, url_for, flash, jsonify, session
 from db import get_db, close_db
 from config import hoje_app
-from auth import login_required, get_ctx, pode_excluir
+from auth import login_required, get_ctx, pode_excluir, is_admin
 from utils import parse_brl, audit_log
 
 
@@ -64,7 +64,11 @@ def vales():
     except ValueError: data_inicio = hoje.strftime('%Y-01-01')
     try: date.fromisoformat(data_fim)
     except ValueError: data_fim = hoje.strftime('%Y-%m-%d')
-    cur.execute("SELECT * FROM vales WHERE DATE(criado_em) BETWEEN %s AND %s ORDER BY (status='aberto') DESC, criado_em DESC", (data_inicio, data_fim))
+    # v152: traz o CÓDIGO da venda de origem (V318...) — antes a tela mostrava o ID interno.
+    cur.execute("""SELECT va.*, vo.codigo AS venda_origem_codigo
+                   FROM vales va LEFT JOIN vendas vo ON vo.id = va.venda_origem
+                   WHERE DATE(va.criado_em) BETWEEN %s AND %s
+                   ORDER BY (va.status='aberto') DESC, va.criado_em DESC""", (data_inicio, data_fim))
     lista = [dict(v) for v in cur.fetchall()]
     # v140: histórico de uso de cada vale (onde foi gasto) para rastreio + link à ficha da venda.
     for v in lista:
@@ -147,6 +151,10 @@ def novo_vale():
     """v146: cria um vale AVULSO (sem venda de origem) — pra crédito dado por fora de uma
     troca/devolução, ex.: prêmio de sorteio/consórcio da loja. cliente_id é opcional
     (quando o vendedor não encontra/seleciona um cliente já cadastrado, grava só o nome)."""
+    # v152: criar vale é conceder crédito em dinheiro da loja — só administradores (N1/N2).
+    if not is_admin():
+        flash('Apenas administradores (N1 ou N2) podem lançar vales manualmente.', 'erro')
+        return redirect(url_for('vales'))
     cliente_id = request.form.get('cliente_id', '').strip()
     cliente_nome = request.form.get('cliente_nome', '').strip()
     valor = parse_brl(request.form.get('valor', '0'))

@@ -1,4 +1,31 @@
-# CD Gestão Empresarial — v151
+# CD Gestão Empresarial — v152
+
+## Novidades da v152 (2026-10-19) — varredura completa
+
+**Erros corrigidos (reportados)**
+- **Código da venda diferente entre a lista e a ficha** (V318 × #0322): a lista mostra o código (`V318`), mas a ficha, a tela de edição e os Vales mostravam o ID interno do banco (que pula números quando uma venda é excluída). Agora todas as telas mostram o código (`Venda V318`).
+- **Não dava pra tirar um item lançado por engano**: em **Editar venda** agora existe a seção "Itens da venda" com a opção **Remover** (marque e salve). O item volta ao estoque, o valor da venda é recalculado (o desconto acompanha na mesma proporção), o caixa é reescrito com o novo valor e, se for crediário, o saldo e as parcelas em aberto são ajustados. A venda precisa ficar com ao menos 1 item (para cancelar tudo, "Excluir venda" — N1).
+
+**Integridade de dados**
+- Vendas que já tiveram **troca/devolução ou usaram vale** ficam com forma de pagamento e itens **travados** na edição (mexer desajustava o caixa) — use "Trocar / Devolver".
+- Não é mais possível trocar a forma de pagamento **para/de Crediário** em "Editar venda" (a venda virava crediário sem ter crediário, ou o contrário).
+- **Excluir venda** agora devolve ao vale o saldo que a venda tinha consumido (antes o crédito da cliente sumia).
+- **Nova venda**: o servidor recalcula o total e o valor final a partir dos itens e valida forma de pagamento, itens e entrada do crediário (antes confiava só no navegador).
+- **Receber parcela do crediário** valida: não duplica no duplo clique, não aceita valor zero nem maior que o saldo devedor.
+- **Clientes**: nome obrigatório; ao trocar o nome do cliente, vendas, crediários, vales e condicionais passam a mostrar o nome novo (antes o mesmo cliente aparecia com 2 nomes e o Crediário separava a dívida).
+- **Despesas**: pagar a mesma parcela 2x (duplo clique) não grava mais 2 saídas no caixa; despesa com valor zero é recusada.
+- **Estoque**: editar/excluir produto com validação (quantidade negativa, valor de venda zerado, produto inexistente).
+
+**Segurança**
+- **Vales** agora respeita a permissão da aba Vendas (antes qualquer usuário logado abria) e só **administradores (N1/N2)** lançam vale manualmente.
+- **Usuário desativado ou com permissões alteradas** passa a valer em até 1 minuto (antes continuava logado com o acesso antigo até fechar o navegador).
+- Crediário: editar valores, estornar pagamento e excluir parcela → administradores; excluir crediário → N1 (os botões também somem para quem não pode).
+- "Minha senha" não aceita mais senha vazia; login bloqueia por 10 minutos após 5 senhas erradas (mesmo usuário e IP).
+
+**Estabilidade**
+- **Conexões do banco**: rotas que davam erro no meio deixavam a conexão presa; como o pool é de 5, poucos erros seguidos travavam o sistema inteiro até reiniciar. Agora as conexões pendentes são devolvidas automaticamente ao fim de cada pedido.
+- **Trava de duplo clique** em todos os formulários POST (venda, recebimento, pagamento…): o 2º envio em até 10 s é ignorado.
+- Caixa: taxa por dia calculada uma vez (antes uma consulta/conexão por lançamento — lento em meses cheios).
 
 ## Novidades da v151 (2026-10-03)
 

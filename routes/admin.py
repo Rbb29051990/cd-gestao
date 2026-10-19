@@ -14,11 +14,11 @@ from db_init import init_db
 def healthz():
     try:
         conn = get_db(); cur = conn.cursor(); cur.execute('SELECT 1'); cur.fetchone(); cur.close(); close_db(conn)
-        return jsonify({'status': 'ok', 'version': 'v151'})
+        return jsonify({'status': 'ok', 'version': 'v152'})
     except Exception as exc:
         from db import logger
         logger.exception('Healthcheck falhou')
-        return jsonify({'status': 'erro', 'detail': str(exc)}), 500
+        return jsonify({'status': 'erro'}), 500   # v152: não expõe o texto do erro do banco (rota pública)
 
 
 def setup():
@@ -162,7 +162,12 @@ def corrigir_codigos_estoque():
 def versao():
     return """<div style='font-family:monospace;padding:40px;font-size:18px'>
     <b>CD Gestão</b><br>
-    Versão: <b style='color:green'>v151 — 2026-10-03</b><br>
+    Versão: <b style='color:green'>v152 — 2026-10-19</b><br>
+    v152: Vendas — FIX código da venda: a ficha, a edição e os Vales mostravam o ID interno ("Venda #0322") enquanto a lista mostra o código ("V318"). Agora aparece o código em todas as telas. ✅<br>
+    v152: Vendas — NOVO: em "Editar venda" dá pra REMOVER um item lançado por engano (marque o item → volta ao estoque, o valor e o desconto da venda são recalculados, o caixa e o crediário acompanham). Vendas que já tiveram troca/vale ficam com forma de pagamento e itens travados (use Trocar/Devolver). Também não deixa mais trocar para/de Crediário por aqui (desajustava venda × caixa × parcelas). ✅<br>
+    v152: Vendas — nova venda recalcula total/valor final no servidor e valida forma de pagamento, itens e entrada do crediário; excluir venda agora devolve ao vale o saldo que a venda tinha usado (antes o crédito sumia). ✅<br>
+    v152: Segurança — Vales passou a respeitar a permissão de Vendas e só administradores lançam vale manualmente; usuário desativado/alterado é derrubado/atualizado em até 1 min (antes continuava logado com acesso antigo); senha vazia bloqueada em "Minha senha"; bloqueio de 10 min após 5 senhas erradas; Crediário: só administradores editam valores/estornam/excluem parcela e só N1 exclui crediário; receber parcela valida valor (sem duplicar no duplo clique nem passar do saldo). ✅<br>
+    v152: Estabilidade — conexões do banco que ficavam presas em caso de erro (podia travar o sistema todo após alguns erros) agora são devolvidas automaticamente; trava de duplo clique em todos os formulários (evita venda/pagamento duplicado); Despesas: pagar parcela 2x e valor zero bloqueados; Estoque: editar/excluir produto com validação; Clientes: nome obrigatório e a troca de nome atualiza vendas/crediários/vales; Caixa: cálculo de taxas por dia (mais rápido). ✅<br>
     v151: Despesas — tabela mais enxuta (menos espaço entre as colunas, texto longo de Categoria/Descrição quebra linha) e a coluna "Ação" agora fica fixa na borda direita: o botão "✅ Pagar" aparece sempre, sem precisar rolar a tela de lado. ✅<br>
     v150: Vendas — os quadrantes viraram 3, sem sobreposição: "Valor líquido" (só dinheiro recebido de vendas à vista, sem crediário), "Valor de crediário" (valor total vendido no crediário, incluindo parcelas futuras) e "Total de vendas" (soma dos dois — tudo que foi vendido no período, recebido ou a receber). Substitui os quadrantes "Total vendido"/"Líquido recebido" da v149. ✅<br>
     v149: Vendas — novo quadrante "Total vendido" ao lado do "Líquido recebido" (antigo "Líquido período"): mostra o valor de tabela das vendas do período (menos desconto), independente de quanto já entrou no caixa — crediário conta pelo valor cheio aqui, diferente do "Líquido recebido" que só conta o que já foi pago de fato. Resolve a confusão criada pela v148: agora dá pra ver as duas métricas lado a lado (quanto vendemos x quanto já recebemos). ✅<br>

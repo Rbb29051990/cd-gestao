@@ -7,7 +7,7 @@ from collections import OrderedDict
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from db import get_db, close_db
 from config import hoje_app, fim_mes_app
-from auth import login_required, get_ctx
+from auth import login_required, get_ctx, pode_excluir, is_admin
 from utils import get_taxa_vigente, parse_pagamentos, registrar_pagamentos_caixa
 
 
@@ -133,8 +133,25 @@ def pagar_parcela(cid, pid):
         data_pagamento = hoje_app()
     conn = get_db(); cur = conn.cursor()
     try:
-        cur.execute("SELECT * FROM crediarios WHERE id=%s", (cid,))
-        cred = dict(cur.fetchone())
+        # v152: valida antes de baixar — antes um duplo clique em "Receber" registrava o
+        # pagamento DUAS vezes (2 linhas no caixa, saldo abatido 2x) e dava pra receber mais
+        # do que o saldo devedor ou valor zero/negativo.
+        cur.execute("SELECT * FROM crediarios WHERE id=%s FOR UPDATE", (cid,))
+        cred_row = cur.fetchone()
+        if not cred_row:
+            raise ValueError('Crediário não encontrado.')
+        cred = dict(cred_row)
+        cur.execute("SELECT * FROM crediario_parcelas WHERE id=%s AND crediario_id=%s FOR UPDATE", (pid, cid))
+        parc_row = cur.fetchone()
+        if not parc_row:
+            raise ValueError('Parcela não encontrada.')
+        if parc_row['pago']:
+            raise ValueError('Esta parcela já foi recebida.')
+        if valor_pago <= 0:
+            raise ValueError('Informe um valor recebido maior que zero.')
+        if valor_pago > float(cred['saldo_devedor'] or 0) + 0.01:
+            raise ValueError(f"O valor recebido (R$ {valor_pago:.2f}) é maior que o saldo devedor "
+                             f"(R$ {float(cred['saldo_devedor'] or 0):.2f}).")
         cur.execute("UPDATE crediario_parcelas SET pago=TRUE,valor=%s,data_pagamento=%s WHERE id=%s", (valor_pago, data_pagamento, pid))
         novo_saldo = round(float(cred['saldo_devedor']) - valor_pago, 2)
         if novo_saldo <= 0.01:
@@ -245,6 +262,9 @@ def corrigir_forma_parcela(cid, pid):
 
 @login_required
 def editar_crediario(cid):
+    if not is_admin():
+        flash('Apenas administradores (N1 ou N2) podem editar os valores de um crediário.', 'erro')
+        return redirect(url_for('crediarios'))
     valor_total  = float(request.form.get('valor_total', 0) or 0)
     saldo_devedor = float(request.form.get('saldo_devedor', 0) or 0)
     if valor_total <= 0:
@@ -286,6 +306,9 @@ def editar_crediario(cid):
 def excluir_crediario(cid):
     """Exclui o crediário inteiro (e suas parcelas em cascata). Para lançamentos
     feitos por engano. Lançamentos de caixa já recebidos NÃO são apagados."""
+    if not pode_excluir():
+        flash('Apenas o Administrador N1 pode excluir dados.', 'erro')
+        return redirect(url_for('crediarios'))
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT id FROM crediarios WHERE id=%s", (cid,))
@@ -305,6 +328,9 @@ def excluir_crediario(cid):
 
 @login_required
 def excluir_parcela(cid, pid):
+    if not is_admin():
+        flash('Apenas administradores (N1 ou N2) podem excluir parcelas.', 'erro')
+        return redirect(url_for('crediarios'))
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM crediario_parcelas WHERE id=%s AND crediario_id=%s AND pago=FALSE", (pid, cid))
@@ -334,6 +360,9 @@ def excluir_parcela(cid, pid):
 @login_required
 def estornar_parcela(cid, pid):
     """Desfaz o pagamento de uma parcela: volta pago=FALSE, restaura saldo e remove do caixa."""
+    if not is_admin():
+        flash('Apenas administradores (N1 ou N2) podem estornar pagamentos.', 'erro')
+        return redirect(url_for('crediarios'))
     conn = get_db(); cur = conn.cursor()
     try:
         cur.execute("SELECT * FROM crediario_parcelas WHERE id=%s AND crediario_id=%s", (pid, cid))

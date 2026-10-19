@@ -52,9 +52,13 @@ def caixa():
     total_desconto = 0
     desconto_formas = {'credito_vista': 0.0, 'credito_parcelado': 0.0, 'debito': 0.0, 'link': 0.0}
     desconto_vendas = 0.0; desconto_cred_entrada = 0.0; desconto_cred_parcela = 0.0
+    taxa_cache = {}   # v152: 1 consulta por DIA (antes: 1 consulta + 1 conexão por lançamento)
     for m in movs:
         if m['tipo'] == 'entrada' and m.get('forma_pagamento') in ['credito_vista', 'credito_parcelado', 'debito', 'link']:
-            taxa_data = get_taxa_vigente(m['criado_em'].date() if hasattr(m.get('criado_em', ''), 'date') else hoje_app())
+            dia_mov = m['criado_em'].date() if hasattr(m.get('criado_em', ''), 'date') else hoje_app()
+            if dia_mov not in taxa_cache:
+                taxa_cache[dia_mov] = get_taxa_vigente(dia_mov)
+            taxa_data = taxa_cache[dia_mov]
             liq, desc, ptc = calcular_liquido(float(m['valor']), m['forma_pagamento'], taxa_data, m.get('parcelas'))
             m['valor_liquido'] = liq
             m['desconto_taxa'] = desc

@@ -149,11 +149,23 @@ def nova_venda():
         cliente_nome = request.form.get('cliente_nome', '').strip()
         forma = request.form.get('forma_pagamento', '').strip()
         parcelas = int(request.form.get('parcelas', 1) or 1)
-        valor_total  = parse_brl(request.form.get('valor_total', '0'))
         desconto     = parse_brl(request.form.get('desconto_valor', '0'))
         pct_desconto = min(100.0, max(0.0, parse_brl(request.form.get('pct_desconto', '0'))))
-        desconto     = min(desconto, valor_total)  # desconto nunca maior que o total
         itens = json.loads(request.form.get('itens', '[]'))
+        # v152: validações no servidor (antes só o JavaScript da tela garantia isso).
+        if not itens:
+            raise ValueError('Adicione ao menos um item à venda.')
+        if forma not in FORMAS_A_VISTA + ['multiplo', 'crediario']:
+            raise ValueError('Selecione a forma de pagamento.')
+        # O total é recalculado a partir dos itens — não confia no valor_total enviado pelo
+        # navegador (venda e caixa não podem ficar com valores diferentes dos itens).
+        valor_total = 0.0
+        for item in itens:
+            if int(item.get('quantidade', 1)) < 1:
+                raise ValueError('Quantidade inválida em um dos itens.')
+            valor_total += float(item.get('valor_unitario', 0)) * int(item.get('quantidade', 1))
+        valor_total = round(valor_total, 2)
+        desconto     = min(max(desconto, 0.0), valor_total)  # desconto nunca maior que o total
         cur.execute("SELECT COALESCE(MAX(CAST(SUBSTRING(codigo FROM 2) AS INTEGER)),0) as n FROM vendas WHERE codigo ~ '^V[0-9]+$'")
         n = cur.fetchone()['n']
         cod = f"V{n+1}"
@@ -174,10 +186,13 @@ def nova_venda():
                 bloquear_estoque_negativo(cur, pid, qtd)
         # Valor final = total - desconto (enviado já calculado pelo JS; v141: também vale
         # para o crediário — o cliente deve entrada+parcelas sobre o valor JÁ com desconto).
-        valor_final_form = parse_brl(request.form.get('valor_final', '0'))
-        valor_final = valor_final_form if valor_final_form > 0 else round(valor_total - desconto, 2)
+        # v152: SEMPRE calculado aqui (total - desconto), igual ao que _fin_venda/editar_venda
+        # assumem — antes aceitava o valor_final enviado pelo navegador, que podia divergir.
+        valor_final = round(valor_total - desconto, 2)
         if forma == 'crediario':
             entrada = parse_brl(request.form.get('entrada', '0'))
+            if entrada < 0 or entrada > valor_final + 0.01:
+                raise ValueError('A entrada do crediário não pode ser maior que o valor da venda.')
             saldo = round(valor_final - entrada, 2)
             cur.execute("""INSERT INTO crediarios (venda_id,cliente_id,cliente_nome,valor_total,entrada,saldo_devedor)
                 VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
@@ -328,6 +343,14 @@ def excluir_venda(vid):
         for item in cur.fetchall():
             if item['produto_id']:
                 cur.execute("UPDATE estoque SET quantidade=quantidade+%s WHERE id=%s", (item['quantidade'], item['produto_id']))
+        # v152: devolve aos vales o saldo que esta venda consumiu — antes, excluir uma venda
+        # paga com vale fazia o crédito da cliente simplesmente sumir (o vale ficava "usado").
+        cur.execute("SELECT vale_id, valor FROM vale_usos WHERE venda_id=%s", (vid,))
+        for u in cur.fetchall():
+            cur.execute("""UPDATE vales SET saldo = saldo + %s, status = 'aberto',
+                                  venda_uso = CASE WHEN venda_uso = %s THEN NULL ELSE venda_uso END
+                           WHERE id = %s""", (u['valor'], vid, u['vale_id']))
+        cur.execute("DELETE FROM vale_usos WHERE venda_id=%s", (vid,))
         # Crediários gerados por esta venda
         cur.execute("SELECT id FROM crediarios WHERE venda_id=%s", (vid,))
         cred_ids = [r['id'] for r in cur.fetchall()]
@@ -350,20 +373,125 @@ def excluir_venda(vid):
     return redirect(url_for('vendas'))
 
 
+def _pagamento_travado(cur, venda):
+    """Venda que já teve troca/devolução ou usou vale: parte do dinheiro virou vale (ou foi
+    paga com vale), então o caixa dela não é mais igual a valor_total - desconto. Nesses
+    casos a edição NÃO reescreve forma de pagamento/caixa nem remove itens."""
+    if venda.get('trocada'):
+        return True
+    cur.execute("SELECT 1 FROM vale_usos WHERE venda_id=%s LIMIT 1", (venda['id'],))
+    return cur.fetchone() is not None
+
+
+def _ajustar_crediario_remocao(cur, venda_id, delta):
+    """Item removido de uma venda em CREDIÁRIO: o valor e o saldo devedor diminuem de
+    `delta` e as parcelas ainda em aberto são redistribuídas igualmente (mesma regra do
+    'Editar crediário'). Se a cliente já pagou mais que o novo valor, recusa."""
+    cur.execute("SELECT * FROM crediarios WHERE venda_id=%s FOR UPDATE", (venda_id,))
+    cred = cur.fetchone()
+    if not cred:
+        return
+    cred = dict(cred)
+    novo_total = round(float(cred['valor_total'] or 0) - delta, 2)
+    novo_saldo = round(float(cred['saldo_devedor'] or 0) - delta, 2)
+    if novo_saldo < -0.01:
+        raise ValueError('A cliente já pagou mais do que o novo valor desta venda no crediário. '
+                         'Estorne parcelas pagas antes de remover o item.')
+    novo_saldo = max(novo_saldo, 0.0)
+    status = 'aberto' if novo_saldo > 0.01 else 'quitado'
+    cur.execute("UPDATE crediarios SET valor_total=%s, saldo_devedor=%s, status=%s WHERE id=%s",
+                (novo_total, novo_saldo, status, cred['id']))
+    if novo_saldo <= 0.01:
+        cur.execute("DELETE FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE", (cred['id'],))
+        return
+    cur.execute("SELECT id FROM crediario_parcelas WHERE crediario_id=%s AND pago=FALSE ORDER BY numero_parcela", (cred['id'],))
+    abertas = cur.fetchall()
+    if abertas:
+        n = len(abertas)
+        vp = round(novo_saldo / n, 2)
+        for i, p in enumerate(abertas):
+            v = round(novo_saldo - vp * (n - 1), 2) if i == n - 1 else vp
+            cur.execute("UPDATE crediario_parcelas SET valor=%s WHERE id=%s", (v, p['id']))
+    else:
+        cur.execute("SELECT COALESCE(MAX(numero_parcela),0)+1 AS n FROM crediario_parcelas WHERE crediario_id=%s", (cred['id'],))
+        prox = cur.fetchone()['n']
+        cur.execute("""INSERT INTO crediario_parcelas (crediario_id,numero_parcela,data_vencimento,valor,pago)
+                       VALUES (%s,%s,%s,%s,FALSE)""", (cred['id'], prox, hoje_app(), novo_saldo))
+
+
 @login_required
 def editar_venda(vid):
     # Edição liberada para quem tem acesso à aba Vendas (vendedor só não pode excluir).
     conn = get_db(); cur = conn.cursor()
     if request.method == 'POST':
         try:
+            cur.execute("SELECT * FROM vendas WHERE id=%s FOR UPDATE", (vid,))
+            vrow_raw = cur.fetchone()
+            if not vrow_raw:
+                raise ValueError('Venda não encontrada.')
+            vrow = dict(vrow_raw)
             cliente_nome = request.form.get('cliente_nome', '').strip()
             vendedora_nome = request.form.get('vendedora_nome', '').strip()
-            forma_pagamento = request.form.get('forma_pagamento', '')
-            parcelas = int(request.form.get('parcelas', 1) or 1)
-            cur.execute("SELECT codigo, valor_total, desconto, forma_pagamento, usuario_id, criado_em FROM vendas WHERE id=%s", (vid,))
-            vrow = dict(cur.fetchone())
             forma_atual = vrow['forma_pagamento']
-            valor_final = round(float(vrow['valor_total'] or 0) - float(vrow['desconto'] or 0), 2)
+            forma_pagamento = request.form.get('forma_pagamento', '') or forma_atual
+            try:
+                parcelas = int(request.form.get('parcelas', 1) or 1)
+            except ValueError:
+                parcelas = 1
+
+            # v152: venda que já teve troca/devolução ou usou vale tem o caixa "fora" de
+            # valor_total-desconto (parte do dinheiro virou vale / foi paga com vale). Mexer
+            # na forma de pagamento ou nos itens por aqui desajustaria o caixa — nesses casos
+            # só cliente/vendedor(a)/data podem ser alterados.
+            pag_travado = _pagamento_travado(cur, vrow)
+            if pag_travado:
+                forma_pagamento = forma_atual
+                parcelas = vrow.get('parcelas') or 1
+            elif forma_pagamento not in FORMAS_A_VISTA + ['multiplo', 'crediario']:
+                raise ValueError('Forma de pagamento inválida.')
+            elif (forma_atual == 'crediario') != (forma_pagamento == 'crediario'):
+                # Antes isso "passava": a venda virava crediário sem ter crediário (ou o
+                # contrário), deixando venda, caixa e parcelas contando coisas diferentes.
+                raise ValueError('Não é possível mudar a forma de pagamento para/de Crediário por aqui. '
+                                 'Exclua a venda (Administrador N1) e lance de novo na forma correta.')
+
+            valor_total_old = float(vrow['valor_total'] or 0)
+            desconto_old = float(vrow['desconto'] or 0)
+            valor_final_old = round(valor_total_old - desconto_old, 2)
+            valor_total_novo, desconto_novo = valor_total_old, desconto_old
+
+            # ── v152: remover item(ns) lançado(s) por engano ──
+            remover_ids = [int(x) for x in request.form.getlist('remover_item') if str(x).isdigit()]
+            itens_removidos = []
+            if remover_ids:
+                if pag_travado:
+                    raise ValueError('Esta venda já teve troca/devolução ou usou vale — para tirar um item use '
+                                     '"Trocar / Devolver" na ficha da venda.')
+                cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s ORDER BY id", (vid,))
+                todos = [dict(i) for i in cur.fetchall()]
+                a_remover = [i for i in todos if i['id'] in remover_ids]
+                if not a_remover:
+                    raise ValueError('Item não encontrado nesta venda.')
+                if len(a_remover) >= len(todos):
+                    raise ValueError('A venda precisa ficar com pelo menos 1 item. Para cancelar a venda inteira '
+                                     'use "Excluir venda" (Administrador N1).')
+                bruto_removido = 0.0
+                for it in a_remover:
+                    bruto_removido += float(it['valor_total'] or 0)
+                    if it.get('produto_id'):
+                        cur.execute("UPDATE estoque SET quantidade = quantidade + %s WHERE id=%s",
+                                    (int(it['quantidade'] or 0), it['produto_id']))
+                    cur.execute("DELETE FROM venda_itens WHERE id=%s", (it['id'],))
+                    itens_removidos.append({'codigo': it.get('codigo_produto'), 'qtd': int(it['quantidade'] or 0),
+                                            'valor': float(it['valor_total'] or 0)})
+                valor_total_novo = round(valor_total_old - bruto_removido, 2)
+                # O desconto da venda acompanha na MESMA proporção (mesmo % sobre o novo total).
+                desconto_novo = round(desconto_old * valor_total_novo / valor_total_old, 2) if valor_total_old > 0 else 0.0
+                cur.execute("UPDATE vendas SET valor_total=%s, desconto=%s WHERE id=%s",
+                            (valor_total_novo, desconto_novo, vid))
+                if forma_atual == 'crediario':
+                    _ajustar_crediario_remocao(cur, vid, round(valor_final_old - (valor_total_novo - desconto_novo), 2))
+            valor_final = round(valor_total_novo - desconto_novo, 2)
 
             # v144: só o Administrador N1 pode corrigir a DATA da venda (lançamento feito
             # depois, retroativo, quando a vendedora manda por WhatsApp e o master registra
@@ -394,7 +522,13 @@ def editar_venda(vid):
             # a original, ou a corrigida pelo master acima). NÃO mexe na forma/valor de
             # vendas de crediário, cuja entrada/parcelas têm tratamento próprio.
             formas_a_vista = ['pix', 'dinheiro', 'debito', 'credito_vista', 'credito_parcelado', 'link']
-            if forma_atual != 'crediario' and forma_pagamento != 'crediario':
+            if pag_travado:
+                # Não reescreve o caixa (ver acima) — só acompanha a data corrigida, nas linhas
+                # lançadas no dia da venda original (as de trocas posteriores ficam como estão).
+                if criado_em_novo and vrow.get('criado_em'):
+                    cur.execute("UPDATE caixa SET criado_em=%s WHERE venda_id=%s AND DATE(criado_em)=DATE(%s)",
+                                (criado_em_novo, vid, vrow['criado_em']))
+            elif forma_pagamento != 'crediario':
                 cur.execute("DELETE FROM caixa WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada'", (vid,))
                 if forma_pagamento == 'multiplo':
                     pagamentos = parse_pagamentos(request.form.get('pagamentos'))
@@ -419,9 +553,16 @@ def editar_venda(vid):
 
             audit_log(cur, 'ALTERAR_VENDA', 'vendas', vid,
                       {'forma_pagamento': forma_pagamento, 'cliente': cliente_nome,
-                       **({'data_corrigida': criado_em_novo.strftime('%Y-%m-%d')} if criado_em_novo else {})})
+                       **({'data_corrigida': criado_em_novo.strftime('%Y-%m-%d')} if criado_em_novo else {}),
+                       **({'itens_removidos': itens_removidos, 'valor_final_antes': valor_final_old,
+                           'valor_final_depois': valor_final} if itens_removidos else {})})
             conn.commit()
-            flash('Venda atualizada com sucesso!', 'ok')
+            if itens_removidos:
+                valor_br = f'{valor_final:,.2f}'.replace(',', 'X').replace('.', ',').replace('X', '.')
+                flash(f'Venda atualizada! {len(itens_removidos)} item(ns) removido(s) e devolvido(s) ao estoque — '
+                      f'novo valor da venda: R$ {valor_br}.', 'ok')
+            else:
+                flash('Venda atualizada com sucesso!', 'ok')
             return redirect(url_for('ficha_venda', vid=vid))
         except Exception as e:
             conn.rollback(); flash(str(e), 'erro')
@@ -434,9 +575,13 @@ def editar_venda(vid):
         return redirect(url_for('vendas'))
     venda = dict(row)
     valor_final = round(float(venda.get('valor_total') or 0) - float(venda.get('desconto') or 0), 2)
+    pag_travado = _pagamento_travado(cur, venda)
+    # Itens da venda (v152: dá pra remover um item lançado por engano)
+    cur.execute("SELECT * FROM venda_itens WHERE venda_id=%s ORDER BY id", (vid,))
+    itens = [dict(i) for i in cur.fetchall()]
     # Split atual (se a venda já for dividida) p/ pré-carregar o editor
     pagamentos = []
-    if venda.get('forma_pagamento') == 'multiplo':
+    if venda.get('forma_pagamento') == 'multiplo' and not pag_travado:
         cur.execute("""SELECT forma_pagamento, valor, parcelas FROM caixa
                        WHERE venda_id=%s AND crediario_id IS NULL AND tipo='entrada' ORDER BY id""", (vid,))
         pagamentos = [{'forma': r['forma_pagamento'], 'valor': float(r['valor'] or 0),
@@ -444,7 +589,8 @@ def editar_venda(vid):
     cur.execute("SELECT nome FROM usuarios WHERE ativo=TRUE ORDER BY nome")
     vendedoras = [dict(u)['nome'] for u in cur.fetchall()]
     cur.close(); close_db(conn)
-    ctx = get_ctx(); ctx.update(venda=venda, vendedoras=vendedoras, valor_final=valor_final, pagamentos=pagamentos)
+    ctx = get_ctx(); ctx.update(venda=venda, vendedoras=vendedoras, valor_final=valor_final, pagamentos=pagamentos,
+                                itens=itens, pag_travado=pag_travado)
     return render_template('editar_venda.html', **ctx)
 
 
